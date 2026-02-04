@@ -102,3 +102,24 @@ export async function joinMatch(
     ],
   });
 }
+
+export async function unconfirmAttendance(
+  matchId: string,
+  playerName: string
+) {
+  const ref = doc(db, "matches", matchId);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const players = data.players || [];
+
+  const updatedPlayers = players.map((p: any) =>
+    p.name === playerName ? { ...p, confirmed: false } : p
+  );
+
+  await updateDoc(ref, {
+    players: updatedPlayers,
+  });
+}
