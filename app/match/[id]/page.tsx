@@ -53,7 +53,15 @@ export default function MatchDetailPage() {
         <AuthGuard>
             <main style={{ padding: 20 }}>
                 <h1>Partido</h1>
-
+                <p>
+                    Link de invitación:
+                    <br />
+                    <input
+                        value={`${window.location.origin}/join/${id}`}
+                        readOnly
+                        style={{ width: "100%" }}
+                    />
+                </p>
                 <p>
                     {match.date} – {match.time}
                 </p>
@@ -79,11 +87,15 @@ export default function MatchDetailPage() {
 
                             {!p.confirmed && (
                                 <button
-                                    onClick={() => confirmAttendance(id, p.name)}
+                                    onClick={async () => {
+                                        await confirmAttendance(id, p.name);
+                                        await loadMatch();
+                                    }}
                                     style={{ marginLeft: 8 }}
                                 >
                                     Confirmar
                                 </button>
+
                             )}
                         </li>
                     ))}
