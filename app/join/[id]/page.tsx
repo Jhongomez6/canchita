@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { loginWithGoogle } from "@/lib/auth";
-import { joinMatch, unconfirmAttendance } from "@/lib/matches";
+import { joinMatch, confirmAttendance, unconfirmAttendance } from "@/lib/matches";
 
 
 export default function JoinMatchPage() {
@@ -94,6 +94,7 @@ export default function JoinMatchPage() {
                 {match.date} – {match.time}
             </p>
 
+            {/* Usuario NO está en el partido */}
             {!existingPlayer && (
                 <button
                     onClick={async () => {
@@ -105,6 +106,7 @@ export default function JoinMatchPage() {
                 </button>
             )}
 
+            {/* Usuario está y YA confirmó */}
             {existingPlayer && existingPlayer.confirmed && (
                 <>
                     <p>✅ Ya estás confirmado</p>
@@ -119,10 +121,11 @@ export default function JoinMatchPage() {
                 </>
             )}
 
+            {/* Usuario está pero NO confirmado */}
             {existingPlayer && !existingPlayer.confirmed && (
                 <button
                     onClick={async () => {
-                        await joinMatch(id, playerName);
+                        await confirmAttendance(id, playerName);
                         await loadMatch();
                     }}
                 >
