@@ -79,13 +79,15 @@ export default function MatchDetailPage() {
     });
 
 
+    type Position = "GK" | "DEF" | "MID" | "FWD";
+
     function getTeamSummary(players: any[]) {
         const totalLevel = players.reduce(
             (sum, p) => sum + (p.level ?? 0),
             0
         );
 
-        const positionsCount = {
+        const positionsCount: Record<Position, number> = {
             GK: 0,
             DEF: 0,
             MID: 0,
@@ -93,10 +95,8 @@ export default function MatchDetailPage() {
         };
 
         players.forEach(p => {
-            p.positions?.forEach((pos: string) => {
-                if (positionsCount[pos] !== undefined) {
-                    positionsCount[pos]++;
-                }
+            p.positions?.forEach((pos: Position) => {
+                positionsCount[pos]++;
             });
         });
 
@@ -106,6 +106,7 @@ export default function MatchDetailPage() {
             positionsCount,
         };
     }
+
 
     return (
         <AuthGuard>
