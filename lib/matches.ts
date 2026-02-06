@@ -1,70 +1,112 @@
-import { collection, addDoc, getDocs,getDoc, query, where, orderBy, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  getDoc,
+  query,
+  where,
+  orderBy,
+  doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+} from "firebase/firestore";
 import { db } from "./firebase";
+import { getUserProfile } from "./users";
 
 const matchesRef = collection(db, "matches");
 
+/* =========================
+   CREAR PARTIDO
+========================= */
 export async function createMatch(match: {
   date: string;
   time: string;
   location: string;
   createdBy: string;
 }) {
-  await addDoc(matchesRef, {
-    ...match,
-    players: [],
-    createdAt: new Date(),
-  });
+await addDoc(matchesRef, {
+  ...match,
+  players: [],
+  playerUids: [match.createdBy], // 👈 CLAVE
+  createdAt: new Date(),
+  status: "open",
+});
 }
 
+/* =========================
+   OBTENER PARTIDOS DEL USUARIO
+   (ADMIN + PLAYER)
+========================= */
 export async function getMyMatches(uid: string) {
   const q = query(
     matchesRef,
-    where("createdBy", "==", uid),
+    where("playerUids", "array-contains", uid),
     orderBy("createdAt", "desc")
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
+
+  return snapshot.docs.map(d => ({
+    id: d.id,
+    ...d.data(),
   }));
 }
 
-// Agregar jugador
-export async function addPlayerToMatch(
+/* =========================
+   AGREGARSE AL PARTIDO (JOIN)
+========================= */
+export async function joinMatch(
   matchId: string,
-  playerName: string
+  user: {
+    uid: string;
+    name: string;
+  }
 ) {
   const ref = doc(db, "matches", matchId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const players = data.players || [];
+
+  // evitar duplicados por UID
+  const exists = players.some((p: any) => p.uid === user.uid);
+  if (exists) return;
+
+  const profile = await getUserProfile(user.uid);
+
+  const positions =
+    profile?.positions && profile.positions.length > 0
+      ? profile.positions
+      : ["MID"];
+
+  const level = profile?.level ?? 2;
 
   await updateDoc(ref, {
-    players: arrayUnion({
-      name: playerName,
-      confirmed: false,
-    }),
+    players: [
+      ...players,
+      {
+        uid: user.uid,
+        name: user.name,
+        confirmed: true,
+        level,
+        positions,
+      },
+    ],
+    playerUids: arrayUnion(user.uid), // 👈 CLAVE
   });
 }
 
-// Eliminar jugador
-export async function removePlayerFromMatch(
-  matchId: string,
-  player: { name: string; confirmed: boolean }
-) {
-  const ref = doc(db, "matches", matchId);
-
-  await updateDoc(ref, {
-    players: arrayRemove(player),
-  });
-}
-
-// Confirmar asistencia (marca confirmed = true)
+/* =========================
+   CONFIRMAR / DESCONFIRMAR
+========================= */
 export async function confirmAttendance(
   matchId: string,
   playerName: string
 ) {
   const ref = doc(db, "matches", matchId);
   const snap = await getDoc(ref);
-
   if (!snap.exists()) return;
 
   const data = snap.data();
@@ -74,33 +116,7 @@ export async function confirmAttendance(
     p.name === playerName ? { ...p, confirmed: true } : p
   );
 
-  await updateDoc(ref, {
-    players: updatedPlayers,
-  });
-}
-
-// Agregarse al partido (evita duplicados)
-export async function joinMatch(
-  matchId: string,
-  playerName: string
-) {
-  const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) return;
-
-  const data = snap.data();
-  const players = data.players || [];
-
-  const exists = players.some((p: any) => p.name === playerName);
-  if (exists) return;
-
-  await updateDoc(ref, {
-    players: [
-      ...players,
-      { name: playerName, confirmed: true },
-    ],
-  });
+  await updateDoc(ref, { players: updatedPlayers });
 }
 
 export async function unconfirmAttendance(
@@ -109,7 +125,6 @@ export async function unconfirmAttendance(
 ) {
   const ref = doc(db, "matches", matchId);
   const snap = await getDoc(ref);
-
   if (!snap.exists()) return;
 
   const data = snap.data();
@@ -119,7 +134,129 @@ export async function unconfirmAttendance(
     p.name === playerName ? { ...p, confirmed: false } : p
   );
 
-  await updateDoc(ref, {
+  await updateDoc(ref, { players: updatedPlayers });
+}
+
+/* =========================
+   ACTUALIZAR NIVEL / POSICIONES
+========================= */
+export async function updatePlayerData(
+  matchId: string,
+  playerName: string,
+  data: {
+    level?: number;
+    positions?: string[];
+  }
+) {
+  const ref = doc(db, "matches", matchId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const match = snap.data();
+
+  const updatedPlayers = match.players.map((p: any) =>
+    p.name === playerName ? { ...p, ...data } : p
+  );
+
+  await updateDoc(ref, { players: updatedPlayers });
+}
+
+/* =========================
+   AGREGAR JUGADOR (ADMIN)
+========================= */
+export async function addPlayerToMatch(
+  matchId: string,
+  player: {
+    uid?: string;
+    name: string;
+    level: number;
+    positions: string[];
+  }
+) {
+  const ref = doc(db, "matches", matchId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const match = snap.data();
+
+  const exists = match.players?.some(
+    (p: any) =>
+      (player.uid && p.uid === player.uid) ||
+      p.name === player.name
+  );
+  if (exists) return;
+
+  const newPlayer = {
+    ...player,
+    confirmed: false,
+  };
+
+  const updateData: any = {
+    players: [...(match.players || []), newPlayer],
+  };
+
+  if (player.uid) {
+    updateData.playerUids = arrayUnion(player.uid);
+  }
+
+  await updateDoc(ref, updateData);
+}
+
+/* =========================
+   ELIMINAR JUGADOR
+========================= */
+export async function deletePlayerFromMatch(
+  matchId: string,
+  playerName: string
+) {
+  const ref = doc(db, "matches", matchId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const match = snap.data();
+
+  const removedPlayer = match.players.find(
+    (p: any) => p.name === playerName
+  );
+
+  const updatedPlayers = match.players.filter(
+    (p: any) => p.name !== playerName
+  );
+
+  const updateData: any = {
     players: updatedPlayers,
+  };
+
+  if (removedPlayer?.uid) {
+    updateData.playerUids = arrayRemove(removedPlayer.uid);
+  }
+
+  await updateDoc(ref, updateData);
+}
+
+/* =========================
+   GUARDAR EQUIPOS
+========================= */
+export async function saveTeams(
+  matchId: string,
+  teams: { A: any[]; B: any[] }
+) {
+  const ref = doc(db, "matches", matchId);
+  await updateDoc(ref, { teams });
+}
+
+/* =========================
+   CERRAR / REABRIR PARTIDO
+========================= */
+export async function closeMatch(matchId: string) {
+  const ref = doc(db, "matches", matchId);
+  await updateDoc(ref, { status: "closed" });
+}
+
+export async function reopenMatch(matchId: string) {
+  const ref = doc(db, "matches", matchId);
+  await updateDoc(ref, {
+    status: "open",
+    teams: null,
   });
 }

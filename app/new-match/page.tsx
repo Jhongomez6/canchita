@@ -5,6 +5,9 @@ import { createMatch } from "@/lib/matches";
 import AuthGuard from "@/components/AuthGuard";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { getUserProfile } from "@/lib/users";
+
 
 export default function NewMatchPage() {
   const { user } = useAuth();
@@ -12,6 +15,16 @@ export default function NewMatchPage() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [location, setLocation] = useState("");
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+  if (!user) return;
+
+  getUserProfile(user.uid).then(profile => {
+    setUserProfile(profile);
+  });
+}, [user]);
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +58,11 @@ export default function NewMatchPage() {
         />
         <br /><br />
 
-        <button type="submit">Crear partido</button>
+       
+        {userProfile?.role === "admin" && (
+   <button type="submit">Crear partido</button>
+)}
+
       </form>
     </AuthGuard>
   );

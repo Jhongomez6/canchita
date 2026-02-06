@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "./auth";
+import { ensureUserProfile } from "@/lib/users";
+
 
 type AuthContextType = {
   user: User | null;
@@ -18,13 +20,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, currentUser => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
+ useEffect(() => {
+  const unsub = onAuthStateChanged(auth, async currentUser => {
+    setUser(currentUser);
+
+    if (currentUser) {
+      await ensureUserProfile(
+        currentUser.uid,
+        currentUser.displayName || "Jugador"
+      );
+    }
+
+    setLoading(false);
+  });
+
+  return () => unsub();
+}, []);
 
   return (
     <AuthContext.Provider value={{ user, loading }}>

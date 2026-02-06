@@ -4,10 +4,20 @@ import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState } from "react";
 import { getMyMatches } from "@/lib/matches";
 import AuthGuard from "@/components/AuthGuard";
+import { getUserProfile } from "@/lib/users";
+import Link from "next/link";
+
 
 export default function Home() {
   const { user } = useAuth();
   const [matches, setMatches] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    getUserProfile(user.uid).then(setProfile);
+  }, [user]);
+
 
   useEffect(() => {
     if (user) {
@@ -15,24 +25,126 @@ export default function Home() {
     }
   }, [user]);
 
-  return (
-    <AuthGuard>
-      <main style={{ padding: 20 }}>
-        <h1>Mis partidos ⚽</h1>
+return (
+  <AuthGuard>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#f2f5f3",
+        paddingBottom: 24,
+      }}
+    >
+      <div style={{ maxWidth: 420, margin: "0 auto" }}>
+        {/* HEADER DE PANTALLA */}
+        <div
+          style={{
+            padding: "20px 16px 12px",
+          }}
+        >
+          <h1 style={{ margin: 0, fontSize: 22 }}>
+            Mis partidos ⚽
+          </h1>
 
-        <a href="/new-match">+ Nuevo partido</a>
+          <p style={{ marginTop: 4, fontSize: 14, color: "#555" }}>
+            Partidos en los que estás participando
+          </p>
+        </div>
 
-        <ul>
+        {/* CTA ADMIN */}
+        {profile?.role === "admin" && (
+          <div style={{ padding: "0 16px 12px" }}>
+            <Link
+              href="/new-match"
+              style={{
+                display: "inline-block",
+                padding: "10px 14px",
+                background: "#1f7a4f",
+                color: "#fff",
+                borderRadius: 12,
+                textDecoration: "none",
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              + Nuevo partido
+            </Link>
+          </div>
+        )}
+
+        {/* LISTA DE PARTIDOS */}
+        <div style={{ padding: "0 12px" }}>
+          {matches.length === 0 && (
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 16,
+                padding: 20,
+                textAlign: "center",
+                color: "#555",
+                boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+              }}
+            >
+              <p style={{ marginBottom: 8 }}>
+                Aún no tienes partidos
+              </p>
+              <p style={{ fontSize: 14 }}>
+                Cuando te unas a uno, aparecerá aquí
+              </p>
+            </div>
+          )}
+
           {matches.map(m => (
-            <li key={m.id}>
-              <a href={`/match/${m.id}`}>
-                {m.date} – {m.time} – {m.location}
-              </a>
-            </li>
-          ))}
-        </ul>
+            <Link
+              key={m.id}
+              href={`/match/${m.id}`}
+              style={{
+                display: "block",
+                background: "#fff",
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 12,
+                boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                textDecoration: "none",
+                color: "#000",
+              }}
+            >
+              <h3 style={{ marginBottom: 6 }}>
+                ⚽ Partido
+              </h3>
 
-      </main>
-    </AuthGuard>
-  );
+              <p style={{ fontSize: 14, color: "#555" }}>
+                📍 {m.location}
+              </p>
+
+              <p style={{ fontSize: 14, color: "#555" }}>
+                🕒 {m.date} – {m.time}
+              </p>
+
+              <div style={{ marginTop: 8 }}>
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    background:
+                      m.status === "closed"
+                        ? "#dc2626"
+                        : "#16a34a",
+                    color: "#fff",
+                  }}
+                >
+                  {m.status === "closed"
+                    ? "Cerrado"
+                    : "Abierto"}
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </main>
+  </AuthGuard>
+);
 }
