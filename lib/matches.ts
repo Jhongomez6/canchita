@@ -24,14 +24,22 @@ export async function createMatch(match: {
   time: string;
   location: string;
   createdBy: string;
+  maxPlayers: number;
 }) {
-await addDoc(matchesRef, {
-  ...match,
-  players: [],
-  playerUids: [match.createdBy], // 👈 CLAVE
-  createdAt: new Date(),
-  status: "open",
-});
+  const startsAt = new Date(`${match.date}T${match.time}:00`);
+  await addDoc(matchesRef, {
+    ...match,
+    players: [],
+    reminders: {
+      "24h": true,
+      "12h": true,
+      "6h": true,
+    },
+    playerUids: [match.createdBy], // 👈 CLAVE
+    startsAt,
+    createdAt: new Date(),
+    status: "open",
+  });
 }
 
 /* =========================
@@ -56,6 +64,7 @@ export async function getMyMatches(uid: string) {
 /* =========================
    AGREGARSE AL PARTIDO (JOIN)
 ========================= */
+
 export async function joinMatch(
   matchId: string,
   user: {
@@ -64,60 +73,101 @@ export async function joinMatch(
   }
 ) {
   const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
 
-  const data = snap.data();
-  const players = data.players || [];
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
 
-  // evitar duplicados por UID
-  const exists = players.some((p: any) => p.uid === user.uid);
-  if (exists) return;
+    const data = snap.data();
+    const players = data.players || [];
+    const maxPlayers = data.maxPlayers ?? Infinity;
 
-  const profile = await getUserProfile(user.uid);
+    // 🔒 Evitar duplicados por UID
+    const alreadyExists = players.some(
+      (p: any) => p.uid === user.uid
+    );
+    if (alreadyExists) return;
 
-  const positions =
-    profile?.positions && profile.positions.length > 0
-      ? profile.positions
-      : ["MID"];
+    // 🔢 Contar confirmados reales
+    const confirmedCount = players.filter(
+      (p: any) => p.confirmed
+    ).length;
 
-  const level = profile?.level ?? 2;
+    // ❌ Partido lleno
+    if (confirmedCount >= maxPlayers) {
+      throw new Error("MATCH_FULL");
+    }
 
-  await updateDoc(ref, {
-    players: [
-      ...players,
-      {
-        uid: user.uid,
-        name: user.name,
-        confirmed: true,
-        level,
-        positions,
-      },
-    ],
-    playerUids: arrayUnion(user.uid), // 👈 CLAVE
+    // 🔥 Perfil del usuario
+    const profile = await getUserProfile(user.uid);
+
+    const positions =
+      profile?.positions && profile.positions.length > 0
+        ? profile.positions
+        : ["MID"];
+
+    const level = profile?.level ?? 2;
+
+    transaction.update(ref, {
+      players: [
+        ...players,
+        {
+          uid: user.uid,
+          name: user.name,
+          confirmed: true,
+          level,
+          positions,
+        },
+      ],
+      // 👇 seguimos guardando esto (no se pierde nada)
+      playerUids: arrayUnion(user.uid),
+    });
   });
 }
+
 
 /* =========================
    CONFIRMAR / DESCONFIRMAR
 ========================= */
+import { runTransaction } from "firebase/firestore";
+
 export async function confirmAttendance(
   matchId: string,
   playerName: string
 ) {
   const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
 
-  const data = snap.data();
-  const players = data.players || [];
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
 
-  const updatedPlayers = players.map((p: any) =>
-    p.name === playerName ? { ...p, confirmed: true } : p
-  );
+    const data = snap.data();
+    const players = data.players || [];
+    const maxPlayers = data.maxPlayers ?? Infinity;
 
-  await updateDoc(ref, { players: updatedPlayers });
+    // Ya confirmado → no hacer nada
+    const alreadyConfirmed = players.find(
+      (p: any) => p.name === playerName && p.confirmed
+    );
+    if (alreadyConfirmed) return;
+
+    const confirmedCount = players.filter((p: any) => p.confirmed).length;
+
+    // ❌ Partido lleno
+    if (confirmedCount >= maxPlayers) {
+      throw new Error("MATCH_FULL");
+    }
+
+    const updatedPlayers = players.map((p: any) =>
+      p.name === playerName ? { ...p, confirmed: true } : p
+    );
+
+    transaction.update(ref, {
+      players: updatedPlayers,
+    });
+  });
 }
+
 
 export async function unconfirmAttendance(
   matchId: string,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { enablePushNotifications } from "@/lib/push";
 import { getUserProfile, updateUserPositions } from "@/lib/users";
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"];
@@ -148,7 +149,7 @@ return (
 
         {/* CTA CONTINUAR */}
         {!isOnboarding && positions.length > 0 && (
-          <button
+          <><button
             onClick={() => window.history.back()}
             style={{
               marginTop: 20,
@@ -164,6 +165,11 @@ return (
           >
             Continuar
           </button>
+          <button
+            onClick={() => enablePushNotifications(user.uid)}
+          >
+              🔔 Activar recordatorios
+            </button></>
         )}
       </div>
     </div>
