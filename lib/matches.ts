@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { getUserProfile } from "./users";
+import { Timestamp } from "firebase/firestore";
 
 const matchesRef = collection(db, "matches");
 
@@ -26,7 +27,8 @@ export async function createMatch(match: {
   createdBy: string;
   maxPlayers: number;
 }) {
-  const startsAt = new Date(`${match.date}T${match.time}:00`);
+  const startsAt = new Date(`${match.date}T${match.time}:00-05:00`);
+
   await addDoc(matchesRef, {
     ...match,
     players: [],
@@ -36,7 +38,7 @@ export async function createMatch(match: {
       "6h": true,
     },
     playerUids: [match.createdBy], // 👈 CLAVE
-    startsAt,
+    startsAt: Timestamp.fromDate(startsAt),
     createdAt: new Date(),
     status: "open",
   });
