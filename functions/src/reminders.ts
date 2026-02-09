@@ -9,7 +9,7 @@ const db = admin.firestore();
  * para enviar recordatorios 24h / 12h / 6h antes
  */
 export const matchReminders = onSchedule(
-  "every 60 minutes",
+  "every 5 minutes",
   async () => {
     const now = new Date();
 
@@ -29,7 +29,7 @@ export const matchReminders = onSchedule(
 
       // 🔔 Ventanas de recordatorio
       //const reminderHours = [24, 12, 6];
-      const reminderHours = [0.1]; // ~6 minutos
+      const reminderHours = [5 / 60];
 
 
       for (const hour of reminderHours) {

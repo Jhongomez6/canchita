@@ -13,7 +13,6 @@ export async function enablePushNotifications(uid: string) {
 
     // 2️⃣ Obtener token
     const messaging = getMessaging();
-
     const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
     });
@@ -25,12 +24,15 @@ export async function enablePushNotifications(uid: string) {
 
     // 3️⃣ Guardar token en Firestore
     await updateDoc(doc(db, "users", uid), {
-      notificationsEnabled: true,
       fcmTokens: arrayUnion(token),
+      notificationsEnabled: true, // opcional, informativo
+      lastNotificationOptInAt: new Date(),
     });
 
-    console.log("✅ Token FCM guardado:", token);
+    // 4️⃣ Guardar estado LOCAL por device
+    localStorage.setItem("push-enabled", "true");
 
+    console.log("✅ Token FCM guardado:", token);
     return token;
   } catch (error) {
     console.error("🔥 Error activando notificaciones:", error);
