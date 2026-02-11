@@ -27,7 +27,7 @@ export default function NewLocationPage() {
   if (!user) return null;
 
   async function handleSave() {
-    if (!place) return;
+    if (!place || !user) return;
 
     setSaving(true);
     setError("");
