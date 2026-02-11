@@ -24,8 +24,15 @@ export async function createMatch(match: {
   date: string;
   time: string;
   locationId: string;
+  startsAt: Timestamp;
   createdBy: string;
   maxPlayers: number;
+  locationSnapshot: {
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+  };
 }) {
   const startsAt = new Date(`${match.date}T${match.time}:00-05:00`);
 
