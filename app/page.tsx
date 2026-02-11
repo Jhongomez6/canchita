@@ -55,17 +55,24 @@ export default function Home() {
         )
       );
 
-      const entries = await Promise.all(
-        locationIds.map(async id => {
-          const snap = await getDoc(doc(db, "locations", id));
-          return snap.exists() ? [id, snap.data()] : null;
-        })
-      );
+      const entries: [string, any][] = (
+        await Promise.all(
+          locationIds.map(async id => {
+            const snap = await getDoc(doc(db, "locations", id));
+            if (!snap.exists()) return null;
+
+            return [snap.id, snap.data()] as [string, any];
+          })
+        )
+      ).filter(Boolean) as [string, any][];
+
 
       const map: Record<string, any> = {};
-      entries.forEach(e => {
-        if (e) map[e[0]] = e[1];
+
+      entries.forEach(([id, data]) => {
+        map[id] = data;
       });
+
 
       setLocationsMap(map);
     });

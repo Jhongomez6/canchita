@@ -17,6 +17,24 @@ import { Timestamp } from "firebase/firestore";
 
 const matchesRef = collection(db, "matches");
 
+export type Match = {
+  id: string;
+  date: string;
+  time: string;
+  startsAt: any; // puedes luego tiparlo como Timestamp
+  locationId: string;
+  locationSnapshot: {
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+  };
+  createdBy: string;
+  maxPlayers: number;
+  status: string;
+  players: any[];
+};
+
 /* =========================
    CREAR PARTIDO
 ========================= */
@@ -55,18 +73,18 @@ export async function createMatch(match: {
    OBTENER PARTIDOS DEL USUARIO
    (ADMIN + PLAYER)
 ========================= */
-export async function getMyMatches(uid: string) {
+export async function getMyMatches(uid: string): Promise<Match[]> {
   const q = query(
     matchesRef,
-    where("playerUids", "array-contains", uid),
+   where("playerUids", "array-contains", uid),
     orderBy("createdAt", "desc")
   );
 
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map(d => ({
-    id: d.id,
-    ...d.data(),
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...(doc.data() as Omit<Match, "id">),
   }));
 }
 
