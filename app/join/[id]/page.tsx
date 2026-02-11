@@ -171,7 +171,7 @@ export default function JoinMatchPage() {
           </h3>
 
           <p style={{ fontSize: 14, color: "#555" }}>
-            📍 {match.location}
+            📍 {location.name}
           </p>
 
           <p style={{ fontSize: 14, color: "#555" }}>
