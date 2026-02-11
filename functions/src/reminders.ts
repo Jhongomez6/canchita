@@ -45,7 +45,7 @@ export const matchReminders = onSchedule(
       console.log(
         "📆 startsAt:",
         matchDate.toISOString(),
-         "| now time:",
+        "| now time:",
         now.toISOString(),
         "| diffMinutes:",
         diffMinutes.toFixed(2)
@@ -54,13 +54,16 @@ export const matchReminders = onSchedule(
       /**
        * 🧪 MODO PRUEBA
        * Recordatorio ~5 minutos antes
+       * const reminderMinutes = [5];
        */
-      const reminderMinutes = [5];
+
 
       /**
        * 🟢 PRODUCCIÓN (cuando quieras)
        * const reminderMinutes = [1440, 720, 360];
        */
+
+      const reminderMinutes = [5];
 
       const tolerance = 3; // minutos de margen
 
@@ -103,48 +106,46 @@ async function sendReminderIfNeeded(
     return;
   }
 
-  const unconfirmedPlayers = (match.players || []).filter(
-    (p: any) => !p.confirmed && p.uid
-  );
+  const players = (match.players || []).filter((p: any) => p.uid);
 
-  console.log(
-    "👥 Jugadores sin confirmar:",
-    unconfirmedPlayers.length
-  );
+  if (players.length === 0) return;
 
-  if (unconfirmedPlayers.length === 0) return;
-
-  for (const player of unconfirmedPlayers) {
-    const userSnap = await db
-      .collection("users")
-      .doc(player.uid)
-      .get();
-
+  for (const player of players) {
+    const userSnap = await db.collection("users").doc(player.uid).get();
     const user = userSnap.data();
-
     const tokens = user?.fcmTokens ?? [];
-
-    console.log(
-      "👤 Usuario",
-      player.uid,
-      "| tokens:",
-      tokens.length
-    );
 
     if (tokens.length === 0) continue;
 
-    const response = await admin
-      .messaging()
-      .sendEachForMulticast({
-        tokens,
-        notification: {
-          title: "⚽ Recordatorio de partido",
-          body: "No has confirmado tu asistencia",
-        },
-        data: {
-          url: `https://la-canchita.vercel.app/join/${matchId}`,
-        },
-      });
+    // 🎯 MENSAJE DINÁMICO SEGÚN ESTADO
+
+    let title = "⚽ El partido se acerca";
+    let body = "";
+
+    if (player.confirmed) {
+      title = "⚽ Partido confirmado";
+    } else {
+      title = "⚽ ¿Vas a jugar?";
+    }
+
+
+    if (player.confirmed) {
+      body = `Cancela tu asistencia si no puedes ir, dale la oportunidad a otro jugador`;
+    } else {
+      body = `Confirma tu asistencia ahora.`;
+    }
+
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: {
+        title,
+        body,
+      },
+      data: {
+        url: `https://la-canchita.vercel.app/join/${matchId}`,
+      },
+    });
+
 
     // 🧹 Limpieza de tokens inválidos
     const invalidTokens: string[] = [];

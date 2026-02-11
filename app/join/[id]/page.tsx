@@ -126,7 +126,7 @@ export default function JoinMatchPage() {
     background: "#fff",
     borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
+    margin: "0 12px 16px",
     boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
   };
 
