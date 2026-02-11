@@ -171,8 +171,9 @@ export default function JoinMatchPage() {
           </h3>
 
           <p style={{ fontSize: 14, color: "#555" }}>
-            📍 {location.name}
+            📍 {location?.name || match.locationSnapshot?.name || "Cancha no disponible"}
           </p>
+
 
           <p style={{ fontSize: 14, color: "#555" }}>
             🕒 {formatDateSpanish(match.date)}
