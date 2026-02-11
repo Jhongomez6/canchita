@@ -13,6 +13,28 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+
+self.addEventListener("notificationclick", function (event) {
+  event.notification.close();
+
+  const url = event.notification?.data?.url;
+
+  if (!url) return;
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url === url && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
+});
+
 messaging.onBackgroundMessage(function (payload) {
   self.registration.showNotification(payload.notification.title, {
     body: payload.notification.body,

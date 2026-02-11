@@ -142,7 +142,7 @@ async function sendReminderIfNeeded(
           body: "No has confirmado tu asistencia",
         },
         data: {
-          url: `/match/${matchId}`,
+          url: `https://la-canchita.vercel.app/join/${matchId}`,
         },
       });
 
