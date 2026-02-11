@@ -7,6 +7,9 @@ import AuthGuard from "@/components/AuthGuard";
 import { getUserProfile } from "@/lib/users";
 import Link from "next/link";
 import { enablePushNotifications } from "@/lib/push";
+import { formatDateSpanish, formatTime12h } from "@/lib/date";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 
 
@@ -17,6 +20,8 @@ export default function Home() {
   const { justLoggedIn } = useAuth();
   const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
+  const [locationsMap, setLocationsMap] = useState<Record<string, any>>({});
+
 
 
   useEffect(() => {
@@ -37,9 +42,33 @@ export default function Home() {
 
 
   useEffect(() => {
-    if (user) {
-      getMyMatches(user.uid).then(setMatches);
-    }
+    if (!user) return;
+
+    getMyMatches(user.uid).then(async matches => {
+      setMatches(matches);
+
+      const locationIds = Array.from(
+        new Set(
+          matches
+            .map(m => m.locationId)
+            .filter(Boolean)
+        )
+      );
+
+      const entries = await Promise.all(
+        locationIds.map(async id => {
+          const snap = await getDoc(doc(db, "locations", id));
+          return snap.exists() ? [id, snap.data()] : null;
+        })
+      );
+
+      const map: Record<string, any> = {};
+      entries.forEach(e => {
+        if (e) map[e[0]] = e[1];
+      });
+
+      setLocationsMap(map);
+    });
   }, [user]);
 
   return (
@@ -174,55 +203,71 @@ export default function Home() {
               </div>
             )}
 
-            {matches.map(m => (
-              <Link
-                key={m.id}
-                href={`/match/${m.id}`}
-                style={{
-                  display: "block",
-                  background: "#fff",
-                  borderRadius: 16,
-                  padding: 16,
-                  marginBottom: 12,
-                  boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-                  textDecoration: "none",
-                  color: "#000",
-                }}
-              >
-                <h3 style={{ marginBottom: 6 }}>
-                  ⚽ Partido
-                </h3>
+            {matches.map(m => {
+              const href =
+                profile?.role === "admin"
+                  ? `/match/${m.id}`
+                  : `/join/${m.id}`;
 
-                <p style={{ fontSize: 14, color: "#555" }}>
-                  📍 {m.location}
-                </p>
+              return (
+                <Link
+                  key={m.id}
+                  href={href}
+                  style={{
+                    display: "block",
+                    background: "#fff",
+                    borderRadius: 16,
+                    padding: 16,
+                    marginBottom: 12,
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                    textDecoration: "none",
+                    color: "#000",
+                  }}
+                >
 
-                <p style={{ fontSize: 14, color: "#555" }}>
-                  🕒 {m.date} – {m.time}
-                </p>
+                  <h3 style={{ marginBottom: 6 }}>
+                    {profile?.role === "admin"
+                      ? "⚽ Administrar partido"
+                      : "⚽ Partido"}
+                  </h3>
 
-                <div style={{ marginTop: 8 }}>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      background:
-                        m.status === "closed"
-                          ? "#dc2626"
-                          : "#16a34a",
-                      color: "#fff",
-                    }}
-                  >
-                    {m.status === "closed"
-                      ? "Cerrado"
-                      : "Abierto"}
-                  </span>
-                </div>
-              </Link>
-            ))}
+
+                  <p style={{ fontSize: 14, color: "#555" }}>
+                    📍 {locationsMap[m.locationId]?.name ?? "Cargando cancha..."}
+                  </p>
+
+
+                  <p style={{ fontSize: 14, color: "#555" }}>
+                    🕒 {formatDateSpanish(m.date)}
+                  </p>
+
+                  <p style={{ fontSize: 14, color: "#555" }}>
+                    ⏰ {formatTime12h(m.time)}
+                  </p>
+
+                  <div style={{ marginTop: 8 }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background:
+                          m.status === "closed"
+                            ? "#dc2626"
+                            : "#16a34a",
+                        color: "#fff",
+                      }}
+                    >
+                      {m.status === "closed"
+                        ? "Cerrado"
+                        : "Abierto"}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </div>
       </main>

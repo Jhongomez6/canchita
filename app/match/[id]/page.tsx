@@ -36,6 +36,8 @@ export default function MatchDetailPage() {
   const [copied, setCopied] = useState(false);
   const [manualPositions, setManualPositions] = useState<string[]>([]);
   const [maxPlayersDraft, setMaxPlayersDraft] = useState<number | null>(null);
+  const [location, setLocation] = useState<any>(null);
+
 
   async function loadMatch() {
     const snap = await getDoc(doc(db, "matches", id));
@@ -53,6 +55,18 @@ export default function MatchDetailPage() {
   useEffect(() => {
     loadMatch();
   }, []);
+
+  useEffect(() => {
+    if (!match?.locationId) return;
+
+    getDoc(doc(db, "locations", match.locationId))
+      .then(snap => {
+        if (snap.exists()) {
+          setLocation({ id: snap.id, ...snap.data() });
+        }
+      });
+  }, [match]);
+
 
   useEffect(() => {
     if (!match) return;
@@ -139,9 +153,16 @@ export default function MatchDetailPage() {
         {/* INFO PARTIDO */}
         <div style={card}>
           <h1 style={{ marginBottom: 8 }}>⚽ Partido</h1>
-          <p style={{ color: "#555" }}>
-            📍 {match.location}
-          </p>
+          {location ? (
+            <p style={{ color: "#555" }}>
+              📍 {location.name}
+            </p>
+          ) : (
+            <p style={{ color: "#999" }}>
+              📍 Cargando cancha...
+            </p>
+          )}
+
 
           <p style={{ color: "#555" }}>
             🕒 {formatDateSpanish(match.date)}
@@ -236,6 +257,7 @@ export default function MatchDetailPage() {
           </div>
 
         </div>
+
 
         {/* AGREGAR JUGADORES */}
         {isOwner && !isClosed && (

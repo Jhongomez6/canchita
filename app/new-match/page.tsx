@@ -6,6 +6,9 @@ import AuthGuard from "@/components/AuthGuard";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getUserProfile } from "@/lib/users";
+import { getActiveLocations } from "@/lib/locations";
+import { Timestamp } from "firebase/firestore";
+
 
 export default function NewMatchPage() {
   const { user } = useAuth();
@@ -13,11 +16,14 @@ export default function NewMatchPage() {
 
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [location, setLocation] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(12);
 
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [locationId, setLocationId] = useState("");
+
+
 
   useEffect(() => {
     if (!user) return;
@@ -28,14 +34,37 @@ export default function NewMatchPage() {
     });
   }, [user]);
 
+  useEffect(() => {
+    getActiveLocations().then(setLocations);
+  }, []);
+
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const selectedLocation = locations.find(l => l.id === locationId);
+    if (!selectedLocation) return;
+
+    const startsAt = Timestamp.fromDate(
+      new Date(`${date}T${time}:00`)
+    );
+
+    if (!date || !time || !locationId) {
+      alert("Completa todos los campos");
+      return;
+    }
 
     await createMatch({
       date,
       time,
-      location,
+      startsAt,
+      locationId,
+      locationSnapshot: {
+        name: selectedLocation.name,
+        address: selectedLocation.address,
+        lat: selectedLocation.lat,
+        lng: selectedLocation.lng,
+      },
       createdBy: user.uid,
       maxPlayers, // 👈 nuevo campo
     });
@@ -86,16 +115,37 @@ export default function NewMatchPage() {
               />
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <label>Cancha</label>
-              <input
-                placeholder="Ej: Palmas Pance"
-                value={location}
-                onChange={e => setLocation(e.target.value)}
-                required
-                style={{ width: "100%", padding: 8 }}
-              />
-            </div>
+            <select
+              value={locationId}
+              onChange={e => setLocationId(e.target.value)}
+              style={{
+                width: "100%",
+                padding: 14,
+                borderRadius: 12,
+                border: "1px solid #ccc",
+                marginBottom: 8,
+              }}
+            >
+              <option value="">Selecciona una cancha</option>
+
+              {locations.map(loc => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+
+            <a
+              href="/locations/new"
+              style={{
+                fontSize: 14,
+                color: "#1f7a4f",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              + Crear nueva cancha
+            </a>
 
             <div style={{ marginBottom: 20 }}>
               <label>Máximo de jugadores</label>

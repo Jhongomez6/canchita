@@ -7,6 +7,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { loginWithGoogle } from "@/lib/auth";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
+import { googleMapsEmbedUrl, googleMapsLink } from "@/lib/maps";
+
 
 import {
   joinMatch,
@@ -21,6 +23,8 @@ export default function JoinMatchPage() {
   const [match, setMatch] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [location, setLocation] = useState<any>(null);
+
 
 
   async function loadMatch() {
@@ -46,6 +50,18 @@ export default function JoinMatchPage() {
       loadMatch();
     }
   }, [loading, user]);
+
+  useEffect(() => {
+    if (!match?.locationId) return;
+
+    getDoc(doc(db, "locations", match.locationId))
+      .then(snap => {
+        if (snap.exists()) {
+          setLocation({ id: snap.id, ...snap.data() });
+        }
+      });
+  }, [match]);
+
 
   // ⏳ Auth cargando
   if (loading) {
@@ -106,6 +122,14 @@ export default function JoinMatchPage() {
     : "Partido";
 
 
+  const card = {
+    background: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+  };
+
   return (
     <main
       style={{
@@ -154,7 +178,7 @@ export default function JoinMatchPage() {
             🕒 {formatDateSpanish(match.date)}
           </p>
 
-           <p style={{ fontSize: 14, color: "#555" }}>
+          <p style={{ fontSize: 14, color: "#555" }}>
             ⏰ {formatTime12h(match.time)}
           </p>
 
@@ -174,6 +198,52 @@ export default function JoinMatchPage() {
             </span>
           </div>
         </div>
+
+        {location && (
+          <div style={card}>
+            <h3>📍 Cancha</h3>
+
+            <p style={{ fontWeight: 600 }}>{location.name}</p>
+            <p style={{ fontSize: 14, color: "#555" }}>
+              {location.address}
+            </p>
+
+            {/* MAPA */}
+            <iframe
+              src={googleMapsEmbedUrl(location.lat, location.lng)}
+              width="100%"
+              height="220"
+              style={{
+                border: 0,
+                borderRadius: 12,
+                marginTop: 12,
+              }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+
+            {/* CTA */}
+            <a
+              href={googleMapsLink(location.lat, location.lng)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "block",
+                marginTop: 12,
+                padding: "12px",
+                background: "#2563eb",
+                color: "#fff",
+                textAlign: "center",
+                borderRadius: 12,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              🗺️ Abrir en Google Maps
+            </a>
+          </div>
+        )}
+
 
         {/* CARD ASISTENCIA */}
         <div

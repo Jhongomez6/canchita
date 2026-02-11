@@ -23,7 +23,7 @@ const matchesRef = collection(db, "matches");
 export async function createMatch(match: {
   date: string;
   time: string;
-  location: string;
+  locationId: string;
   createdBy: string;
   maxPlayers: number;
 }) {
