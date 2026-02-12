@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { buildWhatsAppReport } from "@/lib/matchReport";
 import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import {
@@ -20,6 +21,24 @@ import { balanceTeams } from "@/lib/balanceTeams";
 import { getAllUsers } from "@/lib/usersList";
 import { getUserProfile } from "@/lib/users";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+} from "@dnd-kit/core";
+
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
+import { updatePlayerStats } from "@/lib/playerStats";
+
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
 
@@ -37,6 +56,20 @@ export default function MatchDetailPage() {
   const [manualPositions, setManualPositions] = useState<string[]>([]);
   const [maxPlayersDraft, setMaxPlayersDraft] = useState<number | null>(null);
   const [location, setLocation] = useState<any>(null);
+  const [balancing, setBalancing] = useState(false);
+  const [scoreA, setScoreA] = useState(0);
+  const [scoreB, setScoreB] = useState(0);
+  const [savingTeams, setSavingTeams] = useState(false);
+  const [teamsSaved, setTeamsSaved] = useState(false);
+  const [copiedReport, setCopiedReport] = useState(false);
+  const [copyingReport, setCopyingReport] = useState(false);
+
+
+  const sensors = useSensors(
+    useSensor(PointerSensor)
+  );
+
+
 
 
   async function loadMatch() {
@@ -49,7 +82,93 @@ export default function MatchDetailPage() {
     setMaxPlayersDraft(
       typeof data.maxPlayers === "number" ? data.maxPlayers : null
     );
+    if (data.teams?.A && data.teams?.B) {
+      setBalanced({
+        teamA: { players: data.teams.A },
+        teamB: { players: data.teams.B },
+      });
+    }
+
   }
+  async function handleBalance() {
+    if (confirmedCount < 4) return;
+
+    setBalancing(true);
+
+    const confirmed = match.players
+      .filter((p: any) => p.confirmed)
+      .map((p: any) => ({
+        name: p.name,
+        level: p.level ?? 2,
+        positions: p.positions ?? ["MID"],
+      }));
+
+    const result = balanceTeams(confirmed);
+
+    setBalanced(result);
+
+    await saveTeams(id, {
+      A: result.teamA.players,
+      B: result.teamB.players,
+    });
+
+    await loadMatch();
+
+    setBalancing(false);
+  }
+
+  async function generateWhatsAppReport() {
+    if (!match?.teams) return;
+
+    const teamA = match.teams.A || [];
+    const teamB = match.teams.B || [];
+
+    let text = `⚽ *La titular de hoy:*\n\n`;
+
+    text += `🔴 *Equipo A*\n`;
+    teamA.forEach((p: any) => {
+      text += `• ${p.name}\n`;
+    });
+
+    text += `\n🔵 *Equipo B*\n`;
+    teamB.forEach((p: any) => {
+      text += `• ${p.name}\n`;
+    });
+
+    // 👉 Si está cerrado, agregamos marcador
+    if (match.status === "closed" && match.score) {
+      text += `\n🏆 *Resultado Final*\n`;
+      text += `🟢 Equipo A ${match.score.A} - ${match.score.B} Equipo B\n`;
+    }
+
+    await navigator.clipboard.writeText(text);
+  }
+
+
+  async function handleSaveScore() {
+    if (!match?.teams) return;
+
+    await updateDoc(doc(db, "matches", id), {
+      score: { A: scoreA, B: scoreB },
+    });
+
+    const teamA = match.teams.A;
+    const teamB = match.teams.B;
+
+    if (scoreA > scoreB) {
+      await updatePlayerStats(teamA, "win");
+      await updatePlayerStats(teamB, "loss");
+    } else if (scoreB > scoreA) {
+      await updatePlayerStats(teamB, "win");
+      await updatePlayerStats(teamA, "loss");
+    } else {
+      await updatePlayerStats(teamA, "draw");
+      await updatePlayerStats(teamB, "draw");
+    }
+
+    alert("✅ Resultado guardado");
+  }
+
 
 
   useEffect(() => {
@@ -145,6 +264,37 @@ export default function MatchDetailPage() {
   const confirmedCount = match.players?.filter((p: any) => p.confirmed).length ?? 0;
   const totalPlayers = match.players?.length ?? 0;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
+
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const playerName = active.id;
+
+    const fromA = balanced.teamA.players.find(
+      (p: any) => p.name === playerName
+    );
+    const fromB = balanced.teamB.players.find(
+      (p: any) => p.name === playerName
+    );
+
+    let newA = [...balanced.teamA.players];
+    let newB = [...balanced.teamB.players];
+
+    if (fromA) {
+      newA = newA.filter(p => p.name !== playerName);
+      newB.push(fromA);
+    } else if (fromB) {
+      newB = newB.filter(p => p.name !== playerName);
+      newA.push(fromB);
+    }
+
+    setBalanced({
+      teamA: { players: newA },
+      teamB: { players: newB },
+    });
+  }
+
 
 
   return (
@@ -465,38 +615,438 @@ export default function MatchDetailPage() {
 
         {/* BALANCEO */}
         {isOwner && !isClosed && (
-          <button
-            style={btnPrimary}
-            onClick={async () => {
-              const confirmed = match.players
-                .filter((p: any) => p.confirmed)
-                .map((p: any) => ({
-                  name: p.name,
-                  level: p.level ?? 2,
-                  positions: p.positions ?? ["MID"],
-                }));
+          <div style={{
+            ...card,
+            border: "2px solid #16a34a",
+            background: "#f0fdf4"
+          }}>
+            <h3 style={{ marginBottom: 8 }}>⚖️ Balancear equipos</h3>
 
-              const result = balanceTeams(confirmed);
-              setBalanced(result);
+            <p style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>
+              Se usarán los jugadores <strong>confirmados</strong>.
+              Actualmente hay <strong>{confirmedCount}</strong>.
+            </p>
 
-              await saveTeams(id, {
-                A: result.teamA.players,
-                B: result.teamB.players,
-              });
+            <button
+              disabled={confirmedCount < 4}
+              style={{
+                width: "100%",
+                padding: "12px",
+                background: confirmedCount < 4 ? "#9ca3af" : "#16a34a",
+                color: "#fff",
+                borderRadius: 10,
+                border: "none",
+                fontWeight: 700,
+                cursor: confirmedCount < 4 ? "not-allowed" : "pointer",
+              }}
+              onClick={handleBalance}
+            >
+              {balancing ? "⏳ Balanceando..." : "⚖️ Generar equipos"}
+            </button>
 
-              loadMatch();
+            {confirmedCount < 4 && (
+              <p style={{ marginTop: 8, fontSize: 13, color: "#dc2626" }}>
+                Necesitas al menos 4 jugadores confirmados
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* RESULTADO BALANCEO */}
+        {balanced && (
+          <div style={{ ...card, padding: 20 }}>
+            <h3 style={{ marginBottom: 16 }}>⚖️ Balance de Equipos</h3>
+
+            {(() => {
+              const summaryA = getTeamSummary(balanced.teamA.players);
+              const summaryB = getTeamSummary(balanced.teamB.players);
+
+              const diffLevel = Math.abs(
+                summaryA.totalLevel - summaryB.totalLevel
+              );
+
+              return (
+                <>
+                  {/* ================= RESUMEN GLOBAL ================= */}
+                  <div
+                    style={{
+                      marginBottom: 20,
+                      padding: 14,
+                      borderRadius: 12,
+                      background: "#f8fafc",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <div>
+                      ⚡ Diferencia de nivel:{" "}
+                      <strong>{diffLevel} pts</strong>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 12,
+                        fontSize: 14,
+                        display: "grid",
+                        gridTemplateColumns: "70px 30px 30px 30px",
+                        rowGap: 6,
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>🧤 GK</div>
+                      <div style={{ textAlign: "center" }}>{summaryA.positionsCount.GK}</div>
+                      <div style={{ textAlign: "center" }}>-</div>
+                      <div style={{ textAlign: "center" }}>{summaryB.positionsCount.GK}</div>
+
+                      <div>🛡 DEF</div>
+                      <div style={{ textAlign: "center" }}>{summaryA.positionsCount.DEF}</div>
+                      <div style={{ textAlign: "center" }}>-</div>
+                      <div style={{ textAlign: "center" }}>{summaryB.positionsCount.DEF}</div>
+
+                      <div>⚙ MID</div>
+                      <div style={{ textAlign: "center" }}>{summaryA.positionsCount.MID}</div>
+                      <div style={{ textAlign: "center" }}>-</div>
+                      <div style={{ textAlign: "center" }}>{summaryB.positionsCount.MID}</div>
+
+                      <div>⚽ FWD</div>
+                      <div style={{ textAlign: "center" }}>{summaryA.positionsCount.FWD}</div>
+                      <div style={{ textAlign: "center" }}>-</div>
+                      <div style={{ textAlign: "center" }}>{summaryB.positionsCount.FWD}</div>
+                    </div>
+
+                  </div>
+
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div style={{ display: "flex", gap: 20 }}>
+                      {/* ================= EQUIPO A ================= */}
+                      <div
+                        style={{
+                          flex: 1,
+                          background: "#f0fdf4",
+                          borderRadius: 14,
+                          padding: 16,
+                          border: "1px solid #bbf7d0",
+                        }}
+                      >
+                        <h4 style={{ marginBottom: 6 }}>🔴 Equipo A</h4>
+
+                        <div style={{ fontSize: 14, marginBottom: 12 }}>
+                          ⚡ <strong>{summaryA.totalLevel}</strong> pts · 👥{" "}
+                          {summaryA.count}
+                        </div>
+
+                        <SortableContext
+                          items={balanced.teamA.players.map(
+                            p => p.uid ?? p.name
+                          )}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {balanced.teamA.players.map(p => (
+                            <PlayerItem
+                              key={p.uid ?? p.name}
+                              id={p.uid ?? p.name}
+                              name={
+                                <>
+                                  <span style={{ fontWeight: 600 }}>
+                                    {p.name}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 12,
+                                      marginLeft: 6,
+                                      color: "#555",
+                                    }}
+                                  >
+                                    ⚡ {p.level} ·{" "}
+                                    {(p.positions || []).join("/")}
+                                  </span>
+                                </>
+                              }
+                            />
+                          ))}
+                        </SortableContext>
+                      </div>
+
+                      {/* ================= EQUIPO B ================= */}
+                      <div
+                        style={{
+                          flex: 1,
+                          background: "#eff6ff",
+                          borderRadius: 14,
+                          padding: 16,
+                          border: "1px solid #bfdbfe",
+                        }}
+                      >
+                        <h4 style={{ marginBottom: 6 }}>🔵 Equipo B</h4>
+
+                        <div style={{ fontSize: 14, marginBottom: 12 }}>
+                          ⚡ <strong>{summaryB.totalLevel}</strong> pts · 👥{" "}
+                          {summaryB.count}
+                        </div>
+
+                        <SortableContext
+                          items={balanced.teamB.players.map(
+                            p => p.uid ?? p.name
+                          )}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {balanced.teamB.players.map(p => (
+                            <PlayerItem
+                              key={p.uid ?? p.name}
+                              id={p.uid ?? p.name}
+                              name={
+                                <>
+                                  <span style={{ fontWeight: 600 }}>
+                                    {p.name}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 12,
+                                      marginLeft: 6,
+                                      color: "#555",
+                                    }}
+                                  >
+                                    ⚡ {p.level} ·{" "}
+                                    {(p.positions || []).join("/")}
+                                  </span>
+                                </>
+                              }
+                            />
+                          ))}
+                        </SortableContext>
+                      </div>
+                    </div>
+                  </DndContext>
+
+                  <button
+                    disabled={savingTeams}
+                    onClick={async () => {
+                      setSavingTeams(true);
+                      setTeamsSaved(false);
+
+                      try {
+                        await saveTeams(id, {
+                          A: balanced.teamA.players,
+                          B: balanced.teamB.players,
+                        });
+
+                        setTeamsSaved(true);
+
+                        setTimeout(() => {
+                          setTeamsSaved(false);
+                        }, 2000);
+
+                      } finally {
+                        setSavingTeams(false);
+                      }
+                    }}
+                    style={{
+                      marginTop: 16,
+                      width: "100%",
+                      padding: 14,
+                      background: teamsSaved
+                        ? "#16a34a"
+                        : savingTeams
+                          ? "#9ca3af"
+                          : "#2563eb",
+                      color: "#fff",
+                      borderRadius: 12,
+                      border: "none",
+                      fontWeight: 700,
+                      fontSize: 15,
+                      cursor: savingTeams ? "not-allowed" : "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: savingTeams
+                        ? "none"
+                        : "0 6px 16px rgba(0,0,0,0.12)",
+                    }}
+                  >
+                    {savingTeams
+                      ? "⏳ Guardando cambios..."
+                      : teamsSaved
+                        ? "✅ Equipos guardados"
+                        : "💾 Guardar cambios manuales"}
+                  </button>
+                  {match.teams && (
+                    <button
+                      disabled={copyingReport}
+                      onClick={async () => {
+                        setCopyingReport(true);
+                        setCopiedReport(false);
+
+                        try {
+                          await generateWhatsAppReport();
+                          setCopiedReport(true);
+
+                          setTimeout(() => {
+                            setCopiedReport(false);
+                          }, 2000);
+
+                        } finally {
+                          setCopyingReport(false);
+                        }
+                      }}
+                      style={{
+                        marginTop: 16,
+                        width: "100%",
+                        padding: 14,
+                        background: copiedReport
+                          ? "#16a34a"
+                          : copyingReport
+                            ? "#9ca3af"
+                            : "#25D366",
+                        color: "#fff",
+                        borderRadius: 14,
+                        border: "none",
+                        fontWeight: 700,
+                        fontSize: 16,
+                        cursor: copyingReport ? "not-allowed" : "pointer",
+                        transition: "all 0.2s ease",
+                        boxShadow: copyingReport
+                          ? "none"
+                          : "0 8px 20px rgba(0,0,0,0.12)",
+                      }}
+                    >
+                      {copyingReport
+                        ? "⏳ Copiando reporte..."
+                        : copiedReport
+                          ? "✅ Reporte copiado"
+                          : match.status === "closed"
+                            ? "📲 Copiar reporte final"
+                            : "📲 Copiar equipos balanceados"}
+                    </button>
+                  )}
+
+
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {isOwner && isClosed && match.teams && (
+          <div
+            style={{
+              marginTop: 20,
+              background: "#ffffff",
+              borderRadius: 16,
+              padding: 20,
+              boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+              border: "1px solid #e5e7eb",
             }}
           >
-            ⚖️ Balancear equipos
-          </button>
+            <h3 style={{ marginBottom: 16 }}>🏆 Registrar marcador final</h3>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 20,
+                fontSize: 28,
+                fontWeight: 800,
+              }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 14, marginBottom: 6 }}>🔴 Equipo A</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={scoreA}
+                  onChange={e => setScoreA(Number(e.target.value))}
+                  style={{
+                    width: 70,
+                    fontSize: 28,
+                    textAlign: "center",
+                    borderRadius: 10,
+                    border: "1px solid #ddd",
+                    padding: 6,
+                  }}
+                />
+              </div>
+
+              <div style={{ fontSize: 26 }}>—</div>
+
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 14, marginBottom: 6 }}>🔵 Equipo B</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={scoreB}
+                  onChange={e => setScoreB(Number(e.target.value))}
+                  style={{
+                    width: 70,
+                    fontSize: 28,
+                    textAlign: "center",
+                    borderRadius: 10,
+                    border: "1px solid #ddd",
+                    padding: 6,
+                  }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSaveScore}
+              style={{
+                marginTop: 20,
+                width: "100%",
+                padding: 14,
+                background: "#16a34a",
+                color: "#fff",
+                borderRadius: 12,
+                border: "none",
+                fontWeight: 700,
+                fontSize: 16,
+              }}
+            >
+              💾 Guardar resultado
+            </button>
+          </div>
         )}
 
         {/* ESTADO PARTIDO */}
         <div style={{ marginTop: 16 }}>
           {isOwner && !isClosed && (
             <button
-              style={btnDanger}
+              style={{
+                ...btnDanger,
+                opacity: !match.teams ? 0.5 : 1,
+                cursor: !match.teams ? "not-allowed" : "pointer",
+              }}
+              disabled={!match.teams}
               onClick={async () => {
+                const report = buildWhatsAppReport(match);
+
+                await updateDoc(doc(db, "matches", id), {
+                  finalReport: report,
+                  score: {
+                    A: scoreA,
+                    B: scoreB,
+                  }
+                });
+                if (!match.teams || !match.teams.A || !match.teams.B) {
+                  alert("Primero debes balancear los equipos antes de cerrar el partido.");
+                  return;
+                }
+
+                const teamA = match.teams.A;
+                const teamB = match.teams.B;
+
+
+                if (scoreA > scoreB) {
+                  await updatePlayerStats(teamA, "win");
+                  await updatePlayerStats(teamB, "loss");
+                } else if (scoreB > scoreA) {
+                  await updatePlayerStats(teamA, "loss");
+                  await updatePlayerStats(teamB, "win");
+                } else {
+                  await updatePlayerStats(teamA, "draw");
+                  await updatePlayerStats(teamB, "draw");
+                }
+
                 await closeMatch(id);
                 loadMatch();
               }}
@@ -517,40 +1067,34 @@ export default function MatchDetailPage() {
             </button>
           )}
         </div>
-
-        {/* RESULTADO BALANCEO */}
-        {balanced && (
-          <div style={card}>
-            <h3>Equipos</h3>
-
-            {["teamA", "teamB"].map(team => {
-              const summary = getTeamSummary(balanced[team].players);
-              return (
-                <div key={team}>
-                  <h4>{team === "teamA" ? "Equipo A" : "Equipo B"}</h4>
-                  <p style={{ marginBottom: 6 }}>
-                    👥 {summary.count} · ⚡ {summary.totalLevel}
-                  </p>
-
-                  <div style={{ fontSize: 14, color: "#374151" }}>
-                    🧤 GK: {summary.positionsCount.GK} ·{" "}
-                    🛡 DEF: {summary.positionsCount.DEF} ·{" "}
-                    ⚙ MID: {summary.positionsCount.MID} ·{" "}
-                    ⚽ FWD: {summary.positionsCount.FWD}
-                  </div>
-                  <ul>
-                    {balanced[team].players.map((p: any, i: number) => (
-                      <li key={i}>
-                        {p.name} (Nivel {p.level})
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </main>
     </AuthGuard>
+  );
+}
+
+function PlayerItem({ id, name }: { id: string; name: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    padding: 10,
+    background: "#fff",
+    borderRadius: 8,
+    marginBottom: 8,
+    border: "1px solid #e5e7eb",
+    cursor: "grab",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {name}
+    </div>
   );
 }

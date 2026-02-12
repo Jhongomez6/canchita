@@ -334,6 +334,5 @@ export async function reopenMatch(matchId: string) {
   const ref = doc(db, "matches", matchId);
   await updateDoc(ref, {
     status: "open",
-    teams: null,
   });
 }
