@@ -63,6 +63,8 @@ export default function MatchDetailPage() {
   const [teamsSaved, setTeamsSaved] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
   const [copyingReport, setCopyingReport] = useState(false);
+  const [savingScore, setSavingScore] = useState(false);
+  const [scoreSaved, setScoreSaved] = useState(false);
 
 
   const sensors = useSensors(
@@ -98,6 +100,7 @@ export default function MatchDetailPage() {
     const confirmed = match.players
       .filter((p: any) => p.confirmed)
       .map((p: any) => ({
+        uid: p.uid ?? null,
         name: p.name,
         level: p.level ?? 2,
         positions: p.positions ?? ["MID"],
@@ -120,60 +123,43 @@ export default function MatchDetailPage() {
   async function generateWhatsAppReport() {
     if (!match?.teams) return;
 
-    const teamA = match.teams.A || [];
-    const teamB = match.teams.B || [];
+    const teamA = match.teams.A ?? [];
+    const teamB = match.teams.B ?? [];
+
+    const scoreA = match.score?.A ?? 0;
+    const scoreB = match.score?.B ?? 0;
 
     let text = `⚽ *La titular de hoy:*\n\n`;
 
     text += `🔴 *Equipo A*\n`;
     teamA.forEach((p: any) => {
-      text += `• ${p.name}\n`;
+      text += `• ${p.name} \n`;
     });
 
     text += `\n🔵 *Equipo B*\n`;
     teamB.forEach((p: any) => {
-      text += `• ${p.name}\n`;
+      text += `• ${p.name} \n`;
     });
 
-    // 👉 Si está cerrado, agregamos marcador
-    if (match.status === "closed" && match.score) {
+    if (match.status === "closed") {
       text += `\n🏆 *Resultado Final*\n`;
-      text += `🟢 Equipo A ${match.score.A} - ${match.score.B} Equipo B\n`;
+      text += `🔴 Equipo A ${scoreA} - ${scoreB} Equipo B 🔵\n`;
     }
 
     await navigator.clipboard.writeText(text);
   }
 
-
-  async function handleSaveScore() {
-    if (!match?.teams) return;
-
-    await updateDoc(doc(db, "matches", id), {
-      score: { A: scoreA, B: scoreB },
-    });
-
-    const teamA = match.teams.A;
-    const teamB = match.teams.B;
-
-    if (scoreA > scoreB) {
-      await updatePlayerStats(teamA, "win");
-      await updatePlayerStats(teamB, "loss");
-    } else if (scoreB > scoreA) {
-      await updatePlayerStats(teamB, "win");
-      await updatePlayerStats(teamA, "loss");
-    } else {
-      await updatePlayerStats(teamA, "draw");
-      await updatePlayerStats(teamB, "draw");
-    }
-
-    alert("✅ Resultado guardado");
-  }
-
-
-
   useEffect(() => {
     loadMatch();
   }, []);
+
+  useEffect(() => {
+    if (!match?.score) return;
+
+    setScoreA(match.score.A ?? 0);
+    setScoreB(match.score.B ?? 0);
+  }, [match]);
+
 
   useEffect(() => {
     if (!match?.locationId) return;
@@ -926,7 +912,7 @@ export default function MatchDetailPage() {
           </div>
         )}
 
-        {isOwner && isClosed && match.teams && (
+        {isOwner && match.teams && !isClosed && (
           <div
             style={{
               marginTop: 20,
@@ -989,21 +975,54 @@ export default function MatchDetailPage() {
             </div>
 
             <button
-              onClick={handleSaveScore}
+              onClick={async () => {
+                if (!match?.teams) return;
+
+                setSavingScore(true);
+                setScoreSaved(false);
+
+                try {
+                  await updateDoc(doc(db, "matches", id), {
+                    score: {
+                      A: scoreA,
+                      B: scoreB,
+                    },
+                  });
+
+                  await loadMatch();
+
+                  setScoreSaved(true);
+                  setTimeout(() => setScoreSaved(false), 2000);
+                } finally {
+                  setSavingScore(false);
+                }
+              }}
+              disabled={savingScore}
               style={{
-                marginTop: 20,
+                marginTop: 12,
                 width: "100%",
                 padding: 14,
-                background: "#16a34a",
+                background: scoreSaved
+                  ? "#16a34a"
+                  : savingScore
+                    ? "#9ca3af"
+                    : "#1f7a4f",
                 color: "#fff",
                 borderRadius: 12,
                 border: "none",
                 fontWeight: 700,
                 fontSize: 16,
+                cursor: savingScore ? "not-allowed" : "pointer",
+                transition: "all 0.2s ease",
               }}
             >
-              💾 Guardar resultado
+              {scoreSaved
+                ? "✅ Resultado guardado"
+                : savingScore
+                  ? "⏳ Guardando resultado..."
+                  : "💾 Guardar resultado"}
             </button>
+
           </div>
         )}
 
@@ -1013,42 +1032,71 @@ export default function MatchDetailPage() {
             <button
               style={{
                 ...btnDanger,
-                opacity: !match.teams ? 0.5 : 1,
-                cursor: !match.teams ? "not-allowed" : "pointer",
+                opacity: !match?.teams || !match?.score ? 0.5 : 1,
+                cursor: !match?.teams || !match?.score ? "not-allowed" : "pointer",
               }}
-              disabled={!match.teams}
+              disabled={!match?.teams || !match?.score}
               onClick={async () => {
-                const report = buildWhatsAppReport(match);
+                try {
+                  // 1️⃣ Traer versión fresca del match
+                  const snap = await getDoc(doc(db, "matches", id));
+                  if (!snap.exists()) return;
 
-                await updateDoc(doc(db, "matches", id), {
-                  finalReport: report,
-                  score: {
-                    A: scoreA,
-                    B: scoreB,
+                  const freshMatch = snap.data();
+
+                  if (!freshMatch?.teams?.A || !freshMatch?.teams?.B) {
+                    alert("Primero debes balancear los equipos.");
+                    return;
                   }
-                });
-                if (!match.teams || !match.teams.A || !match.teams.B) {
-                  alert("Primero debes balancear los equipos antes de cerrar el partido.");
-                  return;
+
+                  if (
+                    !freshMatch.teams.A.length ||
+                    !freshMatch.teams.B.length
+                  ) {
+                    alert("Equipos inválidos.");
+                    return;
+                  }
+
+                  // Validar que exista un resultado guardado
+                  if (!freshMatch.score || (freshMatch.score.A === undefined && freshMatch.score.B === undefined)) {
+                    alert("Debes guardar el resultado antes de cerrar el partido.");
+                    return;
+                  }
+
+                  const teamA = freshMatch.teams.A;
+                  const teamB = freshMatch.teams.B;
+                  const finalScoreA = freshMatch.score.A ?? 0;
+                  const finalScoreB = freshMatch.score.B ?? 0;
+
+                  // 2️⃣ Generar reporte final
+                  const report = buildWhatsAppReport({
+                    ...freshMatch,
+                    score: { A: finalScoreA, B: finalScoreB },
+                  });
+
+                  await updateDoc(doc(db, "matches", id), {
+                    finalReport: report,
+                  });
+
+                  // 3️⃣ Actualizar stats según resultado
+                  if (finalScoreA > finalScoreB) {
+                    await updatePlayerStats(teamA, "win");
+                    await updatePlayerStats(teamB, "loss");
+                  } else if (finalScoreB > finalScoreA) {
+                    await updatePlayerStats(teamA, "loss");
+                    await updatePlayerStats(teamB, "win");
+                  } else {
+                    await updatePlayerStats(teamA, "draw");
+                    await updatePlayerStats(teamB, "draw");
+                  }
+
+                  // 4️⃣ Cerrar partido
+                  await closeMatch(id);
+
+                  await loadMatch();
+                } catch (error) {
+                  console.error("Error cerrando partido:", error);
                 }
-
-                const teamA = match.teams.A;
-                const teamB = match.teams.B;
-
-
-                if (scoreA > scoreB) {
-                  await updatePlayerStats(teamA, "win");
-                  await updatePlayerStats(teamB, "loss");
-                } else if (scoreB > scoreA) {
-                  await updatePlayerStats(teamA, "loss");
-                  await updatePlayerStats(teamB, "win");
-                } else {
-                  await updatePlayerStats(teamA, "draw");
-                  await updatePlayerStats(teamB, "draw");
-                }
-
-                await closeMatch(id);
-                loadMatch();
               }}
             >
               🔒 Cerrar partido

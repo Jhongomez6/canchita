@@ -13,7 +13,7 @@ const db = admin.firestore();
  *  - 6h  → 360 min
  */
 export const matchReminders = onSchedule(
-  "every 5 minutes",
+  "every 60 minutes",
   async () => {
     const now = new Date();
 
@@ -63,7 +63,7 @@ export const matchReminders = onSchedule(
        * const reminderMinutes = [1440, 720, 360];
        */
 
-      const reminderMinutes = [5];
+      const reminderMinutes = [1440, 720, 360];
 
       const tolerance = 3; // minutos de margen
 
