@@ -200,7 +200,7 @@ export default function JoinMatchPage() {
           </div>
         </div>
 
-        {location && (
+        {!isClosed && location && (
           <div style={card}>
             <h3>📍 Cancha</h3>
 
@@ -246,31 +246,27 @@ export default function JoinMatchPage() {
         )}
 
 
-        {/* CARD ASISTENCIA */}
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 16,
-            padding: 16,
-            margin: "0 12px 16px",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-          }}
-        >
-          <h3 style={{ marginBottom: 12 }}>Tu asistencia</h3>
+        {/* CARD ASISTENCIA - Solo si partido abierto */}
+        {!isClosed && (
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 16,
+              margin: "0 12px 16px",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            }}
+          >
+            <h3 style={{ marginBottom: 12 }}>Tu asistencia</h3>
 
-          {isClosed && (
-            <p style={{ color: "#dc2626", fontSize: 14 }}>
-              🔒 El partido ya está cerrado
-            </p>
-          )}
-          {isFull && (
-            <p style={{ color: "#dc2626", fontWeight: 600 }}>
-              ❌ El partido ya está completo
-            </p>
-          )}
+            {isFull && (
+              <p style={{ color: "#dc2626", fontWeight: 600 }}>
+                ❌ El partido ya está completo
+              </p>
+            )}
 
 
-          {!isClosed && !existingPlayer && (
+          {!existingPlayer && (
             <button
               disabled={submitting || isFull}
               onClick={async () => {
@@ -306,7 +302,7 @@ export default function JoinMatchPage() {
           )}
 
 
-          {!isClosed && existingPlayer?.confirmed && (
+          {existingPlayer?.confirmed && (
             <>
               <div
                 style={{
@@ -343,7 +339,7 @@ export default function JoinMatchPage() {
             </>
           )}
 
-          {!isClosed && existingPlayer && !existingPlayer.confirmed && (
+          {existingPlayer && !existingPlayer.confirmed && (
             <>
               {/* ESTADO PENDIENTE */}
               <div
@@ -392,46 +388,229 @@ export default function JoinMatchPage() {
               </button>
             </>
           )}
-        </div>
+          </div>
+        )}
 
-        {/* CONFIRMADOS */}
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 16,
-            padding: 16,
-            margin: "0 12px",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-          }}
-        >
-          <h3 style={{ marginBottom: 12 }}>Jugadores confirmados</h3>
+        {/* CARD RESULTADO FINAL - Solo si partido cerrado */}
+        {isClosed && match.teams && (() => {
+          // Determinar en qué equipo jugó el usuario
+          const userInTeamA = match.teams.A?.some((p: any) => p.uid === user.uid || p.name === playerName);
+          const userInTeamB = match.teams.B?.some((p: any) => p.uid === user.uid || p.name === playerName);
+          
+          const scoreA = match.score?.A ?? 0;
+          const scoreB = match.score?.B ?? 0;
+          
+          let userResult: "win" | "loss" | "draw" | null = null;
+          let resultMessage = "";
+          let resultColor = "";
+          let resultBg = "";
+          
+          if (userInTeamA) {
+            if (scoreA > scoreB) {
+              userResult = "win";
+              resultMessage = "¡Felicidades! Partido ganado 🎉";
+              resultColor = "#166534";
+              resultBg = "#dcfce7";
+            } else if (scoreA < scoreB) {
+              userResult = "loss";
+              resultMessage = "Partido perdido 😔";
+              resultColor = "#991b1b";
+              resultBg = "#fee2e2";
+            } else {
+              userResult = "draw";
+              resultMessage = "Partido empatado 🤝";
+              resultColor = "#92400e";
+              resultBg = "#fef3c7";
+            }
+          } else if (userInTeamB) {
+            if (scoreB > scoreA) {
+              userResult = "win";
+              resultMessage ="¡Felicidades! Partido ganado 🎉";
+              resultColor = "#166534";
+              resultBg = "#dcfce7";
+            } else if (scoreB < scoreA) {
+              userResult = "loss";
+              resultMessage = "Partido perdido 😔";
+              resultColor = "#991b1b";
+              resultBg = "#fee2e2";
+            } else {
+              userResult = "draw";
+              resultMessage = "Partido empatado 🤝";
+              resultColor = "#92400e";
+              resultBg = "#fef3c7";
+            }
+          }
+          
+          return (
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 20,
+              margin: "0 12px 16px",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            }}
+          >
+            <h3 style={{ marginBottom: 16, textAlign: "center" }}>
+              🏆 Resultado Final
+            </h3>
+            
+            {/* MENSAJE DE RESULTADO PERSONAL */}
+            {userResult && (
+              <div
+                style={{
+                  marginBottom: 16,
+                  padding: 12,
+                  borderRadius: 12,
+                  background: resultBg,
+                  color: resultColor,
+                  textAlign: "center",
+                  fontWeight: 600,
+                  fontSize: 15,
+                }}
+              >
+                {resultMessage}
+              </div>
+            )}
 
-          {match.players?.filter((p: any) => p.confirmed).length === 0 && (
-            <p style={{ fontSize: 14, color: "#777" }}>
-              Aún no hay jugadores confirmados
-            </p>
-          )}
+            {/* MARCADOR */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 20,
+                marginBottom: 24,
+                padding: "20px 0",
+                background: "#f8fafc",
+                borderRadius: 12,
+              }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 14, color: "#555", marginBottom: 6 }}>
+                  🔴 Equipo A
+                </div>
+                <div style={{ fontSize: 36, fontWeight: 800, color: "#1f2937" }}>
+                  {match.score?.A ?? 0}
+                </div>
+              </div>
 
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {match.players
-              ?.filter((p: any) => p.confirmed)
-              .map((p: any, i: number) => (
-                <li
-                  key={i}
-                  style={{
-                    padding: "6px 0",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <span>🟢</span>
-                  <span>{p.name}</span>
-                </li>
+              <div style={{ fontSize: 24, color: "#9ca3af" }}>—</div>
 
-              ))}
-          </ul>
-        </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 14, color: "#555", marginBottom: 6 }}>
+                  🔵 Equipo B
+                </div>
+                <div style={{ fontSize: 36, fontWeight: 800, color: "#1f2937" }}>
+                  {match.score?.B ?? 0}
+                </div>
+              </div>
+            </div>
+
+            {/* EQUIPOS */}
+            <div style={{ display: "flex", gap: 12 }}>
+              {/* EQUIPO A */}
+              <div
+                style={{
+                  flex: 1,
+                  background: "#fef2f2",
+                  borderRadius: 12,
+                  padding: 12,
+                  border: "1px solid #fecaca",
+                }}
+              >
+                <h4 style={{ marginBottom: 8, fontSize: 14, color: "#991b1b" }}>
+                  🔴 Equipo A
+                </h4>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  {match.teams.A?.map((p: any, i: number) => (
+                    <li
+                      key={i}
+                      style={{
+                        fontSize: 13,
+                        padding: "4px 0",
+                        color: "#7f1d1d",
+                      }}
+                    >
+                      • {p.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* EQUIPO B */}
+              <div
+                style={{
+                  flex: 1,
+                  background: "#eff6ff",
+                  borderRadius: 12,
+                  padding: 12,
+                  border: "1px solid #bfdbfe",
+                }}
+              >
+                <h4 style={{ marginBottom: 8, fontSize: 14, color: "#1e40af" }}>
+                  🔵 Equipo B
+                </h4>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  {match.teams.B?.map((p: any, i: number) => (
+                    <li
+                      key={i}
+                      style={{
+                        fontSize: 13,
+                        padding: "4px 0",
+                        color: "#1e3a8a",
+                      }}
+                    >
+                      • {p.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+          );
+        })()}
+
+        {/* CONFIRMADOS - Solo si partido abierto */}
+        {!isClosed && (
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 16,
+              margin: "0 12px",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            }}
+          >
+            <h3 style={{ marginBottom: 12 }}>Jugadores confirmados</h3>
+
+            {match.players?.filter((p: any) => p.confirmed).length === 0 && (
+              <p style={{ fontSize: 14, color: "#777" }}>
+                Aún no hay jugadores confirmados
+              </p>
+            )}
+
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {match.players
+                ?.filter((p: any) => p.confirmed)
+                .map((p: any, i: number) => (
+                  <li
+                    key={i}
+                    style={{
+                      padding: "6px 0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span>🟢</span>
+                    <span>{p.name}</span>
+                  </li>
+
+                ))}
+            </ul>
+          </div>
+        )}
       </div>
     </main>
   );

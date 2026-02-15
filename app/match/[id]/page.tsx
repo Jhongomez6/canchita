@@ -162,6 +162,14 @@ export default function MatchDetailPage() {
 
 
   useEffect(() => {
+    if (!match?.score) return;
+
+    setScoreA(match.score.A ?? 0);
+    setScoreB(match.score.B ?? 0);
+  }, [match]);
+
+
+  useEffect(() => {
     if (!match?.locationId) return;
 
     getDoc(doc(db, "locations", match.locationId))
@@ -912,7 +920,7 @@ export default function MatchDetailPage() {
           </div>
         )}
 
-        {isOwner && match.teams && !isClosed && (
+        {isOwner && match.teams && (
           <div
             style={{
               marginTop: 20,
@@ -923,7 +931,15 @@ export default function MatchDetailPage() {
               border: "1px solid #e5e7eb",
             }}
           >
-            <h3 style={{ marginBottom: 16 }}>🏆 Registrar marcador final</h3>
+            <h3 style={{ marginBottom: 16 }}>
+              {isClosed ? "🏆 Marcador final" : "🏆 Registrar marcador final"}
+            </h3>
+
+            {isClosed && (
+              <p style={{ fontSize: 14, color: "#dc2626", marginBottom: 12 }}>
+                🔒 El partido está cerrado. No se puede modificar el resultado.
+              </p>
+            )}
 
             <div
               style={{
@@ -942,6 +958,7 @@ export default function MatchDetailPage() {
                   min={0}
                   value={scoreA}
                   onChange={e => setScoreA(Number(e.target.value))}
+                  disabled={isClosed}
                   style={{
                     width: 70,
                     fontSize: 28,
@@ -949,6 +966,8 @@ export default function MatchDetailPage() {
                     borderRadius: 10,
                     border: "1px solid #ddd",
                     padding: 6,
+                    background: isClosed ? "#f3f4f6" : "#fff",
+                    cursor: isClosed ? "not-allowed" : "text",
                   }}
                 />
               </div>
@@ -962,6 +981,7 @@ export default function MatchDetailPage() {
                   min={0}
                   value={scoreB}
                   onChange={e => setScoreB(Number(e.target.value))}
+                  disabled={isClosed}
                   style={{
                     width: 70,
                     fontSize: 28,
@@ -969,59 +989,64 @@ export default function MatchDetailPage() {
                     borderRadius: 10,
                     border: "1px solid #ddd",
                     padding: 6,
+                    background: isClosed ? "#f3f4f6" : "#fff",
+                    cursor: isClosed ? "not-allowed" : "text",
                   }}
                 />
               </div>
             </div>
 
-            <button
-              onClick={async () => {
-                if (!match?.teams) return;
+            {!isClosed && (
+              <button
+                onClick={async () => {
+                  if (!match?.teams) return;
 
-                setSavingScore(true);
-                setScoreSaved(false);
+                  setSavingScore(true);
+                  setScoreSaved(false);
 
-                try {
-                  await updateDoc(doc(db, "matches", id), {
-                    score: {
-                      A: scoreA,
-                      B: scoreB,
-                    },
-                  });
+                  try {
+                    await updateDoc(doc(db, "matches", id), {
+                      score: {
+                        A: scoreA,
+                        B: scoreB,
+                      },
+                    });
 
-                  await loadMatch();
+                    await loadMatch();
 
-                  setScoreSaved(true);
-                  setTimeout(() => setScoreSaved(false), 2000);
-                } finally {
-                  setSavingScore(false);
-                }
-              }}
-              disabled={savingScore}
-              style={{
-                marginTop: 12,
-                width: "100%",
-                padding: 14,
-                background: scoreSaved
-                  ? "#16a34a"
+                    setScoreSaved(true);
+                    setTimeout(() => setScoreSaved(false), 2000);
+                  } finally {
+                    setSavingScore(false);
+                  }
+                }}
+                disabled={savingScore}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  padding: 14,
+                  background: scoreSaved
+                    ? "#16a34a"
+                    : savingScore
+                      ? "#9ca3af"
+                      : "#1f7a4f",
+                  color: "#fff",
+                  borderRadius: 12,
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: savingScore ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {scoreSaved
+                  ? "✅ Resultado guardado"
                   : savingScore
-                    ? "#9ca3af"
-                    : "#1f7a4f",
-                color: "#fff",
-                borderRadius: 12,
-                border: "none",
-                fontWeight: 700,
-                fontSize: 16,
-                cursor: savingScore ? "not-allowed" : "pointer",
-                transition: "all 0.2s ease",
-              }}
-            >
-              {scoreSaved
-                ? "✅ Resultado guardado"
-                : savingScore
-                  ? "⏳ Guardando resultado..."
-                  : "💾 Guardar resultado"}
-            </button>
+                    ? "⏳ Guardando resultado..."
+                    : "💾 Guardar resultado"}
+              </button>
+            )}
+
 
           </div>
         )}
@@ -1032,10 +1057,10 @@ export default function MatchDetailPage() {
             <button
               style={{
                 ...btnDanger,
-                opacity: !match?.teams || !match?.score ? 0.5 : 1,
-                cursor: !match?.teams || !match?.score ? "not-allowed" : "pointer",
+                opacity: !match?.teams ? 0.5 : 1,
+                cursor: !match?.teams ? "not-allowed" : "pointer",
               }}
-              disabled={!match?.teams || !match?.score}
+              disabled={!match?.teams}
               onClick={async () => {
                 try {
                   // 1️⃣ Traer versión fresca del match
@@ -1057,40 +1082,58 @@ export default function MatchDetailPage() {
                     return;
                   }
 
-                  // Validar que exista un resultado guardado
-                  if (!freshMatch.score || (freshMatch.score.A === undefined && freshMatch.score.B === undefined)) {
-                    alert("Debes guardar el resultado antes de cerrar el partido.");
-                    return;
-                  }
-
                   const teamA = freshMatch.teams.A;
                   const teamB = freshMatch.teams.B;
-                  const finalScoreA = freshMatch.score.A ?? 0;
-                  const finalScoreB = freshMatch.score.B ?? 0;
 
-                  // 2️⃣ Generar reporte final
+                  // 2️⃣ Detectar si ya había un resultado previo (partido reabierto)
+                  let previousResultA: "win" | "loss" | "draw" | undefined;
+                  let previousResultB: "win" | "loss" | "draw" | undefined;
+                  
+                  if (freshMatch.statsProcessed && freshMatch.previousScore) {
+                    const prevA = freshMatch.previousScore.A ?? 0;
+                    const prevB = freshMatch.previousScore.B ?? 0;
+                    
+                    if (prevA > prevB) {
+                      previousResultA = "win";
+                      previousResultB = "loss";
+                    } else if (prevB > prevA) {
+                      previousResultA = "loss";
+                      previousResultB = "win";
+                    } else {
+                      previousResultA = "draw";
+                      previousResultB = "draw";
+                    }
+                  }
+
+                  // 3️⃣ Guardar score + reporte
                   const report = buildWhatsAppReport({
                     ...freshMatch,
-                    score: { A: finalScoreA, B: finalScoreB },
+                    score: { A: scoreA, B: scoreB },
                   });
 
                   await updateDoc(doc(db, "matches", id), {
+                    score: {
+                      A: scoreA,
+                      B: scoreB,
+                    },
+                    previousScore: freshMatch.score || { A: 0, B: 0 },
                     finalReport: report,
+                    statsProcessed: true,
                   });
 
-                  // 3️⃣ Actualizar stats según resultado
-                  if (finalScoreA > finalScoreB) {
-                    await updatePlayerStats(teamA, "win");
-                    await updatePlayerStats(teamB, "loss");
-                  } else if (finalScoreB > finalScoreA) {
-                    await updatePlayerStats(teamA, "loss");
-                    await updatePlayerStats(teamB, "win");
+                  // 4️⃣ Actualizar stats según resultado (revirtiendo previos si existen)
+                  if (scoreA > scoreB) {
+                    await updatePlayerStats(teamA, "win", id, previousResultA);
+                    await updatePlayerStats(teamB, "loss", id, previousResultB);
+                  } else if (scoreB > scoreA) {
+                    await updatePlayerStats(teamA, "loss", id, previousResultA);
+                    await updatePlayerStats(teamB, "win", id, previousResultB);
                   } else {
-                    await updatePlayerStats(teamA, "draw");
-                    await updatePlayerStats(teamB, "draw");
+                    await updatePlayerStats(teamA, "draw", id, previousResultA);
+                    await updatePlayerStats(teamB, "draw", id, previousResultB);
                   }
 
-                  // 4️⃣ Cerrar partido
+                  // 5️⃣ Cerrar partido
                   await closeMatch(id);
 
                   await loadMatch();
