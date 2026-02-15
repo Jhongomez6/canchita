@@ -16,7 +16,7 @@ import {
 } from "@/lib/matches";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { balanceTeams } from "@/lib/balanceTeams";
 import { getAllUsers } from "@/lib/usersList";
 import { getUserProfile } from "@/lib/users";
@@ -45,10 +45,13 @@ type Position = "GK" | "DEF" | "MID" | "FWD";
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const router = useRouter();
 
   const [match, setMatch] = useState<any>(null);
   const [balanced, setBalanced] = useState<any | null>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [selectedUid, setSelectedUid] = useState("");
   const [manualName, setManualName] = useState("");
   const [manualLevel, setManualLevel] = useState(2);
@@ -150,8 +153,18 @@ export default function MatchDetailPage() {
   }
 
   useEffect(() => {
+    if (!user) return;
+    
+    getUserProfile(user.uid).then(profile => {
+      setUserProfile(profile);
+      setLoadingProfile(false);
+    });
+  }, [user]);
+
+  useEffect(() => {
+    if (!userProfile) return;
     loadMatch();
-  }, []);
+  }, [userProfile]);
 
   useEffect(() => {
     if (!match?.score) return;
@@ -187,6 +200,29 @@ export default function MatchDetailPage() {
     if (!isOwner) return;
     getAllUsers().then(setUsers);
   }, [match, user]);
+
+  // Redirigir si no es admin
+  useEffect(() => {
+    if (!loadingProfile && userProfile && userProfile.role !== "admin") {
+      router.push("/");
+    }
+  }, [loadingProfile, userProfile, router]);
+
+  if (loadingProfile) {
+    return (
+      <AuthGuard>
+        <p style={{ padding: 20 }}>Cargando...</p>
+      </AuthGuard>
+    );
+  }
+
+  if (!userProfile || userProfile.role !== "admin") {
+    return (
+      <AuthGuard>
+        <p style={{ padding: 20 }}>Cargando...</p>
+      </AuthGuard>
+    );
+  }
 
   if (!match) return <p style={{ padding: 20 }}>Cargando...</p>;
 
