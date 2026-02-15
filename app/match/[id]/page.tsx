@@ -769,31 +769,15 @@ export default function MatchDetailPage() {
 
                         <SortableContext
                           items={balanced.teamA.players.map(
-                            p => p.uid ?? p.name
+                            (p: any) => p.uid ?? p.name
                           )}
                           strategy={verticalListSortingStrategy}
                         >
-                          {balanced.teamA.players.map(p => (
+                          {balanced.teamA.players.map((p: any) => (
                             <PlayerItem
                               key={p.uid ?? p.name}
                               id={p.uid ?? p.name}
-                              name={
-                                <>
-                                  <span style={{ fontWeight: 600 }}>
-                                    {p.name}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: 12,
-                                      marginLeft: 6,
-                                      color: "#555",
-                                    }}
-                                  >
-                                    ⚡ {p.level} ·{" "}
-                                    {(p.positions || []).join("/")}
-                                  </span>
-                                </>
-                              }
+                              name={`${p.name} ⚡ ${p.level} · ${(p.positions || []).join("/")}`}
                             />
                           ))}
                         </SortableContext>
@@ -818,31 +802,15 @@ export default function MatchDetailPage() {
 
                         <SortableContext
                           items={balanced.teamB.players.map(
-                            p => p.uid ?? p.name
+                            (p: any) => p.uid ?? p.name
                           )}
                           strategy={verticalListSortingStrategy}
                         >
-                          {balanced.teamB.players.map(p => (
+                          {balanced.teamB.players.map((p: any) => (
                             <PlayerItem
                               key={p.uid ?? p.name}
                               id={p.uid ?? p.name}
-                              name={
-                                <>
-                                  <span style={{ fontWeight: 600 }}>
-                                    {p.name}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: 12,
-                                      marginLeft: 6,
-                                      color: "#555",
-                                    }}
-                                  >
-                                    ⚡ {p.level} ·{" "}
-                                    {(p.positions || []).join("/")}
-                                  </span>
-                                </>
-                              }
+                              name={`${p.name} ⚡ ${p.level} · ${(p.positions || []).join("/")}`}
                             />
                           ))}
                         </SortableContext>
