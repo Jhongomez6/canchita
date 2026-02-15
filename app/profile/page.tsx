@@ -7,6 +7,13 @@ import { getUserProfile, updateUserPositions } from "@/lib/users";
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"];
 
+const POSITION_LABELS: Record<string, string> = {
+  GK: "Portero",
+  DEF: "Defensa",
+  MID: "Mediocampista",
+  FWD: "Delantero",
+};
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const [positions, setPositions] = useState<string[]>([]);
@@ -117,7 +124,7 @@ export default function ProfilePage() {
                     fontWeight: 600,
                   }}
                 >
-                  <span>{pos}</span>
+                  <span>{POSITION_LABELS[pos]}</span>
 
                   <input
                     type="checkbox"
