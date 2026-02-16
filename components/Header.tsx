@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/lib/AuthContext";
 import { logout } from "@/lib/auth";
 
@@ -35,7 +36,13 @@ export default function Header() {
           textDecoration: "none",
         }}
       >
-        ⚽ La Canchita
+        <Image
+          src="/logo/lacanchita-logo.png"
+          alt="La Canchita"
+          width={60}
+          height={50}
+          style={{ borderRadius: 6 }}
+        />
       </Link>
 
       {/* ACCIONES USUARIO */}
@@ -49,6 +56,17 @@ export default function Header() {
           }}
         >
           <Link
+            href="/"
+            style={{
+              color: "#e6f6ed",
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
+          >
+            Partidos
+          </Link>
+
+          <Link
             href="/profile"
             style={{
               color: "#e6f6ed",
@@ -56,7 +74,7 @@ export default function Header() {
               fontWeight: 500,
             }}
           >
-            Mi perfil
+            Perfil
           </Link>
 
           <button

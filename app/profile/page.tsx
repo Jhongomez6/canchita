@@ -72,7 +72,7 @@ export default function ProfilePage() {
               👋 Completa tu perfil
             </h2>
             <p style={{ fontSize: 14, opacity: 0.9 }}>
-              Dinos en qué posiciones te sientes más cómodo jugando.
+              Dinos en qué posiciones te sientes más cómodo(a) jugando.
               <br />
               (Máximo 2)
             </p>
@@ -92,8 +92,11 @@ export default function ProfilePage() {
             {isOnboarding ? "Tu perfil" : "Editar perfil"}
           </h1>
 
-          <p style={{ fontSize: 14, color: "#555", marginBottom: 16 }}>
-            Selecciona hasta 2 posiciones donde te sientes cómodo jugando
+          <p style={{ fontSize: 14, color: "#555", marginBottom: 8 }}>
+            Selecciona hasta 2 posiciones donde te sientes cómodo(a) jugando
+          </p>
+          <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 16, fontStyle: "italic" }}>
+            💡 Haz click de nuevo para deseleccionar
           </p>
 
           {/* POSICIONES */}
@@ -122,19 +125,34 @@ export default function ProfilePage() {
                     justifyContent: "space-between",
                     background: selected ? "#e6f6ed" : "#fff",
                     fontWeight: 600,
+                    transition: "all 0.2s ease",
                   }}
                 >
-                  <span>{POSITION_LABELS[pos]}</span>
+                  <span style={{ color: selected ? "#1f7a4f" : "#374151" }}>
+                    {POSITION_LABELS[pos]}
+                  </span>
+
+                  {selected && (
+                    <span style={{ fontSize: 18, color: "#1f7a4f" }}>✔</span>
+                  )}
 
                   <input
                     type="checkbox"
                     checked={selected}
                     onChange={async e => {
-                      let updated = e.target.checked
-                        ? [...positions, pos]
-                        : positions.filter(p => p !== pos);
-
-                      if (updated.length > 2) return;
+                      let updated: string[];
+                      
+                      if (e.target.checked) {
+                        // Si ya hay 2 seleccionadas, eliminar la primera y agregar la nueva
+                        if (positions.length >= 2) {
+                          updated = [...positions.slice(1), pos];
+                        } else {
+                          updated = [...positions, pos];
+                        }
+                      } else {
+                        // Deseleccionar
+                        updated = positions.filter(p => p !== pos);
+                      }
 
                       setPositions(updated);
                       await updateUserPositions(user.uid, updated);
@@ -147,23 +165,6 @@ export default function ProfilePage() {
               );
             })}
           </div>
-
-          {/* FEEDBACK GUARDADO */}
-          {saved && (
-            <div
-              style={{
-                marginTop: 16,
-                background: "#e6f6ed",
-                color: "#145c3a",
-                padding: 12,
-                borderRadius: 12,
-                textAlign: "center",
-                fontWeight: 600,
-              }}
-            >
-              ✔ Perfil guardado
-            </div>
-          )}
 
           {/* CTA CONTINUAR */}
           {!isOnboarding && positions.length > 0 && (
