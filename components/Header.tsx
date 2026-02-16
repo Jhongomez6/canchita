@@ -6,9 +6,11 @@ import { useAuth } from "@/lib/AuthContext";
 import { logout } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import { getUserProfile } from "@/lib/users";
+import { useRouter } from "next/navigation";
 
 export default function Header() {
   const { user } = useAuth();
+  const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -17,6 +19,11 @@ export default function Header() {
       setIsAdmin(profile?.role === "admin");
     });
   }, [user]);
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
 
   return (
     <header
@@ -101,7 +108,7 @@ export default function Header() {
           )}
 
           <button
-            onClick={logout}
+            onClick={handleLogout}
             style={{
               background: "rgba(255,255,255,0.15)",
               border: "none",
