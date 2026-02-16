@@ -27,20 +27,54 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
 
-    getUserProfile(user.uid).then(profile => {
-      if (profile?.positions) {
-        setPositions(profile.positions);
-      }
-      if (profile?.notificationsEnabled) {
-        setPushEnabled(true);
-      }
-      setLoading(false);
-    });
+    getUserProfile(user.uid)
+      .then(profile => {
+        if (profile?.positions) {
+          setPositions(profile.positions);
+        }
+        if (profile?.notificationsEnabled) {
+          setPushEnabled(true);
+        }
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error("Error cargando perfil:", error);
+        // Si hay error, asumimos que es un perfil nuevo sin posiciones
+        setPositions([]);
+        setLoading(false);
+      });
 
   }, [user]);
 
   if (!user) return <p>Debes iniciar sesión</p>;
-  if (loading) return <p>Cargando perfil...</p>;
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 24,
+            padding: "48px 40px",
+            maxWidth: 440,
+            width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            textAlign: "center",
+          }}
+        >
+          <p style={{ fontSize: 18, color: "#666" }}>Cargando perfil...</p>
+        </div>
+      </div>
+    );
+  }
   const isOnboarding = positions.length === 0;
   const isPushEnabledOnThisDevice =
     typeof window !== "undefined" &&
