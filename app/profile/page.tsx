@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { enablePushNotifications } from "@/lib/push";
 import { getUserProfile, updateUserPositions } from "@/lib/users";
+import { useRouter } from "next/navigation";
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"];
 
@@ -16,16 +17,26 @@ const POSITION_LABELS: Record<string, string> = {
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [positions, setPositions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [returnToMatch, setReturnToMatch] = useState<string | null>(null);
 
 
 
   useEffect(() => {
     if (!user) return;
+
+    // Verificar si hay un partido guardado para volver
+    if (typeof window !== "undefined") {
+      const matchId = localStorage.getItem("returnToMatch");
+      if (matchId) {
+        setReturnToMatch(matchId);
+      }
+    }
 
     getUserProfile(user.uid)
       .then(profile => {
@@ -203,7 +214,16 @@ export default function ProfilePage() {
           {/* CTA CONTINUAR */}
           {!isOnboarding && positions.length > 0 && (
             <><button
-              onClick={() => window.history.back()}
+              onClick={() => {
+                if (returnToMatch) {
+                  // Limpiar localStorage y volver al partido
+                  localStorage.removeItem("returnToMatch");
+                  router.push(`/join/${returnToMatch}`);
+                } else {
+                  // Si no hay partido guardado, ir al home
+                  router.push("/");
+                }
+              }}
               style={{
                 marginTop: 20,
                 width: "100%",
@@ -214,9 +234,10 @@ export default function ProfilePage() {
                 border: "none",
                 fontSize: 16,
                 fontWeight: 600,
+                cursor: "pointer",
               }}
             >
-              Continuar
+              {returnToMatch ? "Volver al partido" : "Ver mis partidos"}
             </button>
               {/* RECORDATORIOS */}
               <div
