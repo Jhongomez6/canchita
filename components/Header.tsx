@@ -4,9 +4,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/AuthContext";
 import { logout } from "@/lib/auth";
+import { useEffect, useState } from "react";
+import { getUserProfile } from "@/lib/users";
 
 export default function Header() {
   const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    getUserProfile(user.uid).then(profile => {
+      setIsAdmin(profile?.role === "admin");
+    });
+  }, [user]);
 
   return (
     <header
@@ -76,6 +86,19 @@ export default function Header() {
           >
             Perfil
           </Link>
+
+          {isAdmin && (
+            <Link
+              href="/admin/users"
+              style={{
+                color: "#e6f6ed",
+                textDecoration: "none",
+                fontWeight: 500,
+              }}
+            >
+              Usuarios
+            </Link>
+          )}
 
           <button
             onClick={logout}
