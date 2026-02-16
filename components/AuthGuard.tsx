@@ -21,9 +21,14 @@ export default function AuthGuard({
   useEffect(() => {
     if (!user) return;
 
-    getUserProfile(user.uid).then(p => {
-      setProfile(p);
-    });
+    getUserProfile(user.uid)
+      .then(p => {
+        setProfile(p || { role: "player", positions: [] });
+      })
+      .catch(err => {
+        console.error("Error cargando perfil en AuthGuard:", err);
+        setProfile({ role: "player", positions: [] });
+      });
   }, [user]);
 
   // ⏳ Auth o perfil cargando
