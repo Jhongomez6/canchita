@@ -57,7 +57,35 @@ export default function ProfilePage() {
 
   }, [user]);
 
-  if (!user) return <p>Debes iniciar sesión</p>;
+  if (!user) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 24,
+            padding: "48px 40px",
+            maxWidth: 440,
+            width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            textAlign: "center",
+          }}
+        >
+          <p style={{ fontSize: 18, color: "#666" }}>Debes iniciar sesión</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (loading) {
     return (
       <div
