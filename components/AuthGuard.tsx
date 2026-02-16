@@ -31,6 +31,18 @@ export default function AuthGuard({
       });
   }, [user]);
 
+  // 🔹 Redirigir a /profile si el perfil está incompleto
+  useEffect(() => {
+    if (
+      profile &&
+      profile.role === "player" &&
+      (!profile.positions || profile.positions.length === 0) &&
+      pathname !== "/profile"
+    ) {
+      router.replace("/profile");
+    }
+  }, [profile, pathname, router]);
+
   // ⏳ Auth o perfil cargando
   if (loading || (user && !profile)) {
     return (
@@ -199,13 +211,13 @@ export default function AuthGuard({
     );
   }
 
-  // 🚨 PERFIL INCOMPLETO → FORZAR A /profile
+  // 🚨 PERFIL INCOMPLETO → Mostrar pantalla de redirección
   if (
+    profile &&
     profile.role === "player" &&
     (!profile.positions || profile.positions.length === 0) &&
     pathname !== "/profile"
   ) {
-    router.replace("/profile");
     return (
       <div
         style={{
