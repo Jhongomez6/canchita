@@ -382,7 +382,7 @@ export default function JoinMatchPage() {
             marginBottom: 16,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 20 }}>⚽ La Canchita</h2>
+          <h2 style={{ margin: 0, fontSize: 20 }}>⚽ Partido</h2>
           <p style={{ marginTop: 4, fontSize: 14, opacity: 0.9 }}>
             Detalles del partido
           </p>
@@ -431,99 +431,6 @@ export default function JoinMatchPage() {
             </span>
           </div>
         </div>
-
-        {!isClosed && location && (
-          <div style={card}>
-            <h3>📍 Cancha</h3>
-
-            <p style={{ fontWeight: 600 }}>{location.name}</p>
-            <p style={{ fontSize: 14, color: "#555" }}>
-              {location.address}
-            </p>
-
-            {/* MAPA */}
-            <iframe
-              src={googleMapsEmbedUrl(location.lat, location.lng)}
-              width="100%"
-              height="220"
-              style={{
-                border: 0,
-                borderRadius: 12,
-                marginTop: 12,
-              }}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                marginTop: 16,
-              }}
-            >
-              {/* GOOGLE MAPS */}
-              <a
-                href={googleMapsLink(location.lat, location.lng)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 10,
-                  padding: 14,
-                  background: "#ffffff",
-                  color: "#111",
-                  borderRadius: 16,
-                  border: "1px solid #e5e7eb",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <img
-                  src="/icons/google-maps.svg"
-                  alt="Google Maps"
-                  style={{ width: 22, height: 22 }}
-                />
-                <span>Abrir en Maps</span>
-              </a>
-
-              {/* WAZE */}
-              <a
-                href={wazeLink(location.lat, location.lng)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 10,
-                  padding: 14,
-                  background: "#ffffff",
-                  color: "#111",
-                  borderRadius: 16,
-                  border: "1px solid #e5e7eb",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <img
-                  src="/icons/waze.svg"
-                  alt="Waze"
-                  style={{ width: 22, height: 22 }}
-                />
-                <span>Abrir en Waze</span>
-              </a>
-            </div>
-          </div>
-        )}
-
 
         {/* CARD ASISTENCIA - Solo si partido abierto */}
         {!isClosed && (
@@ -667,6 +574,98 @@ export default function JoinMatchPage() {
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {!isClosed && location && (
+          <div style={card}>
+            <h3>📍 Cancha</h3>
+
+            <p style={{ fontWeight: 600 }}>{location.name}</p>
+            <p style={{ fontSize: 14, color: "#555" }}>
+              {location.address}
+            </p>
+
+            {/* MAPA */}
+            <iframe
+              src={googleMapsEmbedUrl(location.lat, location.lng)}
+              width="100%"
+              height="220"
+              style={{
+                border: 0,
+                borderRadius: 12,
+                marginTop: 12,
+              }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                marginTop: 16,
+              }}
+            >
+              {/* GOOGLE MAPS */}
+              <a
+                href={googleMapsLink(location.lat, location.lng)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  padding: 14,
+                  background: "#ffffff",
+                  color: "#111",
+                  borderRadius: 16,
+                  border: "1px solid #e5e7eb",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <img
+                  src="/icons/google-maps.svg"
+                  alt="Google Maps"
+                  style={{ width: 22, height: 22 }}
+                />
+                <span>Abrir en Maps</span>
+              </a>
+
+              {/* WAZE */}
+              <a
+                href={wazeLink(location.lat, location.lng)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  padding: 14,
+                  background: "#ffffff",
+                  color: "#111",
+                  borderRadius: 16,
+                  border: "1px solid #e5e7eb",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <img
+                  src="/icons/waze.svg"
+                  alt="Waze"
+                  style={{ width: 22, height: 22 }}
+                />
+                <span>Abrir en Waze</span>
+              </a>
+            </div>
           </div>
         )}
 
