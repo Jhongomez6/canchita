@@ -10,6 +10,8 @@ import { formatDateSpanish, formatTime12h } from "@/lib/date";
 import { googleMapsEmbedUrl, googleMapsLink, wazeLink } from "@/lib/maps";
 import Image from "next/image";
 import { getUserProfile } from "@/lib/users";
+import AddGuestForm from "@/components/AddGuestForm";
+import { Guest } from "@/lib/domain/guest";
 
 
 import {
@@ -577,6 +579,18 @@ export default function JoinMatchPage() {
           </div>
         )}
 
+        {/* AGREGAR INVITADO - Solo para jugadores confirmados */}
+        {!isClosed && existingPlayer?.confirmed && (
+          <AddGuestForm
+            matchId={id}
+            playerUid={user.uid}
+            existingGuest={
+              match.guests?.find((g: Guest) => g.invitedBy === user.uid) || null
+            }
+            onSuccess={() => loadMatch()}
+          />
+        )}
+
         {!isClosed && location && (
           <div style={card}>
             <h3>📍 Cancha</h3>
@@ -862,18 +876,19 @@ export default function JoinMatchPage() {
           >
             <h3 style={{ marginBottom: 12 }}>Jugadores confirmados</h3>
 
-            {match.players?.filter((p: any) => p.confirmed).length === 0 && (
+            {match.players?.filter((p: any) => p.confirmed).length === 0 && !match.guests?.length && (
               <p style={{ fontSize: 14, color: "#777" }}>
                 Aún no hay jugadores confirmados
               </p>
             )}
 
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {/* Jugadores confirmados */}
               {match.players
                 ?.filter((p: any) => p.confirmed)
                 .map((p: any, i: number) => (
                   <li
-                    key={i}
+                    key={`player-${i}`}
                     style={{
                       padding: "6px 0",
                       display: "flex",
@@ -884,8 +899,40 @@ export default function JoinMatchPage() {
                     <span>🟢</span>
                     <span>{p.name}</span>
                   </li>
-
                 ))}
+
+              {/* Invitados */}
+              {match.guests?.map((guest: Guest, i: number) => {
+                const inviter = match.players?.find(
+                  (p: any) => p.uid === guest.invitedBy
+                );
+                return (
+                  <li
+                    key={`guest-${i}`}
+                    style={{
+                      padding: "6px 0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span>👤</span>
+                    <span>
+                      {guest.name}
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 12,
+                          color: "#666",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        (invitado de {inviter?.name || "un jugador"})
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
