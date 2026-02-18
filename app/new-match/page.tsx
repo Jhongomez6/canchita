@@ -87,13 +87,13 @@ export default function NewMatchPage() {
       <main style={{ padding: 20, maxWidth: 480, margin: "0 auto" }}>
         <h2 style={{ marginBottom: 16 }}>➕ Nuevo partido</h2>
 
-        {userProfile?.role !== "admin" && (
+        {!userProfile?.roles.includes("admin") && (
           <p style={{ color: "#dc2626" }}>
             No tienes permisos para crear partidos.
           </p>
         )}
 
-        {userProfile?.role === "admin" && (
+        {userProfile?.roles.includes("admin") && (
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 12 }}>
               <label>Fecha</label>

@@ -23,14 +23,14 @@ export default function RankingPage() {
         if (!user) return;
         getUserProfile(user.uid).then((p) => {
             setProfile(p);
-            if (p?.role !== "admin") {
+            if (!p?.roles.includes("admin")) {
                 router.replace("/");
             }
         });
     }, [user, router]);
 
     useEffect(() => {
-        if (!profile || profile.role !== "admin") return;
+        if (!profile || !profile.roles.includes("admin")) return;
         loadRanking();
     }, [profile]);
 
@@ -85,7 +85,7 @@ export default function RankingPage() {
         return <p style={{ padding: 20 }}>Cargando...</p>;
     }
 
-    if (profile.role !== "admin") {
+    if (!profile.roles.includes("admin")) {
         return null;
     }
 

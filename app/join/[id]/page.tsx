@@ -64,12 +64,12 @@ export default function JoinMatchPage() {
 
     getUserProfile(user.uid)
       .then(p => {
-        setProfile(p || { uid: user.uid, name: user.displayName || '', role: "player" as const, positions: [] });
+        setProfile(p || { uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
         setLoadingProfile(false);
       })
       .catch(err => {
         console.error("Error cargando perfil:", err);
-        setProfile({ uid: user.uid, name: user.displayName || '', role: "player" as const, positions: [] });
+        setProfile({ uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
         setLoadingProfile(false);
       });
   }, [user]);
@@ -78,7 +78,7 @@ export default function JoinMatchPage() {
   useEffect(() => {
     if (
       profile &&
-      profile.role === "player" &&
+      profile.roles.includes("player") &&
       (!profile.positions || profile.positions.length === 0)
     ) {
       // Guardar el ID del partido para volver después
@@ -279,7 +279,7 @@ export default function JoinMatchPage() {
   // 🚨 PERFIL INCOMPLETO → Mostrar pantalla de redirección
   if (
     profile &&
-    profile.role === "player" &&
+    profile.roles.includes("player") &&
     (!profile.positions || profile.positions.length === 0)
   ) {
     return (

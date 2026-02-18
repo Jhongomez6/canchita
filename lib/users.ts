@@ -35,7 +35,7 @@ export async function ensureUserProfile(
     await setDoc(ref, {
       name,
       positions: [],
-      role: "player",
+      roles: ["player"],
     });
   }
 }
@@ -51,7 +51,10 @@ export async function getUserProfile(
 
   if (!snap.exists()) return null;
 
-  return { uid: snap.id, ...snap.data() } as UserProfile;
+  const data = snap.data();
+  // Backward compat: old docs have `role` (string) instead of `roles` (array)
+  const roles = data.roles ?? (data.role ? [data.role] : ["player"]);
+  return { uid: snap.id, ...data, roles } as UserProfile;
 }
 
 /* =========================
@@ -71,10 +74,11 @@ export async function updateUserPositions(
 export async function getAllUsers(): Promise<UserProfile[]> {
   const usersRef = collection(db, "users");
   const snapshot = await getDocs(usersRef);
-  return snapshot.docs.map((d) => ({
-    uid: d.id,
-    ...d.data(),
-  })) as UserProfile[];
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    const roles = data.roles ?? (data.role ? [data.role] : ["player"]);
+    return { uid: d.id, ...data, roles } as UserProfile;
+  });
 }
 
 /* =========================
@@ -83,6 +87,56 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 export async function updateUserName(uid: string, name: string) {
   const ref = doc(db, "users", uid);
   await updateDoc(ref, { name, nameLastChanged: new Date().toISOString() });
+}
+
+/* =========================
+   GUARDAR ONBOARDING
+========================= */
+export async function saveOnboardingResult(
+  uid: string,
+  data: {
+    rating: number;
+    level: number;
+    age: number;
+    sex: string;
+    dominantFoot: string;
+    preferredCourt: string;
+    positions: string[];
+  }
+) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, {
+    ...data,
+    initialRatingCalculated: true,
+    onboardingCompletedAt: new Date().toISOString(),
+  });
+}
+
+/* =========================
+   SOLICITAR RE-EVALUACIÓN
+========================= */
+export async function requestReEvaluation(uid: string) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { initialRatingCalculated: false });
+}
+
+/* =========================
+   ACTUALIZAR ATRIBUTOS JUGADOR
+========================= */
+export async function updatePlayerAttributes(
+  uid: string,
+  data: { dominantFoot?: string; preferredCourt?: string }
+) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, data);
+}
+
+/* =========================
+   ACTUALIZAR ROLES
+========================= */
+export async function updateUserRoles(uid: string, roles: string[]) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { roles });
 }
 
 /* =========================

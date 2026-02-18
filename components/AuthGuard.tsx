@@ -24,25 +24,27 @@ export default function AuthGuard({
 
     getUserProfile(user.uid)
       .then(p => {
-        setProfile(p || { uid: user.uid, name: user.displayName || '', role: "player" as const, positions: [] });
+        setProfile(p || { uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
       })
       .catch(err => {
         console.error("Error cargando perfil en AuthGuard:", err);
-        setProfile({ uid: user.uid, name: user.displayName || '', role: "player" as const, positions: [] });
+        setProfile({ uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
       });
   }, [user]);
 
-  // 🔹 Redirigir a /profile si el perfil está incompleto
+  // 🔹 Redirigir a /onboarding si no ha completado el rating inicial
   useEffect(() => {
     if (
       profile &&
-      profile.role === "player" &&
-      (!profile.positions || profile.positions.length === 0) &&
-      pathname !== "/profile"
+      profile.roles.includes("player") &&
+      !profile.initialRatingCalculated &&
+      pathname !== "/onboarding"
     ) {
-      router.replace("/profile");
+      router.replace("/onboarding");
     }
   }, [profile, pathname, router]);
+
+
 
   // ⏳ Auth o perfil cargando
   if (loading || (user && !profile)) {
@@ -212,12 +214,12 @@ export default function AuthGuard({
     );
   }
 
-  // 🚨 PERFIL INCOMPLETO → Mostrar pantalla de redirección
+  // 🚨 FALTA ONBOARDING → Mostrar pantalla de redirección
   if (
     profile &&
-    profile.role === "player" &&
-    (!profile.positions || profile.positions.length === 0) &&
-    pathname !== "/profile"
+    profile.roles.includes("player") &&
+    !profile.initialRatingCalculated &&
+    pathname !== "/onboarding"
   ) {
     return (
       <div
@@ -250,7 +252,7 @@ export default function AuthGuard({
               style={{ margin: "0 auto" }}
             />
           </div>
-          <p style={{ fontSize: 18, color: "#666" }}>Redirigiendo a tu perfil...</p>
+          <p style={{ fontSize: 18, color: "#666" }}>Preparando tu evaluación...</p>
         </div>
       </div>
     );

@@ -208,7 +208,7 @@ export default function MatchDetailPage() {
 
   // Redirigir si no es admin
   useEffect(() => {
-    if (!loadingProfile && userProfile && userProfile.role !== "admin") {
+    if (!loadingProfile && userProfile && !userProfile.roles.includes("admin")) {
       router.push("/");
     }
   }, [loadingProfile, userProfile, router]);
@@ -221,7 +221,7 @@ export default function MatchDetailPage() {
     );
   }
 
-  if (!userProfile || userProfile.role !== "admin") {
+  if (!userProfile || !userProfile.roles.includes("admin")) {
     return (
       <AuthGuard>
         <p style={{ padding: 20 }}>Cargando...</p>

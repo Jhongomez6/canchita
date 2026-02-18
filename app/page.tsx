@@ -171,7 +171,7 @@ export default function Home() {
           </div>
 
           {/* CTA ADMIN */}
-          {profile?.role === "admin" && (
+          {profile?.roles.includes("admin") && (
             <div style={{ padding: "0 16px 12px" }}>
               <Link
                 href="/new-match"
@@ -215,7 +215,7 @@ export default function Home() {
 
             {matches.map(m => {
               const href =
-                profile?.role === "admin"
+                profile?.roles.includes("admin")
                   ? `/match/${m.id}`
                   : `/join/${m.id}`;
 
@@ -236,7 +236,7 @@ export default function Home() {
                 >
 
                   <h3 style={{ marginBottom: 6 }}>
-                    {profile?.role === "admin"
+                    {profile?.roles.includes("admin")
                       ? "⚽ Administrar partido"
                       : "⚽ Partido"}
                   </h3>

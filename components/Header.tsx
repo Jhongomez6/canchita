@@ -16,7 +16,7 @@ export default function Header() {
   useEffect(() => {
     if (!user) return;
     getUserProfile(user.uid).then(profile => {
-      setIsAdmin(profile?.role === "admin");
+      setIsAdmin(profile?.roles.includes("admin") ?? false);
     });
   }, [user]);
 

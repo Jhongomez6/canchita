@@ -30,8 +30,8 @@ interface UserProfile {
 | # | Regla | Implementación |
 |---|-------|----------------|
 | 1 | Login exclusivamente con Google | `loginWithGoogle()` en `lib/auth.ts` |
-| 2 | Roles: "admin" o "player" | `UserRole` type en `lib/domain/user.ts` |
-| 3 | Solo admin accede a panel de gestión | `isAdmin()` en `lib/domain/user.ts` |
+| 2 | Roles múltiples: "admin" y/o "player" | `roles: UserRole[]` en `lib/domain/user.ts` |
+| 3 | Solo admin accede a panel de gestión | `roles.includes("admin")` |
 | 4 | Perfil debe tener al menos 1 posición | Redirect en `AuthGuard.tsx` |
 | 5 | Máximo 2 posiciones por jugador | Validación en profile page |
 | 6 | Admin puede eliminar usuarios | `deleteUser()` en `lib/users.ts` |
@@ -75,7 +75,7 @@ export interface UserProfile {
 }
 
 export function isAdmin(profile: UserProfile): boolean {
-  return profile.role === "admin";
+  return profile.roles.includes("admin");
 }
 ```
 
@@ -88,6 +88,7 @@ export function isAdmin(profile: UserProfile): boolean {
 ```typescript
 export async function getUserProfile(uid: string): Promise<UserProfile | null>
 export async function getAllUsers(): Promise<UserProfile[]>
+export async function updatePlayerAttributes(uid: string, data: { dominantFoot?: string; preferredCourt?: string })
 export async function updateUserPositions(uid: string, positions: Position[]): Promise<void>
 export async function updateUserName(uid: string, name: string): Promise<void>
 export async function deleteUser(uid: string): Promise<void>
@@ -175,14 +176,19 @@ export const POSITION_ICONS: Record<Position, string> = {
 **Then** el campo nombre está deshabilitado y muestra la fecha disponible
 
 ### ✅ Criterio 6
-**Given** un jugador que guarda nombre o posiciones
-**When** la operación completa
-**Then** aparece feedback específico ("✅ Nombre guardado" o "✅ Posiciones guardadas")
+**Given** un jugador que guarda nombre, posiciones o atributos
+**When** hace clic en "Guardar cambios" en modo edición
+**Then** todos los cambios se persisten en batch y vuelve a modo vista con feedback
 
 ### ✅ Criterio 7
-**Given** un jugador cambiando posiciones
-**When** la API está en vuelo
-**Then** el grid se bloquea (opacity 0.6, cursor wait, pointer-events none)
+**Given** un jugador en modo vista
+**When** accede a `/profile`
+**Then** ve toda su información (nombre, edad, posiciones, pie, cancha, nivel) como read-only en una sola pantalla
+
+### ✅ Criterio 8
+**Given** un jugador cuyo onboarding se completó hace más de 90 días
+**When** solicita re-evaluación desde su perfil
+**Then** se resetea `initialRatingCalculated` y es redirigido a `/onboarding`
 
 ---
 
@@ -197,7 +203,7 @@ export const POSITION_ICONS: Record<Position, string> = {
 | API | `lib/AuthContext.tsx` | Context de autenticación |
 | API | `lib/push.ts` | Push notifications |
 | UI | `components/AuthGuard.tsx` | Guard de rutas |
-| UI | `app/profile/page.tsx` | Dashboard perfil (nombre, posiciones, stats) |
+| UI | `app/profile/page.tsx` | Ficha Técnica con modo vista/edición y re-evaluación |
 | UI | `app/admin/users/page.tsx` | Panel admin |
 
 ---
@@ -208,6 +214,6 @@ export const POSITION_ICONS: Record<Position, string> = {
 ✅ **AuthGuard protege rutas** según reglas de negocio
 ✅ **Posiciones centralizadas** con iconos en `lib/domain/player.ts`
 ✅ **UI tipada** con `UserProfile` en lugar de `any`
-✅ **Feedback independiente** para nombre y posiciones
-✅ **Bloqueo de UI** durante operaciones asíncronas
+✅ **Modo vista/edición** compacto en perfil con batch save
+✅ **Re-evaluación** disponible cada 90 días
 ✅ **Trazabilidad completa** de cada regla
