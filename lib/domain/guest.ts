@@ -2,12 +2,12 @@
  * ========================
  * GUEST DOMAIN MODEL
  * ========================
- * 
+ *
  * Specification-Driven Development (SDD)
- * 
+ *
  * Este módulo implementa el modelo de dominio Guest
  * siguiendo estrictamente la especificación funcional.
- * 
+ *
  * ESPECIFICACIÓN:
  * - Un jugador puede agregar máximo 1 invitado por partido
  * - El invitado NO requiere cuenta de usuario
@@ -16,13 +16,17 @@
  * - Posiciones permitidas: GK, DEF, MID, FWD
  */
 
-// ========================
-// TIPOS Y CONSTANTES
-// ========================
+import { GuestValidationError } from "./errors";
 
-export type Position = "GK" | "DEF" | "MID" | "FWD";
+// Re-export Position desde player.ts (fuente única de verdad)
+export type { Position } from "./player";
+export { ALLOWED_POSITIONS } from "./player";
 
-export const ALLOWED_POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
+import type { Position } from "./player";
+
+// ========================
+// TIPOS
+// ========================
 
 export interface Guest {
   name: string;
@@ -30,16 +34,8 @@ export interface Guest {
   invitedBy: string; // UID del jugador que invitó
 }
 
-// ========================
-// ERRORES DE DOMINIO
-// ========================
-
-export class GuestValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "GuestValidationError";
-  }
-}
+// Re-export error para backward compatibility
+export { GuestValidationError };
 
 // ========================
 // VALIDACIONES DE DOMINIO
@@ -56,7 +52,7 @@ export function validateGuestName(name: string): void {
   }
 
   const trimmedName = name.trim();
-  
+
   if (trimmedName.length < 2) {
     throw new GuestValidationError(
       "El nombre del invitado debe tener al menos 2 caracteres"
@@ -96,6 +92,7 @@ export function validateGuestPositions(positions: Position[]): void {
   }
 
   // Verificar que todas las posiciones sean válidas
+  const { ALLOWED_POSITIONS } = require("./player");
   for (const position of positions) {
     if (!ALLOWED_POSITIONS.includes(position)) {
       throw new GuestValidationError(
@@ -179,3 +176,26 @@ export function canAddGuest(
 ): boolean {
   return !hasExistingGuest(guests, playerUid);
 }
+
+// ========================
+// CONVERSIÓN GUEST → PLAYER
+// ========================
+
+import type { Player, PlayerLevel } from "./player";
+
+/**
+ * Convierte un Guest en un Player para incluirlo en el balanceo de equipos.
+ *
+ * REGLA: Los invitados participan en el balanceo con nivel configurable
+ * (por defecto 2 = Medio). Se marca con "(inv)" para distinguirlos.
+ */
+export function guestToPlayer(guest: Guest, level: PlayerLevel = 2): Player {
+  return {
+    id: `guest-${guest.invitedBy}`,
+    name: `${guest.name} (inv)`,
+    level,
+    positions: guest.positions,
+    confirmed: true,
+  };
+}
+

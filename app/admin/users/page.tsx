@@ -5,13 +5,14 @@ import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { getAllUsers, deleteUser, getUserProfile } from "@/lib/users";
 import AuthGuard from "@/components/AuthGuard";
+import type { UserProfile } from "@/lib/domain/user";
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {

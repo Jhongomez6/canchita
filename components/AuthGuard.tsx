@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { getUserProfile } from "@/lib/users";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
+import type { UserProfile } from "@/lib/domain/user";
 
 export default function AuthGuard({
   children,
@@ -13,7 +14,7 @@ export default function AuthGuard({
   children: React.ReactNode;
 }) {
   const { user, loading } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -23,11 +24,11 @@ export default function AuthGuard({
 
     getUserProfile(user.uid)
       .then(p => {
-        setProfile(p || { role: "player", positions: [] });
+        setProfile(p || { uid: user.uid, name: user.displayName || '', role: "player" as const, positions: [] });
       })
       .catch(err => {
         console.error("Error cargando perfil en AuthGuard:", err);
-        setProfile({ role: "player", positions: [] });
+        setProfile({ uid: user.uid, name: user.displayName || '', role: "player" as const, positions: [] });
       });
   }, [user]);
 

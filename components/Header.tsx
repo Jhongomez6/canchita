@@ -95,16 +95,28 @@ export default function Header() {
           </Link>
 
           {isAdmin && (
-            <Link
-              href="/admin/users"
-              style={{
-                color: "#e6f6ed",
-                textDecoration: "none",
-                fontWeight: 500,
-              }}
-            >
-              Usuarios
-            </Link>
+            <>
+              <Link
+                href="/admin/users"
+                style={{
+                  color: "#e6f6ed",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
+                Usuarios
+              </Link>
+              <Link
+                href="/admin/ranking"
+                style={{
+                  color: "#e6f6ed",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
+                Ranking 🏆
+              </Link>
+            </>
           )}
 
           <button

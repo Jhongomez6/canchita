@@ -2,12 +2,12 @@
  * ========================
  * GUEST MANAGEMENT API
  * ========================
- * 
+ *
  * Specification-Driven Development (SDD)
- * 
- * Este módulo implementa las operaciones de backend para gestionar invitados,
- * respetando estrictamente las reglas de negocio definidas en la especificación.
- * 
+ *
+ * Operaciones de Firestore para gestionar invitados.
+ * Usa tipos y reglas del dominio (`lib/domain/guest.ts`).
+ *
  * REGLAS DE NEGOCIO:
  * 1. Un jugador puede agregar máximo 1 invitado por partido
  * 2. El invitado ocupa un cupo del partido
@@ -15,7 +15,7 @@
  * 4. Si el jugador ya tiene un invitado, debe eliminarlo antes de agregar otro
  */
 
-import { doc, runTransaction } from "firebase/firestore";
+import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { db } from "./firebase";
 import {
   Guest,
@@ -23,19 +23,13 @@ import {
   validateGuest,
   canAddGuest,
   getPlayerGuest,
-  GuestValidationError,
 } from "./domain/guest";
+import { GuestBusinessError, MatchFullError } from "./domain/errors";
+import type { Player } from "./domain/player";
+import { getConfirmedCount } from "./domain/match";
 
-// ========================
-// ERRORES DE NEGOCIO
-// ========================
-
-export class GuestBusinessError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "GuestBusinessError";
-  }
-}
+// Re-export para backward compatibility
+export { GuestBusinessError };
 
 // ========================
 // AGREGAR INVITADO
@@ -43,16 +37,12 @@ export class GuestBusinessError extends Error {
 
 /**
  * Agrega un invitado a un partido
- * 
+ *
  * REGLAS APLICADAS:
  * - Validación completa del invitado (dominio)
  * - Máximo 1 invitado por jugador
  * - El invitado ocupa un cupo del partido
  * - Verifica que el partido no esté lleno
- * 
- * @throws GuestValidationError si los datos del invitado son inválidos
- * @throws GuestBusinessError si el jugador ya tiene un invitado
- * @throws Error si el partido está lleno
  */
 export async function addGuestToMatch(
   matchId: string,
@@ -72,7 +62,7 @@ export async function addGuestToMatch(
 
     const data = snap.data();
     const guests: Guest[] = data.guests || [];
-    const players = data.players || [];
+    const players: Player[] = data.players || [];
     const maxPlayers = data.maxPlayers ?? Infinity;
 
     // REGLA: Un jugador puede agregar máximo 1 invitado por partido
@@ -91,11 +81,11 @@ export async function addGuestToMatch(
     validateGuest(guest);
 
     // REGLA: El invitado ocupa un cupo del partido
-    const confirmedCount = players.filter((p: any) => p.confirmed).length;
+    const confirmedCount = getConfirmedCount(players);
     const totalOccupiedSlots = confirmedCount + guests.length;
 
     if (totalOccupiedSlots >= maxPlayers) {
-      throw new Error("MATCH_FULL");
+      throw new MatchFullError();
     }
 
     // Agregar invitado
@@ -111,7 +101,7 @@ export async function addGuestToMatch(
 
 /**
  * Elimina el invitado de un jugador en un partido
- * 
+ *
  * REGLAS APLICADAS:
  * - Solo el jugador que invitó puede eliminar a su invitado
  * - Libera el cupo del partido
@@ -194,6 +184,3 @@ export async function canPlayerAddGuest(
 
   return canAddGuest(guests, playerUid);
 }
-
-// Fix import
-import { getDoc } from "firebase/firestore";

@@ -12,6 +12,10 @@ import Image from "next/image";
 import { getUserProfile } from "@/lib/users";
 import AddGuestForm from "@/components/AddGuestForm";
 import { Guest } from "@/lib/domain/guest";
+import type { Match } from "@/lib/domain/match";
+import type { UserProfile } from "@/lib/domain/user";
+import type { Location } from "@/lib/domain/location";
+import type { Player } from "@/lib/domain/player";
 
 
 import {
@@ -25,11 +29,11 @@ export default function JoinMatchPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [match, setMatch] = useState<any | null>(null);
+  const [match, setMatch] = useState<Match | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [location, setLocation] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [location, setLocation] = useState<Location | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
 
@@ -44,7 +48,7 @@ export default function JoinMatchPage() {
         return;
       }
 
-      setMatch({ id: snap.id, ...snap.data() });
+      setMatch({ id: snap.id, ...snap.data() } as Match);
     } catch (e) {
       console.error(e);
       setError("No se pudo cargar el partido");
@@ -60,12 +64,12 @@ export default function JoinMatchPage() {
 
     getUserProfile(user.uid)
       .then(p => {
-        setProfile(p || { role: "player", positions: [] });
+        setProfile(p || { uid: user.uid, name: user.displayName || '', role: "player" as const, positions: [] });
         setLoadingProfile(false);
       })
       .catch(err => {
         console.error("Error cargando perfil:", err);
-        setProfile({ role: "player", positions: [] });
+        setProfile({ uid: user.uid, name: user.displayName || '', role: "player" as const, positions: [] });
         setLoadingProfile(false);
       });
   }, [user]);
@@ -98,7 +102,7 @@ export default function JoinMatchPage() {
     getDoc(doc(db, "locations", match.locationId))
       .then(snap => {
         if (snap.exists()) {
-          setLocation({ id: snap.id, ...snap.data() });
+          setLocation({ id: snap.id, ...snap.data() } as Location);
         }
       });
   }, [match]);
@@ -331,12 +335,12 @@ export default function JoinMatchPage() {
 
   const playerName = user.displayName || user.email || "Jugador";
   const isClosed = match.status === "closed";
-  const confirmedCount = match.players.filter((p: any) => p.confirmed).length;
+  const confirmedCount = match.players.filter((p: Player) => p.confirmed).length;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
 
 
   const existingPlayer = match.players?.find(
-    (p: any) => p.uid === user.uid || p.name === playerName
+    (p: Player) => p.uid === user.uid || p.name === playerName
   );
 
   const cardStyle = {
@@ -686,8 +690,8 @@ export default function JoinMatchPage() {
         {/* CARD RESULTADO FINAL - Solo si partido cerrado */}
         {isClosed && match.teams && (() => {
           // Determinar en qué equipo jugó el usuario
-          const userInTeamA = match.teams.A?.some((p: any) => p.uid === user.uid || p.name === playerName);
-          const userInTeamB = match.teams.B?.some((p: any) => p.uid === user.uid || p.name === playerName);
+          const userInTeamA = match.teams.A?.some((p: Player) => p.uid === user.uid || p.name === playerName);
+          const userInTeamB = match.teams.B?.some((p: Player) => p.uid === user.uid || p.name === playerName);
 
           const scoreA = match.score?.A ?? 0;
           const scoreB = match.score?.B ?? 0;
@@ -815,7 +819,7 @@ export default function JoinMatchPage() {
                     🔴 Equipo A
                   </h4>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {match.teams.A?.map((p: any, i: number) => (
+                    {match.teams.A?.map((p: Player, i: number) => (
                       <li
                         key={i}
                         style={{
@@ -844,7 +848,7 @@ export default function JoinMatchPage() {
                     🔵 Equipo B
                   </h4>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {match.teams.B?.map((p: any, i: number) => (
+                    {match.teams.B?.map((p: Player, i: number) => (
                       <li
                         key={i}
                         style={{
@@ -876,7 +880,7 @@ export default function JoinMatchPage() {
           >
             <h3 style={{ marginBottom: 12 }}>Jugadores confirmados</h3>
 
-            {match.players?.filter((p: any) => p.confirmed).length === 0 && !match.guests?.length && (
+            {match.players?.filter((p: Player) => p.confirmed).length === 0 && !match.guests?.length && (
               <p style={{ fontSize: 14, color: "#777" }}>
                 Aún no hay jugadores confirmados
               </p>
@@ -885,8 +889,8 @@ export default function JoinMatchPage() {
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {/* Jugadores confirmados */}
               {match.players
-                ?.filter((p: any) => p.confirmed)
-                .map((p: any, i: number) => (
+                ?.filter((p: Player) => p.confirmed)
+                .map((p: Player, i: number) => (
                   <li
                     key={`player-${i}`}
                     style={{
@@ -904,7 +908,7 @@ export default function JoinMatchPage() {
               {/* Invitados */}
               {match.guests?.map((guest: Guest, i: number) => {
                 const inviter = match.players?.find(
-                  (p: any) => p.uid === guest.invitedBy
+                  (p: Player) => p.uid === guest.invitedBy
                 );
                 return (
                   <li

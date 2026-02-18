@@ -10,17 +10,20 @@ import { enablePushNotifications } from "@/lib/push";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { Match } from "@/lib/domain/match";
+import type { UserProfile } from "@/lib/domain/user";
+import type { Location } from "@/lib/domain/location";
 
 
 
 export default function Home() {
   const { user } = useAuth();
-  const [matches, setMatches] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const { justLoggedIn } = useAuth();
   const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
-  const [locationsMap, setLocationsMap] = useState<Record<string, any>>({});
+  const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
 
 
 
@@ -55,19 +58,19 @@ export default function Home() {
         )
       );
 
-      const entries: [string, any][] = (
+      const entries: [string, Location][] = (
         await Promise.all(
           locationIds.map(async id => {
             const snap = await getDoc(doc(db, "locations", id));
             if (!snap.exists()) return null;
 
-            return [snap.id, snap.data()] as [string, any];
+            return [snap.id, { id: snap.id, ...snap.data() }] as [string, Location];
           })
         )
-      ).filter(Boolean) as [string, any][];
+      ).filter(Boolean) as [string, Location][];
 
 
-      const map: Record<string, any> = {};
+      const map: Record<string, Location> = {};
 
       entries.forEach(([id, data]) => {
         map[id] = data;

@@ -38,6 +38,7 @@ interface Guest {
 | 5 | Nombre obligatorio, mínimo 2 caracteres | `validateGuestName()` en `lib/domain/guest.ts` |
 | 6 | Posiciones: entre 1 y 2, sin duplicados | `validateGuestPositions()` en `lib/domain/guest.ts` |
 | 7 | Si ya tiene invitado, debe eliminarlo primero | `GuestBusinessError` en `lib/guests.ts` |
+| 8 | El invitado participa en el balanceo de equipos | `guestToPlayer()` en `lib/domain/guest.ts` |
 
 ---
 
@@ -86,6 +87,22 @@ export function validateGuestName(name: string): void {
 ```
 
 **✅ Cumple especificación**: Regla #5
+
+##### Conversión Guest → Player
+
+```typescript
+export function guestToPlayer(guest: Guest, level: PlayerLevel = 2): Player {
+  return {
+    id: `guest-${guest.invitedBy}`,
+    name: `${guest.name} (inv)`,
+    level,
+    positions: guest.positions,
+    confirmed: true,
+  };
+}
+```
+
+**✅ Cumple especificación**: Regla #8 — Convierte invitados en jugadores para el balanceo
 
 #### **Capa 2: API/Backend** (`lib/guests.ts`)
 - **Responsabilidad**: Operaciones de Firestore, transacciones

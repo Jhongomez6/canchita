@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { getUserProfile } from "@/lib/users";
 import { getActiveLocations } from "@/lib/locations";
 import { Timestamp } from "firebase/firestore";
+import type { UserProfile } from "@/lib/domain/user";
+import type { Location } from "@/lib/domain/location";
 
 
 export default function NewMatchPage() {
@@ -18,9 +20,9 @@ export default function NewMatchPage() {
   const [time, setTime] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(12);
 
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [locations, setLocations] = useState<any[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState("");
 
 

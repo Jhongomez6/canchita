@@ -3,17 +3,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { enablePushNotifications } from "@/lib/push";
-import { getUserProfile, updateUserPositions } from "@/lib/users";
+import { getUserProfile, updateUserPositions, updateUserName } from "@/lib/users";
 import { useRouter } from "next/navigation";
+import type { Position } from "@/lib/domain/player";
+import { ALLOWED_POSITIONS, POSITION_LABELS } from "@/lib/domain/player";
+import type { UserStats } from "@/lib/domain/user";
 
-const POSITIONS = ["GK", "DEF", "MID", "FWD"];
-
-const POSITION_LABELS: Record<string, string> = {
-  GK: "Portero",
-  DEF: "Defensa",
-  MID: "Mediocampista",
-  FWD: "Delantero",
-};
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -24,6 +19,10 @@ export default function ProfilePage() {
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [returnToMatch, setReturnToMatch] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameLastChanged, setNameLastChanged] = useState<string | null>(null);
+  const [stats, setStats] = useState<UserStats>({ played: 0, won: 0, lost: 0, draw: 0 });
 
 
 
@@ -45,6 +44,18 @@ export default function ProfilePage() {
         }
         if (profile?.notificationsEnabled) {
           setPushEnabled(true);
+        }
+        setDisplayName(profile?.name || user.displayName || "");
+        if ((profile as any)?.nameLastChanged) {
+          setNameLastChanged((profile as any).nameLastChanged);
+        }
+        if (profile?.stats) {
+          setStats({
+            played: Math.max(0, profile.stats.played ?? 0),
+            won: Math.max(0, profile.stats.won ?? 0),
+            lost: Math.max(0, profile.stats.lost ?? 0),
+            draw: Math.max(0, profile.stats.draw ?? 0),
+          });
         }
         setLoading(false);
       })
@@ -85,7 +96,7 @@ export default function ProfilePage() {
       </div>
     );
   }
-  
+
   if (loading) {
     return (
       <div
@@ -161,9 +172,94 @@ export default function ProfilePage() {
             boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
           }}
         >
-          <h1 style={{ marginBottom: 4 }}>
+          <h1 style={{ marginBottom: 16 }}>
             {isOnboarding ? "Tu perfil" : "Editar perfil"}
           </h1>
+
+          {/* NOMBRE */}
+          {(() => {
+            const COOLDOWN_DAYS = 30;
+            let daysRemaining = 0;
+            let nextChangeDate = "";
+            if (nameLastChanged) {
+              const lastChanged = new Date(nameLastChanged);
+              const now = new Date();
+              const diffMs = now.getTime() - lastChanged.getTime();
+              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+              daysRemaining = Math.max(0, COOLDOWN_DAYS - diffDays);
+              if (daysRemaining > 0) {
+                const next = new Date(lastChanged);
+                next.setDate(next.getDate() + COOLDOWN_DAYS);
+                nextChangeDate = next.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });
+              }
+            }
+            const canChangeName = daysRemaining === 0;
+
+            return (
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
+                  📝 Tu nombre
+                </label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={e => setDisplayName(e.target.value)}
+                    disabled={!canChangeName}
+                    placeholder="Tu nombre"
+                    style={{
+                      flex: 1,
+                      padding: "10px 14px",
+                      border: "1px solid #ddd",
+                      borderRadius: 10,
+                      fontSize: 15,
+                      outline: "none",
+                      background: canChangeName ? "#fff" : "#f3f4f6",
+                      color: canChangeName ? "#111" : "#9ca3af",
+                    }}
+                  />
+                  {canChangeName && (
+                    <button
+                      disabled={savingName || !displayName.trim()}
+                      onClick={async () => {
+                        const trimmed = displayName.trim();
+                        if (!trimmed || trimmed.length < 2) return;
+                        setSavingName(true);
+                        try {
+                          await updateUserName(user.uid, trimmed);
+                          setNameLastChanged(new Date().toISOString());
+                          setSaved(true);
+                          setTimeout(() => setSaved(false), 2000);
+                        } finally {
+                          setSavingName(false);
+                        }
+                      }}
+                      style={{
+                        padding: "10px 16px",
+                        background: savingName ? "#9ca3af" : "#1f7a4f",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 10,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: savingName ? "default" : "pointer",
+                      }}
+                    >
+                      {savingName ? "..." : "Guardar"}
+                    </button>
+                  )}
+                </div>
+                {saved && (
+                  <p style={{ color: "#16a34a", fontSize: 12, marginTop: 6, fontWeight: 600 }}>✅ Guardado</p>
+                )}
+                {!canChangeName && (
+                  <p style={{ color: "#92400e", fontSize: 12, marginTop: 6 }}>
+                    🔒 Podrás cambiar tu nombre el {nextChangeDate} ({daysRemaining} días restantes)
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           <p style={{ fontSize: 14, color: "#555", marginBottom: 8 }}>
             Selecciona hasta 2 posiciones donde te sientes cómodo(a) jugando
@@ -180,7 +276,7 @@ export default function ProfilePage() {
               gap: 12,
             }}
           >
-            {POSITIONS.map(pos => {
+            {ALLOWED_POSITIONS.map((pos: Position) => {
               const selected = positions.includes(pos);
 
               return (
@@ -214,7 +310,7 @@ export default function ProfilePage() {
                     checked={selected}
                     onChange={async e => {
                       let updated: string[];
-                      
+
                       if (e.target.checked) {
                         // Si ya hay 2 seleccionadas, eliminar la primera y agregar la nueva
                         if (positions.length >= 2) {
@@ -238,6 +334,31 @@ export default function ProfilePage() {
               );
             })}
           </div>
+
+          {/* ESTADÍSTICAS */}
+          {!isOnboarding && (
+            <div style={{ marginTop: 20, padding: 16, borderRadius: 12, background: "#f8fafc", border: "1px solid #e5e7eb" }}>
+              <h3 style={{ marginBottom: 12, fontSize: 15, fontWeight: 700, color: "#374151" }}>📊 Mis Estadísticas</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#374151" }}>{stats.played}</div>
+                  <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>PJ</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#16a34a" }}>{stats.won}</div>
+                  <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>PG</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#ca8a04" }}>{stats.draw}</div>
+                  <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>PE</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#dc2626" }}>{stats.lost}</div>
+                  <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>PP</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* CTA CONTINUAR */}
           {!isOnboarding && positions.length > 0 && (

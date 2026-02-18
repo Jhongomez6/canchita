@@ -18,8 +18,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams, useRouter } from "next/navigation";
 import { balanceTeams } from "@/lib/balanceTeams";
-import { getAllUsers } from "@/lib/usersList";
-import { getUserProfile } from "@/lib/users";
+import { getAllUsers, getUserProfile } from "@/lib/users";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
 import {
   DndContext,
@@ -27,30 +26,36 @@ import {
   useSensor,
   useSensors,
   PointerSensor,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from "@dnd-kit/sortable";
 
 import { CSS } from "@dnd-kit/utilities";
 import { updatePlayerStats } from "@/lib/playerStats";
-
-
-type Position = "GK" | "DEF" | "MID" | "FWD";
+import type { Position, PlayerLevel } from "@/lib/domain/player";
+import type { Player } from "@/lib/domain/player";
+import type { Match } from "@/lib/domain/match";
+import type { UserProfile } from "@/lib/domain/user";
+import type { Location } from "@/lib/domain/location";
+import { getTeamSummary } from "@/lib/domain/team";
+import type { Guest } from "@/lib/domain/guest";
+import { guestToPlayer } from "@/lib/domain/guest";
+import { removeGuestFromMatch } from "@/lib/guests";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const router = useRouter();
 
-  const [match, setMatch] = useState<any>(null);
-  const [balanced, setBalanced] = useState<any | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [match, setMatch] = useState<Match | null>(null);
+  const [balanced, setBalanced] = useState<{ teamA: { players: Player[] }; teamB: { players: Player[] } } | null>(null);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [selectedUid, setSelectedUid] = useState("");
   const [manualName, setManualName] = useState("");
@@ -58,7 +63,7 @@ export default function MatchDetailPage() {
   const [copied, setCopied] = useState(false);
   const [manualPositions, setManualPositions] = useState<string[]>([]);
   const [maxPlayersDraft, setMaxPlayersDraft] = useState<number | null>(null);
-  const [location, setLocation] = useState<any>(null);
+  const [location, setLocation] = useState<Location | null>(null);
   const [balancing, setBalancing] = useState(false);
   const [scoreA, setScoreA] = useState(0);
   const [scoreB, setScoreB] = useState(0);
@@ -68,6 +73,7 @@ export default function MatchDetailPage() {
   const [copyingReport, setCopyingReport] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
   const [scoreSaved, setScoreSaved] = useState(false);
+  const [guestLevels, setGuestLevels] = useState<Record<string, PlayerLevel>>({});
 
 
   const sensors = useSensors(
@@ -81,9 +87,9 @@ export default function MatchDetailPage() {
     const snap = await getDoc(doc(db, "matches", id));
     if (!snap.exists()) return;
 
-    const data = snap.data();
+    const data = snap.data() as Omit<Match, "id">;
 
-    setMatch({ id: snap.id, ...data });
+    setMatch({ id: snap.id, ...data } as Match);
     setMaxPlayersDraft(
       typeof data.maxPlayers === "number" ? data.maxPlayers : null
     );
@@ -96,20 +102,27 @@ export default function MatchDetailPage() {
 
   }
   async function handleBalance() {
-    if (confirmedCount < 4) return;
+    if (!match || confirmedCount < 4) return;
 
     setBalancing(true);
 
     const confirmed = match.players
-      .filter((p: any) => p.confirmed)
-      .map((p: any) => ({
-        uid: p.uid ?? null,
+      .filter((p: Player) => p.confirmed)
+      .map((p: Player, i: number) => ({
+        id: p.uid ?? `player-${i}`,
+        uid: p.uid ?? undefined,
         name: p.name,
         level: p.level ?? 2,
         positions: p.positions ?? ["MID"],
+        confirmed: p.confirmed,
       }));
 
-    const result = balanceTeams(confirmed);
+    // Incluir invitados en el balanceo
+    const guestPlayers = (match.guests ?? []).map((g: Guest) =>
+      guestToPlayer(g, guestLevels[g.name] ?? 2)
+    );
+
+    const result = balanceTeams([...confirmed, ...guestPlayers]);
 
     setBalanced(result);
 
@@ -124,27 +137,28 @@ export default function MatchDetailPage() {
   }
 
   async function generateWhatsAppReport() {
-    if (!match?.teams) return;
+    // Prefer local balanced state (reflects DnD changes) over match.teams (Firestore)
+    const teamA = balanced?.teamA.players ?? match?.teams?.A ?? [];
+    const teamB = balanced?.teamB.players ?? match?.teams?.B ?? [];
 
-    const teamA = match.teams.A ?? [];
-    const teamB = match.teams.B ?? [];
+    if (teamA.length === 0 && teamB.length === 0) return;
 
-    const scoreA = match.score?.A ?? 0;
-    const scoreB = match.score?.B ?? 0;
+    const scoreA = match?.score?.A ?? 0;
+    const scoreB = match?.score?.B ?? 0;
 
     let text = `⚽ *La titular de hoy:*\n\n`;
 
     text += `🔴 *Equipo A*\n`;
-    teamA.forEach((p: any) => {
+    teamA.forEach((p: Player) => {
       text += `• ${p.name} \n`;
     });
 
     text += `\n🔵 *Equipo B*\n`;
-    teamB.forEach((p: any) => {
+    teamB.forEach((p: Player) => {
       text += `• ${p.name} \n`;
     });
 
-    if (match.status === "closed") {
+    if (match?.status === "closed") {
       text += `\n🏆 *Resultado Final*\n`;
       text += `🔴 Equipo A ${scoreA} - ${scoreB} Equipo B 🔵\n`;
     }
@@ -154,7 +168,7 @@ export default function MatchDetailPage() {
 
   useEffect(() => {
     if (!user) return;
-    
+
     getUserProfile(user.uid).then(profile => {
       setUserProfile(profile);
       setLoadingProfile(false);
@@ -173,22 +187,13 @@ export default function MatchDetailPage() {
     setScoreB(match.score.B ?? 0);
   }, [match]);
 
-
-  useEffect(() => {
-    if (!match?.score) return;
-
-    setScoreA(match.score.A ?? 0);
-    setScoreB(match.score.B ?? 0);
-  }, [match]);
-
-
   useEffect(() => {
     if (!match?.locationId) return;
 
     getDoc(doc(db, "locations", match.locationId))
       .then(snap => {
         if (snap.exists()) {
-          setLocation({ id: snap.id, ...snap.data() });
+          setLocation({ id: snap.id, ...snap.data() } as Location);
         }
       });
   }, [match]);
@@ -232,10 +237,10 @@ export default function MatchDetailPage() {
 
   const availableUsers = users.filter(u => {
     const uidExists = existingPlayers.some(
-      (p: any) => p.uid && p.uid === u.uid
+      (p: Player) => p.uid && p.uid === u.uid
     );
     const nameExists = existingPlayers.some(
-      (p: any) =>
+      (p: Player) =>
         typeof p.name === "string" &&
         typeof u.name === "string" &&
         p.name.trim().toLowerCase() === u.name.trim().toLowerCase()
@@ -243,31 +248,7 @@ export default function MatchDetailPage() {
     return !uidExists && !nameExists;
   });
 
-  function getTeamSummary(players: any[]) {
-    const totalLevel = players.reduce(
-      (sum: number, p: any) => sum + (p.level ?? 0),
-      0
-    );
-
-    const positionsCount: Record<Position, number> = {
-      GK: 0,
-      DEF: 0,
-      MID: 0,
-      FWD: 0,
-    };
-
-    players.forEach((p: any) => {
-      p.positions?.forEach((pos: Position) => {
-        positionsCount[pos]++;
-      });
-    });
-
-    return {
-      count: players.length,
-      totalLevel,
-      positionsCount,
-    };
-  }
+  // getTeamSummary importado desde @/lib/domain/team
 
   const card = {
     background: "#fff",
@@ -291,31 +272,32 @@ export default function MatchDetailPage() {
     background: "#dc2626",
   };
 
-  const confirmedCount = match.players?.filter((p: any) => p.confirmed).length ?? 0;
-  const totalPlayers = match.players?.length ?? 0;
+  const guestCount = match.guests?.length ?? 0;
+  const confirmedCount = (match.players?.filter((p: Player) => p.confirmed).length ?? 0) + guestCount;
+  const totalPlayers = (match.players?.length ?? 0) + guestCount;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
 
-  function handleDragEnd(event: any) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over) return;
+    if (!over || !balanced) return;
 
-    const playerName = active.id;
+    const playerId = active.id as string;
 
     const fromA = balanced.teamA.players.find(
-      (p: any) => p.name === playerName
+      (p: Player) => (p.id ?? p.name) === playerId
     );
     const fromB = balanced.teamB.players.find(
-      (p: any) => p.name === playerName
+      (p: Player) => (p.id ?? p.name) === playerId
     );
 
     let newA = [...balanced.teamA.players];
     let newB = [...balanced.teamB.players];
 
     if (fromA) {
-      newA = newA.filter(p => p.name !== playerName);
+      newA = newA.filter(p => (p.id ?? p.name) !== playerId);
       newB.push(fromA);
     } else if (fromB) {
-      newB = newB.filter(p => p.name !== playerName);
+      newB = newB.filter(p => (p.id ?? p.name) !== playerId);
       newA.push(fromB);
     }
 
@@ -498,7 +480,7 @@ export default function MatchDetailPage() {
               <option value={3}>Alto</option>
             </select>
 
-            {["GK", "DEF", "MID", "FWD"].map(pos => (
+            {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
               <label key={pos} style={{ marginLeft: 8 }}>
                 <input
                   type="checkbox"
@@ -539,7 +521,7 @@ export default function MatchDetailPage() {
         <div style={card}>
           <h3>👥 Jugadores</h3>
 
-          {match.players?.map((p: any, i: number) => (
+          {match.players?.map((p: Player, i: number) => (
             <div
               key={i}
               style={{
@@ -614,7 +596,7 @@ export default function MatchDetailPage() {
               {isOwner && !isClosed && (
                 <div style={{ marginTop: 6 }}>
                   Posiciones:
-                  {["GK", "DEF", "MID", "FWD"].map(pos => (
+                  {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
                     <label key={pos} style={{ marginLeft: 8 }}>
                       <input
                         type="checkbox"
@@ -624,7 +606,7 @@ export default function MatchDetailPage() {
 
                           const updated = e.target.checked
                             ? [...current, pos]
-                            : current.filter((x: string) => x !== pos);
+                            : current.filter((x: Position) => x !== pos);
 
                           if (updated.length > 2) return;
 
@@ -641,6 +623,81 @@ export default function MatchDetailPage() {
               )}
             </div>
           ))}
+
+          {/* INVITADOS */}
+          {(match.guests ?? []).length > 0 && (
+            <>
+              <h4 style={{ marginTop: 16, marginBottom: 8, color: "#6b7280" }}>🎟️ Invitados ({match.guests!.length})</h4>
+              {match.guests!.map((g: Guest, i: number) => {
+                const inviter = match.players?.find((p: Player) => p.uid === g.invitedBy);
+                return (
+                  <div
+                    key={`guest-${i}`}
+                    style={{
+                      borderBottom: "1px solid #eee",
+                      padding: "12px 0",
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{g.name}</span>
+
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        fontSize: 12,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        background: "#ede9fe",
+                        color: "#6d28d9",
+                      }}
+                    >
+                      Invitado
+                    </span>
+
+                    <span style={{ marginLeft: 8, fontSize: 12, color: "#888" }}>
+                      por {inviter?.name ?? "Desconocido"}
+                    </span>
+
+                    <span style={{ marginLeft: 8, fontSize: 12, color: "#555" }}>
+                      📍 {g.positions?.join(", ") || "Sin posición"}
+                    </span>
+
+                    {isOwner && !isClosed && (
+                      <button
+                        style={{ ...btnDanger, marginLeft: 8 }}
+                        onClick={async () => {
+                          if (!confirm(`Eliminar invitado ${g.name}?`)) return;
+                          await removeGuestFromMatch(id, g.invitedBy);
+                          loadMatch();
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    )}
+
+                    {isOwner && !isClosed && (
+                      <div style={{ marginTop: 8 }}>
+                        Nivel:
+                        <select
+                          value={guestLevels[g.name] ?? 2}
+                          onChange={e => {
+                            setGuestLevels(prev => ({
+                              ...prev,
+                              [g.name]: Number(e.target.value) as PlayerLevel,
+                            }));
+                          }}
+                          style={{ marginLeft: 8 }}
+                        >
+                          <option value={1}>Bajo</option>
+                          <option value={2}>Medio</option>
+                          <option value={3}>Alto</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
 
         {/* BALANCEO */}
@@ -653,8 +710,8 @@ export default function MatchDetailPage() {
             <h3 style={{ marginBottom: 8 }}>⚖️ Balancear equipos</h3>
 
             <p style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>
-              Se usarán los jugadores <strong>confirmados</strong>.
-              Actualmente hay <strong>{confirmedCount}</strong>.
+              Se usarán los jugadores <strong>confirmados</strong> + <strong>invitados</strong>.
+              Actualmente hay <strong>{confirmedCount}</strong> ({guestCount > 0 ? `${confirmedCount - guestCount} confirmados + ${guestCount} invitados` : "confirmados"}).
             </p>
 
             <button
@@ -769,14 +826,14 @@ export default function MatchDetailPage() {
 
                         <SortableContext
                           items={balanced.teamA.players.map(
-                            (p: any) => p.uid ?? p.name
+                            (p: Player) => p.id ?? p.name
                           )}
                           strategy={verticalListSortingStrategy}
                         >
-                          {balanced.teamA.players.map((p: any) => (
+                          {balanced.teamA.players.map((p: Player) => (
                             <PlayerItem
-                              key={p.uid ?? p.name}
-                              id={p.uid ?? p.name}
+                              key={p.id ?? p.name}
+                              id={p.id ?? p.name}
                               name={`${p.name} ⚡ ${p.level} · ${(p.positions || []).join("/")}`}
                             />
                           ))}
@@ -802,14 +859,14 @@ export default function MatchDetailPage() {
 
                         <SortableContext
                           items={balanced.teamB.players.map(
-                            (p: any) => p.uid ?? p.name
+                            (p: Player) => p.id ?? p.name
                           )}
                           strategy={verticalListSortingStrategy}
                         >
-                          {balanced.teamB.players.map((p: any) => (
+                          {balanced.teamB.players.map((p: Player) => (
                             <PlayerItem
-                              key={p.uid ?? p.name}
-                              id={p.uid ?? p.name}
+                              key={p.id ?? p.name}
+                              id={p.id ?? p.name}
                               name={`${p.name} ⚡ ${p.level} · ${(p.positions || []).join("/")}`}
                             />
                           ))}
@@ -1092,11 +1149,11 @@ export default function MatchDetailPage() {
                   // 2️⃣ Detectar si ya había un resultado previo (partido reabierto)
                   let previousResultA: "win" | "loss" | "draw" | undefined;
                   let previousResultB: "win" | "loss" | "draw" | undefined;
-                  
+
                   if (freshMatch.statsProcessed && freshMatch.previousScore) {
                     const prevA = freshMatch.previousScore.A ?? 0;
                     const prevB = freshMatch.previousScore.B ?? 0;
-                    
+
                     if (prevA > prevB) {
                       previousResultA = "win";
                       previousResultB = "loss";

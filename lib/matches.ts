@@ -1,3 +1,14 @@
+/**
+ * ========================
+ * MATCH MANAGEMENT API
+ * ========================
+ *
+ * Specification-Driven Development (SDD)
+ *
+ * Operaciones de Firestore para gestionar partidos.
+ * Usa tipos y reglas del dominio (`lib/domain/match.ts`).
+ */
+
 import {
   collection,
   addDoc,
@@ -10,30 +21,20 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
+  runTransaction,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { getUserProfile } from "./users";
 import { Timestamp } from "firebase/firestore";
+import type { Player, Position } from "./domain/player";
+import type { Match, CreateMatchInput } from "./domain/match";
+import { getConfirmedCount } from "./domain/match";
+import { MatchFullError, DuplicatePlayerError } from "./domain/errors";
+
+// Re-export para backward compatibility
+export type { Match };
 
 const matchesRef = collection(db, "matches");
-
-export type Match = {
-  id: string;
-  date: string;
-  time: string;
-  startsAt: any; // puedes luego tiparlo como Timestamp
-  locationId: string;
-  locationSnapshot: {
-    name: string;
-    address: string;
-    lat: number;
-    lng: number;
-  };
-  createdBy: string;
-  maxPlayers: number;
-  status: string;
-  players: any[];
-};
 
 /* =========================
    CREAR PARTIDO
@@ -62,7 +63,7 @@ export async function createMatch(match: {
       "12h": true,
       "6h": true,
     },
-    playerUids: [match.createdBy], // 👈 CLAVE
+    playerUids: [match.createdBy],
     startsAt: Timestamp.fromDate(startsAt),
     createdAt: new Date(),
     status: "open",
@@ -76,22 +77,21 @@ export async function createMatch(match: {
 export async function getMyMatches(uid: string): Promise<Match[]> {
   const q = query(
     matchesRef,
-   where("playerUids", "array-contains", uid),
+    where("playerUids", "array-contains", uid),
     orderBy("createdAt", "desc")
   );
 
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...(doc.data() as Omit<Match, "id">),
+  return snapshot.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Match, "id">),
   }));
 }
 
 /* =========================
    AGREGARSE AL PARTIDO (JOIN)
 ========================= */
-
 export async function joinMatch(
   matchId: string,
   user: {
@@ -106,29 +106,27 @@ export async function joinMatch(
     if (!snap.exists()) return;
 
     const data = snap.data();
-    const players = data.players || [];
+    const players: Player[] = data.players || [];
     const maxPlayers = data.maxPlayers ?? Infinity;
 
     // 🔒 Evitar duplicados por UID
     const alreadyExists = players.some(
-      (p: any) => p.uid === user.uid
+      (p) => p.uid === user.uid
     );
     if (alreadyExists) return;
 
     // 🔢 Contar confirmados reales
-    const confirmedCount = players.filter(
-      (p: any) => p.confirmed
-    ).length;
+    const confirmedCount = getConfirmedCount(players);
 
     // ❌ Partido lleno
     if (confirmedCount >= maxPlayers) {
-      throw new Error("MATCH_FULL");
+      throw new MatchFullError();
     }
 
     // 🔥 Perfil del usuario
     const profile = await getUserProfile(user.uid);
 
-    const positions =
+    const positions: Position[] =
       profile?.positions && profile.positions.length > 0
         ? profile.positions
         : ["MID"];
@@ -146,18 +144,14 @@ export async function joinMatch(
           positions,
         },
       ],
-      // 👇 seguimos guardando esto (no se pierde nada)
       playerUids: arrayUnion(user.uid),
     });
   });
 }
 
-
 /* =========================
    CONFIRMAR / DESCONFIRMAR
 ========================= */
-import { runTransaction } from "firebase/firestore";
-
 export async function confirmAttendance(
   matchId: string,
   playerName: string
@@ -169,23 +163,23 @@ export async function confirmAttendance(
     if (!snap.exists()) return;
 
     const data = snap.data();
-    const players = data.players || [];
+    const players: Player[] = data.players || [];
     const maxPlayers = data.maxPlayers ?? Infinity;
 
     // Ya confirmado → no hacer nada
     const alreadyConfirmed = players.find(
-      (p: any) => p.name === playerName && p.confirmed
+      (p) => p.name === playerName && p.confirmed
     );
     if (alreadyConfirmed) return;
 
-    const confirmedCount = players.filter((p: any) => p.confirmed).length;
+    const confirmedCount = getConfirmedCount(players);
 
     // ❌ Partido lleno
     if (confirmedCount >= maxPlayers) {
-      throw new Error("MATCH_FULL");
+      throw new MatchFullError();
     }
 
-    const updatedPlayers = players.map((p: any) =>
+    const updatedPlayers = players.map((p) =>
       p.name === playerName ? { ...p, confirmed: true } : p
     );
 
@@ -194,7 +188,6 @@ export async function confirmAttendance(
     });
   });
 }
-
 
 export async function unconfirmAttendance(
   matchId: string,
@@ -205,9 +198,9 @@ export async function unconfirmAttendance(
   if (!snap.exists()) return;
 
   const data = snap.data();
-  const players = data.players || [];
+  const players: Player[] = data.players || [];
 
-  const updatedPlayers = players.map((p: any) =>
+  const updatedPlayers = players.map((p) =>
     p.name === playerName ? { ...p, confirmed: false } : p
   );
 
@@ -230,8 +223,9 @@ export async function updatePlayerData(
   if (!snap.exists()) return;
 
   const match = snap.data();
+  const players: Player[] = match.players || [];
 
-  const updatedPlayers = match.players.map((p: any) =>
+  const updatedPlayers = players.map((p) =>
     p.name === playerName ? { ...p, ...data } : p
   );
 
@@ -255,9 +249,10 @@ export async function addPlayerToMatch(
   if (!snap.exists()) return;
 
   const match = snap.data();
+  const players: Player[] = match.players || [];
 
-  const exists = match.players?.some(
-    (p: any) =>
+  const exists = players.some(
+    (p) =>
       (player.uid && p.uid === player.uid) ||
       p.name === player.name
   );
@@ -268,8 +263,8 @@ export async function addPlayerToMatch(
     confirmed: false,
   };
 
-  const updateData: any = {
-    players: [...(match.players || []), newPlayer],
+  const updateData: Record<string, unknown> = {
+    players: [...players, newPlayer],
   };
 
   if (player.uid) {
@@ -291,16 +286,17 @@ export async function deletePlayerFromMatch(
   if (!snap.exists()) return;
 
   const match = snap.data();
+  const players: Player[] = match.players || [];
 
-  const removedPlayer = match.players.find(
-    (p: any) => p.name === playerName
+  const removedPlayer = players.find(
+    (p) => p.name === playerName
   );
 
-  const updatedPlayers = match.players.filter(
-    (p: any) => p.name !== playerName
+  const updatedPlayers = players.filter(
+    (p) => p.name !== playerName
   );
 
-  const updateData: any = {
+  const updateData: Record<string, unknown> = {
     players: updatedPlayers,
   };
 
@@ -316,7 +312,7 @@ export async function deletePlayerFromMatch(
 ========================= */
 export async function saveTeams(
   matchId: string,
-  teams: { A: any[]; B: any[] }
+  teams: { A: Player[]; B: Player[] }
 ) {
   const ref = doc(db, "matches", matchId);
   await updateDoc(ref, { teams });

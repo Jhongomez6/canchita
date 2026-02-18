@@ -1,3 +1,14 @@
+/**
+ * ========================
+ * LOCATION MANAGEMENT API
+ * ========================
+ *
+ * Specification-Driven Development (SDD)
+ *
+ * Operaciones de Firestore para gestionar ubicaciones/canchas.
+ * Usa tipos del dominio (`lib/domain/location.ts`).
+ */
+
 import {
   collection,
   addDoc,
@@ -7,23 +18,21 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import type { Location, CreateLocationInput } from "./domain/location";
+import { DuplicateLocationError } from "./domain/errors";
 
 const locationsRef = collection(db, "locations");
 
-export async function createLocation(data: {
-  name: string;
-  address: string;
-  placeId: string;
-  lat: number;
-  lng: number;
-  createdBy: string;
-}) {
+/* =========================
+   CREAR CANCHA
+========================= */
+export async function createLocation(data: CreateLocationInput) {
   // 🔒 Evitar duplicados por placeId
   const q = query(locationsRef, where("placeId", "==", data.placeId));
   const snap = await getDocs(q);
 
   if (!snap.empty) {
-    throw new Error("Esta cancha ya existe");
+    throw new DuplicateLocationError();
   }
 
   await addDoc(locationsRef, {
@@ -33,7 +42,10 @@ export async function createLocation(data: {
   });
 }
 
-export async function getActiveLocations() {
+/* =========================
+   OBTENER CANCHAS ACTIVAS
+========================= */
+export async function getActiveLocations(): Promise<Location[]> {
   const q = query(
     collection(db, "locations"),
     where("active", "==", true)
@@ -41,9 +53,8 @@ export async function getActiveLocations() {
 
   const snap = await getDocs(q);
 
-  return snap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+  })) as Location[];
 }
-
