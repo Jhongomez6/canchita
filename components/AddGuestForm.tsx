@@ -25,7 +25,7 @@ import { addGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 const POSITION_LABELS: Record<Position, string> = {
   GK: "Portero",
   DEF: "Defensa",
-  MID: "Mediocampista",
+  MID: "Medio",
   FWD: "Delantero",
 };
 

@@ -37,6 +37,8 @@ interface UserProfile {
 | 6 | Admin puede eliminar usuarios | `deleteUser()` en `lib/users.ts` |
 | 7 | Jugador puede editar su nombre | `updateUserName()` en `lib/users.ts` |
 | 8 | Cambio de nombre solo cada 30 días | `nameLastChanged` + cooldown en profile page |
+| 9 | Posiciones con iconos visuales | `POSITION_ICONS` en `lib/domain/player.ts` |
+| 10 | Feedback separado nombre/posiciones | `nameSaved` / `positionsSaved` estados independientes |
 
 ---
 
@@ -77,7 +79,9 @@ export function isAdmin(profile: UserProfile): boolean {
 }
 ```
 
-**✅ Cumple especificación**: Reglas #2, #3
+**✅ Cumple especificación**: Reglas #2, #3, #9
+
+> **Nota**: `POSITION_ICONS` (`🧤 🛡️ ⚙️ ⚡`) centralizado en `lib/domain/player.ts` junto a `POSITION_LABELS`.
 
 #### **Capa 2: API** (`lib/users.ts`)
 
@@ -93,10 +97,14 @@ export async function deleteUser(uid: string): Promise<void>
 
 #### **Capa 3: UI**
 - `components/AuthGuard.tsx` — Protege rutas, redirige a `/profile` si incompleto
-- `app/profile/page.tsx` — Edición de nombre (con cooldown 30d), posiciones, y visualización de estadísticas (PJ/PG/PE/PP)
+- `app/profile/page.tsx` — Dashboard de perfil:
+  - Edición de nombre con cooldown 30d y validación (mín. 2 caracteres)
+  - Posiciones con iconos emoji (`POSITION_ICONS`) y bloqueo durante guardado
+  - Feedback independiente: `nameSaved` vs `positionsSaved`
+  - Visualización de estadísticas (PJ/PG/PE/PP)
 - `app/admin/users/page.tsx` — Panel admin con lista de usuarios tipada `UserProfile[]`
 
-**✅ Cumple especificación**: Reglas #3, #4, #5, #7, #8
+**✅ Cumple especificación**: Reglas #3, #4, #5, #7, #8, #9, #10
 
 ---
 
@@ -123,9 +131,19 @@ if (profile.role === "player" &&
 ```typescript
 {ALLOWED_POSITIONS.map((pos: Position) => {
   const selected = positions.includes(pos);
-  // ...render checkbox
+  // ...render con POSITION_ICONS[pos] + POSITION_LABELS[pos]
 })}
 ```
+
+### Regla #9: Posiciones con iconos visuales
+
+1. **Dominio** (`lib/domain/player.ts`):
+```typescript
+export const POSITION_ICONS: Record<Position, string> = {
+    GK: "🧤", DEF: "🛡️", MID: "⚙️", FWD: "⚡",
+};
+```
+2. **UI** (`app/profile/page.tsx`): Renderiza `{POSITION_ICONS[pos]} {POSITION_LABELS[pos]}`
 
 ---
 
@@ -156,6 +174,16 @@ if (profile.role === "player" &&
 **When** accede a `/profile`
 **Then** el campo nombre está deshabilitado y muestra la fecha disponible
 
+### ✅ Criterio 6
+**Given** un jugador que guarda nombre o posiciones
+**When** la operación completa
+**Then** aparece feedback específico ("✅ Nombre guardado" o "✅ Posiciones guardadas")
+
+### ✅ Criterio 7
+**Given** un jugador cambiando posiciones
+**When** la API está en vuelo
+**Then** el grid se bloquea (opacity 0.6, cursor wait, pointer-events none)
+
 ---
 
 ## 5. ARCHIVOS INVOLUCRADOS
@@ -163,13 +191,13 @@ if (profile.role === "player" &&
 | Capa | Archivo | Responsabilidad |
 |------|---------|----------------|
 | Dominio | `lib/domain/user.ts` | UserProfile, UserRole, isAdmin() |
-| Dominio | `lib/domain/player.ts` | Position, ALLOWED_POSITIONS, POSITION_LABELS |
+| Dominio | `lib/domain/player.ts` | Position, ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS |
 | API | `lib/users.ts` | CRUD Firestore |
 | API | `lib/auth.ts` | Login Google |
 | API | `lib/AuthContext.tsx` | Context de autenticación |
 | API | `lib/push.ts` | Push notifications |
 | UI | `components/AuthGuard.tsx` | Guard de rutas |
-| UI | `app/profile/page.tsx` | Configuración perfil |
+| UI | `app/profile/page.tsx` | Dashboard perfil (nombre, posiciones, stats) |
 | UI | `app/admin/users/page.tsx` | Panel admin |
 
 ---
@@ -178,6 +206,8 @@ if (profile.role === "player" &&
 
 ✅ **Roles tipados como union type** en dominio
 ✅ **AuthGuard protege rutas** según reglas de negocio
-✅ **Posiciones centralizadas** en `lib/domain/player.ts`
+✅ **Posiciones centralizadas** con iconos en `lib/domain/player.ts`
 ✅ **UI tipada** con `UserProfile` en lugar de `any`
+✅ **Feedback independiente** para nombre y posiciones
+✅ **Bloqueo de UI** durante operaciones asíncronas
 ✅ **Trazabilidad completa** de cada regla

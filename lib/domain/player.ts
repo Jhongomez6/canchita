@@ -28,8 +28,15 @@ export const ALLOWED_POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
 export const POSITION_LABELS: Record<Position, string> = {
     GK: "Portero",
     DEF: "Defensa",
-    MID: "Mediocampista",
+    MID: "Medio",
     FWD: "Delantero",
+};
+
+export const POSITION_ICONS: Record<Position, string> = {
+    GK: "🧤",
+    DEF: "🛡️",
+    MID: "⚙️",
+    FWD: "⚡",
 };
 
 export type PlayerLevel = 1 | 2 | 3;

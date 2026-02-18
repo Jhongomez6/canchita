@@ -6,7 +6,7 @@ import { enablePushNotifications } from "@/lib/push";
 import { getUserProfile, updateUserPositions, updateUserName } from "@/lib/users";
 import { useRouter } from "next/navigation";
 import type { Position } from "@/lib/domain/player";
-import { ALLOWED_POSITIONS, POSITION_LABELS } from "@/lib/domain/player";
+import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain/player";
 import type { UserStats } from "@/lib/domain/user";
 
 
@@ -15,7 +15,9 @@ export default function ProfilePage() {
   const router = useRouter();
   const [positions, setPositions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saved, setSaved] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
+  const [positionsSaved, setPositionsSaved] = useState(false);
+  const [savingPositions, setSavingPositions] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [returnToMatch, setReturnToMatch] = useState<string | null>(null);
@@ -228,8 +230,8 @@ export default function ProfilePage() {
                         try {
                           await updateUserName(user.uid, trimmed);
                           setNameLastChanged(new Date().toISOString());
-                          setSaved(true);
-                          setTimeout(() => setSaved(false), 2000);
+                          setNameSaved(true);
+                          setTimeout(() => setNameSaved(false), 2000);
                         } finally {
                           setSavingName(false);
                         }
@@ -249,8 +251,11 @@ export default function ProfilePage() {
                     </button>
                   )}
                 </div>
-                {saved && (
-                  <p style={{ color: "#16a34a", fontSize: 12, marginTop: 6, fontWeight: 600 }}>✅ Guardado</p>
+                {nameSaved && (
+                  <p style={{ color: "#16a34a", fontSize: 12, marginTop: 6, fontWeight: 600 }}>✅ Nombre guardado</p>
+                )}
+                {canChangeName && displayName.trim().length > 0 && displayName.trim().length < 2 && (
+                  <p style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>Mínimo 2 caracteres</p>
                 )}
                 {!canChangeName && (
                   <p style={{ color: "#92400e", fontSize: 12, marginTop: 6 }}>
@@ -288,17 +293,19 @@ export default function ProfilePage() {
                       : "1px solid #ddd",
                     borderRadius: 12,
                     padding: 14,
-                    cursor: "pointer",
+                    cursor: savingPositions ? "wait" : "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
                     background: selected ? "#e6f6ed" : "#fff",
                     fontWeight: 600,
                     transition: "all 0.2s ease",
+                    opacity: savingPositions ? 0.6 : 1,
+                    pointerEvents: savingPositions ? "none" : "auto",
                   }}
                 >
                   <span style={{ color: selected ? "#1f7a4f" : "#374151" }}>
-                    {POSITION_LABELS[pos]}
+                    {POSITION_ICONS[pos]} {POSITION_LABELS[pos]}
                   </span>
 
                   {selected && (
@@ -308,25 +315,29 @@ export default function ProfilePage() {
                   <input
                     type="checkbox"
                     checked={selected}
+                    disabled={savingPositions}
                     onChange={async e => {
                       let updated: string[];
 
                       if (e.target.checked) {
-                        // Si ya hay 2 seleccionadas, eliminar la primera y agregar la nueva
                         if (positions.length >= 2) {
                           updated = [...positions.slice(1), pos];
                         } else {
                           updated = [...positions, pos];
                         }
                       } else {
-                        // Deseleccionar
                         updated = positions.filter(p => p !== pos);
                       }
 
                       setPositions(updated);
-                      await updateUserPositions(user.uid, updated);
-                      setSaved(true);
-                      setTimeout(() => setSaved(false), 2000);
+                      setSavingPositions(true);
+                      try {
+                        await updateUserPositions(user.uid, updated);
+                        setPositionsSaved(true);
+                        setTimeout(() => setPositionsSaved(false), 2000);
+                      } finally {
+                        setSavingPositions(false);
+                      }
                     }}
                     style={{ display: "none" }}
                   />
@@ -334,6 +345,9 @@ export default function ProfilePage() {
               );
             })}
           </div>
+          {positionsSaved && (
+            <p style={{ color: "#16a34a", fontSize: 12, marginTop: 8, textAlign: "center", fontWeight: 600 }}>✅ Posiciones guardadas</p>
+          )}
 
           {/* ESTADÍSTICAS */}
           {!isOnboarding && (

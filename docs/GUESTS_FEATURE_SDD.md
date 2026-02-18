@@ -24,7 +24,7 @@ interface Guest {
 ### Posiciones Permitidas
 - `GK` (Portero)
 - `DEF` (Defensa)
-- `MID` (Mediocampista)
+- `MID` (Medio)
 - `FWD` (Delantero)
 
 ### Reglas de Negocio
