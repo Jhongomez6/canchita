@@ -102,6 +102,11 @@ export async function saveOnboardingResult(
     dominantFoot: string;
     preferredCourt: string;
     positions: string[];
+    techLevel: number;
+    physLevel: number;
+    hasSchool: boolean;
+    hasTournaments: boolean;
+    frequency: string;
   }
 ) {
   const ref = doc(db, "users", uid);

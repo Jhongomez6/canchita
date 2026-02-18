@@ -15,7 +15,7 @@
  */
 
 import type { Position } from "./player";
-import type { Sex, Foot, CourtSize } from "./rating";
+import type { Sex, Foot, CourtSize, TechLevel, PhysLevel, Frequency } from "./rating";
 
 // ========================
 // TIPOS
@@ -40,6 +40,11 @@ export interface UserProfile {
     sex?: Sex;
     dominantFoot?: Foot;
     preferredCourt?: CourtSize;
+    techLevel?: TechLevel;
+    physLevel?: PhysLevel;
+    hasSchool?: boolean;
+    hasTournaments?: boolean;
+    frequency?: Frequency;
 }
 
 export interface UserStats {

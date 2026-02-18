@@ -153,6 +153,11 @@ export default function OnboardingPage() {
                     dominantFoot: foot as string,
                     preferredCourt: court as string,
                     positions,
+                    techLevel: techLevel as number,
+                    physLevel: physLevel as number,
+                    hasSchool,
+                    hasTournaments,
+                    frequency: frequency as string,
                 });
             } catch (err) {
                 console.error("Error saving onboarding:", err);

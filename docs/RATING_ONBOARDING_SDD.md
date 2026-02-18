@@ -37,6 +37,10 @@ Calcular el rating inicial de un jugador nuevo usando hitos objetivos en lugar d
 - Sexo: male / female / other
 - Pie dominante: left / right / ambidextrous
 - Cancha preferida: 6v6 / 9v9 / 11v11
+- Nivel Técnico: 1-5
+- Condición Física: 1-5
+- Trayectoria: escuela (bool), torneos (bool)
+- Frecuencia: occasional / weekly / intense
 
 ### Reglas de Negocio
 
