@@ -164,7 +164,7 @@ Calcular el rating inicial de un jugador nuevo usando hitos objetivos en lugar d
 
 ```
 Login → AuthGuard → ¿initialRatingCalculated?
-  ├─ NO  → /onboarding (7 pasos incl. posiciones) → Home
+  ├─ NO  → /onboarding (7 pasos incl. posiciones) → Home (con full reload para refetch)
   └─ SÍ  → App normal
              └─ /profile → Ficha Técnica (nivel + re-evaluación a los 90 días)
 ```

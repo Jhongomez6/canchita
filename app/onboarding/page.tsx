@@ -642,7 +642,7 @@ export default function OnboardingPage() {
                     </div>
 
                     <button
-                        onClick={() => router.push("/")}
+                        onClick={() => window.location.href = "/"}
                         className="w-full py-4 bg-[#1f7a4f] text-white rounded-2xl font-bold text-lg hover:bg-[#16603c] transition-all shadow-lg hover:shadow-xl hover:-translate-y-1"
                     >
                         Ir a mis partidos →
