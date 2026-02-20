@@ -23,7 +23,7 @@ interface Match {
   status: "open" | "closed";
   createdBy: string;      // UID del administrador
   players: Player[];      // Lista de jugadores
-  guests?: Guest[];       // Invitados
+  guests?: Guest[];       // Invitados (ver GUESTS_FEATURE_SDD.md)
   teams?: { A: Player[]; B: Player[] };
   score?: { A: number; B: number };
 }
@@ -336,3 +336,20 @@ Esta implementación demuestra cómo **SDD** garantiza que:
 ✅ **Las funciones puras del dominio son testeables sin Firebase**
 ✅ **Las transacciones de Firestore validan con reglas del dominio**
 ✅ **El código es trazable a la especificación**
+
+---
+
+## 10. ESPECIFICACIÓN UI: LISTA DE JUGADORES (Join Page)
+
+### Visualización de Avatar
+En lugar de fotos de perfil o iniciales, se debe mostrar el **icono de la posición primaria** del jugador para facilitar la lectura táctica.
+
+### Reglas de Visualización
+| Tipo | Fondo | Color Icono | Contenido |
+|------|-------|-------------|-----------|
+| **Jugador Registrado** | `bg-emerald-100` | `text-emerald-700` | `POSITION_ICONS[p.positions[0]]` (o MID por defecto) |
+| **Invitado** | `bg-purple-100` | `text-purple-700` | `POSITION_ICONS[g.positions[0]]` (o icono invitado si no hay pos) |
+
+### Fuente de Verdad
+- Iconos definidos en `lib/domain/player.ts` (`POSITION_ICONS`)
+- Posiciones definidas en `lib/domain/player.ts` (`Position`)

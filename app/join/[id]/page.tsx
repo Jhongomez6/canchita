@@ -15,8 +15,7 @@ import { Guest } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
-import type { Player } from "@/lib/domain/player";
-
+import { type Player, type Position, POSITION_ICONS } from "@/lib/domain/player";
 
 import {
   joinMatch,
@@ -27,6 +26,7 @@ import {
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
   const { user, loading } = useAuth();
+  const [isMapOpen, setIsMapOpen] = useState(false);
   const router = useRouter();
 
   const [match, setMatch] = useState<Match | null>(null);
@@ -35,8 +35,6 @@ export default function JoinMatchPage() {
   const [location, setLocation] = useState<Location | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
-
-
 
   async function loadMatch() {
     try {
@@ -111,37 +109,17 @@ export default function JoinMatchPage() {
   // ⏳ Auth o perfil cargando
   if (loading || loadingProfile) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 24,
-            padding: "48px 40px",
-            maxWidth: 440,
-            width: "100%",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ marginBottom: 24 }}>
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
+          <div className="mb-6 flex justify-center">
             <Image
               src="/logo/lacanchita-logo.png"
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ margin: "0 auto" }}
             />
           </div>
-          <p style={{ fontSize: 18, color: "#666" }}>Cargando...</p>
+          <p className="text-lg text-slate-500 font-medium animate-pulse">Cargando...</p>
         </div>
       </div>
     );
@@ -150,93 +128,32 @@ export default function JoinMatchPage() {
   // 🔐 No logueado
   if (!user) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 24,
-            padding: "48px 40px",
-            maxWidth: 440,
-            width: "100%",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            textAlign: "center",
-          }}
-        >
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
           {/* LOGO */}
-          <div style={{ marginBottom: 24 }}>
+          <div className="mb-6 flex justify-center">
             <Image
               src="/logo/lacanchita-logo.png"
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ margin: "0 auto" }}
             />
           </div>
 
           {/* TÍTULO */}
-          <h1
-            style={{
-              fontSize: 32,
-              fontWeight: 700,
-              color: "#1f7a4f",
-              marginBottom: 12,
-            }}
-          >
+          <h1 className="text-3xl font-bold text-[#1f7a4f] mb-3">
             Únete al partido
           </h1>
 
           {/* DESCRIPCIÓN */}
-          <p
-            style={{
-              fontSize: 16,
-              color: "#666",
-              marginBottom: 32,
-              lineHeight: 1.6,
-            }}
-          >
+          <p className="text-slate-500 mb-8 leading-relaxed">
             Inicia sesión para confirmar tu asistencia al partido.
           </p>
 
           {/* BOTÓN GOOGLE */}
           <button
             onClick={loginWithGoogle}
-            style={{
-              width: "100%",
-              background: "#fff",
-              border: "2px solid #ddd",
-              borderRadius: 12,
-              padding: "14px 24px",
-              fontSize: 16,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-              transition: "all 0.2s ease",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "#f8f9fa";
-              e.currentTarget.style.borderColor = "#1f7a4f";
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "#fff";
-              e.currentTarget.style.borderColor = "#ddd";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
-            }}
+            className="w-full bg-white border-2 border-slate-200 rounded-xl py-3.5 px-6 text-base font-bold text-slate-700 flex items-center justify-center gap-3 transition-all hover:bg-slate-50 hover:border-[#1f7a4f] hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path
@@ -260,14 +177,7 @@ export default function JoinMatchPage() {
           </button>
 
           {/* FOOTER */}
-          <p
-            style={{
-              fontSize: 13,
-              color: "#999",
-              marginTop: 24,
-              lineHeight: 1.5,
-            }}
-          >
+          <p className="text-xs text-slate-400 mt-6 leading-relaxed">
             Al continuar, aceptas nuestros términos de servicio y política de
             privacidad.
           </p>
@@ -283,37 +193,17 @@ export default function JoinMatchPage() {
     (!profile.positions || profile.positions.length === 0)
   ) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 24,
-            padding: "48px 40px",
-            maxWidth: 440,
-            width: "100%",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ marginBottom: 24 }}>
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
+          <div className="mb-6 flex justify-center">
             <Image
               src="/logo/lacanchita-logo.png"
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ margin: "0 auto" }}
             />
           </div>
-          <p style={{ fontSize: 18, color: "#666" }}>Redirigiendo a tu perfil...</p>
+          <p className="text-lg text-slate-500 font-medium">Redirigiendo a tu perfil...</p>
         </div>
       </div>
     );
@@ -322,34 +212,33 @@ export default function JoinMatchPage() {
   // ❌ Error real
   if (error) {
     return (
-      <main style={{ padding: 20 }}>
-        <p>{error}</p>
+      <main className="p-5 flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="bg-white p-8 rounded-2xl shadow-lg border border-red-100 max-w-md text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+          <p className="text-slate-800 font-bold">{error}</p>
+        </div>
       </main>
     );
   }
 
   // ⏳ Partido cargando
   if (!match) {
-    return <p style={{ padding: 20 }}>Cargando partido...</p>;
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   const playerName = user.displayName || user.email || "Jugador";
   const isClosed = match.status === "closed";
-  const confirmedCount = match.players.filter((p: Player) => p.confirmed).length;
+  const guestCount = match.guests?.length ?? 0;
+  const confirmedCount = match.players.filter((p: Player) => p.confirmed).length + guestCount;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
-
 
   const existingPlayer = match.players?.find(
     (p: Player) => p.uid === user.uid || p.name === playerName
   );
-
-  const cardStyle = {
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-  };
 
   const maxPlayers = match.maxPlayers ?? 0;
   const sidePlayers =
@@ -359,202 +248,121 @@ export default function JoinMatchPage() {
     ? `Partido ${sidePlayers} vs ${sidePlayers}`
     : "Partido";
 
-
-  const card = {
-    background: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    margin: "0 12px 16px",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-  };
-
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f2f5f3",
-        paddingBottom: 24,
-      }}
-    >
-      <div style={{ maxWidth: 420, margin: "0 auto" }}>
+    <main className="min-h-screen bg-slate-50 pb-24">
+      <div className="max-w-md mx-auto">
         {/* HEADER VERDE */}
-        <div
-          style={{
-            background: "linear-gradient(180deg, #1f7a4f, #145c3a)",
-            color: "#fff",
-            padding: "20px 16px",
-            borderBottomLeftRadius: 20,
-            borderBottomRightRadius: 20,
-            marginBottom: 16,
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 20 }}>⚽ Partido</h2>
-          <p style={{ marginTop: 4, fontSize: 14, opacity: 0.9 }}>
+        <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] text-white p-6 pb-8 rounded-b-3xl shadow-lg mb-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+          <h2 className="text-2xl font-bold relative z-10 flex items-center gap-2">
+            ⚽ <span className="text-emerald-50">Partido</span>
+          </h2>
+          <p className="relative z-10 text-emerald-100 text-sm mt-1">
             Detalles del partido
           </p>
         </div>
 
-        {/* CARD PARTIDO */}
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 16,
-            padding: 16,
-            margin: "0 12px 16px",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-          }}
-        >
-          <h3 style={{ marginBottom: 4, fontWeight: 700 }}>
-            {matchLabel}
-          </h3>
+        {/* CONTAINER CON MARGIN NEGATIVO PARA QUE MONTE EL HEADER */}
+        <div className="px-4 -mt-10 relative z-20 space-y-4">
 
-          <p style={{ fontSize: 14, color: "#555" }}>
-            📍 {location?.name || match.locationSnapshot?.name || "Cancha no disponible"}
-          </p>
+          {/* CARD PARTIDO */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="font-bold text-lg text-slate-800">{matchLabel}</h3>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${isClosed ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
+                }`}>
+                {isClosed ? "Cerrado" : "Abierto"}
+              </span>
+            </div>
 
-
-          <p style={{ fontSize: 14, color: "#555" }}>
-            🕒 {formatDateSpanish(match.date)}
-          </p>
-
-          <p style={{ fontSize: 14, color: "#555" }}>
-            ⏰ {formatTime12h(match.time)}
-          </p>
-
-          <div style={{ marginTop: 8 }}>
-            <span
-              style={{
-                display: "inline-block",
-                padding: "4px 10px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 600,
-                background: isClosed ? "#dc2626" : "#16a34a",
-                color: "#fff",
-              }}
-            >
-              {isClosed ? "Partido cerrado" : "Partido abierto"}
-            </span>
-          </div>
-        </div>
-
-        {/* CARD ASISTENCIA - Solo si partido abierto */}
-        {!isClosed && (
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: 16,
-              padding: 16,
-              margin: "0 12px 16px",
-              boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-            }}
-          >
-            <h3 style={{ marginBottom: 12 }}>Tu asistencia</h3>
-
-            {isFull && (
-              <p style={{ color: "#dc2626", fontWeight: 600 }}>
-                ❌ El partido ya está completo
-              </p>
-            )}
-
-
-            {!existingPlayer && (
-              <button
-                disabled={submitting || isFull}
-                onClick={async () => {
-                  setSubmitting(true);
-                  try {
-                    await joinMatch(id, {
-                      uid: user.uid,
-                      name: playerName,
-                    });
-                    await loadMatch();
-                  } catch (e: any) {
-                    if (e.message === "MATCH_FULL") {
-                      alert("El partido se llenó justo ahora 😬");
-                    }
-                  } finally {
-                    setSubmitting(false);
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  padding: "14px",
-                  background: submitting || isFull ? "#9ca3af" : "#1f7a4f",
-                  color: "#fff",
-                  borderRadius: 12,
-                  border: "none",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  cursor: submitting || isFull ? "not-allowed" : "pointer",
-                }}
-              >
-                {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
-              </button>
-            )}
-
-
-            {existingPlayer?.confirmed && (
-              <>
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: 12,
-                    borderRadius: 8,
-                    background: "#dcfce7",
-                    color: "#166534",
-                    fontWeight: 600,
-                  }}
-                >
-                  ✅ Estás confirmado para este partido
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-slate-600">
+                <span className="bg-slate-100 p-2 rounded-lg text-lg">🕒</span>
+                <div className="flex flex-col">
+                  <span className="font-bold text-slate-800 text-sm">{formatDateSpanish(match.date)}</span>
+                  <span className="text-xs text-slate-400">{formatTime12h(match.time)}</span>
                 </div>
-
-
+              </div>
+              <div className="flex flex-col gap-2">
                 <button
-                  onClick={async () => {
-                    await unconfirmAttendance(id, playerName);
-                    await loadMatch();
-                  }}
-                  style={{
-                    marginTop: 12,
-                    width: "100%",
-                    padding: 12,
-                    background: "#dc2626",
-                    color: "#fff",
-                    borderRadius: 12,
-                    border: "none",
-                    fontSize: 14,
-                  }}
+                  onClick={() => setIsMapOpen(!isMapOpen)}
+                  className="flex items-center gap-3 text-slate-600 w-full text-left group"
                 >
-                  No puedo ir
+                  <span className="bg-slate-100 p-2 rounded-lg text-lg group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">📍</span>
+                  <div className="flex-1">
+                    <span className="font-medium text-sm block">{location?.name || match.locationSnapshot?.name || "Cancha no disponible"}</span>
+                    <span className={`
+                      text-xs font-bold px-2.5 py-1 rounded-lg transition-colors mt-1.5 inline-flex items-center gap-1.5
+                      ${isMapOpen
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-700"}
+                    `}>
+                      {isMapOpen ? "Ocultar mapa" : "Ver ubicación en mapa"}
+                    </span>
+                  </div>
                 </button>
-              </>
-            )}
 
-            {existingPlayer && !existingPlayer.confirmed && (
-              <>
-                {/* ESTADO PENDIENTE */}
-                <div
-                  style={{
-                    marginBottom: 12,
-                    padding: 12,
-                    borderRadius: 10,
-                    background: "#fef3c7",
-                    color: "#92400e",
-                    fontWeight: 600,
-                    textAlign: "center",
-                  }}
-                >
-                  ⏳ Aún no has confirmado tu asistencia
+                {/* MAPA EXPANDIBLE */}
+                {isMapOpen && location && (
+                  <div className="mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <p className="text-xs text-slate-500 mb-3 ml-11">{location.address}</p>
+
+                    <iframe
+                      src={googleMapsEmbedUrl(location.lat, location.lng)}
+                      width="100%"
+                      height="200"
+                      className="rounded-xl border-0 bg-slate-100 mb-3"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+
+                    <div className="flex gap-2">
+                      <a
+                        href={googleMapsLink(location.lat, location.lng)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
+                      >
+                        <img src="/icons/google-maps.svg" alt="G" className="w-4 h-4" />
+                        Maps
+                      </a>
+                      <a
+                        href={wazeLink(location.lat, location.lng)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
+                      >
+                        <img src="/icons/waze.svg" alt="W" className="w-4 h-4" />
+                        Waze
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* CARD ASISTENCIA - Solo si partido abierto */}
+          {!isClosed && (
+            <div className="bg-white rounded-2xl p-5 shadow-md border border-slate-100">
+              <h3 className="font-bold text-slate-800 mb-4">Tu asistencia</h3>
+
+              {isFull && !existingPlayer?.confirmed && (
+                <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold border border-red-100 text-center">
+                  ❌ El partido ya está completo
                 </div>
+              )}
 
-                {/* BOTÓN CONFIRMAR */}
+              {!existingPlayer && (
                 <button
                   disabled={submitting || isFull}
                   onClick={async () => {
                     setSubmitting(true);
                     try {
-                      await confirmAttendance(id, playerName);
+                      await joinMatch(id, {
+                        uid: user.uid,
+                        name: playerName,
+                      });
                       await loadMatch();
                     } catch (e: any) {
                       if (e.message === "MATCH_FULL") {
@@ -564,382 +372,243 @@ export default function JoinMatchPage() {
                       setSubmitting(false);
                     }
                   }}
-                  style={{
-                    width: "100%",
-                    padding: "14px",
-                    background: submitting || isFull ? "#9ca3af" : "#1f7a4f",
-                    color: "#fff",
-                    borderRadius: 12,
-                    border: "none",
-                    fontSize: 16,
-                    fontWeight: 600,
-                    cursor: submitting || isFull ? "not-allowed" : "pointer",
-                  }}
+                  className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting || isFull
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                    : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
+                    }`}
                 >
                   {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
                 </button>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* AGREGAR INVITADO - Solo para jugadores confirmados */}
-        {!isClosed && existingPlayer?.confirmed && (
-          <AddGuestForm
-            matchId={id}
-            playerUid={user.uid}
-            existingGuest={
-              match.guests?.find((g: Guest) => g.invitedBy === user.uid) || null
-            }
-            onSuccess={() => loadMatch()}
-          />
-        )}
-
-        {!isClosed && location && (
-          <div style={card}>
-            <h3>📍 Cancha</h3>
-
-            <p style={{ fontWeight: 600 }}>{location.name}</p>
-            <p style={{ fontSize: 14, color: "#555" }}>
-              {location.address}
-            </p>
-
-            {/* MAPA */}
-            <iframe
-              src={googleMapsEmbedUrl(location.lat, location.lng)}
-              width="100%"
-              height="220"
-              style={{
-                border: 0,
-                borderRadius: 12,
-                marginTop: 12,
-              }}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                marginTop: 16,
-              }}
-            >
-              {/* GOOGLE MAPS */}
-              <a
-                href={googleMapsLink(location.lat, location.lng)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 10,
-                  padding: 14,
-                  background: "#ffffff",
-                  color: "#111",
-                  borderRadius: 16,
-                  border: "1px solid #e5e7eb",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <img
-                  src="/icons/google-maps.svg"
-                  alt="Google Maps"
-                  style={{ width: 22, height: 22 }}
-                />
-                <span>Abrir en Maps</span>
-              </a>
-
-              {/* WAZE */}
-              <a
-                href={wazeLink(location.lat, location.lng)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 10,
-                  padding: 14,
-                  background: "#ffffff",
-                  color: "#111",
-                  borderRadius: 16,
-                  border: "1px solid #e5e7eb",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <img
-                  src="/icons/waze.svg"
-                  alt="Waze"
-                  style={{ width: 22, height: 22 }}
-                />
-                <span>Abrir en Waze</span>
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* CARD RESULTADO FINAL - Solo si partido cerrado */}
-        {isClosed && match.teams && (() => {
-          // Determinar en qué equipo jugó el usuario
-          const userInTeamA = match.teams.A?.some((p: Player) => p.uid === user.uid || p.name === playerName);
-          const userInTeamB = match.teams.B?.some((p: Player) => p.uid === user.uid || p.name === playerName);
-
-          const scoreA = match.score?.A ?? 0;
-          const scoreB = match.score?.B ?? 0;
-
-          let userResult: "win" | "loss" | "draw" | null = null;
-          let resultMessage = "";
-          let resultColor = "";
-          let resultBg = "";
-
-          if (userInTeamA) {
-            if (scoreA > scoreB) {
-              userResult = "win";
-              resultMessage = "¡Felicidades! Partido ganado 🎉";
-              resultColor = "#166534";
-              resultBg = "#dcfce7";
-            } else if (scoreA < scoreB) {
-              userResult = "loss";
-              resultMessage = "Partido perdido 😔";
-              resultColor = "#991b1b";
-              resultBg = "#fee2e2";
-            } else {
-              userResult = "draw";
-              resultMessage = "Partido empatado 🤝";
-              resultColor = "#92400e";
-              resultBg = "#fef3c7";
-            }
-          } else if (userInTeamB) {
-            if (scoreB > scoreA) {
-              userResult = "win";
-              resultMessage = "¡Felicidades! Partido ganado 🎉";
-              resultColor = "#166534";
-              resultBg = "#dcfce7";
-            } else if (scoreB < scoreA) {
-              userResult = "loss";
-              resultMessage = "Partido perdido 😔";
-              resultColor = "#991b1b";
-              resultBg = "#fee2e2";
-            } else {
-              userResult = "draw";
-              resultMessage = "Partido empatado 🤝";
-              resultColor = "#92400e";
-              resultBg = "#fef3c7";
-            }
-          }
-
-          return (
-            <div
-              style={{
-                background: "#fff",
-                borderRadius: 16,
-                padding: 20,
-                margin: "0 12px 16px",
-                boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-              }}
-            >
-              <h3 style={{ marginBottom: 16, textAlign: "center" }}>
-                🏆 Resultado Final
-              </h3>
-
-              {/* MENSAJE DE RESULTADO PERSONAL */}
-              {userResult && (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: 12,
-                    borderRadius: 12,
-                    background: resultBg,
-                    color: resultColor,
-                    textAlign: "center",
-                    fontWeight: 600,
-                    fontSize: 15,
-                  }}
-                >
-                  {resultMessage}
-                </div>
               )}
 
-              {/* MARCADOR */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 20,
-                  marginBottom: 24,
-                  padding: "20px 0",
-                  background: "#f8fafc",
-                  borderRadius: 12,
-                }}
-              >
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 14, color: "#555", marginBottom: 6 }}>
-                    🔴 Equipo A
+              {existingPlayer?.confirmed && (
+                <>
+                  <div className="mb-4 bg-emerald-50 text-[#1f7a4f] px-4 py-3 rounded-xl text-sm font-bold border border-emerald-100 flex items-center justify-center gap-2">
+                    ✅ Estás confirmado
                   </div>
-                  <div style={{ fontSize: 36, fontWeight: 800, color: "#1f2937" }}>
-                    {match.score?.A ?? 0}
+
+                  <button
+                    onClick={async () => {
+                      await unconfirmAttendance(id, playerName);
+                      await loadMatch();
+                    }}
+                    className="w-full py-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
+                  >
+                    No puedo ir
+                  </button>
+                </>
+              )}
+
+              {existingPlayer && !existingPlayer.confirmed && (
+                <>
+                  {/* ESTADO PENDIENTE */}
+                  <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
+                    ⏳ Aún no has confirmado tu asistencia
                   </div>
-                </div>
 
-                <div style={{ fontSize: 24, color: "#9ca3af" }}>—</div>
-
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 14, color: "#555", marginBottom: 6 }}>
-                    🔵 Equipo B
-                  </div>
-                  <div style={{ fontSize: 36, fontWeight: 800, color: "#1f2937" }}>
-                    {match.score?.B ?? 0}
-                  </div>
-                </div>
-              </div>
-
-              {/* EQUIPOS */}
-              <div style={{ display: "flex", gap: 12 }}>
-                {/* EQUIPO A */}
-                <div
-                  style={{
-                    flex: 1,
-                    background: "#fef2f2",
-                    borderRadius: 12,
-                    padding: 12,
-                    border: "1px solid #fecaca",
-                  }}
-                >
-                  <h4 style={{ marginBottom: 8, fontSize: 14, color: "#991b1b" }}>
-                    🔴 Equipo A
-                  </h4>
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {match.teams.A?.map((p: Player, i: number) => (
-                      <li
-                        key={i}
-                        style={{
-                          fontSize: 13,
-                          padding: "4px 0",
-                          color: "#7f1d1d",
-                        }}
-                      >
-                        • {p.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* EQUIPO B */}
-                <div
-                  style={{
-                    flex: 1,
-                    background: "#eff6ff",
-                    borderRadius: 12,
-                    padding: 12,
-                    border: "1px solid #bfdbfe",
-                  }}
-                >
-                  <h4 style={{ marginBottom: 8, fontSize: 14, color: "#1e40af" }}>
-                    🔵 Equipo B
-                  </h4>
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {match.teams.B?.map((p: Player, i: number) => (
-                      <li
-                        key={i}
-                        style={{
-                          fontSize: 13,
-                          padding: "4px 0",
-                          color: "#1e3a8a",
-                        }}
-                      >
-                        • {p.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+                  {/* BOTÓN CONFIRMAR */}
+                  <button
+                    disabled={submitting || isFull}
+                    onClick={async () => {
+                      setSubmitting(true);
+                      try {
+                        await confirmAttendance(id, playerName);
+                        await loadMatch();
+                      } catch (e: any) {
+                        if (e.message === "MATCH_FULL") {
+                          alert("El partido se llenó justo ahora 😬");
+                        }
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting || isFull
+                      ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                      : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
+                      }`}
+                  >
+                    {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
+                  </button>
+                </>
+              )}
             </div>
-          );
-        })()}
+          )}
 
-        {/* CONFIRMADOS - Solo si partido abierto */}
-        {!isClosed && (
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: 16,
-              padding: 16,
-              margin: "0 12px",
-              boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-            }}
-          >
-            <h3 style={{ marginBottom: 12 }}>Jugadores confirmados</h3>
+          {/* AGREGAR INVITADO - Solo para jugadores confirmados */}
+          {!isClosed && existingPlayer?.confirmed && (
+            <AddGuestForm
+              matchId={id}
+              playerUid={user.uid}
+              existingGuest={
+                match.guests?.find((g: Guest) => g.invitedBy === user.uid) || null
+              }
+              onSuccess={() => loadMatch()}
+            />
+          )}
 
-            {match.players?.filter((p: Player) => p.confirmed).length === 0 && !match.guests?.length && (
-              <p style={{ fontSize: 14, color: "#777" }}>
-                Aún no hay jugadores confirmados
-              </p>
-            )}
 
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {/* Jugadores confirmados */}
-              {match.players
-                ?.filter((p: Player) => p.confirmed)
-                .map((p: Player, i: number) => (
-                  <li
-                    key={`player-${i}`}
-                    style={{
-                      padding: "6px 0",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span>🟢</span>
-                    <span>{p.name}</span>
-                  </li>
-                ))}
 
-              {/* Invitados */}
-              {match.guests?.map((guest: Guest, i: number) => {
-                const inviter = match.players?.find(
-                  (p: Player) => p.uid === guest.invitedBy
-                );
-                return (
-                  <li
-                    key={`guest-${i}`}
-                    style={{
-                      padding: "6px 0",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span>👤</span>
-                    <span>
-                      {guest.name}
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          fontSize: 12,
-                          color: "#666",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        (invitado de {inviter?.name || "un jugador"})
-                      </span>
+
+
+
+          {/* LISTA DE JUGADORES O REPORTE */}
+          {isClosed && match.teams ? (() => {
+            // LOGICA RESULTADO PERSONAL
+            const userInTeamA = match.teams.A?.some((p: Player) => p.uid === user.uid);
+            const userInTeamB = match.teams.B?.some((p: Player) => p.uid === user.uid);
+
+            const scoreA = match.score?.A ?? 0;
+            const scoreB = match.score?.B ?? 0;
+
+            let resultMessage = "";
+            let resultColor = "";
+            let resultBg = "";
+
+            if (userInTeamA) {
+              if (scoreA > scoreB) {
+                resultMessage = "¡Ganaste! 🎉";
+                resultColor = "text-emerald-700";
+                resultBg = "bg-emerald-100";
+              } else if (scoreA < scoreB) {
+                resultMessage = "Perdiste 😔";
+                resultColor = "text-red-700";
+                resultBg = "bg-red-100";
+              } else {
+                resultMessage = "Empate 🤝";
+                resultColor = "text-amber-700";
+                resultBg = "bg-amber-100";
+              }
+            } else if (userInTeamB) {
+              if (scoreB > scoreA) {
+                resultMessage = "¡Ganaste! 🎉";
+                resultColor = "text-emerald-700";
+                resultBg = "bg-emerald-100";
+              } else if (scoreB < scoreA) {
+                resultMessage = "Perdiste 😔";
+                resultColor = "text-red-700";
+                resultBg = "bg-red-100";
+              } else {
+                resultMessage = "Empate 🤝";
+                resultColor = "text-amber-700";
+                resultBg = "bg-amber-100";
+              }
+            }
+
+            return (
+              <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6">
+                <h3 className="font-bold text-slate-800 mb-6 text-center text-lg flex flex-col items-center justify-center gap-2">
+                  <span>🏆 Resultado del Partido</span>
+                  {resultMessage && (
+                    <span className={`text-sm px-3 py-1 rounded-full ${resultBg} ${resultColor} border border-current opacity-80`}>
+                      {resultMessage}
                     </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
+                  )}
+                </h3>
+
+                {/* MARCADOR */}
+                {match.score && (
+                  <div className="flex justify-center items-center gap-6 mb-8 bg-slate-50 py-4 rounded-xl border border-slate-100">
+                    <div className="text-center">
+                      <div className="text-4xl font-black text-red-600 mb-1">{match.score.A}</div>
+                      <div className="text-xs font-bold text-red-800/60 uppercase tracking-widest">Equipo A</div>
+                    </div>
+                    <div className="text-2xl font-black text-slate-300">-</div>
+                    <div className="text-center">
+                      <div className="text-4xl font-black text-blue-600 mb-1">{match.score.B}</div>
+                      <div className="text-xs font-bold text-blue-800/60 uppercase tracking-widest">Equipo B</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* EQUIPO A */}
+                  <div className={`rounded-xl p-4 border ${userInTeamA ? "bg-red-100 border-red-300 ring-2 ring-red-200" : "bg-red-50 border-red-100"}`}>
+                    <h4 className="font-bold text-red-800 mb-3 text-sm uppercase tracking-wide border-b border-red-200 pb-2 flex justify-between">
+                      <span>🔴 Equipo A {userInTeamA && "(Tú)"}</span>
+                      <span className="text-red-500 opacity-60 text-xs">{match.teams.A.length} jug.</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {match.teams.A.map((p: Player, i: number) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-white text-red-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-red-100">
+                            {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                          </div>
+                          <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* EQUIPO B */}
+                  <div className={`rounded-xl p-4 border ${userInTeamB ? "bg-blue-100 border-blue-300 ring-2 ring-blue-200" : "bg-blue-50 border-blue-100"}`}>
+                    <h4 className="font-bold text-blue-800 mb-3 text-sm uppercase tracking-wide border-b border-blue-200 pb-2 flex justify-between">
+                      <span>🔵 Equipo B {userInTeamB && "(Tú)"}</span>
+                      <span className="text-blue-500 opacity-60 text-xs">{match.teams.B.length} jug.</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {match.teams.B.map((p: Player, i: number) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-white text-blue-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-blue-100">
+                            {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                          </div>
+                          <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })() : (
+            <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6">
+              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                👥 Jugadores confirmados
+                <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">{confirmedCount} / {match.maxPlayers || "?"}</span>
+              </h3>
+
+              {confirmedCount === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-4">Aún no hay jugadores confirmados. ¡Sé el primero!</p>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {/* PLAYERS */}
+                  {match.players?.filter((p: Player) => p.confirmed).map((p: Player, i: number) => (
+                    <div key={`p-${i}`} className="py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm">
+                          {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                        </div>
+                        <span className="font-bold text-slate-800 text-sm">{p.name}</span>
+                      </div>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600">
+                        Confirmado
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* GUESTS */}
+                  {match.guests?.map((g: Guest, i: number) => (
+                    <div key={`g-${i}`} className="py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm">
+                          {POSITION_ICONS[(g.positions?.[0] as Position) || "MID"]}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 text-sm">{g.name}</span>
+                          <span className="text-[10px] text-slate-400">Invitado</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-600">
+                        Confirmado
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+
+        </div>
       </div>
     </main>
   );

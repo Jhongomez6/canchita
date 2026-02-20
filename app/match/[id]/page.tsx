@@ -77,10 +77,12 @@ export default function MatchDetailPage() {
 
 
   const sensors = useSensors(
-    useSensor(PointerSensor)
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
   );
-
-
 
 
   async function loadMatch() {
@@ -216,7 +218,9 @@ export default function MatchDetailPage() {
   if (loadingProfile) {
     return (
       <AuthGuard>
-        <p style={{ padding: 20 }}>Cargando...</p>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+        </div>
       </AuthGuard>
     );
   }
@@ -224,12 +228,18 @@ export default function MatchDetailPage() {
   if (!userProfile || !userProfile.roles.includes("admin")) {
     return (
       <AuthGuard>
-        <p style={{ padding: 20 }}>Cargando...</p>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+        </div>
       </AuthGuard>
     );
   }
 
-  if (!match) return <p style={{ padding: 20 }}>Cargando...</p>;
+  if (!match) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+    </div>
+  );
 
   const isOwner = user?.uid === match.createdBy;
   const isClosed = match.status === "closed";
@@ -247,30 +257,6 @@ export default function MatchDetailPage() {
     );
     return !uidExists && !nameExists;
   });
-
-  // getTeamSummary importado desde @/lib/domain/team
-
-  const card = {
-    background: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    border: "1px solid #e5e7eb",
-  };
-
-  const btnPrimary = {
-    padding: "8px 12px",
-    background: "#16a34a",
-    color: "#fff",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-  };
-
-  const btnDanger = {
-    ...btnPrimary,
-    background: "#dc2626",
-  };
 
   const guestCount = match.guests?.length ?? 0;
   const confirmedCount = (match.players?.filter((p: Player) => p.confirmed).length ?? 0) + guestCount;
@@ -308,945 +294,815 @@ export default function MatchDetailPage() {
   }
 
 
-
   return (
     <AuthGuard>
-      <main style={{ padding: 20, maxWidth: 900, margin: "0 auto" }}>
-        {/* INFO PARTIDO */}
-        <div style={card}>
-          <h1 style={{ marginBottom: 8 }}>⚽ Partido</h1>
-          {location ? (
-            <p style={{ color: "#555" }}>
-              📍 {location.name}
-            </p>
-          ) : (
-            <p style={{ color: "#999" }}>
-              📍 Cargando cancha...
-            </p>
-          )}
+      <main className="min-h-screen bg-slate-50 pb-24">
+        <div className="max-w-3xl mx-auto p-4 md:p-6">
 
-
-          <p style={{ color: "#555" }}>
-            🕒 {formatDateSpanish(match.date)}
-          </p>
-
-          <p style={{ color: "#555" }}>
-            ⏰ {formatTime12h(match.time)}
-          </p>
-
-          <div
-            style={{
-              marginTop: 8,
-              fontWeight: 600,
-              color: isFull ? "#dc2626" : "#16a34a",
-            }}
-          >
-            Confirmados: {confirmedCount} / {match.maxPlayers}
-            {isFull && " · COMPLETO"}
-          </div>
-
-          {isFull && !isClosed && (
-            <p style={{ color: "#dc2626", fontWeight: 600 }}>
-              🚫 El partido está completo
-            </p>
-          )}
-
-          {isOwner && !isClosed && (
-            <div style={{ marginTop: 8 }}>
-              <label>
-                Máx jugadores:
-                <input
-                  type="number"
-                  min={2}
-                  value={maxPlayersDraft ?? ""}
-                  onChange={e => setMaxPlayersDraft(Number(e.target.value))}
-                  onBlur={async () => {
-                    if (maxPlayersDraft === match.maxPlayers) return;
-
-                    await updateDoc(doc(db, "matches", id), {
-                      maxPlayers: maxPlayersDraft,
-                    });
-
-                    loadMatch();
-                  }}
-                  style={{ marginLeft: 8, width: 80 }}
-                />
-              </label>
-            </div>
-          )}
-
-          <p style={{ marginTop: 8 }}>
-            Estado:{" "}
-            <strong style={{ color: isClosed ? "#dc2626" : "#16a34a" }}>
-              {isClosed ? "Cerrado" : "Abierto"}
-            </strong>
-          </p>
-
-          <div style={{ marginTop: 8 }}>
-            <input
-              value={`${window.location.origin}/join/${id}`}
-              readOnly
-              style={{
-                width: "100%",
-                padding: 8,
-                borderRadius: 6,
-                border: "1px solid #ccc",
-              }}
-            />
-
-            <button
-              onClick={async () => {
-                await navigator.clipboard.writeText(
-                  `${window.location.origin}/join/${id}`
-                );
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              }}
-              style={{
-                marginTop: 8,
-                width: "100%",
-                padding: "10px",
-                background: copied ? "#16a34a" : "#2563eb",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {copied ? "✅ Link copiado" : "📋 Copiar link de invitación"}
-            </button>
-          </div>
-
-        </div>
-
-
-        {/* AGREGAR JUGADORES */}
-        {isOwner && !isClosed && (
-          <div style={card}>
-            <h3>➕ Agregar jugador</h3>
-
-            <div style={{ marginTop: 8 }}>
-              <select
-                value={selectedUid}
-                onChange={e => setSelectedUid(e.target.value)}
-              >
-                <option value="">Usuario registrado</option>
-                {availableUsers.map(u => (
-                  <option key={u.uid} value={u.uid}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                style={{ ...btnPrimary, marginLeft: 8 }}
-                disabled={!selectedUid || isFull}
-                onClick={async () => {
-                  if (isFull) return;
-                  const profile = await getUserProfile(selectedUid);
-                  if (!profile) return;
-
-                  await addPlayerToMatch(id, {
-                    uid: selectedUid,
-                    name: profile.name,
-                    level: 2,
-                    positions: profile.positions || [],
-                  });
-
-                  setSelectedUid("");
-                  loadMatch();
-                }}
-              >
-                Agregar
-              </button>
-            </div>
-
-            <hr style={{ margin: "16px 0" }} />
-
-            <input
-              placeholder="Nombre invitado"
-              value={manualName}
-              onChange={e => setManualName(e.target.value)}
-            />
-
-            <select
-              value={manualLevel}
-              onChange={e => setManualLevel(Number(e.target.value))}
-              style={{ marginLeft: 8 }}
-            >
-              <option value={1}>Bajo</option>
-              <option value={2}>Medio</option>
-              <option value={3}>Alto</option>
-            </select>
-
-            {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
-              <label key={pos} style={{ marginLeft: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={manualPositions.includes(pos)}
-                  onChange={e => {
-                    const updated = e.target.checked
-                      ? [...manualPositions, pos]
-                      : manualPositions.filter(p => p !== pos);
-                    if (updated.length <= 2) setManualPositions(updated);
-                  }}
-                />{" "}
-                {pos}
-              </label>
-            ))}
-
-            <button
-              style={{ ...btnPrimary, marginLeft: 8 }}
-              disabled={!manualName || isFull}
-              onClick={async () => {
-                if (isFull) return;
-                await addPlayerToMatch(id, {
-                  name: manualName,
-                  level: manualLevel,
-                  positions: manualPositions,
-                });
-                setManualName("");
-                setManualPositions([]);
-                setManualLevel(2);
-                loadMatch();
-              }}
-            >
-              Agregar invitado
-            </button>
-          </div>
-        )}
-
-        {/* JUGADORES */}
-        <div style={card}>
-          <h3>👥 Jugadores</h3>
-
-          {match.players?.map((p: Player, i: number) => (
-            <div
-              key={i}
-              style={{
-                borderBottom: "1px solid #eee",
-                padding: "12px 0",
-              }}
-            >
-              <span style={{ fontWeight: 600 }}>{p.name}</span>
-
-              <span
-                style={{
-                  marginLeft: 8,
-                  fontSize: 12,
-                  padding: "2px 8px",
-                  borderRadius: 999,
-                  background: p.confirmed ? "#dcfce7" : "#fef3c7",
-                  color: p.confirmed ? "#166534" : "#92400e",
-                }}
-              >
-                {p.confirmed ? "Confirmado" : "Pendiente"}
-              </span>
-
-
-              {!isClosed && (
-                <button
-                  style={{ ...btnPrimary, marginLeft: 8 }}
-                  disabled={!p.confirmed && isFull}
-                  onClick={async () => {
-                    if (!p.confirmed && isFull) return;
-                    p.confirmed
-                      ? await unconfirmAttendance(id, p.name)
-                      : await confirmAttendance(id, p.name);
-                    loadMatch();
-                  }}
-                >
-                  {p.confirmed ? "Cancelar asistencia" : "Confirmar asistencia"}
-                </button>
-              )}
+          {/* INFO PARTIDO */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                  ⚽ Partido
+                </h1>
+                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-2 ${isClosed ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
+                  }`}>
+                  {isClosed ? "Cerrado" : "Abierto"}
+                </span>
+              </div>
 
               {isOwner && !isClosed && (
-                <button
-                  style={{ ...btnDanger, marginLeft: 8 }}
-                  onClick={async () => {
-                    if (!confirm(`Eliminar a ${p.name}?`)) return;
-                    await deletePlayerFromMatch(id, p.name);
-                    loadMatch();
-                  }}
-                >
-                  Eliminar
-                </button>
-              )}
-
-              {isOwner && !isClosed && (
-                <div style={{ marginTop: 8 }}>
-                  Nivel:
-                  <select
-                    value={p.level ?? 2}
-                    onChange={async e => {
-                      await updatePlayerData(id, p.name, {
-                        level: Number(e.target.value),
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                  <span className="text-xs font-bold text-slate-500 uppercase">Máx Jugadores</span>
+                  <input
+                    type="number"
+                    min={2}
+                    value={maxPlayersDraft ?? ""}
+                    onChange={e => setMaxPlayersDraft(Number(e.target.value))}
+                    onBlur={async () => {
+                      if (maxPlayersDraft === match.maxPlayers) return;
+                      await updateDoc(doc(db, "matches", id), {
+                        maxPlayers: maxPlayersDraft,
                       });
                       loadMatch();
                     }}
-                    style={{ marginLeft: 8 }}
-                  >
-                    <option value={1}>Bajo</option>
-                    <option value={2}>Medio</option>
-                    <option value={3}>Alto</option>
-                  </select>
-                </div>
-              )}
-              {isOwner && !isClosed && (
-                <div style={{ marginTop: 6 }}>
-                  Posiciones:
-                  {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
-                    <label key={pos} style={{ marginLeft: 8 }}>
-                      <input
-                        type="checkbox"
-                        checked={p.positions?.includes(pos) ?? false}
-                        onChange={async e => {
-                          const current = p.positions ?? [];
-
-                          const updated = e.target.checked
-                            ? [...current, pos]
-                            : current.filter((x: Position) => x !== pos);
-
-                          if (updated.length > 2) return;
-
-                          await updatePlayerData(id, p.name, {
-                            positions: updated,
-                          });
-                          loadMatch();
-                        }}
-                      />{" "}
-                      {pos}
-                    </label>
-                  ))}
+                    className="w-12 text-center font-bold bg-white border border-slate-200 rounded-lg py-1 focus:ring-2 focus:ring-[#1f7a4f] outline-none"
+                  />
                 </div>
               )}
             </div>
-          ))}
 
-          {/* INVITADOS */}
-          {(match.guests ?? []).length > 0 && (
-            <>
-              <h4 style={{ marginTop: 16, marginBottom: 8, color: "#6b7280" }}>🎟️ Invitados ({match.guests!.length})</h4>
-              {match.guests!.map((g: Guest, i: number) => {
-                const inviter = match.players?.find((p: Player) => p.uid === g.invitedBy);
-                return (
-                  <div
-                    key={`guest-${i}`}
-                    style={{
-                      borderBottom: "1px solid #eee",
-                      padding: "12px 0",
-                    }}
-                  >
-                    <span style={{ fontWeight: 600 }}>{g.name}</span>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📍</span>
+                <span className="text-slate-600 font-medium">{location?.name || "Cargando cancha..."}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📅</span>
+                <span className="text-slate-600 font-medium">{formatDateSpanish(match.date)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xl">⏰</span>
+                <span className="text-slate-600 font-medium">{formatTime12h(match.time)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xl">👥</span>
+                <span className={`font-bold ${isFull ? "text-red-500" : "text-emerald-600"}`}>
+                  {confirmedCount} / {match.maxPlayers} Confirmados
+                  {isFull && " · COMPLETO"}
+                </span>
+              </div>
+            </div>
 
-                    <span
-                      style={{
-                        marginLeft: 8,
-                        fontSize: 12,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        background: "#ede9fe",
-                        color: "#6d28d9",
-                      }}
+            {isFull && !isClosed && (
+              <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold border border-red-100 text-center">
+                🚫 El partido está completo
+              </div>
+            )}
+
+            <div className="mt-6 flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  value={`${window.location.origin}/join/${id}`}
+                  readOnly
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 font-mono"
+                />
+                <span className="absolute left-3 top-3 text-slate-400">🔗</span>
+              </div>
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(
+                    `${window.location.origin}/join/${id}`
+                  );
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+                className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${copied ? "bg-[#16a34a]" : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+              >
+                {copied ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+          </div>
+
+
+          {/* AGREGAR JUGADORES */}
+          {isOwner && !isClosed && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                ➕ Agregar jugador
+              </h3>
+
+              <div className="flex gap-2 mb-6">
+                <select
+                  value={selectedUid}
+                  onChange={e => setSelectedUid(e.target.value)}
+                  className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#1f7a4f] outline-none"
+                >
+                  <option value="">Seleccionar usuario registrado...</option>
+                  {availableUsers.map(u => (
+                    <option key={u.uid} value={u.uid}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  disabled={!selectedUid || isFull}
+                  onClick={async () => {
+                    if (isFull) return;
+                    const profile = await getUserProfile(selectedUid);
+                    if (!profile) return;
+
+                    await addPlayerToMatch(id, {
+                      uid: selectedUid,
+                      name: profile.name,
+                      level: 2,
+                      positions: profile.positions || [],
+                    });
+
+                    setSelectedUid("");
+                    loadMatch();
+                  }}
+                  className="bg-[#1f7a4f] text-white font-bold py-2 px-6 rounded-xl disabled:opacity-50 hover:bg-[#16603c] transition-colors"
+                >
+                  Agregar
+                </button>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Invitado Manual</h4>
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-2">
+                    <input
+                      placeholder="Nombre invitado"
+                      value={manualName}
+                      onChange={e => setManualName(e.target.value)}
+                      className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#1f7a4f]"
+                    />
+                    <select
+                      value={manualLevel}
+                      onChange={e => setManualLevel(Number(e.target.value))}
+                      className="w-24 px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#1f7a4f]"
                     >
-                      Invitado
-                    </span>
+                      <option value={1}>Bajo (1)</option>
+                      <option value={2}>Medio (2)</option>
+                      <option value={3}>Alto (3)</option>
+                    </select>
+                  </div>
 
-                    <span style={{ marginLeft: 8, fontSize: 12, color: "#888" }}>
-                      por {inviter?.name ?? "Desconocido"}
-                    </span>
+                  <div className="flex gap-4 flex-wrap">
+                    {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
+                      <label key={pos} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={manualPositions.includes(pos)}
+                          onChange={e => {
+                            const updated = e.target.checked
+                              ? [...manualPositions, pos]
+                              : manualPositions.filter(p => p !== pos);
+                            if (updated.length <= 2) setManualPositions(updated);
+                          }}
+                          className="w-4 h-4 text-[#1f7a4f] rounded focus:ring-[#1f7a4f]"
+                        />
+                        <span className="text-sm font-medium text-slate-600">{pos}</span>
+                      </label>
+                    ))}
+                  </div>
 
-                    <span style={{ marginLeft: 8, fontSize: 12, color: "#555" }}>
-                      📍 {g.positions?.join(", ") || "Sin posición"}
-                    </span>
+                  <button
+                    disabled={!manualName || isFull}
+                    onClick={async () => {
+                      if (isFull) return;
+                      await addPlayerToMatch(id, {
+                        name: manualName,
+                        level: manualLevel,
+                        positions: manualPositions,
+                      });
+                      setManualName("");
+                      setManualPositions([]);
+                      setManualLevel(2);
+                      loadMatch();
+                    }}
+                    className="mt-2 w-full bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-700 transition-colors disabled:opacity-50"
+                  >
+                    Agregar Invitado Manual
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-                    {isOwner && !isClosed && (
+          {/* JUGADORES */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+              👥 Jugadores
+              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">{match.players?.length || 0}</span>
+            </h3>
+
+            <div className="divide-y divide-slate-100">
+              {match.players?.map((p: Player, i: number) => (
+                <div key={i} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${p.confirmed ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                      }`}>
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-800">{p.name}</div>
+                      <div className={`text-xs font-semibold px-2 py-0.5 rounded-md inline-block ${p.confirmed ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                        }`}>
+                        {p.confirmed ? "Confirmado" : "Pendiente"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {!isClosed && (
                       <button
-                        style={{ ...btnDanger, marginLeft: 8 }}
+                        disabled={!p.confirmed && isFull}
                         onClick={async () => {
-                          if (!confirm(`Eliminar invitado ${g.name}?`)) return;
-                          await removeGuestFromMatch(id, g.invitedBy);
+                          if (!p.confirmed && isFull) return;
+                          p.confirmed
+                            ? await unconfirmAttendance(id, p.name)
+                            : await confirmAttendance(id, p.name);
                           loadMatch();
                         }}
+                        className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${p.confirmed
+                            ? "bg-red-50 text-red-600 hover:bg-red-100"
+                            : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                          }`}
                       >
-                        Eliminar
+                        {p.confirmed ? "Cancelar" : "Confirmar"}
                       </button>
                     )}
 
                     {isOwner && !isClosed && (
-                      <div style={{ marginTop: 8 }}>
-                        Nivel:
-                        <select
-                          value={guestLevels[g.name] ?? 2}
-                          onChange={e => {
-                            setGuestLevels(prev => ({
-                              ...prev,
-                              [g.name]: Number(e.target.value) as PlayerLevel,
-                            }));
+                      <>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Eliminar a ${p.name}?`)) return;
+                            await deletePlayerFromMatch(id, p.name);
+                            loadMatch();
                           }}
-                          style={{ marginLeft: 8 }}
+                          className="text-xs font-bold px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"
                         >
-                          <option value={1}>Bajo</option>
-                          <option value={2}>Medio</option>
-                          <option value={3}>Alto</option>
+                          Eliminar
+                        </button>
+
+                        <select
+                          value={p.level ?? 2}
+                          onChange={async e => {
+                            await updatePlayerData(id, p.name, {
+                              level: Number(e.target.value),
+                            });
+                            loadMatch();
+                          }}
+                          className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 outline-none"
+                        >
+                          <option value={1}>Lvl 1</option>
+                          <option value={2}>Lvl 2</option>
+                          <option value={3}>Lvl 3</option>
                         </select>
-                      </div>
+                      </>
                     )}
                   </div>
-                );
-              })}
-            </>
-          )}
-        </div>
 
-        {/* BALANCEO */}
-        {isOwner && !isClosed && (
-          <div style={{
-            ...card,
-            border: "2px solid #16a34a",
-            background: "#f0fdf4"
-          }}>
-            <h3 style={{ marginBottom: 8 }}>⚖️ Balancear equipos</h3>
+                  {isOwner && !isClosed && (
+                    <div className="flex gap-2 mt-2 md:mt-0 w-full md:w-auto">
+                      {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
+                        <label key={pos} className={`flex-1 md:flex-none text-center cursor-pointer text-[10px] font-bold px-2 py-1 rounded border transition-all ${p.positions?.includes(pos)
+                            ? "bg-blue-50 border-blue-200 text-blue-600"
+                            : "bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300"
+                          }`}>
+                          <input
+                            type="checkbox"
+                            className="hidden"
+                            checked={p.positions?.includes(pos) ?? false}
+                            onChange={async e => {
+                              const current = p.positions ?? [];
+                              const updated = e.target.checked
+                                ? [...current, pos]
+                                : current.filter((x: Position) => x !== pos);
+                              if (updated.length > 2) return;
+                              await updatePlayerData(id, p.name, { positions: updated });
+                              loadMatch();
+                            }}
+                          />
+                          {pos}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
 
-            <p style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>
-              Se usarán los jugadores <strong>confirmados</strong> + <strong>invitados</strong>.
-              Actualmente hay <strong>{confirmedCount}</strong> ({guestCount > 0 ? `${confirmedCount - guestCount} confirmados + ${guestCount} invitados` : "confirmados"}).
-            </p>
+            {/* INVITADOS */}
+            {(match.guests ?? []).length > 0 && (
+              <div className="mt-8">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                  🎟️ Invitados ({match.guests!.length})
+                </h4>
+                <div className="divide-y divide-slate-100">
+                  {match.guests!.map((g: Guest, i: number) => {
+                    const inviter = match.players?.find((p: Player) => p.uid === g.invitedBy);
+                    return (
+                      <div key={`guest-${i}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
+                            Inv
+                          </div>
+                          <div>
+                            <div className="font-bold text-sm text-slate-800">{g.name}</div>
+                            <div className="text-xs text-slate-500">por {inviter?.name ?? "Desconocido"}</div>
+                          </div>
+                        </div>
 
-            <button
-              disabled={confirmedCount < 4}
-              style={{
-                width: "100%",
-                padding: "12px",
-                background: confirmedCount < 4 ? "#9ca3af" : "#16a34a",
-                color: "#fff",
-                borderRadius: 10,
-                border: "none",
-                fontWeight: 700,
-                cursor: confirmedCount < 4 ? "not-allowed" : "pointer",
-              }}
-              onClick={handleBalance}
-            >
-              {balancing ? "⏳ Balanceando..." : "⚖️ Generar equipos"}
-            </button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
+                            {g.positions?.join(", ") || "Sin posición"}
+                          </span>
 
-            {confirmedCount < 4 && (
-              <p style={{ marginTop: 8, fontSize: 13, color: "#dc2626" }}>
-                Necesitas al menos 4 jugadores confirmados
-              </p>
+                          {isOwner && !isClosed && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Eliminar invitado ${g.name}?`)) return;
+                                await removeGuestFromMatch(id, g.invitedBy);
+                                loadMatch();
+                              }}
+                              className="text-xs font-bold px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100"
+                            >
+                              Eliminar
+                            </button>
+                          )}
+
+                          {isOwner && !isClosed && (
+                            <select
+                              value={guestLevels[g.name] ?? 2}
+                              onChange={e => {
+                                setGuestLevels(prev => ({
+                                  ...prev,
+                                  [g.name]: Number(e.target.value) as PlayerLevel,
+                                }));
+                              }}
+                              className="text-xs bg-slate-50 border border-slate-200 rounded px-1 py-1 outline-none"
+                            >
+                              <option value={1}>Lvl 1</option>
+                              <option value={2}>Lvl 2</option>
+                              <option value={3}>Lvl 3</option>
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
-        )}
 
-        {/* RESULTADO BALANCEO */}
-        {balanced && (
-          <div style={{ ...card, padding: 20 }}>
-            <h3 style={{ marginBottom: 16 }}>⚖️ Balance de Equipos</h3>
+          {/* BALANCEO */}
+          {isOwner && !isClosed && (
+            <div className="bg-emerald-50 rounded-2xl border-2 border-emerald-500/20 p-5 mb-6">
+              <h3 className="font-bold text-emerald-800 mb-2 flex items-center gap-2">
+                ⚖️ Balancear equipos
+              </h3>
 
-            {(() => {
-              const summaryA = getTeamSummary(balanced.teamA.players);
-              const summaryB = getTeamSummary(balanced.teamB.players);
+              <p className="text-sm text-emerald-700 mb-4 opacity-80">
+                Se usarán los jugadores <strong>confirmados</strong> + <strong>invitados</strong>.<br />
+                Total elegibles: <strong>{confirmedCount}</strong>
+              </p>
 
-              const diffLevel = Math.abs(
-                summaryA.totalLevel - summaryB.totalLevel
-              );
+              <button
+                disabled={confirmedCount < 4}
+                onClick={handleBalance}
+                className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${confirmedCount < 4
+                    ? "bg-slate-300 cursor-not-allowed shadow-none"
+                    : "bg-[#16a34a] hover:bg-[#15803d]"
+                  }`}
+              >
+                {balancing ? "⏳ Balanceando..." : "⚖️ Generar equipos"}
+              </button>
 
-              return (
-                <>
-                  {/* ================= RESUMEN GLOBAL ================= */}
-                  <div
-                    style={{
-                      marginBottom: 20,
-                      padding: 14,
-                      borderRadius: 12,
-                      background: "#f8fafc",
-                      border: "1px solid #e5e7eb",
-                    }}
-                  >
-                    <div>
-                      ⚡ Diferencia de nivel:{" "}
-                      <strong>{diffLevel} pts</strong>
+              {confirmedCount < 4 && (
+                <p className="text-xs text-red-500 mt-2 font-medium text-center">
+                  Necesitas al menos 4 jugadores confirmados
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* RESULTADO BALANCEO */}
+          {balanced && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+              <h3 className="font-bold text-slate-800 mb-4">⚖️ Balance de Equipos</h3>
+
+              {(() => {
+                const summaryA = getTeamSummary(balanced.teamA.players);
+                const summaryB = getTeamSummary(balanced.teamB.players);
+
+                const diffLevel = Math.abs(
+                  summaryA.totalLevel - summaryB.totalLevel
+                );
+
+                return (
+                  <>
+                    {/* ================= RESUMEN GLOBAL ================= */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-6">
+                      <div className="text-center mb-3">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Diferencia de nivel</span>
+                        <div className="text-2xl font-black text-slate-800">{diffLevel} pts</div>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2 text-center text-xs font-medium text-slate-600">
+                        <div className="font-bold text-slate-400 mb-1">POS</div>
+                        <div className="bg-red-50 text-red-700 rounded py-1">A</div>
+                        <div></div>
+                        <div className="bg-blue-50 text-blue-700 rounded py-1">B</div>
+
+                        <div>GK</div>
+                        <div>{summaryA.positionsCount.GK}</div>
+                        <div className="text-slate-300">-</div>
+                        <div>{summaryB.positionsCount.GK}</div>
+
+                        <div>DEF</div>
+                        <div>{summaryA.positionsCount.DEF}</div>
+                        <div className="text-slate-300">-</div>
+                        <div>{summaryB.positionsCount.DEF}</div>
+
+                        <div>MID</div>
+                        <div>{summaryA.positionsCount.MID}</div>
+                        <div className="text-slate-300">-</div>
+                        <div>{summaryB.positionsCount.MID}</div>
+
+                        <div>FWD</div>
+                        <div>{summaryA.positionsCount.FWD}</div>
+                        <div className="text-slate-300">-</div>
+                        <div>{summaryB.positionsCount.FWD}</div>
+                      </div>
                     </div>
-                    <div
-                      style={{
-                        marginTop: 12,
-                        fontSize: 14,
-                        display: "grid",
-                        gridTemplateColumns: "70px 30px 30px 30px",
-                        rowGap: 6,
-                        alignItems: "center",
-                      }}
+
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
                     >
-                      <div>🧤 GK</div>
-                      <div style={{ textAlign: "center" }}>{summaryA.positionsCount.GK}</div>
-                      <div style={{ textAlign: "center" }}>-</div>
-                      <div style={{ textAlign: "center" }}>{summaryB.positionsCount.GK}</div>
+                      <div className="flex flex-col md:flex-row gap-4">
+                        {/* ================= EQUIPO A ================= */}
+                        <div className="flex-1 bg-red-50 rounded-xl p-4 border border-red-100">
+                          <h4 className="font-bold text-red-800 mb-2">🔴 Equipo A</h4>
 
-                      <div>🛡 DEF</div>
-                      <div style={{ textAlign: "center" }}>{summaryA.positionsCount.DEF}</div>
-                      <div style={{ textAlign: "center" }}>-</div>
-                      <div style={{ textAlign: "center" }}>{summaryB.positionsCount.DEF}</div>
+                          <div className="text-xs text-red-600 mb-4 opacity-80 font-medium">
+                            ⚡ <strong>{summaryA.totalLevel}</strong> pts · 👥 {summaryA.count}
+                          </div>
 
-                      <div>⚙ MID</div>
-                      <div style={{ textAlign: "center" }}>{summaryA.positionsCount.MID}</div>
-                      <div style={{ textAlign: "center" }}>-</div>
-                      <div style={{ textAlign: "center" }}>{summaryB.positionsCount.MID}</div>
-
-                      <div>⚽ FWD</div>
-                      <div style={{ textAlign: "center" }}>{summaryA.positionsCount.FWD}</div>
-                      <div style={{ textAlign: "center" }}>-</div>
-                      <div style={{ textAlign: "center" }}>{summaryB.positionsCount.FWD}</div>
-                    </div>
-
-                  </div>
-
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <div style={{ display: "flex", gap: 20 }}>
-                      {/* ================= EQUIPO A ================= */}
-                      <div
-                        style={{
-                          flex: 1,
-                          background: "#f0fdf4",
-                          borderRadius: 14,
-                          padding: 16,
-                          border: "1px solid #bbf7d0",
-                        }}
-                      >
-                        <h4 style={{ marginBottom: 6 }}>🔴 Equipo A</h4>
-
-                        <div style={{ fontSize: 14, marginBottom: 12 }}>
-                          ⚡ <strong>{summaryA.totalLevel}</strong> pts · 👥{" "}
-                          {summaryA.count}
+                          <SortableContext
+                            items={balanced.teamA.players.map(
+                              (p: Player) => p.id ?? p.name
+                            )}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="space-y-2">
+                              {balanced.teamA.players.map((p: Player) => (
+                                <PlayerItem
+                                  key={p.id ?? p.name}
+                                  id={p.id ?? p.name}
+                                  name={p.name}
+                                  details={`⚡${p.level} · ${(p.positions || []).join("/")}`}
+                                />
+                              ))}
+                            </div>
+                          </SortableContext>
                         </div>
 
-                        <SortableContext
-                          items={balanced.teamA.players.map(
-                            (p: Player) => p.id ?? p.name
-                          )}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {balanced.teamA.players.map((p: Player) => (
-                            <PlayerItem
-                              key={p.id ?? p.name}
-                              id={p.id ?? p.name}
-                              name={`${p.name} ⚡ ${p.level} · ${(p.positions || []).join("/")}`}
-                            />
-                          ))}
-                        </SortableContext>
-                      </div>
+                        {/* ================= EQUIPO B ================= */}
+                        <div className="flex-1 bg-blue-50 rounded-xl p-4 border border-blue-100">
+                          <h4 className="font-bold text-blue-800 mb-2">🔵 Equipo B</h4>
 
-                      {/* ================= EQUIPO B ================= */}
-                      <div
-                        style={{
-                          flex: 1,
-                          background: "#eff6ff",
-                          borderRadius: 14,
-                          padding: 16,
-                          border: "1px solid #bfdbfe",
-                        }}
-                      >
-                        <h4 style={{ marginBottom: 6 }}>🔵 Equipo B</h4>
+                          <div className="text-xs text-blue-600 mb-4 opacity-80 font-medium">
+                            ⚡ <strong>{summaryB.totalLevel}</strong> pts · 👥 {summaryB.count}
+                          </div>
 
-                        <div style={{ fontSize: 14, marginBottom: 12 }}>
-                          ⚡ <strong>{summaryB.totalLevel}</strong> pts · 👥{" "}
-                          {summaryB.count}
+                          <SortableContext
+                            items={balanced.teamB.players.map(
+                              (p: Player) => p.id ?? p.name
+                            )}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="space-y-2">
+                              {balanced.teamB.players.map((p: Player) => (
+                                <PlayerItem
+                                  key={p.id ?? p.name}
+                                  id={p.id ?? p.name}
+                                  name={p.name}
+                                  details={`⚡${p.level} · ${(p.positions || []).join("/")}`}
+                                />
+                              ))}
+                            </div>
+                          </SortableContext>
                         </div>
-
-                        <SortableContext
-                          items={balanced.teamB.players.map(
-                            (p: Player) => p.id ?? p.name
-                          )}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {balanced.teamB.players.map((p: Player) => (
-                            <PlayerItem
-                              key={p.id ?? p.name}
-                              id={p.id ?? p.name}
-                              name={`${p.name} ⚡ ${p.level} · ${(p.positions || []).join("/")}`}
-                            />
-                          ))}
-                        </SortableContext>
                       </div>
-                    </div>
-                  </DndContext>
+                    </DndContext>
 
-                  <button
-                    disabled={savingTeams}
-                    onClick={async () => {
-                      setSavingTeams(true);
-                      setTeamsSaved(false);
-
-                      try {
-                        await saveTeams(id, {
-                          A: balanced.teamA.players,
-                          B: balanced.teamB.players,
-                        });
-
-                        setTeamsSaved(true);
-
-                        setTimeout(() => {
-                          setTeamsSaved(false);
-                        }, 2000);
-
-                      } finally {
-                        setSavingTeams(false);
-                      }
-                    }}
-                    style={{
-                      marginTop: 16,
-                      width: "100%",
-                      padding: 14,
-                      background: teamsSaved
-                        ? "#16a34a"
-                        : savingTeams
-                          ? "#9ca3af"
-                          : "#2563eb",
-                      color: "#fff",
-                      borderRadius: 12,
-                      border: "none",
-                      fontWeight: 700,
-                      fontSize: 15,
-                      cursor: savingTeams ? "not-allowed" : "pointer",
-                      transition: "all 0.2s ease",
-                      boxShadow: savingTeams
-                        ? "none"
-                        : "0 6px 16px rgba(0,0,0,0.12)",
-                    }}
-                  >
-                    {savingTeams
-                      ? "⏳ Guardando cambios..."
-                      : teamsSaved
-                        ? "✅ Equipos guardados"
-                        : "💾 Guardar cambios manuales"}
-                  </button>
-                  {match.teams && (
                     <button
-                      disabled={copyingReport}
+                      disabled={savingTeams}
                       onClick={async () => {
-                        setCopyingReport(true);
-                        setCopiedReport(false);
+                        setSavingTeams(true);
+                        setTeamsSaved(false);
 
                         try {
-                          await generateWhatsAppReport();
-                          setCopiedReport(true);
+                          await saveTeams(id, {
+                            A: balanced.teamA.players,
+                            B: balanced.teamB.players,
+                          });
+
+                          setTeamsSaved(true);
 
                           setTimeout(() => {
-                            setCopiedReport(false);
+                            setTeamsSaved(false);
                           }, 2000);
 
                         } finally {
-                          setCopyingReport(false);
+                          setSavingTeams(false);
                         }
                       }}
-                      style={{
-                        marginTop: 16,
-                        width: "100%",
-                        padding: 14,
-                        background: copiedReport
-                          ? "#16a34a"
-                          : copyingReport
-                            ? "#9ca3af"
-                            : "#25D366",
-                        color: "#fff",
-                        borderRadius: 14,
-                        border: "none",
-                        fontWeight: 700,
-                        fontSize: 16,
-                        cursor: copyingReport ? "not-allowed" : "pointer",
-                        transition: "all 0.2s ease",
-                        boxShadow: copyingReport
-                          ? "none"
-                          : "0 8px 20px rgba(0,0,0,0.12)",
-                      }}
+                      className={`mt-4 w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${teamsSaved
+                          ? "bg-[#16a34a]"
+                          : savingTeams
+                            ? "bg-slate-400 cursor-not-allowed shadow-none"
+                            : "bg-blue-600 hover:bg-blue-700"
+                        }`}
                     >
-                      {copyingReport
-                        ? "⏳ Copiando reporte..."
-                        : copiedReport
-                          ? "✅ Reporte copiado"
-                          : match.status === "closed"
-                            ? "📲 Copiar reporte final"
-                            : "📲 Copiar equipos balanceados"}
+                      {savingTeams
+                        ? "⏳ Guardando cambios..."
+                        : teamsSaved
+                          ? "✅ Equipos guardados"
+                          : "💾 Guardar cambios manuales"}
                     </button>
-                  )}
+                    {match.teams && (
+                      <button
+                        disabled={copyingReport}
+                        onClick={async () => {
+                          setCopyingReport(true);
+                          setCopiedReport(false);
+
+                          try {
+                            await generateWhatsAppReport();
+                            setCopiedReport(true);
+
+                            setTimeout(() => {
+                              setCopiedReport(false);
+                            }, 2000);
+
+                          } finally {
+                            setCopyingReport(false);
+                          }
+                        }}
+                        className={`mt-3 w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${copiedReport
+                            ? "bg-[#16a34a]"
+                            : copyingReport
+                              ? "bg-slate-400 cursor-not-allowed"
+                              : "bg-[#25D366] hover:bg-[#20bd5a]"
+                          }`}
+                      >
+                        {copyingReport
+                          ? "⏳ Copiando reporte..."
+                          : copiedReport
+                            ? "✅ Reporte copiado"
+                            : match.status === "closed"
+                              ? "📲 Copiar reporte final"
+                              : "📲 Copiar equipos balanceados"}
+                      </button>
+                    )}
 
 
-                </>
-              );
-            })()}
-          </div>
-        )}
-
-        {isOwner && match.teams && (
-          <div
-            style={{
-              marginTop: 20,
-              background: "#ffffff",
-              borderRadius: 16,
-              padding: 20,
-              boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            <h3 style={{ marginBottom: 16 }}>
-              {isClosed ? "🏆 Marcador final" : "🏆 Registrar marcador final"}
-            </h3>
-
-            {isClosed && (
-              <p style={{ fontSize: 14, color: "#dc2626", marginBottom: 12 }}>
-                🔒 El partido está cerrado. No se puede modificar el resultado.
-              </p>
-            )}
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 20,
-                fontSize: 28,
-                fontWeight: 800,
-              }}
-            >
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 14, marginBottom: 6 }}>🔴 Equipo A</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={scoreA}
-                  onChange={e => setScoreA(Number(e.target.value))}
-                  disabled={isClosed}
-                  style={{
-                    width: 70,
-                    fontSize: 28,
-                    textAlign: "center",
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    padding: 6,
-                    background: isClosed ? "#f3f4f6" : "#fff",
-                    cursor: isClosed ? "not-allowed" : "text",
-                  }}
-                />
-              </div>
-
-              <div style={{ fontSize: 26 }}>—</div>
-
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 14, marginBottom: 6 }}>🔵 Equipo B</div>
-                <input
-                  type="number"
-                  min={0}
-                  value={scoreB}
-                  onChange={e => setScoreB(Number(e.target.value))}
-                  disabled={isClosed}
-                  style={{
-                    width: 70,
-                    fontSize: 28,
-                    textAlign: "center",
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    padding: 6,
-                    background: isClosed ? "#f3f4f6" : "#fff",
-                    cursor: isClosed ? "not-allowed" : "text",
-                  }}
-                />
-              </div>
+                  </>
+                );
+              })()}
             </div>
+          )}
 
-            {!isClosed && (
+          {isOwner && match.teams && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+              <h3 className="font-bold text-slate-800 mb-6 text-center">
+                {isClosed ? "🏆 Marcador final" : "🏆 Registrar marcador final"}
+              </h3>
+
+              {isClosed && (
+                <div className="mb-4 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-xs font-bold border border-red-100 text-center">
+                  🔒 El partido está cerrado. No se puede modificar el resultado.
+                </div>
+              )}
+
+              <div className="flex items-center justify-center gap-6 mb-6">
+                <div className="text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase mb-2">🔴 Equipo A</div>
+                  <input
+                    type="number"
+                    min={0}
+                    value={scoreA}
+                    onChange={e => setScoreA(Number(e.target.value))}
+                    disabled={isClosed}
+                    className="w-20 h-20 text-4xl text-center font-black bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-red-100 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="text-4xl text-slate-300 font-thin">—</div>
+
+                <div className="text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase mb-2">🔵 Equipo B</div>
+                  <input
+                    type="number"
+                    min={0}
+                    value={scoreB}
+                    onChange={e => setScoreB(Number(e.target.value))}
+                    disabled={isClosed}
+                    className="w-20 h-20 text-4xl text-center font-black bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              {!isClosed && (
+                <button
+                  onClick={async () => {
+                    if (!match?.teams) return;
+
+                    setSavingScore(true);
+                    setScoreSaved(false);
+
+                    try {
+                      await updateDoc(doc(db, "matches", id), {
+                        score: {
+                          A: scoreA,
+                          B: scoreB,
+                        },
+                      });
+
+                      await loadMatch();
+
+                      setScoreSaved(true);
+                      setTimeout(() => setScoreSaved(false), 2000);
+                    } finally {
+                      setSavingScore(false);
+                    }
+                  }}
+                  disabled={savingScore}
+                  className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${scoreSaved
+                      ? "bg-[#16a34a]"
+                      : savingScore
+                        ? "bg-slate-400 cursor-not-allowed"
+                        : "bg-[#1f7a4f] hover:bg-[#16603c]"
+                    }`}
+                >
+                  {scoreSaved
+                    ? "✅ Resultado guardado"
+                    : savingScore
+                      ? "⏳ Guardando resultado..."
+                      : "💾 Guardar resultado"}
+                </button>
+              )}
+
+
+            </div>
+          )}
+
+          {/* ESTADO PARTIDO */}
+          <div className="mt-8 flex justify-center">
+            {isOwner && !isClosed && (
               <button
+                disabled={!match?.teams}
                 onClick={async () => {
                   if (!match?.teams) return;
-
-                  setSavingScore(true);
-                  setScoreSaved(false);
+                  if (!confirm("¿Cerrar partido y procesar estadísticas?")) return;
 
                   try {
+                    // 1️⃣ Traer versión fresca del match
+                    const snap = await getDoc(doc(db, "matches", id));
+                    if (!snap.exists()) return;
+
+                    const freshMatch = snap.data();
+
+                    if (!freshMatch?.teams?.A || !freshMatch?.teams?.B) {
+                      alert("Primero debes balancear los equipos.");
+                      return;
+                    }
+
+                    const teamA = freshMatch.teams.A;
+                    const teamB = freshMatch.teams.B;
+
+                    let previousResultA: "win" | "loss" | "draw" | undefined;
+                    let previousResultB: "win" | "loss" | "draw" | undefined;
+
+                    if (freshMatch.statsProcessed && freshMatch.previousScore) {
+                      const prevA = freshMatch.previousScore.A ?? 0;
+                      const prevB = freshMatch.previousScore.B ?? 0;
+
+                      if (prevA > prevB) {
+                        previousResultA = "win";
+                        previousResultB = "loss";
+                      } else if (prevB > prevA) {
+                        previousResultA = "loss";
+                        previousResultB = "win";
+                      } else {
+                        previousResultA = "draw";
+                        previousResultB = "draw";
+                      }
+                    }
+
+                    // 3️⃣ Guardar score + reporte
+                    const report = buildWhatsAppReport({
+                      ...freshMatch,
+                      score: { A: scoreA, B: scoreB },
+                    });
+
                     await updateDoc(doc(db, "matches", id), {
                       score: {
                         A: scoreA,
                         B: scoreB,
                       },
+                      previousScore: freshMatch.score || { A: 0, B: 0 },
+                      finalReport: report,
+                      statsProcessed: true,
                     });
 
-                    await loadMatch();
+                    // 4️⃣ Actualizar stats según resultado (revirtiendo previos si existen)
+                    if (scoreA > scoreB) {
+                      await updatePlayerStats(teamA, "win", id, previousResultA);
+                      await updatePlayerStats(teamB, "loss", id, previousResultB);
+                    } else if (scoreB > scoreA) {
+                      await updatePlayerStats(teamA, "loss", id, previousResultA);
+                      await updatePlayerStats(teamB, "win", id, previousResultB);
+                    } else {
+                      await updatePlayerStats(teamA, "draw", id, previousResultA);
+                      await updatePlayerStats(teamB, "draw", id, previousResultB);
+                    }
 
-                    setScoreSaved(true);
-                    setTimeout(() => setScoreSaved(false), 2000);
-                  } finally {
-                    setSavingScore(false);
+                    // 5️⃣ Cerrar partido
+                    await closeMatch(id);
+
+                    await loadMatch();
+                  } catch (error) {
+                    console.error("Error cerrando partido:", error);
                   }
                 }}
-                disabled={savingScore}
-                style={{
-                  marginTop: 12,
-                  width: "100%",
-                  padding: 14,
-                  background: scoreSaved
-                    ? "#16a34a"
-                    : savingScore
-                      ? "#9ca3af"
-                      : "#1f7a4f",
-                  color: "#fff",
-                  borderRadius: 12,
-                  border: "none",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: savingScore ? "not-allowed" : "pointer",
-                  transition: "all 0.2s ease",
-                }}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${!match?.teams
+                    ? "bg-slate-400 cursor-not-allowed opacity-50"
+                    : "bg-red-600 hover:bg-red-700"
+                  }`}
               >
-                {scoreSaved
-                  ? "✅ Resultado guardado"
-                  : savingScore
-                    ? "⏳ Guardando resultado..."
-                    : "💾 Guardar resultado"}
+                🔒 Cerrar partido final
               </button>
             )}
 
-
+            {isOwner && isClosed && (
+              <button
+                onClick={async () => {
+                  if (confirm("¿Reabrir el partido?")) {
+                    await reopenMatch(id);
+                    loadMatch();
+                  }
+                }}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-[#1f7a4f] text-white hover:bg-[#16603c] transition-all shadow-lg active:scale-[0.98]"
+              >
+                🔓 Reabrir partido
+              </button>
+            )}
           </div>
-        )}
-
-        {/* ESTADO PARTIDO */}
-        <div style={{ marginTop: 16 }}>
-          {isOwner && !isClosed && (
-            <button
-              style={{
-                ...btnDanger,
-                opacity: !match?.teams ? 0.5 : 1,
-                cursor: !match?.teams ? "not-allowed" : "pointer",
-              }}
-              disabled={!match?.teams}
-              onClick={async () => {
-                try {
-                  // 1️⃣ Traer versión fresca del match
-                  const snap = await getDoc(doc(db, "matches", id));
-                  if (!snap.exists()) return;
-
-                  const freshMatch = snap.data();
-
-                  if (!freshMatch?.teams?.A || !freshMatch?.teams?.B) {
-                    alert("Primero debes balancear los equipos.");
-                    return;
-                  }
-
-                  if (
-                    !freshMatch.teams.A.length ||
-                    !freshMatch.teams.B.length
-                  ) {
-                    alert("Equipos inválidos.");
-                    return;
-                  }
-
-                  const teamA = freshMatch.teams.A;
-                  const teamB = freshMatch.teams.B;
-
-                  // 2️⃣ Detectar si ya había un resultado previo (partido reabierto)
-                  let previousResultA: "win" | "loss" | "draw" | undefined;
-                  let previousResultB: "win" | "loss" | "draw" | undefined;
-
-                  if (freshMatch.statsProcessed && freshMatch.previousScore) {
-                    const prevA = freshMatch.previousScore.A ?? 0;
-                    const prevB = freshMatch.previousScore.B ?? 0;
-
-                    if (prevA > prevB) {
-                      previousResultA = "win";
-                      previousResultB = "loss";
-                    } else if (prevB > prevA) {
-                      previousResultA = "loss";
-                      previousResultB = "win";
-                    } else {
-                      previousResultA = "draw";
-                      previousResultB = "draw";
-                    }
-                  }
-
-                  // 3️⃣ Guardar score + reporte
-                  const report = buildWhatsAppReport({
-                    ...freshMatch,
-                    score: { A: scoreA, B: scoreB },
-                  });
-
-                  await updateDoc(doc(db, "matches", id), {
-                    score: {
-                      A: scoreA,
-                      B: scoreB,
-                    },
-                    previousScore: freshMatch.score || { A: 0, B: 0 },
-                    finalReport: report,
-                    statsProcessed: true,
-                  });
-
-                  // 4️⃣ Actualizar stats según resultado (revirtiendo previos si existen)
-                  if (scoreA > scoreB) {
-                    await updatePlayerStats(teamA, "win", id, previousResultA);
-                    await updatePlayerStats(teamB, "loss", id, previousResultB);
-                  } else if (scoreB > scoreA) {
-                    await updatePlayerStats(teamA, "loss", id, previousResultA);
-                    await updatePlayerStats(teamB, "win", id, previousResultB);
-                  } else {
-                    await updatePlayerStats(teamA, "draw", id, previousResultA);
-                    await updatePlayerStats(teamB, "draw", id, previousResultB);
-                  }
-
-                  // 5️⃣ Cerrar partido
-                  await closeMatch(id);
-
-                  await loadMatch();
-                } catch (error) {
-                  console.error("Error cerrando partido:", error);
-                }
-              }}
-            >
-              🔒 Cerrar partido
-            </button>
-          )}
-
-          {isOwner && isClosed && (
-            <button
-              style={btnPrimary}
-              onClick={async () => {
-                await reopenMatch(id);
-                loadMatch();
-              }}
-            >
-              🔓 Reabrir partido
-            </button>
-          )}
         </div>
       </main>
     </AuthGuard>
   );
 }
 
-function PlayerItem({ id, name }: { id: string; name: string }) {
+function PlayerItem({ id, name, details }: { id: string; name: string, details: string }) {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
+    isDragging
   } = useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    padding: 10,
-    background: "#fff",
-    borderRadius: 8,
-    marginBottom: 8,
-    border: "1px solid #e5e7eb",
-    cursor: "grab",
+    zIndex: isDragging ? 50 : "auto",
+    opacity: isDragging ? 0.8 : 1,
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {name}
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`p-3 bg-white border border-slate-200 rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-300 transition-colors ${isDragging ? "ring-2 ring-emerald-500 rotate-2" : ""}`}
+    >
+      <div className="font-bold text-sm text-slate-800">{name}</div>
+      <div className="text-[10px] text-slate-500 font-medium">{details}</div>
     </div>
   );
 }

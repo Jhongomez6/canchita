@@ -187,7 +187,7 @@ export const POSITION_ICONS: Record<Position, string> = {
 
 ### ✅ Criterio 8
 **Given** un jugador cuyo onboarding se completó hace más de 90 días
-**When** solicita re-evaluación desde su perfil
+**When** solicita nueva autoevaluación desde su perfil
 **Then** se resetea `initialRatingCalculated` y es redirigido a `/onboarding`
 
 ---

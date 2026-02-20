@@ -9,10 +9,12 @@ import type { Position } from "@/lib/domain/player";
 import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain/player";
 import type { UserStats } from "@/lib/domain/user";
 import type { Foot, CourtSize } from "@/lib/domain/rating";
+import AuthGuard from "@/components/AuthGuard";
+import StatsCard from "@/components/StatsCard";
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
-const LEVEL_LABELS = ["", "B\u00e1sico", "Intermedio", "Avanzado"];
-const LEVEL_EMOJIS = ["", "\uD83C\uDF31", "\u26A1", "\uD83D\uDD25"];
+const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado"];
+const LEVEL_EMOJIS = ["", "🌱", "⚡", "🔥"];
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -159,342 +161,335 @@ export default function ProfilePage() {
 
   // ======== RENDER ========
 
-  if (!user) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f2f5f3", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontSize: 18, color: "#666" }}>Debes iniciar sesi&oacute;n</p>
-      </div>
-    );
-  }
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f2f5f3", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontSize: 18, color: "#666" }}>Cargando perfil...</p>
-      </div>
-    );
-  }
 
-  const chip = (active: boolean): React.CSSProperties => ({
-    display: "inline-block",
-    padding: "4px 10px",
-    borderRadius: 20,
-    fontSize: 12,
-    fontWeight: 600,
-    background: active ? "#e6f6ed" : "#f3f4f6",
-    color: active ? "#1f7a4f" : "#6b7280",
-    border: active ? "1px solid #bbf7d0" : "1px solid #e5e7eb",
-  });
+  const Chip = ({ active, children }: { active: boolean, children: React.ReactNode }) => (
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${active
+      ? "bg-emerald-50 text-[#1f7a4f] border-emerald-200"
+      : "bg-slate-100 text-slate-500 border-slate-200"
+      }`}>
+      {children}
+    </span>
+  );
 
-  const row = (label: string, value: React.ReactNode): React.ReactNode => (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
-      <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>{label}</span>
-      <span style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>{value}</span>
+  const InfoRow = ({ label, value }: { label: string, value: React.ReactNode }) => (
+    <div className="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
+      <span className="text-sm text-slate-500 font-medium">{label}</span>
+      <div className="text-sm font-bold text-slate-700">{value}</div>
     </div>
   );
 
+  if (!user || loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
-    <main style={{ minHeight: "100vh", background: "#f2f5f3", paddingBottom: 24 }}>
-      <div style={{ maxWidth: 420, margin: "0 auto", padding: 16 }}>
+    <AuthGuard>
+      <main className="min-h-screen bg-slate-50 pb-24 md:pb-8">
+        <div className="max-w-md mx-auto p-4">
 
-        {/* Onboarding banner */}
-        {isOnboarding && (
-          <div style={{ background: "linear-gradient(180deg, #1f7a4f, #145c3a)", color: "#fff", padding: 20, borderRadius: 16, marginBottom: 16, boxShadow: "0 8px 20px rgba(0,0,0,0.15)" }}>
-            <h2 style={{ marginBottom: 8 }}>{"👋"} Completa tu perfil</h2>
-            <p style={{ fontSize: 14, opacity: 0.9 }}>Selecciona tus posiciones para unirte a partidos.</p>
-          </div>
-        )}
-
-        {/* ========================= */}
-        {/*    FICHA T&Eacute;CNICA   */}
-        {/* ========================= */}
-        <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}>
-
-          {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1f1f1f", margin: 0 }}>{"🏅"} Ficha T{"é"}cnica</h2>
-            {!isOnboarding && !editing && (
-              <button
-                onClick={startEditing}
-                style={{ background: "none", border: "1px solid #ddd", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "#1f7a4f", cursor: "pointer" }}
-              >
-                {"✏️"} Editar
-              </button>
-            )}
-          </div>
-
-          {saved && (
-            <p style={{ color: "#16a34a", fontSize: 12, fontWeight: 600, textAlign: "center", marginBottom: 8 }}>{"✅"} Cambios guardados</p>
+          {/* Onboarding banner */}
+          {isOnboarding && (
+            <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] text-white p-5 rounded-2xl shadow-lg mb-6">
+              <h2 className="font-bold text-lg mb-1">👋 Completa tu perfil</h2>
+              <p className="text-sm text-emerald-100 opacity-90">Selecciona tus posiciones para unirte a partidos.</p>
+            </div>
           )}
 
-          {/* =================== */}
-          {/*     VIEW MODE       */}
-          {/* =================== */}
-          {!editing ? (
-            <>
-              {/* Info rows: Name, Age, Positions, Foot, Court */}
-              {row("Nombre", displayName || "—")}
-              {age != null && row("Edad", `${age} a\u00f1os`)}
-              {row("Posiciones", positions.length > 0
-                ? <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  {positions.map(p => <span key={p} style={chip(true)}>{POSITION_ICONS[p as Position]} {POSITION_LABELS[p as Position]}</span>)}
-                </span>
-                : <span style={{ color: "#9ca3af" }}>Sin seleccionar</span>
-              )}
-              {dominantFoot && row("Pie dominante", FOOT_LABELS[dominantFoot] || dominantFoot)}
-              {preferredCourt && row("Cancha preferida", preferredCourt)}
+          {/* ========================= */}
+          {/*    FICHA TÉCNICA        */}
+          {/* ========================= */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
 
-              {/* Level badge — below court */}
-              {level != null && (
-                <div style={{ background: "linear-gradient(135deg, #1f7a4f, #145c3a)", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, marginTop: 14, color: "#fff" }}>
-                  <span style={{ fontSize: 32 }}>{LEVEL_EMOJIS[level]}</span>
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>Nivel {level} — {LEVEL_LABELS[level]}</div>
-                    <div style={{ fontSize: 11, opacity: 0.8 }}>{"Autoevaluaci\u00f3n de onboarding"}</div>
-                  </div>
+            {/* Header */}
+            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span className="text-xl">🏅</span> Ficha Técnica
+              </h2>
+              {!isOnboarding && !editing && (
+                <button
+                  onClick={startEditing}
+                  className="text-sm font-semibold text-[#1f7a4f] hover:text-[#16603c] transition-colors"
+                >
+                  ✏️ Editar
+                </button>
+              )}
+            </div>
+
+            <div className="p-5">
+              {saved && (
+                <div className="mb-4 bg-emerald-50 text-[#1f7a4f] text-sm font-semibold px-3 py-2 rounded-lg text-center border border-emerald-100 animate-fade-in">
+                  ✅ Cambios guardados
                 </div>
               )}
 
-              {/* Re-evaluation */}
-              {level != null && (
-                <div style={{ marginTop: 10, textAlign: "center" }}>
-                  {reevalDaysLeft === 0 ? (
-                    <button
-                      disabled={requestingReeval}
-                      onClick={async () => {
-                        setRequestingReeval(true);
-                        try {
-                          await requestReEvaluation(user.uid);
-                          router.push("/onboarding");
-                        } catch { setRequestingReeval(false); }
-                      }}
-                      style={{ padding: "8px 16px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      {requestingReeval ? "Redirigiendo..." : "Nueva autoevaluaci\u00f3n"}
-                    </button>
-                  ) : (
-                    <p style={{ fontSize: 11, color: "#92400e" }}>
-                      {"🔒"} Nueva autoevaluaci{"ó"}n disponible el {reevalUnlockDate} ({reevalDaysLeft}d)
-                    </p>
+              {/* =================== */}
+              {/*     VIEW MODE       */}
+              {/* =================== */}
+              {!editing ? (
+                <div className="space-y-1">
+                  <InfoRow label="Nombre" value={displayName || "—"} />
+                  {age != null && <InfoRow label="Edad" value={`${age} años`} />}
+
+                  <InfoRow label="Posiciones" value={
+                    positions.length > 0 ? (
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        {positions.map(p => (
+                          <Chip key={p} active={true}>
+                            {POSITION_ICONS[p as Position]} {POSITION_LABELS[p as Position]}
+                          </Chip>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 italic text-xs">Sin seleccionar</span>
+                    )
+                  } />
+
+                  {dominantFoot && <InfoRow label="Pie dominante" value={FOOT_LABELS[dominantFoot] || dominantFoot} />}
+                  {preferredCourt && <InfoRow label="Cancha preferida" value={preferredCourt} />}
+
+                  {/* Level Classification Card */}
+                  {level != null && (
+                    <div className="mt-6 bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] rounded-2xl p-5 text-white shadow-lg relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
+
+                      <div className="flex items-center gap-4 relative z-10">
+                        <span className="text-5xl drop-shadow-md">{LEVEL_EMOJIS[level]}</span>
+                        <div>
+                          <div className="text-xs font-bold text-emerald-200 uppercase tracking-widest mb-1">Nivel Calculado</div>
+                          <div className="text-2xl font-black leading-none">Nivel {level}</div>
+                          <div className="text-lg font-bold opacity-90">{LEVEL_LABELS[level]}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Re-evaluation Link */}
+                  {level != null && (
+                    <div className="mt-4 text-center">
+                      {reevalDaysLeft === 0 ? (
+                        <button
+                          disabled={requestingReeval}
+                          onClick={async () => {
+                            setRequestingReeval(true);
+                            try {
+                              await requestReEvaluation(user.uid);
+                              router.push("/onboarding");
+                            } catch { setRequestingReeval(false); }
+                          }}
+                          className="text-xs font-bold text-amber-600 hover:text-amber-700 underline"
+                        >
+                          {requestingReeval ? "Redirigiendo..." : "Solicitar nueva evaluación"}
+                        </button>
+                      ) : (
+                        <p className="text-[10px] text-slate-400">
+                          🔒 Nueva autoevaluación disponible el {reevalUnlockDate}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </>
-          ) : (
-            /* =================== */
-            /*     EDIT MODE       */
-            /* =================== */
-            <>
-              {/* Name */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>Nombre</label>
-                {canEditName ? (
-                  <>
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={e => setEditName(e.target.value)}
-                      placeholder="Tu nombre"
-                      style={{ width: "100%", padding: "10px 14px", border: "1px solid #ddd", borderRadius: 10, fontSize: 15, outline: "none", boxSizing: "border-box" }}
-                    />
-                    {editName.trim().length > 0 && editName.trim().length < 2 && (
-                      <p style={{ color: "#dc2626", fontSize: 11, marginTop: 4 }}>{"Mínimo 2 caracteres"}</p>
+              ) : (
+                /* =================== */
+                /*     EDIT MODE       */
+                /* =================== */
+                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Nombre</label>
+                    {canEditName ? (
+                      <div>
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          placeholder="Tu nombre"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
+                        />
+                        {editName.trim().length > 0 && editName.trim().length < 2 && (
+                          <p className="text-red-500 text-xs mt-1 font-medium">Mínimo 2 caracteres</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-3 bg-slate-100 rounded-xl text-slate-400 font-medium text-sm border border-slate-200">
+                        {displayName} <span className="text-xs ml-2 opacity-70">🔒 cambio el {nameUnlockDate}</span>
+                      </div>
                     )}
-                  </>
-                ) : (
-                  <div style={{ padding: "10px 14px", background: "#f3f4f6", borderRadius: 10, fontSize: 15, color: "#9ca3af" }}>
-                    {displayName} <span style={{ fontSize: 11 }}>{"🔒"} cambio el {nameUnlockDate}</span>
                   </div>
-                )}
-              </div>
 
-              {/* Positions */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>Posiciones <span style={{ fontWeight: 400, fontStyle: "italic" }}>(m{"á"}x. 2)</span></label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  {ALLOWED_POSITIONS.map((pos: Position) => {
-                    const sel = editPositions.includes(pos);
-                    return (
-                      <button
-                        key={pos}
-                        onClick={() => {
-                          if (sel) {
-                            setEditPositions(editPositions.filter(p => p !== pos));
-                          } else if (editPositions.length >= 2) {
-                            setEditPositions([editPositions[1], pos]);
-                          } else {
-                            setEditPositions([...editPositions, pos]);
-                          }
-                        }}
-                        style={{
-                          padding: "10px 8px",
-                          borderRadius: 10,
-                          border: sel ? "2px solid #1f7a4f" : "1px solid #e5e7eb",
-                          background: sel ? "#e6f6ed" : "#fff",
-                          fontWeight: 600,
-                          fontSize: 13,
-                          color: sel ? "#1f7a4f" : "#374151",
-                          cursor: "pointer",
-                          transition: "all 0.15s",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 4,
-                        }}
-                      >
-                        {POSITION_ICONS[pos]} {POSITION_LABELS[pos]}
-                        {sel && <span style={{ marginLeft: 2 }}>{"✔"}</span>}
-                      </button>
-                    );
-                  })}
+                  {/* Positions */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                      Posiciones <span className="text-[10px] font-normal normal-case opacity-70">(máx. 2)</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ALLOWED_POSITIONS.map((pos: Position) => {
+                        const sel = editPositions.includes(pos);
+                        return (
+                          <button
+                            key={pos}
+                            onClick={() => {
+                              if (sel) {
+                                setEditPositions(editPositions.filter(p => p !== pos));
+                              } else if (editPositions.length >= 2) {
+                                setEditPositions([editPositions[1], pos]);
+                              } else {
+                                setEditPositions([...editPositions, pos]);
+                              }
+                            }}
+                            className={`
+                                       flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-bold transition-all border
+                                       ${sel
+                                ? "bg-emerald-50 border-[#1f7a4f] text-[#1f7a4f] shadow-sm"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                              }
+                                    `}
+                          >
+                            <span className="text-lg">{POSITION_ICONS[pos]}</span>
+                            <span>{POSITION_LABELS[pos]}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Foot */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Pie Dominante</label>
+                    <div className="flex bg-slate-100 p-1 rounded-xl">
+                      {(["left", "right", "ambidextrous"] as Foot[]).map(f => {
+                        const active = editFoot === f;
+                        return (
+                          <button
+                            key={f}
+                            onClick={() => setEditFoot(f)}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${active ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                              }`}
+                          >
+                            {FOOT_LABELS[f]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Court */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Cancha Preferida</label>
+                    <div className="flex bg-slate-100 p-1 rounded-xl">
+                      {(["6v6", "9v9", "11v11"] as CourtSize[]).map(c => {
+                        const active = editCourt === c;
+                        return (
+                          <button
+                            key={c}
+                            onClick={() => setEditCourt(c)}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${active ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                              }`}
+                          >
+                            {c}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={cancelEditing}
+                      className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      disabled={saving}
+                      onClick={saveAll}
+                      className="flex-[2] py-3 bg-[#1f7a4f] text-white font-bold rounded-xl hover:bg-[#16603c] transition-all shadow-md active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {saving ? "Guardando..." : "Guardar Cambios"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {/* Foot */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>Pie dominante</label>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {(["left", "right", "ambidextrous"] as Foot[]).map(f => {
-                    const active = editFoot === f;
-                    return (
-                      <button
-                        key={f}
-                        onClick={() => setEditFoot(f)}
-                        style={{ flex: 1, padding: "8px 4px", borderRadius: 8, border: active ? "2px solid #1f7a4f" : "1px solid #e5e7eb", background: active ? "#e6f6ed" : "#fff", color: active ? "#1f7a4f" : "#6b7280", fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.15s" }}
-                      >
-                        {FOOT_LABELS[f]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Court */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>Cancha preferida</label>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {(["6v6", "9v9", "11v11"] as CourtSize[]).map(c => {
-                    const active = editCourt === c;
-                    return (
-                      <button
-                        key={c}
-                        onClick={() => setEditCourt(c)}
-                        style={{ flex: 1, padding: "8px 4px", borderRadius: 8, border: active ? "2px solid #1f7a4f" : "1px solid #e5e7eb", background: active ? "#e6f6ed" : "#fff", color: active ? "#1f7a4f" : "#6b7280", fontWeight: 600, fontSize: 12, cursor: "pointer", transition: "all 0.15s" }}
-                      >
-                        {c}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Save / Cancel */}
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={cancelEditing}
-                  style={{ flex: 1, padding: "12px", background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  disabled={saving}
-                  onClick={saveAll}
-                  style={{ flex: 2, padding: "12px", background: saving ? "#9ca3af" : "#1f7a4f", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: saving ? "default" : "pointer", transition: "all 0.2s" }}
-                >
-                  {saving ? "Guardando..." : "Guardar cambios"}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ========================= */}
-        {/*      ESTAD&Iacute;STICAS  */}
-        {/* ========================= */}
-        {!isOnboarding && (
-          <div style={{ marginTop: 12, background: "#fff", borderRadius: 16, padding: "16px 20px", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}>
-            <h3 style={{ marginBottom: 10, fontSize: 14, fontWeight: 700, color: "#374151", margin: "0 0 10px" }}>{"📊"} Estad{"í"}sticas</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#374151" }}>{stats.played}</div>
-                <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 600 }}>PJ</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#16a34a" }}>{stats.won}</div>
-                <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 600 }}>PG</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#ca8a04" }}>{stats.draw}</div>
-                <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 600 }}>PE</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#dc2626" }}>{stats.lost}</div>
-                <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 600 }}>PP</div>
-              </div>
+              )}
             </div>
           </div>
-        )}
 
-        {/* ========================= */}
-        {/*     CTA + NOTIFICATIONS   */}
-        {/* ========================= */}
-        {!isOnboarding && positions.length > 0 && (
-          <>
-            <button
-              onClick={() => {
-                if (returnToMatch) {
-                  localStorage.removeItem("returnToMatch");
-                  router.push(`/join/${returnToMatch}`);
-                } else {
-                  router.push("/");
-                }
-              }}
-              style={{ marginTop: 12, width: "100%", padding: "14px", background: "#1f7a4f", color: "#fff", borderRadius: 12, border: "none", fontSize: 16, fontWeight: 600, cursor: "pointer" }}
-            >
-              {returnToMatch ? "Volver al partido" : "Ver mis partidos"}
-            </button>
+          {/* ========================= */}
+          {/*      ESTADÍSTICAS       */}
+          {/* ========================= */}
+          {/* ========================= */}
+          {/*      ESTADÍSTICAS       */}
+          {/* ========================= */}
+          {!isOnboarding && <StatsCard stats={stats} />}
 
-            {/* Notifications */}
-            <div style={{ marginTop: 12, padding: 16, borderRadius: 16, background: isPushOnDevice ? "#ecfdf5" : "#fff", border: isPushOnDevice ? "1px solid #bbf7d0" : "1px solid #e5e7eb", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ marginBottom: 4, fontSize: 14, fontWeight: 700 }}>{"🔔"} Recordatorios</h3>
-              <p style={{ fontSize: 13, color: "#555", marginBottom: 10 }}>
-                Te avisaremos <strong>24h, 12h y 6h antes</strong> del partido.
-              </p>
+          {/* ========================= */}
+          {/*     CTA + NOTIFICATIONS   */}
+          {/* ========================= */}
+          {!isOnboarding && positions.length > 0 && (
+            <div className="space-y-4">
               <button
-                onClick={async () => {
-                  setEnablingPush(true);
-                  try {
-                    const token = await enablePushNotifications(user.uid);
-                    if (token) {
-                      localStorage.setItem("push-enabled", "true");
-                      setPushEnabled(true);
-                    }
-                  } finally { setEnablingPush(false); }
+                onClick={() => {
+                  if (returnToMatch) {
+                    localStorage.removeItem("returnToMatch");
+                    router.push(`/join/${returnToMatch}`);
+                  } else {
+                    router.push("/");
+                  }
                 }}
-                disabled={isPushOnDevice || enablingPush}
-                style={{
-                  width: "100%", padding: "12px",
-                  background: isPushOnDevice ? "#16a34a" : enablingPush ? "#9ca3af" : "#1f7a4f",
-                  color: "#fff", borderRadius: 12, border: "none", fontSize: 14, fontWeight: 700,
-                  cursor: isPushOnDevice || enablingPush ? "default" : "pointer",
-                }}
+                className="w-full py-4 bg-[#1f7a4f] text-white rounded-2xl font-bold text-lg hover:bg-[#16603c] transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
               >
-                {isPushOnDevice ? "Activos" : enablingPush ? "Activando..." : "Activar recordatorios"}
+                {returnToMatch ? "Volver al partido" : "Ver mis partidos"}
               </button>
-              {pushEnabled && !isPushOnDevice && (
-                <p style={{ marginTop: 8, fontSize: 12, color: "#92400e", textAlign: "center" }}>
-                  Activos en otro dispositivo. Act{"í"}valos aqu{"í"} tambi{"é"}n.
-                </p>
-              )}
-              {isPushOnDevice && (
-                <p style={{ marginTop: 8, fontSize: 12, color: "#166534", textAlign: "center" }}>
-                  {"Recibir\u00e1s notificaciones en este dispositivo 📲"}
-                </p>
-              )}
+
+              {/* Notifications */}
+              <div className={`p-5 rounded-2xl border transition-all ${isPushOnDevice ? "bg-emerald-50 border-emerald-100" : "bg-white border-slate-200 shadow-sm"
+                }`}>
+                <div className="flex items-start gap-4">
+                  <div className="text-2xl">🔔</div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-slate-800 text-sm mb-1">Recordatorios</h3>
+                    <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                      Recibe alertas <strong>24h, 12h y 6h antes</strong> de tus partidos.
+                    </p>
+
+                    <button
+                      onClick={async () => {
+                        setEnablingPush(true);
+                        try {
+                          const token = await enablePushNotifications(user.uid);
+                          if (token) {
+                            localStorage.setItem("push-enabled", "true");
+                            setPushEnabled(true);
+                          }
+                        } finally { setEnablingPush(false); }
+                      }}
+                      disabled={isPushOnDevice || enablingPush}
+                      className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${isPushOnDevice
+                        ? "bg-white text-emerald-600 border border-emerald-200 cursor-default"
+                        : "bg-slate-900 text-white hover:bg-slate-800"
+                        }`}
+                    >
+                      {isPushOnDevice ? "✅ Notificaciones Activas" : enablingPush ? "Activando..." : "Activar Ahora"}
+                    </button>
+
+                    {pushEnabled && !isPushOnDevice && (
+                      <p className="mt-2 text-[10px] text-amber-600 text-center font-medium">
+                        Activas en otro dispositivo. Actívalas aquí también.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-4"></div> {/* Bottom spacer */}
             </div>
-          </>
-        )}
-      </div>
-    </main>
+          )}
+        </div>
+      </main>
+    </AuthGuard>
   );
 }

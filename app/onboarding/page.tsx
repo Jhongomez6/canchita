@@ -178,56 +178,14 @@ export default function OnboardingPage() {
     if (!user) return null;
 
     // ========================
-    // SHARED STYLES
+    // SHARED COMPONENTS
     // ========================
 
-    const pageStyle: React.CSSProperties = {
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-    };
-
-    const cardStyle: React.CSSProperties = {
-        background: "#fff",
-        borderRadius: 24,
-        padding: "32px 24px",
-        maxWidth: 480,
-        width: "100%",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-    };
-
-    const headerStyle: React.CSSProperties = {
-        textAlign: "center" as const,
-        marginBottom: 24,
-    };
-
-    const primaryBtn = (disabled: boolean): React.CSSProperties => ({
-        width: "100%",
-        padding: "14px",
-        background: disabled ? "#9ca3af" : "#1f7a4f",
-        color: "#fff",
-        borderRadius: 12,
-        border: "none",
-        fontSize: 16,
-        fontWeight: 700,
-        cursor: disabled ? "default" : "pointer",
-        transition: "all 0.2s",
-        marginTop: 16,
-    });
-
     const progressBar = (
-        <div style={{ height: 4, background: "#e5e7eb", borderRadius: 2, marginBottom: 24 }}>
+        <div className="h-1 bg-gray-200 rounded-full mb-8 overflow-hidden">
             <div
-                style={{
-                    height: 4,
-                    background: "#1f7a4f",
-                    borderRadius: 2,
-                    width: `${(Math.min(step, 5) / 5) * 100}%`,
-                    transition: "width 0.4s ease",
-                }}
+                className="h-full bg-[#1f7a4f] rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${(Math.min(step, 5) / 5) * 100}%` }}
             />
         </div>
     );
@@ -237,17 +195,17 @@ export default function OnboardingPage() {
     // ========================
     if (step === 1) {
         return (
-            <div style={pageStyle}>
-                <div style={cardStyle}>
+            <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
-                    <div style={headerStyle}>
-                        <p style={{ fontSize: 13, color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Paso 1 de 5</p>
-                        <h1 style={{ fontSize: 22, marginTop: 4 }}>📋 Datos Personales</h1>
+                    <div className="text-center mb-6">
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 1 de 5</p>
+                        <h1 className="text-2xl font-bold text-gray-800 mt-1">📋 Datos Personales</h1>
                     </div>
 
                     {/* EDAD */}
-                    <label style={{ display: "block", marginBottom: 16 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Edad</span>
+                    <label className="block mb-4">
+                        <span className="text-sm font-semibold text-gray-700 block mb-2">Edad</span>
                         <input
                             type="number"
                             value={age}
@@ -255,30 +213,22 @@ export default function OnboardingPage() {
                             placeholder="Ej: 25"
                             min={10}
                             max={70}
-                            style={{ width: "100%", padding: "10px 14px", border: "1px solid #ddd", borderRadius: 10, fontSize: 15, outline: "none", boxSizing: "border-box" }}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
                         />
                     </label>
 
                     {/* SEXO */}
-                    <div style={{ marginBottom: 16 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Sexo</span>
-                        <div style={{ display: "flex", gap: 8 }}>
+                    <div className="mb-4">
+                        <span className="text-sm font-semibold text-gray-700 block mb-2">Sexo</span>
+                        <div className="flex gap-2">
                             {SEX_OPTIONS.map(o => (
                                 <button
                                     key={o.value}
                                     onClick={() => setSex(o.value)}
-                                    style={{
-                                        flex: 1,
-                                        padding: "10px",
-                                        border: sex === o.value ? "2px solid #1f7a4f" : "1px solid #ddd",
-                                        borderRadius: 10,
-                                        background: sex === o.value ? "#e6f6ed" : "#fff",
-                                        fontWeight: 600,
-                                        fontSize: 13,
-                                        cursor: "pointer",
-                                        color: sex === o.value ? "#1f7a4f" : "#374151",
-                                        transition: "all 0.2s",
-                                    }}
+                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all border-2 ${sex === o.value
+                                        ? "border-[#1f7a4f] bg-emerald-50 text-[#1f7a4f]"
+                                        : "border-gray-100 bg-white text-gray-600 hover:border-gray-200"
+                                        }`}
                                 >
                                     {o.label}
                                 </button>
@@ -287,25 +237,17 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* PIE */}
-                    <div style={{ marginBottom: 16 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Pie Dominante</span>
-                        <div style={{ display: "flex", gap: 8 }}>
+                    <div className="mb-4">
+                        <span className="text-sm font-semibold text-gray-700 block mb-2">Pie Dominante</span>
+                        <div className="flex gap-2">
                             {FOOT_OPTIONS.map(o => (
                                 <button
                                     key={o.value}
                                     onClick={() => setFoot(o.value)}
-                                    style={{
-                                        flex: 1,
-                                        padding: "10px",
-                                        border: foot === o.value ? "2px solid #1f7a4f" : "1px solid #ddd",
-                                        borderRadius: 10,
-                                        background: foot === o.value ? "#e6f6ed" : "#fff",
-                                        fontWeight: 600,
-                                        fontSize: 13,
-                                        cursor: "pointer",
-                                        color: foot === o.value ? "#1f7a4f" : "#374151",
-                                        transition: "all 0.2s",
-                                    }}
+                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all border-2 ${foot === o.value
+                                        ? "border-[#1f7a4f] bg-emerald-50 text-[#1f7a4f]"
+                                        : "border-gray-100 bg-white text-gray-600 hover:border-gray-200"
+                                        }`}
                                 >
                                     {o.label}
                                 </button>
@@ -314,25 +256,17 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* CANCHA */}
-                    <div style={{ marginBottom: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Cancha Preferida</span>
-                        <div style={{ display: "flex", gap: 8 }}>
+                    <div className="mb-6">
+                        <span className="text-sm font-semibold text-gray-700 block mb-2">Cancha Preferida</span>
+                        <div className="flex gap-2">
                             {COURT_OPTIONS.map(o => (
                                 <button
                                     key={o.value}
                                     onClick={() => setCourt(o.value)}
-                                    style={{
-                                        flex: 1,
-                                        padding: "10px",
-                                        border: court === o.value ? "2px solid #1f7a4f" : "1px solid #ddd",
-                                        borderRadius: 10,
-                                        background: court === o.value ? "#e6f6ed" : "#fff",
-                                        fontWeight: 600,
-                                        fontSize: 13,
-                                        cursor: "pointer",
-                                        color: court === o.value ? "#1f7a4f" : "#374151",
-                                        transition: "all 0.2s",
-                                    }}
+                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all border-2 ${court === o.value
+                                        ? "border-[#1f7a4f] bg-emerald-50 text-[#1f7a4f]"
+                                        : "border-gray-100 bg-white text-gray-600 hover:border-gray-200"
+                                        }`}
                                 >
                                     {o.label}
                                 </button>
@@ -340,7 +274,14 @@ export default function OnboardingPage() {
                         </div>
                     </div>
 
-                    <button disabled={!canNext()} onClick={() => setStep(2)} style={primaryBtn(!canNext())}>
+                    <button
+                        disabled={!canNext()}
+                        onClick={() => setStep(2)}
+                        className={`w-full py-4 rounded-xl text-white font-bold text-lg transition-all shadow-lg ${!canNext()
+                            ? "bg-gray-300 cursor-not-allowed shadow-none"
+                            : "bg-[#1f7a4f] hover:bg-[#16603c] hover:shadow-xl hover:-translate-y-0.5"
+                            }`}
+                    >
                         Continuar
                     </button>
                 </div>
@@ -353,36 +294,31 @@ export default function OnboardingPage() {
     // ========================
     if (step === 2) {
         return (
-            <div style={pageStyle}>
-                <div style={cardStyle}>
+            <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
-                    <div style={headerStyle}>
-                        <p style={{ fontSize: 13, color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Paso 2 de 5</p>
-                        <h1 style={{ fontSize: 22, marginTop: 4 }}>⚽ Nivel Técnico</h1>
-                        <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>Selecciona el nivel que mejor te describe</p>
+                    <div className="text-center mb-6">
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 2 de 5</p>
+                        <h1 className="text-2xl font-bold text-gray-800 mt-1">⚽ Nivel Técnico</h1>
+                        <p className="text-gray-500 text-sm mt-1">Selecciona el nivel que mejor te describe</p>
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="space-y-3">
                         {TECH_OPTIONS.map(o => {
                             const selected = techLevel === o.level;
                             return (
                                 <button
                                     key={o.level}
                                     onClick={() => setTechLevel(o.level)}
-                                    style={{
-                                        textAlign: "left",
-                                        padding: "14px 16px",
-                                        border: selected ? "2px solid #1f7a4f" : "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        background: selected ? "#e6f6ed" : "#fff",
-                                        cursor: "pointer",
-                                        transition: "all 0.2s",
-                                    }}
+                                    className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
+                                        ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
+                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                        }`}
                                 >
-                                    <div style={{ fontWeight: 700, fontSize: 14, color: selected ? "#1f7a4f" : "#374151", marginBottom: 4 }}>
+                                    <div className={`font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                         {selected ? "✔ " : ""}Nivel {o.level} — {o.title}
                                     </div>
-                                    <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.4 }}>
+                                    <div className="text-xs text-gray-500 leading-relaxed">
                                         {o.desc}
                                     </div>
                                 </button>
@@ -390,11 +326,21 @@ export default function OnboardingPage() {
                         })}
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-                        <button onClick={() => setStep(1)} style={{ flex: 1, padding: "14px", background: "#f1f5f9", color: "#334155", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={() => setStep(1)}
+                            className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                        >
                             Atrás
                         </button>
-                        <button disabled={!canNext()} onClick={() => setStep(3)} style={{ ...primaryBtn(!canNext()), flex: 2, marginTop: 0 }}>
+                        <button
+                            disabled={!canNext()}
+                            onClick={() => setStep(3)}
+                            className={`flex-[2] py-3 rounded-xl text-white font-bold transition-all shadow-lg ${!canNext()
+                                ? "bg-gray-300 cursor-not-allowed shadow-none"
+                                : "bg-[#1f7a4f] hover:bg-[#16603c] hover:shadow-xl hover:-translate-y-0.5"
+                                }`}
+                        >
                             Continuar
                         </button>
                     </div>
@@ -408,36 +354,31 @@ export default function OnboardingPage() {
     // ========================
     if (step === 3) {
         return (
-            <div style={pageStyle}>
-                <div style={cardStyle}>
+            <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
-                    <div style={headerStyle}>
-                        <p style={{ fontSize: 13, color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Paso 3 de 5</p>
-                        <h1 style={{ fontSize: 22, marginTop: 4 }}>🏃 Condición Física</h1>
-                        <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>¿Cómo describes tu resistencia en los partidos?</p>
+                    <div className="text-center mb-6">
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 3 de 5</p>
+                        <h1 className="text-2xl font-bold text-gray-800 mt-1">🏃 Condición Física</h1>
+                        <p className="text-gray-500 text-sm mt-1">¿Cómo describes tu resistencia en los partidos?</p>
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="space-y-3">
                         {PHYS_OPTIONS.map(o => {
                             const selected = physLevel === o.level;
                             return (
                                 <button
                                     key={o.level}
                                     onClick={() => setPhysLevel(o.level)}
-                                    style={{
-                                        textAlign: "left",
-                                        padding: "14px 16px",
-                                        border: selected ? "2px solid #1f7a4f" : "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        background: selected ? "#e6f6ed" : "#fff",
-                                        cursor: "pointer",
-                                        transition: "all 0.2s",
-                                    }}
+                                    className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
+                                        ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
+                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                        }`}
                                 >
-                                    <div style={{ fontWeight: 700, fontSize: 14, color: selected ? "#1f7a4f" : "#374151", marginBottom: 4 }}>
+                                    <div className={`font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                         {selected ? "✔ " : ""}Nivel {o.level} — {o.title}
                                     </div>
-                                    <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.4 }}>
+                                    <div className="text-xs text-gray-500 leading-relaxed">
                                         {o.desc}
                                     </div>
                                 </button>
@@ -445,11 +386,21 @@ export default function OnboardingPage() {
                         })}
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-                        <button onClick={() => setStep(2)} style={{ flex: 1, padding: "14px", background: "#f1f5f9", color: "#334155", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={() => setStep(2)}
+                            className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                        >
                             Atrás
                         </button>
-                        <button disabled={!canNext()} onClick={() => setStep(4)} style={{ ...primaryBtn(!canNext()), flex: 2, marginTop: 0 }}>
+                        <button
+                            disabled={!canNext()}
+                            onClick={() => setStep(4)}
+                            className={`flex-[2] py-3 rounded-xl text-white font-bold transition-all shadow-lg ${!canNext()
+                                ? "bg-gray-300 cursor-not-allowed shadow-none"
+                                : "bg-[#1f7a4f] hover:bg-[#16603c] hover:shadow-xl hover:-translate-y-0.5"
+                                }`}
+                        >
                             Continuar
                         </button>
                     </div>
@@ -463,54 +414,44 @@ export default function OnboardingPage() {
     // ========================
     if (step === 4) {
         return (
-            <div style={pageStyle}>
-                <div style={cardStyle}>
+            <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
-                    <div style={headerStyle}>
-                        <p style={{ fontSize: 13, color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Paso 4 de 5</p>
-                        <h1 style={{ fontSize: 22, marginTop: 4 }}>🏆 Trayectoria</h1>
+                    <div className="text-center mb-6">
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 4 de 5</p>
+                        <h1 className="text-2xl font-bold text-gray-800 mt-1">🏆 Trayectoria</h1>
                     </div>
 
                     {/* EXPERIENCIA */}
-                    <div style={{ marginBottom: 20 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 10 }}>Experiencia previa</span>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="mb-6">
+                        <span className="text-sm font-semibold text-gray-700 block mb-3">Experiencia previa</span>
+                        <div className="space-y-3">
                             <button
                                 onClick={() => setHasSchool(!hasSchool)}
-                                style={{
-                                    textAlign: "left",
-                                    padding: "14px 16px",
-                                    border: hasSchool ? "2px solid #1f7a4f" : "1px solid #e5e7eb",
-                                    borderRadius: 14,
-                                    background: hasSchool ? "#e6f6ed" : "#fff",
-                                    cursor: "pointer",
-                                    transition: "all 0.2s",
-                                }}
+                                className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${hasSchool
+                                    ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
+                                    : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                    }`}
                             >
-                                <div style={{ fontWeight: 700, fontSize: 14, color: hasSchool ? "#1f7a4f" : "#374151" }}>
+                                <div className={`font-bold text-sm ${hasSchool ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                     {hasSchool ? "✔ " : ""}🎓 Escuela de fútbol
                                 </div>
-                                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+                                <div className="text-xs text-gray-500 mt-1">
                                     Asistí a una escuela o academia de formación
                                 </div>
                             </button>
 
                             <button
                                 onClick={() => setHasTournaments(!hasTournaments)}
-                                style={{
-                                    textAlign: "left",
-                                    padding: "14px 16px",
-                                    border: hasTournaments ? "2px solid #1f7a4f" : "1px solid #e5e7eb",
-                                    borderRadius: 14,
-                                    background: hasTournaments ? "#e6f6ed" : "#fff",
-                                    cursor: "pointer",
-                                    transition: "all 0.2s",
-                                }}
+                                className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${hasTournaments
+                                    ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
+                                    : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                    }`}
                             >
-                                <div style={{ fontWeight: 700, fontSize: 14, color: hasTournaments ? "#1f7a4f" : "#374151" }}>
+                                <div className={`font-bold text-sm ${hasTournaments ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                     {hasTournaments ? "✔ " : ""}🏅 Torneos competitivos
                                 </div>
-                                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+                                <div className="text-xs text-gray-500 mt-1">
                                     He participado en ligas o torneos organizados
                                 </div>
                             </button>
@@ -518,29 +459,24 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* FRECUENCIA */}
-                    <div style={{ marginBottom: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 10 }}>¿Qué tan seguido juegas?</span>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="mb-6">
+                        <span className="text-sm font-semibold text-gray-700 block mb-3">¿Qué tan seguido juegas?</span>
+                        <div className="space-y-3">
                             {FREQ_OPTIONS.map(o => {
                                 const selected = frequency === o.value;
                                 return (
                                     <button
                                         key={o.value}
                                         onClick={() => setFrequency(o.value)}
-                                        style={{
-                                            textAlign: "left",
-                                            padding: "14px 16px",
-                                            border: selected ? "2px solid #1f7a4f" : "1px solid #e5e7eb",
-                                            borderRadius: 14,
-                                            background: selected ? "#e6f6ed" : "#fff",
-                                            cursor: "pointer",
-                                            transition: "all 0.2s",
-                                        }}
+                                        className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
+                                            ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
+                                            : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                            }`}
                                     >
-                                        <div style={{ fontWeight: 700, fontSize: 14, color: selected ? "#1f7a4f" : "#374151" }}>
+                                        <div className={`font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                             {selected ? "✔ " : ""}{o.label}
                                         </div>
-                                        <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+                                        <div className="text-xs text-gray-500 mt-1">
                                             {o.desc}
                                         </div>
                                     </button>
@@ -549,11 +485,21 @@ export default function OnboardingPage() {
                         </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-                        <button onClick={() => setStep(3)} style={{ flex: 1, padding: "14px", background: "#f1f5f9", color: "#334155", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={() => setStep(3)}
+                            className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                        >
                             Atrás
                         </button>
-                        <button disabled={!canNext()} onClick={() => setStep(5)} style={{ ...primaryBtn(!canNext()), flex: 2, marginTop: 0 }}>
+                        <button
+                            disabled={!canNext()}
+                            onClick={() => setStep(5)}
+                            className={`flex-[2] py-3 rounded-xl text-white font-bold transition-all shadow-lg ${!canNext()
+                                ? "bg-gray-300 cursor-not-allowed shadow-none"
+                                : "bg-[#1f7a4f] hover:bg-[#16603c] hover:shadow-xl hover:-translate-y-0.5"
+                                }`}
+                        >
                             Continuar
                         </button>
                     </div>
@@ -567,16 +513,16 @@ export default function OnboardingPage() {
     // ========================
     if (step === 5) {
         return (
-            <div style={pageStyle}>
-                <div style={cardStyle}>
+            <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
-                    <div style={headerStyle}>
-                        <p style={{ fontSize: 13, color: "#6b7280", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Paso 5 de 5</p>
-                        <h1 style={{ fontSize: 22, marginTop: 4 }}>🥅 Posiciones</h1>
-                        <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>¿En qué posiciones te sientes más cómodo? (Máx. 2)</p>
+                    <div className="text-center mb-6">
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 5 de 5</p>
+                        <h1 className="text-2xl font-bold text-gray-800 mt-1">🥅 Posiciones</h1>
+                        <p className="text-gray-500 text-sm mt-1">¿En qué posiciones te sientes más cómodo? (Máx. 2)</p>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div className="grid grid-cols-2 gap-3">
                         {ALLOWED_POSITIONS.map((pos: Position) => {
                             const selected = positions.includes(pos);
                             return (
@@ -591,18 +537,13 @@ export default function OnboardingPage() {
                                             setPositions([positions[1], pos]);
                                         }
                                     }}
-                                    style={{
-                                        padding: "16px 12px",
-                                        border: selected ? "2px solid #1f7a4f" : "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        background: selected ? "#e6f6ed" : "#fff",
-                                        cursor: "pointer",
-                                        transition: "all 0.2s",
-                                        textAlign: "center",
-                                    }}
+                                    className={`flex flex-col items-center justify-center p-4 border-2 rounded-2xl transition-all h-32 ${selected
+                                        ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f] scale-105"
+                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 hover:scale-105"
+                                        }`}
                                 >
-                                    <div style={{ fontSize: 28, marginBottom: 6 }}>{POSITION_ICONS[pos]}</div>
-                                    <div style={{ fontWeight: 700, fontSize: 14, color: selected ? "#1f7a4f" : "#374151" }}>
+                                    <div className="text-4xl mb-2">{POSITION_ICONS[pos]}</div>
+                                    <div className={`font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                         {selected ? "✔ " : ""}{POSITION_LABELS[pos]}
                                     </div>
                                 </button>
@@ -610,11 +551,21 @@ export default function OnboardingPage() {
                         })}
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-                        <button onClick={() => setStep(4)} style={{ flex: 1, padding: "14px", background: "#f1f5f9", color: "#334155", borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={() => setStep(4)}
+                            className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                        >
                             Atrás
                         </button>
-                        <button disabled={!canNext()} onClick={() => { setCalcMsgIndex(0); setStep(6); }} style={{ ...primaryBtn(!canNext()), flex: 2, marginTop: 0 }}>
+                        <button
+                            disabled={!canNext()}
+                            onClick={() => { setCalcMsgIndex(0); setStep(6); }}
+                            className={`flex-[2] py-3 rounded-xl text-white font-bold transition-all shadow-lg ${!canNext()
+                                ? "bg-gray-300 cursor-not-allowed shadow-none"
+                                : "bg-[#1f7a4f] hover:bg-[#16603c] hover:shadow-xl hover:-translate-y-0.5"
+                                }`}
+                        >
                             Calcular mi Rating
                         </button>
                     </div>
@@ -628,47 +579,30 @@ export default function OnboardingPage() {
     // ========================
     if (step === 6) {
         return (
-            <div style={pageStyle}>
-                <div style={{ ...cardStyle, textAlign: "center" }}>
+            <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl text-center">
                     {/* Spinner */}
-                    <div
-                        style={{
-                            width: 64,
-                            height: 64,
-                            border: "6px solid #e5e7eb",
-                            borderTop: "6px solid #1f7a4f",
-                            borderRadius: "50%",
-                            margin: "0 auto 24px",
-                            animation: "spin 1s linear infinite",
-                        }}
-                    />
+                    <div className="w-16 h-16 border-4 border-gray-100 border-t-[#1f7a4f] rounded-full animate-spin mx-auto mb-6" />
 
-                    <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1f7a4f", marginBottom: 8 }}>
+                    <h2 className="text-xl font-bold text-[#1f7a4f] mb-2">
                         Calculando tu Rating
                     </h2>
 
-                    <p
-                        key={calcMsgIndex}
-                        style={{
-                            fontSize: 15,
-                            color: "#6b7280",
-                            animation: "fadeIn 0.4s ease",
-                        }}
-                    >
-                        {CALCULATING_MESSAGES[calcMsgIndex]}
-                    </p>
+                    <div className="h-6 relative overflow-hidden">
+                        <p
+                            key={calcMsgIndex}
+                            className="text-gray-500 text-sm animate-[fadeIn_0.4s_ease-out]"
+                        >
+                            {CALCULATING_MESSAGES[calcMsgIndex]}
+                        </p>
+                    </div>
 
-                    {/* Inline CSS animation */}
                     <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-            @keyframes fadeIn {
-              from { opacity: 0; transform: translateY(6px); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-          `}</style>
+                        @keyframes fadeIn {
+                            from { opacity: 0; transform: translateY(10px); }
+                            to { opacity: 1; transform: translateY(0); }
+                        }
+                    `}</style>
                 </div>
             </div>
         );
@@ -682,52 +616,34 @@ export default function OnboardingPage() {
         const levelEmojis = ["", "🌱", "⚡", "🔥"];
 
         return (
-            <div style={pageStyle}>
-                <div style={{ ...cardStyle, textAlign: "center" }}>
-                    <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+            <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl text-center">
+                    <div className="text-6xl mb-4 animate-bounce">🎉</div>
 
-                    <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1f7a4f", marginBottom: 4 }}>
+                    <h1 className="text-2xl font-extrabold text-[#1f7a4f] mb-2">
                         ¡Tu Draft ha terminado!
                     </h1>
 
-                    <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 24 }}>
+                    <p className="text-gray-500 text-sm mb-8">
                         Basado en tu trayectoria y habilidades
                     </p>
 
                     {/* LEVEL CARD */}
-                    <div
-                        style={{
-                            background: "linear-gradient(135deg, #1f7a4f, #145c3a)",
-                            borderRadius: 20,
-                            padding: "32px 24px",
-                            color: "#fff",
-                            marginBottom: 24,
-                        }}
-                    >
-                        <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                    <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] rounded-3xl p-8 text-white mb-8 shadow-xl transform hover:scale-105 transition-transform duration-300">
+                        <div className="text-sm font-semibold opacity-80 uppercase tracking-widest mb-2">
                             Tu Nivel
                         </div>
-                        <div style={{ fontSize: 56, fontWeight: 900, lineHeight: 1, marginBottom: 8 }}>
+                        <div className="text-6xl font-black leading-none mb-3">
                             {levelEmojis[result.level]}
                         </div>
-                        <div style={{ fontSize: 22, fontWeight: 700 }}>
+                        <div className="text-2xl font-bold">
                             Nivel {result.level} — {levelLabels[result.level]}
                         </div>
                     </div>
 
                     <button
                         onClick={() => router.push("/")}
-                        style={{
-                            width: "100%",
-                            padding: "16px",
-                            background: "#1f7a4f",
-                            color: "#fff",
-                            borderRadius: 14,
-                            border: "none",
-                            fontSize: 16,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                        }}
+                        className="w-full py-4 bg-[#1f7a4f] text-white rounded-2xl font-bold text-lg hover:bg-[#16603c] transition-all shadow-lg hover:shadow-xl hover:-translate-y-1"
                     >
                         Ir a mis partidos →
                     </button>

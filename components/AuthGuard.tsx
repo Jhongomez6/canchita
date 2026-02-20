@@ -49,37 +49,17 @@ export default function AuthGuard({
   // ⏳ Auth o perfil cargando
   if (loading || (user && !profile)) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 24,
-            padding: "48px 40px",
-            maxWidth: 440,
-            width: "100%",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ marginBottom: 24 }}>
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
+          <div className="mb-6 flex justify-center">
             <Image
               src="/logo/lacanchita-logo.png"
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ margin: "0 auto" }}
             />
           </div>
-          <p style={{ fontSize: 18, color: "#666" }}>Cargando...</p>
+          <p className="text-lg text-slate-500 font-medium animate-pulse">Cargando...</p>
         </div>
       </div>
     );
@@ -88,93 +68,32 @@ export default function AuthGuard({
   // ❌ No logueado
   if (!user) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 24,
-            padding: "48px 40px",
-            maxWidth: 440,
-            width: "100%",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            textAlign: "center",
-          }}
-        >
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
           {/* LOGO */}
-          <div style={{ marginBottom: 24 }}>
+          <div className="mb-6 flex justify-center">
             <Image
               src="/logo/lacanchita-logo.png"
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ margin: "0 auto" }}
             />
           </div>
 
           {/* TÍTULO */}
-          <h1
-            style={{
-              fontSize: 32,
-              fontWeight: 700,
-              color: "#1f7a4f",
-              marginBottom: 12,
-            }}
-          >
+          <h1 className="text-3xl font-bold text-[#1f7a4f] mb-3">
             Bienvenido a La Canchita
           </h1>
 
           {/* DESCRIPCIÓN */}
-          <p
-            style={{
-              fontSize: 16,
-              color: "#666",
-              marginBottom: 32,
-              lineHeight: 1.6,
-            }}
-          >
+          <p className="text-slate-500 mb-8 leading-relaxed">
             Inicia sesión para comenzar.
           </p>
 
           {/* BOTÓN GOOGLE */}
           <button
             onClick={loginWithGoogle}
-            style={{
-              width: "100%",
-              background: "#fff",
-              border: "2px solid #ddd",
-              borderRadius: 12,
-              padding: "14px 24px",
-              fontSize: 16,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-              transition: "all 0.2s ease",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "#f8f9fa";
-              e.currentTarget.style.borderColor = "#1f7a4f";
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "#fff";
-              e.currentTarget.style.borderColor = "#ddd";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
-            }}
+            className="w-full bg-white border-2 border-slate-200 rounded-xl py-3.5 px-6 text-base font-bold text-slate-700 flex items-center justify-center gap-3 transition-all hover:bg-slate-50 hover:border-[#1f7a4f] hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path
@@ -198,14 +117,7 @@ export default function AuthGuard({
           </button>
 
           {/* FOOTER */}
-          <p
-            style={{
-              fontSize: 13,
-              color: "#999",
-              marginTop: 24,
-              lineHeight: 1.5,
-            }}
-          >
+          <p className="text-xs text-slate-400 mt-6 leading-relaxed">
             Al continuar, aceptas nuestros términos de servicio y política de
             privacidad.
           </p>
@@ -222,37 +134,17 @@ export default function AuthGuard({
     pathname !== "/onboarding"
   ) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(135deg, #1f7a4f 0%, #145c3a 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 24,
-            padding: "48px 40px",
-            maxWidth: 440,
-            width: "100%",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ marginBottom: 24 }}>
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
+          <div className="mb-6 flex justify-center">
             <Image
               src="/logo/lacanchita-logo.png"
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ margin: "0 auto" }}
             />
           </div>
-          <p style={{ fontSize: 18, color: "#666" }}>Preparando tu evaluación...</p>
+          <p className="text-lg text-slate-500 font-medium">Preparando tu evaluación...</p>
         </div>
       </div>
     );
