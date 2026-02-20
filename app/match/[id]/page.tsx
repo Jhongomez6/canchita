@@ -74,7 +74,7 @@ export default function MatchDetailPage() {
   const [savingScore, setSavingScore] = useState(false);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [guestLevels, setGuestLevels] = useState<Record<string, PlayerLevel>>({});
-
+  const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -387,110 +387,134 @@ export default function MatchDetailPage() {
           </div>
 
 
-          {/* AGREGAR JUGADORES */}
+          {/* AGREGAR JUGADORES (Collapsible) */}
           {isOwner && !isClosed && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
-              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                ➕ Agregar jugador
-              </h3>
-
-              <div className="flex gap-2 mb-6">
-                <select
-                  value={selectedUid}
-                  onChange={e => setSelectedUid(e.target.value)}
-                  className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#1f7a4f] outline-none"
-                >
-                  <option value="">Seleccionar usuario registrado...</option>
-                  {availableUsers.map(u => (
-                    <option key={u.uid} value={u.uid}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
-
+            <div className="mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+              {!isAddPlayerOpen ? (
                 <button
-                  disabled={!selectedUid || isFull}
-                  onClick={async () => {
-                    if (isFull) return;
-                    const profile = await getUserProfile(selectedUid);
-                    if (!profile) return;
-
-                    await addPlayerToMatch(id, {
-                      uid: selectedUid,
-                      name: profile.name,
-                      level: 2,
-                      positions: profile.positions || [],
-                    });
-
-                    setSelectedUid("");
-                    loadMatch();
-                  }}
-                  className="bg-[#1f7a4f] text-white font-bold py-2 px-6 rounded-xl disabled:opacity-50 hover:bg-[#16603c] transition-colors"
+                  onClick={() => setIsAddPlayerOpen(true)}
+                  className="w-full py-3 bg-white border border-slate-200 rounded-2xl shadow-sm text-slate-600 font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
                 >
-                  Agregar
+                  <span className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs">
+                    +
+                  </span>
+                  Agregar Jugador o Invitado
                 </button>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Invitado Manual</h4>
-                <div className="flex flex-col gap-3">
-                  <div className="flex gap-2">
-                    <input
-                      placeholder="Nombre invitado"
-                      value={manualName}
-                      onChange={e => setManualName(e.target.value)}
-                      className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#1f7a4f]"
-                    />
-                    <select
-                      value={manualLevel}
-                      onChange={e => setManualLevel(Number(e.target.value))}
-                      className="w-24 px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#1f7a4f]"
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                      ➕ Agregar jugador
+                    </h3>
+                    <button
+                      onClick={() => setIsAddPlayerOpen(false)}
+                      className="text-slate-400 hover:text-slate-600 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
                     >
-                      <option value={1}>Bajo (1)</option>
-                      <option value={2}>Medio (2)</option>
-                      <option value={3}>Alto (3)</option>
+                      Cancelar
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2 mb-6">
+                    <select
+                      value={selectedUid}
+                      onChange={e => setSelectedUid(e.target.value)}
+                      className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#1f7a4f] outline-none"
+                    >
+                      <option value="">Seleccionar usuario registrado...</option>
+                      {availableUsers.map(u => (
+                        <option key={u.uid} value={u.uid}>
+                          {u.name}
+                        </option>
+                      ))}
                     </select>
+
+                    <button
+                      disabled={!selectedUid || isFull}
+                      onClick={async () => {
+                        if (isFull) return;
+                        const profile = await getUserProfile(selectedUid);
+                        if (!profile) return;
+
+                        await addPlayerToMatch(id, {
+                          uid: selectedUid,
+                          name: profile.name,
+                          level: 2,
+                          positions: profile.positions || [],
+                        });
+
+                        setSelectedUid("");
+                        setIsAddPlayerOpen(false);
+                        loadMatch();
+                      }}
+                      className="bg-[#1f7a4f] text-white font-bold py-2 px-6 rounded-xl disabled:opacity-50 hover:bg-[#16603c] transition-colors"
+                    >
+                      Agregar
+                    </button>
                   </div>
 
-                  <div className="flex gap-4 flex-wrap">
-                    {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
-                      <label key={pos} className="flex items-center gap-2 cursor-pointer">
+                  <div className="border-t border-slate-100 pt-4">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Invitado Manual</h4>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex gap-2">
                         <input
-                          type="checkbox"
-                          checked={manualPositions.includes(pos)}
-                          onChange={e => {
-                            const updated = e.target.checked
-                              ? [...manualPositions, pos]
-                              : manualPositions.filter(p => p !== pos);
-                            if (updated.length <= 2) setManualPositions(updated);
-                          }}
-                          className="w-4 h-4 text-[#1f7a4f] rounded focus:ring-[#1f7a4f]"
+                          placeholder="Nombre invitado"
+                          value={manualName}
+                          onChange={e => setManualName(e.target.value)}
+                          className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#1f7a4f]"
                         />
-                        <span className="text-sm font-medium text-slate-600">{pos}</span>
-                      </label>
-                    ))}
-                  </div>
+                        <select
+                          value={manualLevel}
+                          onChange={e => setManualLevel(Number(e.target.value))}
+                          className="w-24 px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#1f7a4f]"
+                        >
+                          <option value={1}>Bajo (1)</option>
+                          <option value={2}>Medio (2)</option>
+                          <option value={3}>Alto (3)</option>
+                        </select>
+                      </div>
 
-                  <button
-                    disabled={!manualName || isFull}
-                    onClick={async () => {
-                      if (isFull) return;
-                      await addPlayerToMatch(id, {
-                        name: manualName,
-                        level: manualLevel,
-                        positions: manualPositions,
-                      });
-                      setManualName("");
-                      setManualPositions([]);
-                      setManualLevel(2);
-                      loadMatch();
-                    }}
-                    className="mt-2 w-full bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-700 transition-colors disabled:opacity-50"
-                  >
-                    Agregar Invitado Manual
-                  </button>
+                      <div className="flex gap-4 flex-wrap">
+                        {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
+                          <label key={pos} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={manualPositions.includes(pos)}
+                              onChange={e => {
+                                const updated = e.target.checked
+                                  ? [...manualPositions, pos]
+                                  : manualPositions.filter(p => p !== pos);
+                                if (updated.length <= 2) setManualPositions(updated);
+                              }}
+                              className="w-4 h-4 text-[#1f7a4f] rounded focus:ring-[#1f7a4f]"
+                            />
+                            <span className="text-sm font-medium text-slate-600">{pos}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      <button
+                        disabled={!manualName || isFull}
+                        onClick={async () => {
+                          if (isFull) return;
+                          await addPlayerToMatch(id, {
+                            name: manualName,
+                            level: manualLevel,
+                            positions: manualPositions,
+                          });
+                          setManualName("");
+                          setManualPositions([]);
+                          setManualLevel(2);
+                          setIsAddPlayerOpen(false);
+                          loadMatch();
+                        }}
+                        className="mt-2 w-full bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-700 transition-colors disabled:opacity-50"
+                      >
+                        Agregar Invitado Manual
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -530,8 +554,8 @@ export default function MatchDetailPage() {
                           loadMatch();
                         }}
                         className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${p.confirmed
-                            ? "bg-red-50 text-red-600 hover:bg-red-100"
-                            : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                          ? "bg-red-50 text-red-600 hover:bg-red-100"
+                          : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
                           }`}
                       >
                         {p.confirmed ? "Cancelar" : "Confirmar"}
@@ -573,8 +597,8 @@ export default function MatchDetailPage() {
                     <div className="flex gap-2 mt-2 md:mt-0 w-full md:w-auto">
                       {(["GK", "DEF", "MID", "FWD"] as Position[]).map(pos => (
                         <label key={pos} className={`flex-1 md:flex-none text-center cursor-pointer text-[10px] font-bold px-2 py-1 rounded border transition-all ${p.positions?.includes(pos)
-                            ? "bg-blue-50 border-blue-200 text-blue-600"
-                            : "bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300"
+                          ? "bg-blue-50 border-blue-200 text-blue-600"
+                          : "bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300"
                           }`}>
                           <input
                             type="checkbox"
@@ -679,8 +703,8 @@ export default function MatchDetailPage() {
                 disabled={confirmedCount < 4}
                 onClick={handleBalance}
                 className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${confirmedCount < 4
-                    ? "bg-slate-300 cursor-not-allowed shadow-none"
-                    : "bg-[#16a34a] hover:bg-[#15803d]"
+                  ? "bg-slate-300 cursor-not-allowed shadow-none"
+                  : "bg-[#16a34a] hover:bg-[#15803d]"
                   }`}
               >
                 {balancing ? "⏳ Balanceando..." : "⚖️ Generar equipos"}
@@ -829,10 +853,10 @@ export default function MatchDetailPage() {
                         }
                       }}
                       className={`mt-4 w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${teamsSaved
-                          ? "bg-[#16a34a]"
-                          : savingTeams
-                            ? "bg-slate-400 cursor-not-allowed shadow-none"
-                            : "bg-blue-600 hover:bg-blue-700"
+                        ? "bg-[#16a34a]"
+                        : savingTeams
+                          ? "bg-slate-400 cursor-not-allowed shadow-none"
+                          : "bg-blue-600 hover:bg-blue-700"
                         }`}
                     >
                       {savingTeams
@@ -861,10 +885,10 @@ export default function MatchDetailPage() {
                           }
                         }}
                         className={`mt-3 w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${copiedReport
-                            ? "bg-[#16a34a]"
-                            : copyingReport
-                              ? "bg-slate-400 cursor-not-allowed"
-                              : "bg-[#25D366] hover:bg-[#20bd5a]"
+                          ? "bg-[#16a34a]"
+                          : copyingReport
+                            ? "bg-slate-400 cursor-not-allowed"
+                            : "bg-[#25D366] hover:bg-[#20bd5a]"
                           }`}
                       >
                         {copyingReport
@@ -950,10 +974,10 @@ export default function MatchDetailPage() {
                   }}
                   disabled={savingScore}
                   className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${scoreSaved
-                      ? "bg-[#16a34a]"
-                      : savingScore
-                        ? "bg-slate-400 cursor-not-allowed"
-                        : "bg-[#1f7a4f] hover:bg-[#16603c]"
+                    ? "bg-[#16a34a]"
+                    : savingScore
+                      ? "bg-slate-400 cursor-not-allowed"
+                      : "bg-[#1f7a4f] hover:bg-[#16603c]"
                     }`}
                 >
                   {scoreSaved
@@ -1048,8 +1072,8 @@ export default function MatchDetailPage() {
                   }
                 }}
                 className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${!match?.teams
-                    ? "bg-slate-400 cursor-not-allowed opacity-50"
-                    : "bg-red-600 hover:bg-red-700"
+                  ? "bg-slate-400 cursor-not-allowed opacity-50"
+                  : "bg-red-600 hover:bg-red-700"
                   }`}
               >
                 🔒 Cerrar partido final
