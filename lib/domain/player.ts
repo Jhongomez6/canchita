@@ -41,6 +41,8 @@ export const POSITION_ICONS: Record<Position, string> = {
 
 export type PlayerLevel = 1 | 2 | 3;
 
+export type AttendanceStatus = "present" | "late" | "no_show";
+
 export interface Player {
     id?: string;
     uid?: string;
@@ -48,6 +50,7 @@ export interface Player {
     level: PlayerLevel;
     positions: Position[];
     confirmed: boolean;
+    attendance?: AttendanceStatus;
 }
 
 // ========================

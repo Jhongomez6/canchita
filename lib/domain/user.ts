@@ -52,6 +52,9 @@ export interface UserStats {
     won: number;
     lost: number;
     draw: number;
+    lateArrivals?: number;
+    noShows?: number;
+    commitmentScore?: number; // 0-100
 }
 
 // ========================

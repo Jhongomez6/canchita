@@ -419,8 +419,71 @@ export default function ProfilePage() {
           </div>
 
           {/* ========================= */}
-          {/*      ESTADÍSTICAS       */}
+          {/*    NIVEL DE COMPROMISO  */}
           {/* ========================= */}
+          {!isOnboarding && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                <span className="text-xl">🤝</span> Compromiso
+              </h2>
+
+              {(() => {
+                const { lateArrivals = 0, noShows = 0 } = stats;
+                const penalty = (noShows * 20) + (lateArrivals * 5);
+                const score = Math.max(0, 100 - penalty);
+
+                let level = { label: "Siempre en la cancha antes que el balón", color: "text-emerald-600", bg: "bg-emerald-100", icon: "🌟" };
+                if (score < 50) level = { label: "Con la roja por falta de compromiso", color: "text-red-600", bg: "bg-red-100", icon: "🚩" };
+                else if (score < 80) level = { label: "Llegando justo para el pitazo inicial", color: "text-amber-600", bg: "bg-amber-100", icon: "⚠️" };
+                else if (score < 100) level = { label: "Listo para el 11 titular", color: "text-lime-600", bg: "bg-lime-100", icon: "🛡️" };
+
+                return (
+                  <div className="flex items-center justify-between">
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle
+                          cx="48"
+                          cy="48"
+                          r="40"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          fill="transparent"
+                          className="text-slate-100"
+                        />
+                        <circle
+                          cx="48"
+                          cy="48"
+                          r="40"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          fill="transparent"
+                          strokeDasharray={251.2}
+                          strokeDashoffset={251.2 - (251.2 * score) / 100}
+                          className={`${level.color} transition-all duration-1000 ease-out`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className={`text-2xl font-black ${level.color}`}>{score}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 pl-6">
+                      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-1 ${level.bg} ${level.color}`}>
+                        {level.icon} {level.label}
+                      </div>
+                      <div className="text-xs text-slate-500 leading-tight">
+                        Tu nivel de cumplimiento en partidos.
+                        {lateArrivals > 0 && <span className="block mt-1 text-amber-600/80">• {lateArrivals} llegadas tarde</span>}
+                        {/* No mostramos No Shows explícitamente para no avergonzar, pero impactan el score */}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* ========================= */}
           {/*      ESTADÍSTICAS       */}
           {/* ========================= */}

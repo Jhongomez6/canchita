@@ -102,12 +102,16 @@ export async function addLocation(input: CreateLocationInput): Promise<string> {
 
 **✅ Cumple especificación**: Reglas #2, #4
 
-#### **Capa 3: UI** (`app/locations/new/page.tsx`)
+#### **Capa 3: UI**
+1. **Creación** (`app/locations/new/page.tsx`):
+   - Integración con Google Places Autocomplete API
+   - Formulario con nombre, dirección auto-completada
+   - Latitud/longitud extraídos automáticamente
 
-- Integración con Google Places Autocomplete API
-- Formulario con nombre, dirección auto-completada
-- Latitud/longitud extraídos automáticamente
-- Error de duplicado mostrado al usuario
+2. **Visualización** (`app/match/[id]/page.tsx` y `app/join/[id]/page.tsx`):
+   - **Accordion View**: Header con nombre de cancha y chevron rotativo.
+   - **Interacción**: Click expande para mostrar mapa (iframe) y botones.
+   - **Navegación**: Links directos a Waze/Maps.
 
 **✅ Cumple especificación**: Regla #3
 

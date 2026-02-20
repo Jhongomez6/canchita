@@ -308,6 +308,30 @@ export async function deletePlayerFromMatch(
 }
 
 /* =========================
+   MARCAR ASISTENCIA
+========================= */
+export async function markPlayerAttendance(
+  matchId: string,
+  uid: string,
+  attendance: "present" | "late" | "no_show"
+) {
+  const ref = doc(db, "matches", matchId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const players: Player[] = data.players || [];
+
+  const updatedPlayers = players.map((p) =>
+    p.uid === uid ? { ...p, attendance } : p
+  );
+
+  await updateDoc(ref, {
+    players: updatedPlayers,
+  });
+}
+
+/* =========================
    GUARDAR EQUIPOS
 ========================= */
 export async function saveTeams(

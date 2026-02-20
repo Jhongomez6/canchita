@@ -146,6 +146,26 @@ const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
 
 **✅ Cumple especificación**: Feedback visual de estado completo/abierto
 
+### UI Components & Estados
+
+#### 1. Location View (Accordion)
+- **Estado**: `isMapOpen` (boolean)
+- **Comportamiento**: Header con nombre de cancha y chevron rotativo. Al expandir muestra mapa y botones (Waze/Maps).
+- **Estilo**: Card unificada en "Match Info", eliminando tarjeta separada.
+
+#### 2. Admin Actions (Collapsible)
+- **Estado**: `isAddPlayerOpen` (boolean)
+- **Comportamiento**: Botón "+ Agregar Jugador o Invitado" expande el formulario.
+- **Objetivo**: Reducir ruido visual en el dashboard.
+
+#### 3. Match Result View (Closed Matches)
+- **Condición**: `status === "closed" && teams !== undefined`
+- **Componentes**:
+  - **Scoreboard**: Marcador final (e.g., 3 - 2).
+  - **Personal Result**: Banner "Ganaste/Perdiste" basado en `user.uid` vs `teams`.
+  - **Team Rosters**: Listas de Equipo A vs Equipo B con iconos de posición.
+- **Reemplaza**: La lista plana de "Jugadores confirmados".
+
 ---
 
 ## 3. TRAZABILIDAD: ESPECIFICACIÓN → CÓDIGO

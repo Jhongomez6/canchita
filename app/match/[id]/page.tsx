@@ -13,6 +13,7 @@ import {
   reopenMatch,
   unconfirmAttendance,
   deletePlayerFromMatch,
+  markPlayerAttendance,
 } from "@/lib/matches";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -619,6 +620,41 @@ export default function MatchDetailPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* ATTENDANCE CONTROLS (Admin Only) */}
+                  {isOwner && (
+                    <div className="flex gap-1 mt-2 md:mt-0">
+                      {[
+                        { status: "present", icon: "✅", label: "Presente" },
+                        { status: "late", icon: "⏰", label: "Tarde" },
+                        { status: "no_show", icon: "🚫", label: "No Show" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.status}
+                          onClick={async () => {
+                            if (!p.uid) return;
+                            await markPlayerAttendance(id, p.uid, opt.status as any);
+                            loadMatch();
+                          }}
+                          className={`p-1.5 rounded-lg text-sm border transition-all ${(p.attendance ?? "present") === opt.status
+                            ? "bg-slate-800 border-slate-800 text-white shadow-sm"
+                            : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
+                            }`}
+                          title={`Marcar como ${opt.label}`}
+                        >
+                          {opt.icon}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* ATTENDANCE INDICATOR (Non-Admin view) */
+                    !isOwner && p.attendance && p.attendance !== "present" && (
+                      <div className="mt-2 md:mt-0 px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600 flex items-center gap-1">
+                        {p.attendance === "late" && "⏰ Tarde"}
+                        {p.attendance === "no_show" && "🚫 No Show"}
+                      </div>
+                    )
+                  }
                 </div>
               ))}
             </div>
@@ -1096,7 +1132,7 @@ export default function MatchDetailPage() {
           </div>
         </div>
       </main>
-    </AuthGuard>
+    </AuthGuard >
   );
 }
 
