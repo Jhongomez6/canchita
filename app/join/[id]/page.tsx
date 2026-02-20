@@ -11,6 +11,7 @@ import { googleMapsEmbedUrl, googleMapsLink, wazeLink } from "@/lib/maps";
 import Image from "next/image";
 import { getUserProfile } from "@/lib/users";
 import AddGuestForm from "@/components/AddGuestForm";
+import { isInAppBrowser } from "@/lib/browser";
 import { Guest } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
@@ -35,6 +36,11 @@ export default function JoinMatchPage() {
   const [location, setLocation] = useState<Location | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [inApp, setInApp] = useState(false);
+
+  useEffect(() => {
+    setInApp(isInAppBrowser());
+  }, []);
 
   async function loadMatch() {
     try {
@@ -146,16 +152,28 @@ export default function JoinMatchPage() {
           </h1>
 
           {/* DESCRIPCIÓN */}
-          <p className="text-slate-500 mb-8 leading-relaxed">
-            Inicia sesión para confirmar tu asistencia al partido.
-          </p>
+          {inApp ? (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 mb-8 text-sm text-left shadow-sm">
+              <strong className="block mb-1 flex items-center gap-2">⚠️ Navegador no soportado</strong>
+              Estás usando un navegador integrado (como WhatsApp o Instagram) que bloquea el inicio de sesión con Google.
+              <br /><br />
+              Toca los <strong>tres puntos ⋮</strong> en la esquina y selecciona <strong>&quot;Abrir en el navegador&quot;</strong> (Safari o Chrome) para continuar.
+            </div>
+          ) : (
+            <p className="text-slate-500 mb-8 leading-relaxed">
+              Inicia sesión para confirmar tu asistencia al partido.
+            </p>
+          )}
 
           {/* BOTÓN GOOGLE */}
           <button
             onClick={loginWithGoogle}
-            className="w-full bg-white border-2 border-slate-200 rounded-xl py-3.5 px-6 text-base font-bold text-slate-700 flex items-center justify-center gap-3 transition-all hover:bg-slate-50 hover:border-[#1f7a4f] hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]"
+            disabled={inApp}
+            className={`w-full bg-white border-2 rounded-xl py-3.5 px-6 text-base font-bold flex items-center justify-center gap-3 transition-all ${inApp
+              ? "border-slate-100 text-slate-300 cursor-not-allowed opacity-50"
+              : "border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-[#1f7a4f] hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]"}`}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24">
+            <svg width="20" height="20" viewBox="0 0 24 24" className={inApp ? "grayscale opacity-50" : ""}>
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
