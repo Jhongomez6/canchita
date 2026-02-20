@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Función reutilizable para saber si el usuario es Admin.
+    // Soporta el formato antiguo (role: "admin") y el nuevo (roles: ["admin", "player"])
+    function isAdmin() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && (
+        userDoc.data.get('role', '') == "admin" || 
+        ("admin" in userDoc.data.get('roles', []))
+      );
+    }
+
+    // 🏟️ CANCHAS
+    match /locations/{locationId} {
+
+      // 👀 Leer: cualquier usuario autenticado
+      allow read: if request.auth != null;
+
+      // ➕ Crear: solo admins
+      allow create: if request.auth != null
+        && isAdmin()
+        && request.resource.data.createdBy == request.auth.uid;
+
+      // ✏️ Update: solo admins
+      allow update: if request.auth != null
+        && isAdmin();
+
+      // ❌ Delete: nadie (por ahora)
+      allow delete: if false;
+    }
+
+  /* =========================
+       👤 USUARIOS - CORREGIDO
+    ========================= */
+    match /users/{userId} {
+      // ✅ Leer: el propio usuario SIEMPRE puede leer su perfil
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // ✅ Leer: admins pueden leer cualquier perfil
+      allow read: if request.auth != null && isAdmin();
+ 
+      // Crear: solo el propio usuario
+      allow create: if request.auth != null && request.auth.uid == userId;
+ 
+      // Update: usuario NO puede cambiar su rol o roles, admin puede todo
+      allow update: if request.auth != null
+        && (
+          (
+            request.auth.uid == userId
+            // Verificamos que no intente modificar campos sensibles
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles']))
+          )
+          ||
+          isAdmin()
+        );
+ 
+      // Delete: solo admins
+      allow delete: if request.auth != null && isAdmin();
+    }
+
+    /* =========================
+       ⚽ PARTIDOS
+    ========================= */
+    match /matches/{matchId} {
+
+      // 👀 Leer
+      allow read: if request.auth != null;
+
+      // ✍️ Crear: solo admins
+      allow create: if request.auth != null
+        && isAdmin()
+        && request.resource.data.createdBy == request.auth.uid;
+
+      // ✏️ Update
+      allow update: if request.auth != null
+        && (
+          // 👑 Admin creador
+          (
+            request.auth.uid == resource.data.createdBy
+            && isAdmin()
+          )
+          ||
+          // ⚽ Jugador (antes o después del update)
+          (
+            request.auth.uid in resource.data.playerUids
+            || request.auth.uid in request.resource.data.playerUids
+          )
+        );
+
+      allow delete: if false;
+    }
+
+  }
+}

@@ -90,6 +90,38 @@ export async function getMyMatches(uid: string): Promise<Match[]> {
 }
 
 /* =========================
+   OBTENER PARTIDOS ABIERTOS (EXPLORE)
+========================= */
+export async function getOpenMatches(): Promise<Match[]> {
+  // Solo traemos los status 'open' y los ordenamos por fecha/hora en el cliente
+  // ya que Firebase requiere índices complejos para múltiples campos orderBy
+  const q = query(
+    matchesRef,
+    where("status", "==", "open")
+  );
+
+  const snapshot = await getDocs(q);
+  const now = new Date();
+
+  // Filtrar los que ya pasaron
+  const matches = snapshot.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Match, "id">),
+  })).filter(m => {
+    const matchDate = new Date(`${m.date}T${m.time}:00-05:00`);
+    // Retornar solo partidos futuros (o de hoy que aún no pasan)
+    return matchDate > now;
+  });
+
+  // Ordenar por fecha y hora más cercana
+  return matches.sort((a, b) => {
+    const timeA = new Date(`${a.date}T${a.time}:00-05:00`).getTime();
+    const timeB = new Date(`${b.date}T${b.time}:00-05:00`).getTime();
+    return timeA - timeB;
+  });
+}
+
+/* =========================
    AGREGARSE AL PARTIDO (JOIN)
 ========================= */
 export async function joinMatch(

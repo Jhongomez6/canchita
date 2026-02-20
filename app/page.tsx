@@ -134,7 +134,7 @@ export default function Home() {
             ) : (
               <div className="bg-white/10 rounded-2xl p-6 text-center backdrop-blur-sm border border-white/20">
                 <p className="font-medium text-emerald-50">No tienes partidos próximos</p>
-                <Link href="/join" className="text-sm font-bold underline mt-1 block">
+                <Link href="/explore" className="text-sm font-bold underline mt-1 block">
                   Buscar partidos
                 </Link>
               </div>

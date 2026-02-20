@@ -49,6 +49,24 @@ export default function BottomNav() {
                     <span className="text-[10px] font-bold tracking-wide">Inicio</span>
                 </Link>
 
+                {/* EXPLORE (Buscar Partidos) */}
+                <Link href="/explore" className={navItemClass(pathname === "/explore")}>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill={pathname === "/explore" ? "currentColor" : "none"}
+                        stroke="currentColor"
+                        strokeWidth={pathname === "/explore" ? "0" : "2"}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="w-7 h-7"
+                    >
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <span className="text-[10px] font-bold tracking-wide">Buscar</span>
+                </Link>
+
                 {/* RANKING (Admin Only) */}
                 {isAdmin && (
                     <Link href="/admin/ranking" className={navItemClass(pathname.startsWith("/admin/ranking"))}>
