@@ -40,6 +40,8 @@ export interface Match {
     guests?: Guest[];
     teams?: { A: Player[]; B: Player[] };
     score?: { A: number; B: number };
+    statsProcessed?: boolean;
+    previousScore?: { A: number; B: number };
 }
 
 export interface CreateMatchInput {

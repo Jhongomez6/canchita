@@ -1042,7 +1042,7 @@ export default function MatchDetailPage() {
                     const snap = await getDoc(doc(db, "matches", id));
                     if (!snap.exists()) return;
 
-                    const freshMatch = snap.data();
+                    const freshMatch = snap.data() as Match;
 
                     if (!freshMatch?.teams?.A || !freshMatch?.teams?.B) {
                       alert("Primero debes balancear los equipos.");
@@ -1051,6 +1051,21 @@ export default function MatchDetailPage() {
 
                     const teamA = freshMatch.teams.A;
                     const teamB = freshMatch.teams.B;
+
+                    // 🩹 MERGE ATTENDANCE:
+                    // `teams` puede no tener la info de asistencia más reciente (que está en `players`).
+                    // Cruzamos la info usando el UID.
+                    const playersMap = new Map((freshMatch.players || []).map((p: Player) => [p.uid, p]));
+
+                    const teamAWithAttendance = teamA.map((p: Player) => ({
+                      ...p,
+                      attendance: p.uid ? playersMap.get(p.uid)?.attendance : "present"
+                    }));
+
+                    const teamBWithAttendance = teamB.map((p: Player) => ({
+                      ...p,
+                      attendance: p.uid ? playersMap.get(p.uid)?.attendance : "present"
+                    }));
 
                     let previousResultA: "win" | "loss" | "draw" | undefined;
                     let previousResultB: "win" | "loss" | "draw" | undefined;
@@ -1089,14 +1104,14 @@ export default function MatchDetailPage() {
 
                     // 4️⃣ Actualizar stats según resultado (revirtiendo previos si existen)
                     if (scoreA > scoreB) {
-                      await updatePlayerStats(teamA, "win", id, previousResultA);
-                      await updatePlayerStats(teamB, "loss", id, previousResultB);
+                      await updatePlayerStats(teamAWithAttendance, "win", id, previousResultA);
+                      await updatePlayerStats(teamBWithAttendance, "loss", id, previousResultB);
                     } else if (scoreB > scoreA) {
-                      await updatePlayerStats(teamA, "loss", id, previousResultA);
-                      await updatePlayerStats(teamB, "win", id, previousResultB);
+                      await updatePlayerStats(teamAWithAttendance, "loss", id, previousResultA);
+                      await updatePlayerStats(teamBWithAttendance, "win", id, previousResultB);
                     } else {
-                      await updatePlayerStats(teamA, "draw", id, previousResultA);
-                      await updatePlayerStats(teamB, "draw", id, previousResultB);
+                      await updatePlayerStats(teamAWithAttendance, "draw", id, previousResultA);
+                      await updatePlayerStats(teamBWithAttendance, "draw", id, previousResultB);
                     }
 
                     // 5️⃣ Cerrar partido
