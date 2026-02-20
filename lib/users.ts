@@ -110,11 +110,11 @@ export async function saveOnboardingResult(
   }
 ) {
   const ref = doc(db, "users", uid);
-  await updateDoc(ref, {
+  await setDoc(ref, {
     ...data,
     initialRatingCalculated: true,
     onboardingCompletedAt: new Date().toISOString(),
-  });
+  }, { merge: true });
 }
 
 /* =========================

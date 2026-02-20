@@ -144,6 +144,7 @@ export default function OnboardingPage() {
 
         // Save to Firebase + show result
         (async () => {
+            const startTime = Date.now();
             try {
                 await saveOnboardingResult(user!.uid, {
                     rating: ratingResult.rating,
@@ -159,16 +160,21 @@ export default function OnboardingPage() {
                     hasTournaments,
                     frequency: frequency as string,
                 });
+
+                const elapsed = Date.now() - startTime;
+                const remaining = Math.max(0, 3000 - elapsed);
+
+                setTimeout(() => {
+                    clearInterval(interval);
+                    setResult(ratingResult);
+                    setStep(7);
+                }, remaining > 0 ? remaining : 0);
             } catch (err) {
                 console.error("Error saving onboarding:", err);
-            }
-
-            // Wait minimum 3s total for animation
-            setTimeout(() => {
                 clearInterval(interval);
-                setResult(ratingResult);
-                setStep(7);
-            }, 3000);
+                alert("Hubo un error al guardar tu perfil. Intenta de nuevo.");
+                setStep(5);
+            }
         })();
 
         return () => clearInterval(interval);
