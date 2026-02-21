@@ -321,12 +321,12 @@ export default function OnboardingPage() {
                                         : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
                                         }`}
                                 >
-                                    <div className={`font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
+                                    <span className={`block font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                         {selected ? "✔ " : ""}Nivel {o.level} — {o.title}
-                                    </div>
-                                    <div className="text-xs text-gray-500 leading-relaxed">
+                                    </span>
+                                    <span className="block text-xs text-gray-500 leading-relaxed">
                                         {o.desc}
-                                    </div>
+                                    </span>
                                 </button>
                             );
                         })}
@@ -381,12 +381,12 @@ export default function OnboardingPage() {
                                         : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
                                         }`}
                                 >
-                                    <div className={`font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
+                                    <span className={`block font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                         {selected ? "✔ " : ""}Nivel {o.level} — {o.title}
-                                    </div>
-                                    <div className="text-xs text-gray-500 leading-relaxed">
+                                    </span>
+                                    <span className="block text-xs text-gray-500 leading-relaxed">
                                         {o.desc}
-                                    </div>
+                                    </span>
                                 </button>
                             );
                         })}
@@ -439,12 +439,12 @@ export default function OnboardingPage() {
                                     : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
                                     }`}
                             >
-                                <div className={`font-bold text-sm ${hasSchool ? "text-[#1f7a4f]" : "text-gray-700"}`}>
+                                <span className={`block font-bold text-sm ${hasSchool ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                     {hasSchool ? "✔ " : ""}🎓 Escuela de fútbol
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
+                                </span>
+                                <span className="block text-xs text-gray-500 mt-1">
                                     Asistí a una escuela o academia de formación
-                                </div>
+                                </span>
                             </button>
 
                             <button
@@ -454,12 +454,12 @@ export default function OnboardingPage() {
                                     : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
                                     }`}
                             >
-                                <div className={`font-bold text-sm ${hasTournaments ? "text-[#1f7a4f]" : "text-gray-700"}`}>
+                                <span className={`block font-bold text-sm ${hasTournaments ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                     {hasTournaments ? "✔ " : ""}🏅 Torneos competitivos
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
+                                </span>
+                                <span className="block text-xs text-gray-500 mt-1">
                                     He participado en ligas o torneos organizados
-                                </div>
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -479,12 +479,12 @@ export default function OnboardingPage() {
                                             : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
                                             }`}
                                     >
-                                        <div className={`font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
+                                        <span className={`block font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                             {selected ? "✔ " : ""}{o.label}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1">
+                                        </span>
+                                        <span className="block text-xs text-gray-500 mt-1">
                                             {o.desc}
-                                        </div>
+                                        </span>
                                     </button>
                                 );
                             })}
@@ -548,10 +548,10 @@ export default function OnboardingPage() {
                                         : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 hover:scale-105"
                                         }`}
                                 >
-                                    <div className="text-4xl mb-2">{POSITION_ICONS[pos]}</div>
-                                    <div className={`font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
+                                    <span className="block text-4xl mb-2">{POSITION_ICONS[pos]}</span>
+                                    <span className={`block font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                         {selected ? "✔ " : ""}{POSITION_LABELS[pos]}
-                                    </div>
+                                    </span>
                                 </button>
                             );
                         })}
