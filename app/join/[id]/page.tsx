@@ -905,16 +905,16 @@ export default function JoinMatchPage() {
                   👥 Jugadores confirmados
                   <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">{confirmedCount} / {match.maxPlayers || "?"}</span>
                 </h3>
-                <div className="group relative flex items-center">
-                  <span className="cursor-help w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors">
+                <div className="group relative flex items-center" tabIndex={0}>
+                  <span className="cursor-pointer w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
                     ?
                   </span>
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-left">
-                    <div className="text-center font-bold text-slate-300 mb-1 border-b border-slate-700 pb-1">Posiciones de Juego</div>
-                    <div className="mb-1"><span className="mr-1">🧤</span> Portero</div>
-                    <div className="mb-1"><span className="mr-1">🛡️</span> Defensa</div>
-                    <div className="mb-1"><span className="mr-1">⚙️</span> Medio</div>
-                    <div><span className="mr-1">⚡</span> Delantero</div>
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-56 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible focus-within:opacity-100 focus-within:visible transition-all pointer-events-none z-50 text-left">
+                    <div className="text-center font-bold text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5">Posiciones de Juego</div>
+                    <div className="mb-1"><span className="mr-2">🧤</span> Portero</div>
+                    <div className="mb-1"><span className="mr-2">🛡️</span> Defensa</div>
+                    <div className="mb-1"><span className="mr-2">⚙️</span> Medio</div>
+                    <div><span className="mr-2">⚡</span> Delantero</div>
                     <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
                   </div>
                 </div>

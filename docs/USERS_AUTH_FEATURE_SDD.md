@@ -102,8 +102,8 @@ export async function deleteUser(uid: string): Promise<void>
   - Edición de nombre con cooldown 30d y validación (mín. 2 caracteres)
   - Posiciones con iconos emoji (`POSITION_ICONS`) y bloqueo durante guardado
   - Feedback independiente: `nameSaved` vs `positionsSaved`
-  - Visualización de estadísticas (PJ/PG/PE/PP) apoyada por *CSS Tooltips* explicativos.
-  - Tracker de "Compromiso" con apoyos visuales (*Tooltips*) enseñando la fórmula de penalización por llegadas tarde y faltas.
+  - Visualización de estadísticas (PJ/PG/PE/PP) apoyada por *CSS Tooltips* explicativos (optimizados para Mobile Touch).
+  - Tracker de "Compromiso" con apoyos visuales (*Tooltips Touch*) enseñando la fórmula de penalización por llegadas tarde y faltas.
 - `app/admin/users/page.tsx` — Panel admin con lista de usuarios tipada `UserProfile[]`
 
 **✅ Cumple especificación**: Reglas #3, #4, #5, #7, #8, #9, #10

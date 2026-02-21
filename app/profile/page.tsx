@@ -429,11 +429,11 @@ export default function ProfilePage() {
                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                   <span className="text-xl">🤝</span> Compromiso
                 </h2>
-                <div className="group relative flex items-center">
-                  <span className="cursor-help w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors">
+                <div className="group relative flex items-center" tabIndex={0}>
+                  <span className="cursor-pointer w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
                     ?
                   </span>
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center">
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-56 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible focus-within:opacity-100 focus-within:visible transition-all pointer-events-none z-50 text-center">
                     Inicias con 100 de puntuación.
                     <br />• <span className="text-amber-300 font-bold">-5 pts</span> por Llegada Tarde
                     <br />• <span className="text-red-400 font-bold">-20 pts</span> por No Asistir

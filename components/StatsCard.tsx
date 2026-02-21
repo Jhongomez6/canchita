@@ -18,11 +18,11 @@ export default function StatsCard({ stats }: StatsCardProps) {
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     📊 Estadísticas
                 </h3>
-                <div className="group relative flex items-center">
-                    <span className="cursor-help w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors">
+                <div className="group relative flex items-center" tabIndex={0}>
+                    <span className="cursor-pointer w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
                         ?
                     </span>
-                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-left">
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-56 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible focus-within:opacity-100 focus-within:visible transition-all pointer-events-none z-50 text-left">
                         <div className="mb-1"><span className="font-bold text-slate-300">PJ:</span> Partidos Jugados</div>
                         <div className="mb-1"><span className="font-bold text-emerald-400">PG:</span> Partidos Ganados</div>
                         <div className="mb-1"><span className="font-bold text-amber-300">PE:</span> Partidos Empatados</div>
