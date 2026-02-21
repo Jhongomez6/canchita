@@ -22,6 +22,8 @@ import {
   joinMatch,
   confirmAttendance,
   unconfirmAttendance,
+  joinWaitlist,
+  leaveWaitlist,
 } from "@/lib/matches";
 
 export default function JoinMatchPage() {
@@ -365,15 +367,70 @@ export default function JoinMatchPage() {
             <div className="bg-white rounded-2xl p-5 shadow-md border border-slate-100">
               <h3 className="font-bold text-slate-800 mb-4">Tu asistencia</h3>
 
-              {isFull && !existingPlayer?.confirmed && (
-                <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold border border-red-100 text-center">
-                  ❌ El partido ya está completo
+              {isFull && !existingPlayer && (
+                <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
+                  ⚠️ El partido está lleno. ¡Anotate en la lista de espera!
                 </div>
               )}
-
-              {!existingPlayer && (
+              {isFull && existingPlayer?.isWaitlist && (
+                <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
+                  👀 Estás en la lista de espera. Revisa seguido por si se libera un cupo.
+                </div>
+              )}
+              {isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
+                <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold border border-red-100 text-center">
+                  ❌ El partido ya está completo y perdiste tu lugar reservado.
+                </div>
+              )}
+              {/* If match is full and user isn't confirmed and isn't waitlisted */}
+              {isFull && (!existingPlayer || (!existingPlayer.confirmed && !existingPlayer.isWaitlist)) && (
                 <button
-                  disabled={submitting || isFull}
+                  disabled={submitting}
+                  onClick={async () => {
+                    setSubmitting(true);
+                    try {
+                      await joinWaitlist(id, {
+                        uid: user.uid,
+                        name: playerName,
+                      });
+                      await loadMatch();
+                    } catch (e: any) {
+                      console.error("Error joining waitlist:", e);
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                  className={`w-full py-4 rounded-xl font-bold text-lg shadow-md transition-all active:scale-[0.98] ${submitting
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                    : "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300"
+                    }`}
+                >
+                  {submitting ? "⏳ Uniendo..." : "📋 Ingresar como Suplente"}
+                </button>
+              )}
+
+              {/* Botón Salir de lista de espera */}
+              {existingPlayer?.isWaitlist && (
+                <button
+                  onClick={async () => {
+                    setSubmitting(true);
+                    try {
+                      await leaveWaitlist(id, playerName);
+                      await loadMatch();
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                  className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors mt-2"
+                >
+                  Salir de la lista de espera
+                </button>
+              )}
+
+              {/* Mógica Normal (No full, o no confirmado aún) */}
+              {!isFull && !existingPlayer && (
+                <button
+                  disabled={submitting}
                   onClick={async () => {
                     setSubmitting(true);
                     try {
@@ -390,7 +447,7 @@ export default function JoinMatchPage() {
                       setSubmitting(false);
                     }
                   }}
-                  className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting || isFull
+                  className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting
                     ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
                     : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
                     }`}
@@ -407,46 +464,75 @@ export default function JoinMatchPage() {
 
                   <button
                     onClick={async () => {
-                      await unconfirmAttendance(id, playerName);
-                      await loadMatch();
+                      setSubmitting(true);
+                      try {
+                        await unconfirmAttendance(id, playerName);
+                        await loadMatch();
+                      } finally {
+                        setSubmitting(false);
+                      }
                     }}
                     className="w-full py-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
                   >
-                    No puedo ir
+                    No puedo ir (Liberar Cupo)
                   </button>
                 </>
               )}
 
-              {existingPlayer && !existingPlayer.confirmed && (
+              {!isFull && existingPlayer && !existingPlayer.confirmed && (
                 <>
-                  {/* ESTADO PENDIENTE */}
                   <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
-                    ⏳ Aún no has confirmado tu asistencia
+                    {existingPlayer.isWaitlist
+                      ? "¡SE LIBERÓ UN CUPO! Toma tu lugar rápido:"
+                      : "⏳ Aún no has confirmado tu asistencia"}
                   </div>
 
-                  {/* BOTÓN CONFIRMAR */}
+                  {/* Toma el lugar (Ascenso Manual Free For All) */}
                   <button
-                    disabled={submitting || isFull}
+                    disabled={submitting}
                     onClick={async () => {
                       setSubmitting(true);
                       try {
+                        // Si ya está como suplente, la función confirmAttendance no sabe limpiarle
+                        // isWaitlist. Así que preferimos llamar joinMatch que sobreescribe/arregla el estado confirmed
+                        // y luego si hace falta, limpiamos isWaitlist
                         await confirmAttendance(id, playerName);
+                        // Also clear waitlist flag just in case
+                        await leaveWaitlist(id, playerName);
                         await loadMatch();
                       } catch (e: any) {
                         if (e.message === "MATCH_FULL") {
-                          alert("El partido se llenó justo ahora 😬");
+                          alert("Alguien te ganó el cupo 😬");
+                          await loadMatch();
                         }
                       } finally {
                         setSubmitting(false);
                       }
                     }}
-                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting || isFull
+                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting
                       ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
                       : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
                       }`}
                   >
-                    {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
+                    {submitting ? "⏳ Confirmando..." : (existingPlayer.isWaitlist ? "🏃‍♂️ ¡Tomar Cupo y Confirmar!" : "✅ Confirmar asistencia")}
                   </button>
+
+                  {existingPlayer.isWaitlist && (
+                    <button
+                      onClick={async () => {
+                        setSubmitting(true);
+                        try {
+                          await leaveWaitlist(id, playerName);
+                          await loadMatch();
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors mt-2"
+                    >
+                      Salir de la lista de espera
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -588,7 +674,7 @@ export default function JoinMatchPage() {
                 <p className="text-slate-500 text-sm text-center py-4">Aún no hay jugadores confirmados. ¡Sé el primero!</p>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {/* PLAYERS */}
+                  {/* PLAYERS (Titulares) */}
                   {match.players?.filter((p: Player) => p.confirmed).map((p: Player, i: number) => (
                     <div key={`p-${i}`} className="py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -625,9 +711,45 @@ export default function JoinMatchPage() {
             </div>
           )}
 
+          {/* WAITLIST (SUPLENTES) DISPLAY */}
+          {(!isClosed && match.players?.filter((p: Player) => p.isWaitlist && !p.confirmed).length > 0) ? (() => {
+            // Ordenar la lista de espera por fecha de ingreso para ser transparentes
+            const waitlistPlayers = match.players
+              .filter((p: Player) => p.isWaitlist && !p.confirmed)
+              .sort((a: Player, b: Player) => {
+                const tA = a.waitlistJoinedAt ? new Date(a.waitlistJoinedAt).getTime() : 0;
+                const tB = b.waitlistJoinedAt ? new Date(b.waitlistJoinedAt).getTime() : 0;
+                return tA - tB;
+              });
+
+            return (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6 mt-4 opacity-90">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  📋 Lista de Espera (Suplentes)
+                  <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-black">{waitlistPlayers.length}</span>
+                </h3>
+                <div className="divide-y divide-slate-100">
+                  {waitlistPlayers.map((p: Player, i: number) => (
+                    <div key={`wl-${i}`} className="py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
+                          #{i + 1}
+                        </div>
+                        <span className="font-bold text-slate-700 text-sm">{p.name} {p.uid === user.uid && "(Tú)"}</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase tracking-widest">
+                        En espera
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })() : null}
+
 
         </div>
       </div>
-    </main>
+    </main >
   );
 }

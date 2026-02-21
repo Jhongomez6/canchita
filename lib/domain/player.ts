@@ -51,6 +51,8 @@ export interface Player {
     positions: Position[];
     confirmed: boolean;
     attendance?: AttendanceStatus;
+    isWaitlist?: boolean;
+    waitlistJoinedAt?: string;
 }
 
 // ========================

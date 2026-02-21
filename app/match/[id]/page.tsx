@@ -523,11 +523,11 @@ export default function MatchDetailPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
               👥 Jugadores
-              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">{match.players?.length || 0}</span>
+              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">{match.players?.filter((p: Player) => !p.isWaitlist).length || 0}</span>
             </h3>
 
             <div className="divide-y divide-slate-100">
-              {match.players?.map((p: Player, i: number) => (
+              {match.players?.filter((p: Player) => !p.isWaitlist).map((p: Player, i: number) => (
                 <div key={i} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${p.confirmed ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
@@ -721,6 +721,56 @@ export default function MatchDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* WAITLIST (SUPLENTES) (Admin View) */}
+            {(!isClosed && match.players?.filter((p: Player) => p.isWaitlist && !p.confirmed).length > 0) ? (() => {
+              const waitlistPlayers = match.players
+                .filter((p: Player) => p.isWaitlist && !p.confirmed)
+                .sort((a: Player, b: Player) => {
+                  const tA = a.waitlistJoinedAt ? new Date(a.waitlistJoinedAt).getTime() : 0;
+                  const tB = b.waitlistJoinedAt ? new Date(b.waitlistJoinedAt).getTime() : 0;
+                  return tA - tB;
+                });
+
+              return (
+                <div className="mt-8 border-t border-slate-100 pt-6">
+                  <h4 className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-3 flex items-center gap-2">
+                    📋 Lista de Espera ({waitlistPlayers.length})
+                  </h4>
+                  <div className="divide-y divide-slate-100">
+                    {waitlistPlayers.map((p: Player, i: number) => (
+                      <div key={`wl-${i}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
+                            #{i + 1}
+                          </div>
+                          <span className="font-bold text-slate-700 text-sm">{p.name}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-bold px-2 py-1 rounded bg-slate-100 text-slate-500 uppercase tracking-widest">
+                            En espera
+                          </span>
+
+                          {isOwner && !isClosed && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`¿Eliminar a ${p.name} de la lista de espera?`)) return;
+                                await deletePlayerFromMatch(id, p.name);
+                                loadMatch();
+                              }}
+                              className="text-xs font-bold px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })() : null}
           </div>
 
           {/* BALANCEO */}

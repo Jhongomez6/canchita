@@ -182,6 +182,87 @@ export async function joinMatch(
 }
 
 /* =========================
+   LISTA DE ESPERA (WAITLIST)
+========================= */
+export async function joinWaitlist(
+  matchId: string,
+  user: {
+    uid: string;
+    name: string;
+  }
+) {
+  const ref = doc(db, "matches", matchId);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const players: Player[] = data.players || [];
+
+    // 🔒 Evitar duplicados
+    const alreadyExists = players.some((p) => p.uid === user.uid);
+    if (alreadyExists) return;
+
+    const profile = await getUserProfile(user.uid);
+    const positions: Position[] =
+      profile?.positions && profile.positions.length > 0
+        ? profile.positions
+        : ["MID"];
+    const level = profile?.level ?? 2;
+
+    transaction.update(ref, {
+      players: [
+        ...players,
+        {
+          uid: user.uid,
+          name: user.name,
+          confirmed: false,
+          isWaitlist: true,
+          waitlistJoinedAt: new Date().toISOString(),
+          level,
+          positions,
+        },
+      ],
+      playerUids: arrayUnion(user.uid),
+    });
+  });
+}
+
+export async function leaveWaitlist(
+  matchId: string,
+  playerName: string
+) {
+  const ref = doc(db, "matches", matchId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const players: Player[] = data.players || [];
+
+  // Encontrar el jugador
+  const removedPlayer = players.find(
+    (p) => p.name === playerName && p.isWaitlist
+  );
+
+  if (!removedPlayer) return;
+
+  const updatedPlayers = players.filter(
+    (p) => !(p.name === playerName && p.isWaitlist)
+  );
+
+  const updateData: Record<string, unknown> = {
+    players: updatedPlayers,
+  };
+
+  if (removedPlayer?.uid) {
+    updateData.playerUids = arrayRemove(removedPlayer.uid);
+  }
+
+  await updateDoc(ref, updateData);
+}
+
+/* =========================
    CONFIRMAR / DESCONFIRMAR
 ========================= */
 export async function confirmAttendance(

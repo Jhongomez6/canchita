@@ -123,8 +123,8 @@ export default function ExplorePage() {
                                     type="submit"
                                     disabled={!inviteCode.trim() || isSubmittingCode}
                                     className={`px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-sm ${!inviteCode.trim() || isSubmittingCode
-                                            ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                                            : "bg-[#1f7a4f] text-white hover:bg-[#16603c] active:scale-95"
+                                        ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                        : "bg-[#1f7a4f] text-white hover:bg-[#16603c] active:scale-95"
                                         }`}
                                 >
                                     {isSubmittingCode ? "..." : "Ir"}
@@ -172,6 +172,7 @@ export default function ExplorePage() {
                                         const isClosed = m.status === 'closed';
                                         const maxPlayers = m.maxPlayers ?? Infinity;
                                         const confirmedCount = (m.players?.filter(p => p.confirmed).length || 0) + (m.guests?.length || 0);
+                                        const waitlistCount = m.players?.filter(p => p.isWaitlist && !p.confirmed).length || 0;
                                         const spotsLeft = maxPlayers !== Infinity ? Math.max(0, maxPlayers - confirmedCount) : null;
                                         const isFull = spotsLeft === 0;
 
@@ -186,12 +187,12 @@ export default function ExplorePage() {
                                                 {/* Status overlays over the default MatchCard visual limits */}
                                                 {spotsLeft !== null && !isClosed && (
                                                     <div className={`absolute -top-2 -right-2 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm border border-white z-10 ${isFull
-                                                            ? "bg-red-500 text-white"
-                                                            : spotsLeft <= 2
-                                                                ? "bg-amber-400 text-amber-900"
-                                                                : "bg-emerald-400 text-emerald-900"
+                                                        ? "bg-red-500 text-white"
+                                                        : spotsLeft <= 2
+                                                            ? "bg-amber-400 text-amber-900"
+                                                            : "bg-emerald-400 text-emerald-900"
                                                         }`}>
-                                                        {isFull ? "Lleno" : `${spotsLeft} cupos`}
+                                                        {isFull ? (waitlistCount > 0 ? `Lleno (+${waitlistCount} espera)` : "Lleno") : `${spotsLeft} cupos`}
                                                     </div>
                                                 )}
                                             </div>
