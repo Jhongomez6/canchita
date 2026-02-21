@@ -313,12 +313,15 @@ export default function OnboardingPage() {
                         {TECH_OPTIONS.map(o => {
                             const selected = techLevel === o.level;
                             return (
-                                <button
+                                <div
                                     key={o.level}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => setTechLevel(o.level)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setTechLevel(o.level); }}
                                     className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
                                         ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
-                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
                                         }`}
                                 >
                                     <span className={`block font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
@@ -327,7 +330,7 @@ export default function OnboardingPage() {
                                     <span className="block text-xs text-gray-500 leading-relaxed">
                                         {o.desc}
                                     </span>
-                                </button>
+                                </div>
                             );
                         })}
                     </div>
@@ -373,12 +376,15 @@ export default function OnboardingPage() {
                         {PHYS_OPTIONS.map(o => {
                             const selected = physLevel === o.level;
                             return (
-                                <button
+                                <div
                                     key={o.level}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => setPhysLevel(o.level)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setPhysLevel(o.level); }}
                                     className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
                                         ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
-                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
                                         }`}
                                 >
                                     <span className={`block font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
@@ -387,7 +393,7 @@ export default function OnboardingPage() {
                                     <span className="block text-xs text-gray-500 leading-relaxed">
                                         {o.desc}
                                     </span>
-                                </button>
+                                </div>
                             );
                         })}
                     </div>
@@ -432,11 +438,14 @@ export default function OnboardingPage() {
                     <div className="mb-6">
                         <span className="text-sm font-semibold text-gray-700 block mb-3">Experiencia previa</span>
                         <div className="space-y-3">
-                            <button
+                            <div
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setHasSchool(!hasSchool)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setHasSchool(!hasSchool); }}
                                 className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${hasSchool
                                     ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
-                                    : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                    : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
                                     }`}
                             >
                                 <span className={`block font-bold text-sm ${hasSchool ? "text-[#1f7a4f]" : "text-gray-700"}`}>
@@ -445,13 +454,16 @@ export default function OnboardingPage() {
                                 <span className="block text-xs text-gray-500 mt-1">
                                     Asistí a una escuela o academia de formación
                                 </span>
-                            </button>
+                            </div>
 
-                            <button
+                            <div
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setHasTournaments(!hasTournaments)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setHasTournaments(!hasTournaments); }}
                                 className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${hasTournaments
                                     ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
-                                    : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                    : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
                                     }`}
                             >
                                 <span className={`block font-bold text-sm ${hasTournaments ? "text-[#1f7a4f]" : "text-gray-700"}`}>
@@ -460,7 +472,7 @@ export default function OnboardingPage() {
                                 <span className="block text-xs text-gray-500 mt-1">
                                     He participado en ligas o torneos organizados
                                 </span>
-                            </button>
+                            </div>
                         </div>
                     </div>
 
@@ -471,12 +483,15 @@ export default function OnboardingPage() {
                             {FREQ_OPTIONS.map(o => {
                                 const selected = frequency === o.value;
                                 return (
-                                    <button
+                                    <div
                                         key={o.value}
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() => setFrequency(o.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFrequency(o.value); }}
                                         className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
                                             ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
-                                            : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50"
+                                            : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
                                             }`}
                                     >
                                         <span className={`block font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
@@ -485,7 +500,7 @@ export default function OnboardingPage() {
                                         <span className="block text-xs text-gray-500 mt-1">
                                             {o.desc}
                                         </span>
-                                    </button>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -532,8 +547,10 @@ export default function OnboardingPage() {
                         {ALLOWED_POSITIONS.map((pos: Position) => {
                             const selected = positions.includes(pos);
                             return (
-                                <button
+                                <div
                                     key={pos}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => {
                                         if (selected) {
                                             setPositions(positions.filter(p => p !== pos));
@@ -543,16 +560,27 @@ export default function OnboardingPage() {
                                             setPositions([positions[1], pos]);
                                         }
                                     }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            if (selected) {
+                                                setPositions(positions.filter(p => p !== pos));
+                                            } else if (positions.length < 2) {
+                                                setPositions([...positions, pos]);
+                                            } else {
+                                                setPositions([positions[1], pos]);
+                                            }
+                                        }
+                                    }}
                                     className={`flex flex-col items-center justify-center p-4 border-2 rounded-2xl transition-all h-32 ${selected
                                         ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f] scale-105"
-                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 hover:scale-105"
+                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 hover:scale-105 cursor-pointer"
                                         }`}
                                 >
                                     <span className="block text-4xl mb-2">{POSITION_ICONS[pos]}</span>
                                     <span className={`block font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
                                         {selected ? "✔ " : ""}{POSITION_LABELS[pos]}
                                     </span>
-                                </button>
+                                </div>
                             );
                         })}
                     </div>
