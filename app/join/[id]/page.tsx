@@ -940,22 +940,27 @@ export default function JoinMatchPage() {
                   ))}
 
                   {/* GUESTS */}
-                  {match.guests?.map((g: Guest, i: number) => (
-                    <div key={`g-${i}`} className="py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm">
-                          {POSITION_ICONS[(g.positions?.[0] as Position) || "MID"]}
+                  {match.guests?.map((g: Guest, i: number) => {
+                    const hostName = match.players?.find((p: Player) => p.uid === g.invitedBy)?.name;
+                    return (
+                      <div key={`g-${i}`} className="py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm">
+                            {POSITION_ICONS[(g.positions?.[0] as Position) || "MID"]}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800 text-sm">{g.name}</span>
+                            <span className="text-[10px] text-slate-400">
+                              Invitado{hostName ? ` de ${hostName}` : ""}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800 text-sm">{g.name}</span>
-                          <span className="text-[10px] text-slate-400">Invitado</span>
-                        </div>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-600">
+                          Confirmado
+                        </span>
                       </div>
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-600">
-                        Confirmado
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

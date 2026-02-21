@@ -453,6 +453,7 @@ describe("canAddGuest", () => {
 2. **Integrar en la UI**
    - Agregar `<AddGuestForm />` en `/app/match/[id]/page.tsx`
    - Mostrar invitados en la lista de jugadores
+   - Indicar explícitamente el jugador que invitó al invitado en la lista de jugadores
 
 3. **Actualizar Balance de Equipos**
    - Incluir invitados en `balanceTeams()`
