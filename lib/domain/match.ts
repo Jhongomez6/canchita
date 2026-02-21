@@ -42,6 +42,9 @@ export interface Match {
     score?: { A: number; B: number };
     statsProcessed?: boolean;
     previousScore?: { A: number; B: number };
+    mvpVotes?: Record<string, string>; // { voterId: votedPlayerId_or_GuestName }
+    closedAt?: string; // ISO String to track 12-hour limit
+    isPrivate?: boolean; // If true, hide from Explore
 }
 
 export interface CreateMatchInput {
@@ -51,6 +54,7 @@ export interface CreateMatchInput {
     locationSnapshot: LocationSnapshot;
     createdBy: string;
     maxPlayers: number;
+    isPrivate?: boolean;
 }
 
 export type MatchResult = "win" | "loss" | "draw";

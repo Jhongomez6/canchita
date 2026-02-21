@@ -45,6 +45,7 @@ export interface UserProfile {
     hasSchool?: boolean;
     hasTournaments?: boolean;
     frequency?: Frequency;
+    mvpAwards?: number;
 }
 
 export interface UserStats {

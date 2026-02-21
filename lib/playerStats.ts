@@ -27,7 +27,7 @@ export async function updatePlayerStats(
   previousResult?: MatchResult
 ) {
   for (const player of players) {
-    if (!player.uid) continue;
+    if (!player.uid || player.uid.startsWith("guest_")) continue;
 
     // TODO: Handle previous result reversion correctly for attendance stats if needed
     // For now, simplificado solo para W/L/D basic reversion

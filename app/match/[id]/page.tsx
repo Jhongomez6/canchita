@@ -129,9 +129,12 @@ export default function MatchDetailPage() {
 
     setBalanced(result);
 
+    // Clean undefined values to prevent Firebase errors
+    const cleanObject = (obj: any) => JSON.parse(JSON.stringify(obj));
+
     await saveTeams(id, {
-      A: result.teamA.players,
-      B: result.teamB.players,
+      A: cleanObject(result.teamA.players),
+      B: cleanObject(result.teamB.players),
     });
 
     await loadMatch();
@@ -264,6 +267,47 @@ export default function MatchDetailPage() {
   const totalPlayers = (match.players?.length ?? 0) + guestCount;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
 
+  // MVP Calculation
+  const voteCounts: Record<string, number> = {};
+  if (match.mvpVotes) {
+    Object.values(match.mvpVotes).forEach((votedId) => {
+      voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
+    });
+  }
+
+  const sortedMVPLeaderboard = Object.entries(voteCounts)
+    .sort(([, a], [, b]) => b - a);
+
+  const topMvpScore = sortedMVPLeaderboard.length > 0 ? sortedMVPLeaderboard[0][1] : 0;
+
+  const currentMVPs = sortedMVPLeaderboard
+    .filter(([, score]) => score === topMvpScore && score > 0)
+    .map(([id]) => id);
+
+  // 6h Voting Window Validation
+  const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
+  const now = new Date().getTime();
+  const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
+  const timeLimitClosed = hoursSinceClosed > 6;
+
+  // Strict Mathematical Consensus Validation based on unique physical accounts
+  const eligibleUIDs = new Set(
+    match.players?.filter((p: Player) => p.confirmed && p.uid && !p.uid.startsWith("guest_")).map((p: Player) => p.uid) || []
+  );
+  if (match.createdBy) eligibleUIDs.add(match.createdBy);
+
+  const totalEligibleVoters = eligibleUIDs.size;
+  const votesCast = match.mvpVotes ? Object.keys(match.mvpVotes).filter(uid => eligibleUIDs.has(uid)).length : 0;
+  const remainingVotes = totalEligibleVoters - votesCast;
+
+  const secondHighestScore = sortedMVPLeaderboard.length > 1 ? sortedMVPLeaderboard[1][1] : 0;
+
+  const mathematicallyClosed = (topMvpScore > 0) && (topMvpScore > secondHighestScore + remainingVotes);
+  const allEligibleVoted = totalEligibleVoters > 0 && remainingVotes <= 0;
+  const earlyClosure = mathematicallyClosed || allEligibleVoted;
+
+  const votingClosed = isClosed && (timeLimitClosed || earlyClosure);
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || !balanced) return;
@@ -271,20 +315,20 @@ export default function MatchDetailPage() {
     const playerId = active.id as string;
 
     const fromA = balanced.teamA.players.find(
-      (p: Player) => (p.id ?? p.name) === playerId
+      (p: Player) => (p.id || p.uid || p.name) === playerId
     );
     const fromB = balanced.teamB.players.find(
-      (p: Player) => (p.id ?? p.name) === playerId
+      (p: Player) => (p.id || p.uid || p.name) === playerId
     );
 
     let newA = [...balanced.teamA.players];
     let newB = [...balanced.teamB.players];
 
     if (fromA) {
-      newA = newA.filter(p => (p.id ?? p.name) !== playerId);
+      newA = newA.filter(p => (p.id || p.uid || p.name) !== playerId);
       newB.push(fromA);
     } else if (fromB) {
-      newB = newB.filter(p => (p.id ?? p.name) !== playerId);
+      newB = newB.filter(p => (p.id || p.uid || p.name) !== playerId);
       newA.push(fromB);
     }
 
@@ -307,10 +351,17 @@ export default function MatchDetailPage() {
                 <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                   ⚽ Partido
                 </h1>
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-2 ${isClosed ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
-                  }`}>
-                  {isClosed ? "Cerrado" : "Abierto"}
-                </span>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${isClosed ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
+                    }`}>
+                    {isClosed ? "Cerrado" : "Abierto"}
+                  </span>
+                  {match.isPrivate && (
+                    <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                      🔒 Privado
+                    </span>
+                  )}
+                </div>
               </div>
 
               {isOwner && !isClosed && (
@@ -498,6 +549,7 @@ export default function MatchDetailPage() {
                         onClick={async () => {
                           if (isFull) return;
                           await addPlayerToMatch(id, {
+                            uid: `guest_${manualName.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`,
                             name: manualName,
                             level: manualLevel,
                             positions: manualPositions,
@@ -870,19 +922,27 @@ export default function MatchDetailPage() {
 
                           <SortableContext
                             items={balanced.teamA.players.map(
-                              (p: Player) => p.id ?? p.name
+                              (p: Player) => p.id || p.uid || p.name
                             )}
                             strategy={verticalListSortingStrategy}
                           >
                             <div className="space-y-2">
-                              {balanced.teamA.players.map((p: Player) => (
-                                <PlayerItem
-                                  key={p.id ?? p.name}
-                                  id={p.id ?? p.name}
-                                  name={p.name}
-                                  details={`⚡${p.level} · ${(p.positions || []).join("/")}`}
-                                />
-                              ))}
+                              {balanced.teamA.players.map((p: Player) => {
+                                const targetId = p.id || p.uid || p.name;
+                                const isMvp = votingClosed && currentMVPs.includes(targetId);
+                                const votes = isClosed ? (voteCounts[targetId] || 0) : 0;
+
+                                return (
+                                  <PlayerItem
+                                    key={targetId}
+                                    id={targetId}
+                                    name={p.name}
+                                    details={`⚡${p.level} · ${(p.positions || []).join("/")}`}
+                                    isMvp={isMvp}
+                                    votes={votes}
+                                  />
+                                );
+                              })}
                             </div>
                           </SortableContext>
                         </div>
@@ -897,19 +957,27 @@ export default function MatchDetailPage() {
 
                           <SortableContext
                             items={balanced.teamB.players.map(
-                              (p: Player) => p.id ?? p.name
+                              (p: Player) => p.id || p.uid || p.name
                             )}
                             strategy={verticalListSortingStrategy}
                           >
                             <div className="space-y-2">
-                              {balanced.teamB.players.map((p: Player) => (
-                                <PlayerItem
-                                  key={p.id ?? p.name}
-                                  id={p.id ?? p.name}
-                                  name={p.name}
-                                  details={`⚡${p.level} · ${(p.positions || []).join("/")}`}
-                                />
-                              ))}
+                              {balanced.teamB.players.map((p: Player) => {
+                                const targetId = p.id || p.uid || p.name;
+                                const isMvp = votingClosed && currentMVPs.includes(targetId);
+                                const votes = isClosed ? (voteCounts[targetId] || 0) : 0;
+
+                                return (
+                                  <PlayerItem
+                                    key={targetId}
+                                    id={targetId}
+                                    name={p.name}
+                                    details={`⚡${p.level} · ${(p.positions || []).join("/")}`}
+                                    isMvp={isMvp}
+                                    votes={votes}
+                                  />
+                                );
+                              })}
                             </div>
                           </SortableContext>
                         </div>
@@ -922,10 +990,13 @@ export default function MatchDetailPage() {
                         setSavingTeams(true);
                         setTeamsSaved(false);
 
+                        // Clean undefined values to prevent Firebase errors
+                        const cleanObject = (obj: any) => JSON.parse(JSON.stringify(obj));
+
                         try {
                           await saveTeams(id, {
-                            A: balanced.teamA.players,
-                            B: balanced.teamB.players,
+                            A: cleanObject(balanced.teamA.players),
+                            B: cleanObject(balanced.teamB.players),
                           });
 
                           setTeamsSaved(true);
@@ -951,6 +1022,7 @@ export default function MatchDetailPage() {
                           ? "✅ Equipos guardados"
                           : "💾 Guardar cambios manuales"}
                     </button>
+
                     {match.teams && (
                       <button
                         disabled={copyingReport}
@@ -985,7 +1057,8 @@ export default function MatchDetailPage() {
                               ? "📲 Copiar reporte final"
                               : "📲 Copiar equipos balanceados"}
                       </button>
-                    )}
+                    )
+                    }
 
 
                   </>
@@ -1007,30 +1080,60 @@ export default function MatchDetailPage() {
               )}
 
               <div className="flex items-center justify-center gap-6 mb-6">
-                <div className="text-center">
+                <div className="flex flex-col items-center">
                   <div className="text-xs font-bold text-slate-500 uppercase mb-2">🔴 Equipo A</div>
-                  <input
-                    type="number"
-                    min={0}
-                    value={scoreA}
-                    onChange={e => setScoreA(Number(e.target.value))}
-                    disabled={isClosed}
-                    className="w-20 h-20 text-4xl text-center font-black bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-red-100 outline-none transition-all disabled:opacity-50"
-                  />
+                  <div className="flex items-center gap-2">
+                    {!isClosed && (
+                      <button
+                        onClick={() => setScoreA(Math.max(0, scoreA - 1))}
+                        disabled={scoreA <= 0}
+                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-xl text-slate-600 transition-colors disabled:opacity-50"
+                      >−</button>
+                    )}
+                    <input
+                      type="number"
+                      min={0}
+                      value={scoreA}
+                      onChange={e => setScoreA(Math.max(0, Number(e.target.value)))}
+                      disabled={isClosed}
+                      className="w-16 h-16 text-3xl text-center font-black bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-red-100 outline-none transition-all disabled:opacity-50"
+                    />
+                    {!isClosed && (
+                      <button
+                        onClick={() => setScoreA(scoreA + 1)}
+                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-xl text-slate-600 transition-colors"
+                      >+</button>
+                    )}
+                  </div>
                 </div>
 
-                <div className="text-4xl text-slate-300 font-thin">—</div>
+                <div className="text-4xl text-slate-300 font-thin mt-6">—</div>
 
-                <div className="text-center">
+                <div className="flex flex-col items-center">
                   <div className="text-xs font-bold text-slate-500 uppercase mb-2">🔵 Equipo B</div>
-                  <input
-                    type="number"
-                    min={0}
-                    value={scoreB}
-                    onChange={e => setScoreB(Number(e.target.value))}
-                    disabled={isClosed}
-                    className="w-20 h-20 text-4xl text-center font-black bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none transition-all disabled:opacity-50"
-                  />
+                  <div className="flex items-center gap-2">
+                    {!isClosed && (
+                      <button
+                        onClick={() => setScoreB(Math.max(0, scoreB - 1))}
+                        disabled={scoreB <= 0}
+                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-xl text-slate-600 transition-colors disabled:opacity-50"
+                      >−</button>
+                    )}
+                    <input
+                      type="number"
+                      min={0}
+                      value={scoreB}
+                      onChange={e => setScoreB(Math.max(0, Number(e.target.value)))}
+                      disabled={isClosed}
+                      className="w-16 h-16 text-3xl text-center font-black bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none transition-all disabled:opacity-50"
+                    />
+                    {!isClosed && (
+                      <button
+                        onClick={() => setScoreB(scoreB + 1)}
+                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-xl text-slate-600 transition-colors"
+                      >+</button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1201,7 +1304,7 @@ export default function MatchDetailPage() {
   );
 }
 
-function PlayerItem({ id, name, details }: { id: string; name: string, details: string }) {
+function PlayerItem({ id, name, details, isMvp, votes }: { id: string; name: string, details: string, isMvp?: boolean, votes?: number }) {
   const {
     attributes,
     listeners,
@@ -1224,10 +1327,19 @@ function PlayerItem({ id, name, details }: { id: string; name: string, details: 
       style={style}
       {...attributes}
       {...listeners}
-      className={`p-3 bg-white border border-slate-200 rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-300 transition-colors ${isDragging ? "ring-2 ring-emerald-500 rotate-2" : ""}`}
+      className={`p-3 bg-white border rounded-lg shadow-sm flex justify-between items-center cursor-grab active:cursor-grabbing hover:border-slate-300 transition-colors ${isDragging ? "ring-2 ring-emerald-500 rotate-2" : "border-slate-200"} ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border-amber-200 ring-1 ring-amber-100" : ""}`}
     >
-      <div className="font-bold text-sm text-slate-800">{name}</div>
-      <div className="text-[10px] text-slate-500 font-medium">{details}</div>
+      <div>
+        <div className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+          {name}
+          {isMvp && <span className="text-sm drop-shadow-sm" title="MVP Actual">👑</span>}
+        </div>
+        <div className="text-[10px] text-slate-500 font-medium">{details}</div>
+      </div>
+
+      {votes ? (
+        <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{votes} v.</span>
+      ) : null}
     </div>
   );
 }

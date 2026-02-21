@@ -24,12 +24,14 @@ import {
   unconfirmAttendance,
   joinWaitlist,
   leaveWaitlist,
+  voteForMVP,
 } from "@/lib/matches";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
   const { user, loading } = useAuth();
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [submittingVote, setSubmittingVote] = useState(false);
   const router = useRouter();
 
   const [match, setMatch] = useState<Match | null>(null);
@@ -268,6 +270,60 @@ export default function JoinMatchPage() {
     ? `Partido ${sidePlayers} vs ${sidePlayers}`
     : "Partido";
 
+  // MVP Logic
+  const myVote = match.mvpVotes?.[user.uid] || null;
+  const eligiblePlayersAndGuests = [
+    ...(match.players?.filter((p: Player) => p.confirmed) || []),
+    ...(match.guests || []).map((g: Guest) => ({ name: g.name, uid: `guest_${g.name}` })) // Fake UIDs for guests to handle votes
+  ];
+
+  // Calculate Leaderboard
+  const voteCounts: Record<string, number> = {};
+  if (match.mvpVotes) {
+    Object.values(match.mvpVotes).forEach((votedId) => {
+      voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
+    });
+  }
+
+  const sortedMVPLeaderboard = Object.entries(voteCounts)
+    .sort(([, a], [, b]) => b - a);
+
+  const topMvpScore = sortedMVPLeaderboard.length > 0 ? sortedMVPLeaderboard[0][1] : 0;
+
+  const currentMVPs = sortedMVPLeaderboard
+    .filter(([, score]) => score === topMvpScore && score > 0)
+    .map(([id]) => id);
+
+  // 6h Voting Window Validation
+  const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
+  const now = new Date().getTime();
+  const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
+  const timeLimitClosed = hoursSinceClosed > 6;
+
+  // Strict Mathematical Consensus Validation based on unique physical accounts
+  const eligibleUIDs = new Set(
+    match.players?.filter((p: Player) => p.confirmed && p.uid && !p.uid.startsWith("guest_")).map((p: Player) => p.uid) || []
+  );
+  if (match.createdBy) eligibleUIDs.add(match.createdBy); // Admin can always vote
+
+  const totalEligibleVoters = eligibleUIDs.size;
+  const votesCast = match.mvpVotes ? Object.keys(match.mvpVotes).filter(uid => eligibleUIDs.has(uid)).length : 0;
+  const remainingVotes = totalEligibleVoters - votesCast;
+
+  const secondHighestScore = sortedMVPLeaderboard.length > 1 ? sortedMVPLeaderboard[1][1] : 0;
+
+  // A player has mathematically won if their score is strictly greater than the 
+  // second highest score plus all remaining possible votes.
+  const mathematicallyClosed = (topMvpScore > 0) && (topMvpScore > secondHighestScore + remainingVotes);
+
+  // Voting is also definitively closed if every single eligible player has voted, 
+  // regardless of ties.
+  const allEligibleVoted = totalEligibleVoters > 0 && remainingVotes <= 0;
+
+  const earlyClosure = mathematicallyClosed || allEligibleVoted;
+
+  const votingClosed = isClosed && (timeLimitClosed || earlyClosure);
+
   return (
     <main className="min-h-screen bg-slate-50 pb-24">
       <div className="max-w-md mx-auto">
@@ -288,7 +344,14 @@ export default function JoinMatchPage() {
           {/* CARD PARTIDO */}
           <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="font-bold text-lg text-slate-800">{matchLabel}</h3>
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                {matchLabel}
+                {match.isPrivate && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                    🔒 Privado
+                  </span>
+                )}
+              </h3>
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${isClosed ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
                 }`}>
                 {isClosed ? "Cerrado" : "Abierto"}
@@ -555,6 +618,8 @@ export default function JoinMatchPage() {
 
 
 
+
+
           {/* LISTA DE JUGADORES O REPORTE */}
           {isClosed && match.teams ? (() => {
             // LOGICA RESULTADO PERSONAL
@@ -600,6 +665,8 @@ export default function JoinMatchPage() {
 
             return (
               <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6">
+
+
                 <h3 className="font-bold text-slate-800 mb-6 text-center text-lg flex flex-col items-center justify-center gap-2">
                   <span>🏆 Resultado del Partido</span>
                   {resultMessage && (
@@ -632,14 +699,24 @@ export default function JoinMatchPage() {
                       <span className="text-red-500 opacity-60 text-xs">{match.teams.A.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
-                      {match.teams.A.map((p: Player, i: number) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-white text-red-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-red-100">
-                            {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                      {match.teams.A.map((p: Player, i: number) => {
+                        const targetId = p.uid || p.name;
+                        const isMvp = currentMVPs.includes(targetId);
+                        const votes = voteCounts[targetId] || 0;
+
+                        return (
+                          <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-white text-red-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-red-100">
+                                {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                              </div>
+                              <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
+                              {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
+                            </div>
+                            {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
                           </div>
-                          <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -650,17 +727,175 @@ export default function JoinMatchPage() {
                       <span className="text-blue-500 opacity-60 text-xs">{match.teams.B.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
-                      {match.teams.B.map((p: Player, i: number) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-white text-blue-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-blue-100">
-                            {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                      {match.teams.B.map((p: Player, i: number) => {
+                        const targetId = p.uid || p.name;
+                        const isMvp = currentMVPs.includes(targetId);
+                        const votes = voteCounts[targetId] || 0;
+
+                        return (
+                          <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-white text-blue-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-blue-100">
+                                {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                              </div>
+                              <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
+                              {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
+                            </div>
+                            {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
                           </div>
-                          <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
+
+
+                {/* MVP VOTING CARD - DENTRO DEL BLOQUE DE RESULTADOS */}
+                {isClosed && (existingPlayer?.confirmed || match.createdBy === user.uid) && (
+                  <div className="mt-8 p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute -top-6 -right-6 text-6xl opacity-10">👑</div>
+                    <h4 className="font-bold text-amber-900 mb-4 flex items-center gap-2 relative z-10">
+                      {votingClosed ? "👑 MVP del Partido" : "🏅 Elige al MVP del Partido"}
+                    </h4>
+
+                    {myVote && !votingClosed && (
+                      <p className="text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded mb-4 relative z-10 border border-emerald-100">
+                        ✅ Tu voto ha sido registrado.
+                      </p>
+                    )}
+
+                    {(!votingClosed && !myVote) && (
+                      <p className="text-xs text-amber-700/80 mb-4 relative z-10 font-medium">
+                        ¡Reconoce a la figura de hoy! Tu voto es <strong className="font-bold underline">definitivo</strong>.
+                      </p>
+                    )}
+
+                    <div className="relative z-10">
+                      {(myVote || votingClosed) ? (
+                        <div className="space-y-3">
+                          {votingClosed && currentMVPs.length > 1 && (
+                            <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4">
+                              <span>🤝</span> ¡Empate! Hoy se comparte el podio.
+                            </div>
+                          )}
+                          {votingClosed && currentMVPs.length === 1 && (
+                            <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4">
+                              <span>⭐</span> ¡Crack, la diste toda manito(a)!
+                            </div>
+                          )}
+                          {sortedMVPLeaderboard.slice(0, 3).map(([targetId, votes], idx) => {
+                            const player = eligiblePlayersAndGuests.find(p => p.uid === targetId || p.name === targetId);
+                            if (!player) return null;
+                            const isMyVote = myVote === targetId;
+                            const isWinner = currentMVPs.includes(targetId);
+
+                            return (
+                              <div key={targetId}
+                                className={`flex items-center justify-between p-4 rounded-2xl relative overflow-hidden transition-all duration-300
+                                      ${isWinner
+                                    ? 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 ring-2 ring-yellow-400 shadow-md transform hover:scale-[1.02]'
+                                    : isMyVote
+                                      ? 'bg-amber-50 border border-amber-200 ring-1 ring-amber-300 shadow-sm'
+                                      : 'bg-white border border-slate-100 hover:border-slate-300'}`}>
+
+                                {isWinner && (
+                                  <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/10 rounded-full blur-2xl -mr-10 -mt-10 animate-pulse"></div>
+                                )}
+
+                                <div className="flex items-center gap-4 relative z-10">
+                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-xl shadow-inner
+                                      ${isWinner ? 'bg-amber-100/50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}>
+                                    {isWinner ? <span className={`drop-shadow-sm mt-1 ${votingClosed ? "" : "animate-bounce"}`}>👑</span> : idx + 1}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className={`font-black text-lg tracking-tight ${isWinner ? 'text-amber-900' : 'text-slate-800'}`}>
+                                      {player.name} {player.uid?.startsWith("guest_") && <span className="text-xs font-medium opacity-70">(Inv)</span>}
+                                    </span>
+                                    {isMyVote && (
+                                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded flex w-fit mt-0.5 tracking-wider
+                                          ${isWinner ? 'bg-amber-200 text-amber-800' : 'bg-amber-100 text-amber-700'}`}>
+                                        Tu voto
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className={`flex flex-col items-end relative z-10 ${isWinner ? 'text-amber-900' : 'text-slate-600'}`}>
+                                  <span className="font-black text-3xl leading-none">{votes}</span>
+                                  <span className={`text-[10px] font-bold uppercase tracking-widest ${isWinner ? 'text-amber-600' : 'text-slate-400'}`}>
+                                    {votes === 1 ? 'Voto' : 'Votos'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {sortedMVPLeaderboard.length === 0 && (
+                            <div className="text-center p-4 text-sm text-slate-500 bg-white/50 rounded-xl border border-slate-100">
+                              Nadie ha recibido votos aún.
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {[
+                            { key: "A", title: "🔴 Equipo A", players: match.teams?.A || [] },
+                            { key: "B", title: "🔵 Equipo B", players: match.teams?.B || [] }
+                          ].map(({ key, title, players }) => {
+                            // Convert back to MVP-eligible subset
+                            const teamEligible = (players as Player[]).filter(p => p.uid !== user.uid && eligiblePlayersAndGuests.some(e => e.uid === p.uid || e.name === p.name));
+                            if (teamEligible.length === 0) return null;
+
+                            return (
+                              <div key={key} className="space-y-2">
+                                <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">
+                                  {title}
+                                </h5>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {teamEligible.map(p => {
+                                    const targetId = p.uid || p.name;
+                                    const isSelected = myVote === targetId;
+
+                                    return (
+                                      <button
+                                        key={targetId}
+                                        disabled={votingClosed || submittingVote || !!myVote}
+                                        onClick={async () => {
+                                          if (votingClosed || myVote) return;
+                                          if (!confirm("¿Estás seguro de tu voto por " + p.name + "?\n\nSolo puedes emitir tu voto UNA vez y es definitivo.")) return;
+
+                                          setSubmittingVote(true);
+                                          try {
+                                            await voteForMVP(id, user.uid, targetId);
+                                            await loadMatch();
+                                          } catch (err: any) {
+                                            alert(err.message);
+                                          } finally {
+                                            setSubmittingVote(false);
+                                          }
+                                        }}
+                                        className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all ${isSelected
+                                          ? "bg-amber-500 border-amber-600 text-white shadow-inner font-bold"
+                                          : (votingClosed || myVote)
+                                            ? "bg-white/50 border-slate-200 text-slate-400 cursor-not-allowed opacity-60"
+                                            : "bg-white border-amber-200 text-slate-700 hover:bg-amber-100 hover:scale-105 active:scale-95"
+                                          }`}
+                                      >
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? "bg-white text-amber-600" : "bg-slate-100 text-slate-500"}`}>
+                                          {p.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <span className="text-xs truncate">{p.name} {p.uid?.startsWith("guest_") && "(Inv)"}</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
               </div>
             );
           })() : (

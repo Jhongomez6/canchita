@@ -27,7 +27,7 @@ service cloud.firestore {
       allow update: if request.auth != null
         && isAdmin();
 
-      // ❌ Delete: nadie (por ahora)
+      // ❌ Delete: nadie (por ahora)aaqPa
       allow delete: if false;
     }
 
@@ -76,11 +76,8 @@ service cloud.firestore {
       // ✏️ Update
       allow update: if request.auth != null
         && (
-          // 👑 Admin creador
-          (
-            request.auth.uid == resource.data.createdBy
-            && isAdmin()
-          )
+          // 👑 Admin global
+          isAdmin()
           ||
           // ⚽ Jugador (antes o después del update)
           (

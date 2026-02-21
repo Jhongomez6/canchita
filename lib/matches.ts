@@ -52,11 +52,13 @@ export async function createMatch(match: {
     lat: number;
     lng: number;
   };
+  isPrivate?: boolean;
 }) {
   const startsAt = new Date(`${match.date}T${match.time}:00-05:00`);
 
   await addDoc(matchesRef, {
     ...match,
+    isPrivate: match.isPrivate || false,
     players: [],
     reminders: {
       "24h": true,
@@ -103,11 +105,13 @@ export async function getOpenMatches(): Promise<Match[]> {
   const snapshot = await getDocs(q);
   const now = new Date();
 
-  // Filtrar los que ya pasaron
+  // Filtrar los que ya pasaron y los privados
   const matches = snapshot.docs.map((d) => ({
     id: d.id,
     ...(d.data() as Omit<Match, "id">),
   })).filter(m => {
+    if (m.isPrivate) return false;
+
     const matchDate = new Date(`${m.date}T${m.time}:00-05:00`);
     // Retornar solo partidos futuros (o de hoy que aún no pasan)
     return matchDate > now;
@@ -460,12 +464,89 @@ export async function saveTeams(
 ========================= */
 export async function closeMatch(matchId: string) {
   const ref = doc(db, "matches", matchId);
-  await updateDoc(ref, { status: "closed" });
+  await updateDoc(ref, {
+    status: "closed",
+    closedAt: new Date().toISOString()
+  });
 }
 
 export async function reopenMatch(matchId: string) {
   const ref = doc(db, "matches", matchId);
   await updateDoc(ref, {
     status: "open",
+    closedAt: null // Remove the closedAt timestamp marker
+  });
+}
+
+/* =========================
+   VOTAR POR MVP
+========================= */
+export async function voteForMVP(
+  matchId: string,
+  voterUid: string,
+  targetId: string
+) {
+  const ref = doc(db, "matches", matchId);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+
+    // 1. Validar que el partido esté cerrado
+    if (data.status !== "closed" || !data.closedAt) {
+      throw new Error("No se puede votar si el partido no está cerrado.");
+    }
+
+    // 1.1 Validar que no haya votado previamente
+    if (data.mvpVotes && data.mvpVotes[voterUid]) {
+      throw new Error("Ya has registrado tu voto. ¡Las decisiones son definitivas!");
+    }
+
+    // 2. Validar ventana de 6 horas
+    const closedTime = new Date(data.closedAt).getTime();
+    const now = new Date().getTime();
+    const hoursDifference = (now - closedTime) / (1000 * 60 * 60);
+
+    if (hoursDifference > 6) {
+      throw new Error("El periodo de votación (6 horas post-partido) ha terminado.");
+    }
+
+    // 2.5 Validar cierre matemático (alguien ya ganó por mayoría inalcanzable)
+    const eligibleUIDs = new Set(
+      data.players?.filter((p: any) => p.confirmed && p.uid && !p.uid.startsWith("guest_")).map((p: any) => p.uid) || []
+    );
+    if (data.createdBy) eligibleUIDs.add(data.createdBy);
+
+    const totalEligibleVoters = eligibleUIDs.size;
+    const votesCast = data.mvpVotes ? Object.keys(data.mvpVotes).filter(uid => eligibleUIDs.has(uid)).length : 0;
+    const remainingVotes = totalEligibleVoters - votesCast;
+
+    const voteCounts: Record<string, number> = {};
+    if (data.mvpVotes) {
+      Object.values(data.mvpVotes).forEach((votedId) => {
+        voteCounts[votedId as string] = (voteCounts[votedId as string] || 0) + 1;
+      });
+    }
+
+    const sortedMVPLeaderboard = Object.entries(voteCounts)
+      .sort(([, a], [, b]) => b - a);
+
+    const topMvpScore = sortedMVPLeaderboard.length > 0 ? sortedMVPLeaderboard[0][1] : 0;
+    const secondHighestScore = sortedMVPLeaderboard.length > 1 ? sortedMVPLeaderboard[1][1] : 0;
+
+    const mathematicallyClosed = topMvpScore > 0 && topMvpScore > secondHighestScore + remainingVotes;
+    const allEligibleVoted = totalEligibleVoters > 0 && remainingVotes <= 0;
+
+    if (mathematicallyClosed || allEligibleVoted) {
+      throw new Error("La votación ya ha concluido (el MVP ha sido decidido matemáticamente o todos han votado).");
+    }
+
+    // 3. Empujar el voto seguro via Dot Notation
+    const updatePath = `mvpVotes.${voterUid}`;
+    transaction.update(ref, {
+      [updatePath]: targetId
+    });
   });
 }
