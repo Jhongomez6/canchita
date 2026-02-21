@@ -14,9 +14,23 @@ const StatItem = ({ label, value, colorClass }: { label: string, value: number, 
 export default function StatsCard({ stats }: StatsCardProps) {
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
-            <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-                📊 Estadísticas
-            </h3>
+            <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    📊 Estadísticas
+                </h3>
+                <div className="group relative flex items-center">
+                    <span className="cursor-help w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors">
+                        ?
+                    </span>
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-left">
+                        <div className="mb-1"><span className="font-bold text-slate-300">PJ:</span> Partidos Jugados</div>
+                        <div className="mb-1"><span className="font-bold text-emerald-400">PG:</span> Partidos Ganados</div>
+                        <div className="mb-1"><span className="font-bold text-amber-300">PE:</span> Partidos Empatados</div>
+                        <div><span className="font-bold text-red-400">PP:</span> Partidos Perdidos</div>
+                        <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                    </div>
+                </div>
+            </div>
             <div className="flex divide-x divide-slate-100">
                 <StatItem label="PJ" value={stats.played || 0} colorClass="text-slate-800" />
                 <StatItem label="PG" value={stats.won || 0} colorClass="text-emerald-600" />

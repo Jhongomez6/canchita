@@ -69,6 +69,8 @@ export default function ProfilePage() {
             won: Math.max(0, profile.stats.won ?? 0),
             lost: Math.max(0, profile.stats.lost ?? 0),
             draw: Math.max(0, profile.stats.draw ?? 0),
+            lateArrivals: profile.stats.lateArrivals ?? 0,
+            noShows: profile.stats.noShows ?? 0,
           });
         }
         if (profile?.level != null) setLevel(profile.level);
@@ -423,9 +425,22 @@ export default function ProfilePage() {
           {/* ========================= */}
           {!isOnboarding && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-                <span className="text-xl">🤝</span> Compromiso
-              </h2>
+              <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <span className="text-xl">🤝</span> Compromiso
+                </h2>
+                <div className="group relative flex items-center">
+                  <span className="cursor-help w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors">
+                    ?
+                  </span>
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center">
+                    Inicias con 100 de puntuación.
+                    <br />• <span className="text-amber-300 font-bold">-5 pts</span> por Llegada Tarde
+                    <br />• <span className="text-red-400 font-bold">-20 pts</span> por No Asistir
+                    <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                  </div>
+                </div>
+              </div>
 
               {(() => {
                 const { lateArrivals = 0, noShows = 0 } = stats;
@@ -474,7 +489,6 @@ export default function ProfilePage() {
                       </div>
                       <div className="text-xs text-slate-500 leading-tight">
                         Tu nivel de cumplimiento en partidos.
-                        {lateArrivals > 0 && <span className="block mt-1 text-amber-600/80">• {lateArrivals} llegadas tarde</span>}
                         {/* No mostramos No Shows explícitamente para no avergonzar, pero impactan el score */}
                       </div>
                     </div>
