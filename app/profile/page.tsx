@@ -537,7 +537,7 @@ export default function ProfilePage() {
                   <div className="flex-1">
                     <h3 className="font-bold text-slate-800 text-sm mb-1">Recordatorios</h3>
                     <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                      Recibe alertas <strong>24h, 12h y 6h antes</strong> de tus partidos.
+                      No te pierdas nada de lo que pasa en tus partidos. Activa los notificaciones para recibir alertas y recordatorios.
                     </p>
 
                     <button

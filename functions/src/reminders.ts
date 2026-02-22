@@ -216,12 +216,22 @@ export const sendManualReminder = onCall(async (request) => {
     return { success: true, sentTokens: 0, message: "No hay jugadores registrados" };
   }
 
+  // Desduplicar jugadores por UID (por si hubo un error en la base de datos)
+  const uniquePlayersMap = new Map();
+  for (const p of players) {
+    if (!uniquePlayersMap.has(p.uid)) {
+      uniquePlayersMap.set(p.uid, p);
+    }
+  }
+  const uniquePlayers = Array.from(uniquePlayersMap.values());
+
   let sentTokensCount = 0;
 
-  for (const player of players) {
+  for (const player of uniquePlayers) {
     const pSnap = await db.collection("users").doc(player.uid).get();
     const pData = pSnap.data();
-    const tokens = pData?.fcmTokens ?? [];
+    // Desduplicar tokens en caso de que el cliente haya registrado la misma llave web dos veces
+    const tokens = Array.from(new Set<string>(pData?.fcmTokens ?? []));
 
     if (tokens.length === 0) continue;
 
@@ -377,7 +387,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
     for (const player of physicalPlayers) {
       const pSnap = await transaction.get(db.collection("users").doc(player.uid));
       const pData = pSnap.data();
-      const tokens = pData?.fcmTokens ?? [];
+      const tokens = Array.from(new Set<string>(pData?.fcmTokens ?? []));
 
       if (tokens.length === 0) continue;
 

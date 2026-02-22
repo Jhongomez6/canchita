@@ -39,5 +39,6 @@ messaging.onBackgroundMessage(function (payload) {
   self.registration.showNotification(payload.notification.title, {
     body: payload.notification.body,
     icon: "/icon-192.png",
+    data: payload.data, // Pasa el objeto data (que incluye la url) al evento local de la notificación
   });
 });
