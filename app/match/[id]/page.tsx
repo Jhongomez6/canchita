@@ -77,6 +77,7 @@ export default function MatchDetailPage() {
   const [copyingReport, setCopyingReport] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
   const [scoreSaved, setScoreSaved] = useState(false);
+  const [hasUnsavedBalance, setHasUnsavedBalance] = useState(false);
   const [guestLevels, setGuestLevels] = useState<Record<string, PlayerLevel>>({});
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -355,6 +356,7 @@ export default function MatchDetailPage() {
       newA.push(fromB);
     }
 
+    setHasUnsavedBalance(true);
     setBalanced({
       teamA: { players: newA },
       teamB: { players: newB },
@@ -1047,46 +1049,85 @@ export default function MatchDetailPage() {
                       </div>
                     </DndContext>
 
-                    <button
-                      disabled={savingTeams}
-                      onClick={async () => {
-                        setSavingTeams(true);
-                        setTeamsSaved(false);
+                    <div className="flex gap-2 mt-4 relative">
+                      {hasUnsavedBalance && (
+                        <div className="absolute -top-3 -right-3">
+                          <span className="flex h-4 w-4 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border border-white"></span>
+                          </span>
+                        </div>
+                      )}
 
-                        // Clean undefined values to prevent Firebase errors
-                        const cleanObject = (obj: any) => JSON.parse(JSON.stringify(obj));
+                      <button
+                        disabled={savingTeams}
+                        onClick={async () => {
+                          setSavingTeams(true);
+                          setTeamsSaved(false);
 
-                        try {
-                          await saveTeams(id, {
-                            A: cleanObject(balanced.teamA.players),
-                            B: cleanObject(balanced.teamB.players),
-                          });
+                          // Clean undefined values to prevent Firebase errors
+                          const cleanObject = (obj: any) => JSON.parse(JSON.stringify(obj));
 
-                          setTeamsSaved(true);
+                          try {
+                            await saveTeams(id, {
+                              A: cleanObject(balanced.teamA.players),
+                              B: cleanObject(balanced.teamB.players),
+                            });
 
-                          setTimeout(() => {
-                            setTeamsSaved(false);
-                          }, 2000);
+                            setHasUnsavedBalance(false);
+                            setTeamsSaved(true);
 
-                        } catch (err: unknown) {
-                          handleError(err, "Error al guardar equipos manualmente");
-                        } finally {
-                          setSavingTeams(false);
-                        }
-                      }}
-                      className={`mt-4 w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${teamsSaved
-                        ? "bg-[#16a34a]"
-                        : savingTeams
-                          ? "bg-slate-400 cursor-not-allowed shadow-none"
-                          : "bg-blue-600 hover:bg-blue-700"
-                        }`}
-                    >
-                      {savingTeams
-                        ? "⏳ Guardando cambios..."
-                        : teamsSaved
-                          ? "✅ Equipos guardados"
-                          : "💾 Guardar cambios manuales"}
-                    </button>
+                            setTimeout(() => {
+                              setTeamsSaved(false);
+                            }, 2000);
+
+                          } catch (err: unknown) {
+                            handleError(err, "Error al guardar equipos manualmente");
+                          } finally {
+                            setSavingTeams(false);
+                          }
+                        }}
+                        className={`flex-1 py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${teamsSaved
+                          ? "bg-[#16a34a]"
+                          : savingTeams
+                            ? "bg-slate-400 cursor-not-allowed shadow-none"
+                            : hasUnsavedBalance
+                              ? "bg-amber-500 hover:bg-amber-600 animate-pulse border-2 border-amber-600 shadow-amber-500/30"
+                              : "bg-blue-600 hover:bg-blue-700"
+                          }`}
+                      >
+                        {savingTeams
+                          ? "⏳ Guardando cambios..."
+                          : teamsSaved
+                            ? "✅ Equipos guardados"
+                            : hasUnsavedBalance
+                              ? "⚠️ Guardar los cambios"
+                              : "💾 Guardar cambios manuales"}
+                      </button>
+
+                      {hasUnsavedBalance && (
+                        <button
+                          onClick={() => {
+                            if (!match.teams?.A || !match.teams?.B) return;
+                            setBalanced({
+                              teamA: { players: [...match.teams.A] },
+                              teamB: { players: [...match.teams.B] }
+                            });
+                            setHasUnsavedBalance(false);
+                            toast("Cambios descartados", { icon: "↩️" });
+                          }}
+                          className="px-4 py-3 bg-slate-100 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl font-bold transition-colors shadow-sm"
+                          title="Descartar cambios no guardados"
+                        >
+                          Descartar
+                        </button>
+                      )}
+                    </div>
+                    {hasUnsavedBalance && (
+                      <div className="text-center text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 p-2 rounded-lg mt-2 animate-in fade-in slide-in-from-top-1">
+                        ¡Atención! Has movido jugadores y no has guardado.
+                      </div>
+                    )}
 
                     {match.teams && (
                       <button
@@ -1258,6 +1299,11 @@ export default function MatchDetailPage() {
                 onClick={async () => {
                   if (!match?.teams) return;
                   if (!confirm("¿Cerrar partido y procesar estadísticas?")) return;
+
+                  if (hasUnsavedBalance) {
+                    toast.error("Tienes cambios sin guardar en los equipos. Por favor guarda (Guardar Cambios) o descarta los movimientos antes de cerrar el partido.");
+                    return;
+                  }
 
                   try {
                     // 1️⃣ Traer versión fresca del match
