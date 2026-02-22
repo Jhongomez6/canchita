@@ -67,6 +67,15 @@ export function balanceTeams(players: Player[]): BalanceResult {
     const weakerTeam = () =>
         teamA.score <= teamB.score ? teamA : teamB;
 
+    const teamLessWomen = () => {
+        const womenA = teamA.players.filter(p => p.sex === 'F').length;
+        const womenB = teamB.players.filter(p => p.sex === 'F').length;
+        if (womenA < womenB) return teamA;
+        if (womenB < womenA) return teamB;
+        // Si tienen la misma cantidad de mujeres, lo mandamos al equipo más débil
+        return weakerTeam();
+    };
+
     // ---- 1. Arqueros ----
     const gks = players.filter(
         (p) => p.positions && p.positions.includes("GK")
@@ -88,15 +97,26 @@ export function balanceTeams(players: Player[]): BalanceResult {
         warnings.push("⚠️ No hay arqueros confirmados");
     }
 
-    // ---- 2. Resto de jugadores por posición ----
-    const byPosition = (pos: Position) =>
-        rest
-            .filter((p) => p.positions?.includes(pos))
-            .sort((a, b) => b.level - a.level);
+    // ---- 2. Mujeres (1:1 Distribution) ----
+    const women = rest.filter(p => p.sex === 'F')
+        .sort((a, b) => b.level - a.level); // Ordenamos de mayor a menor nivel
 
     const used = new Set<string>();
-
     const playerKey = (p: Player) => p.id ?? p.name;
+
+    women.forEach((woman) => {
+        if (used.has(playerKey(woman))) return;
+        addToTeam(teamLessWomen(), woman);
+        used.add(playerKey(woman));
+    });
+
+    // ---- 3. Resto de jugadores (Hombres / No definidos) por posición ----
+    const remainingMen = rest.filter(p => !used.has(playerKey(p)));
+
+    const byPosition = (pos: Position) =>
+        remainingMen
+            .filter((p) => p.positions?.includes(pos))
+            .sort((a, b) => b.level - a.level);
 
     const assignGroup = (groupPlayers: Player[]) => {
         groupPlayers.forEach((p) => {
@@ -110,8 +130,8 @@ export function balanceTeams(players: Player[]): BalanceResult {
     assignGroup(byPosition("MID"));
     assignGroup(byPosition("FWD"));
 
-    // ---- 3. Restantes (comodines) ----
-    rest.forEach((p) => {
+    // ---- 4. Restantes (comodines) ----
+    remainingMen.forEach((p) => {
         if (used.has(playerKey(p))) return;
         addToTeam(weakerTeam(), p);
     });

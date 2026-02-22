@@ -178,6 +178,7 @@ export async function joinMatch(
           confirmed: true,
           level,
           positions,
+          sex: profile?.sex,
         },
       ],
       playerUids: arrayUnion(user.uid),
@@ -226,6 +227,7 @@ export async function joinWaitlist(
           waitlistJoinedAt: new Date().toISOString(),
           level,
           positions,
+          sex: profile?.sex,
         },
       ],
       playerUids: arrayUnion(user.uid),
@@ -264,6 +266,48 @@ export async function leaveWaitlist(
   }
 
   await updateDoc(ref, updateData);
+}
+
+/* =========================
+   APROBAR DE L. DE ESPERA
+========================= */
+export async function approveFromWaitlist(
+  matchId: string,
+  playerName: string
+) {
+  const ref = doc(db, "matches", matchId);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const players: Player[] = data.players || [];
+    const maxPlayers = data.maxPlayers ?? Infinity;
+
+    const playerIndex = players.findIndex(
+      (p) => p.name === playerName && p.isWaitlist
+    );
+    if (playerIndex === -1) return;
+
+    const confirmedCount = getConfirmedCount(players);
+
+    // ❌ Partido lleno
+    if (confirmedCount >= maxPlayers) {
+      throw new MatchFullError();
+    }
+
+    const updatedPlayers = [...players];
+    updatedPlayers[playerIndex] = {
+      ...updatedPlayers[playerIndex],
+      confirmed: true,
+      isWaitlist: false,
+    };
+
+    transaction.update(ref, {
+      players: updatedPlayers,
+    });
+  });
 }
 
 /* =========================
@@ -504,13 +548,13 @@ export async function voteForMVP(
       throw new Error("Ya has registrado tu voto. ¡Las decisiones son definitivas!");
     }
 
-    // 2. Validar ventana de 6 horas
+    // 2. Validar ventana de 5 horas
     const closedTime = new Date(data.closedAt).getTime();
     const now = new Date().getTime();
     const hoursDifference = (now - closedTime) / (1000 * 60 * 60);
 
-    if (hoursDifference > 6) {
-      throw new Error("El periodo de votación (6 horas post-partido) ha terminado.");
+    if (hoursDifference > 5) {
+      throw new Error("El periodo de votación (5 horas post-partido) ha terminado.");
     }
 
     // 2.5 Validar cierre matemático (alguien ya ganó por mayoría inalcanzable)

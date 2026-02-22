@@ -45,6 +45,7 @@ export interface Match {
     mvpVotes?: Record<string, string>; // { voterId: votedPlayerId_or_GuestName }
     closedAt?: string; // ISO String to track 12-hour limit
     isPrivate?: boolean; // If true, hide from Explore
+    remindersSent?: Record<string, boolean>; // Tracks sent notifications to avoid duplicate push dispatches
 }
 
 export interface CreateMatchInput {

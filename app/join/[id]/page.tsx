@@ -26,6 +26,7 @@ import {
   leaveWaitlist,
   voteForMVP,
 } from "@/lib/matches";
+import { triggerMvpNotification } from "@/lib/push";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 
@@ -117,6 +118,49 @@ export default function JoinMatchPage() {
       });
   }, [match]);
 
+
+  // 🔥 Reactive Push Trigger
+  // Movido al inicio para cumplir las Rules of Hooks (sin early returns previos)
+  useEffect(() => {
+    if (!match || match.status !== "closed" || match.remindersSent?.mvp === true) return;
+
+    // 5h Voting Window Validation
+    const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
+    const now = new Date().getTime();
+    const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
+    const timeLimitClosed = hoursSinceClosed > 5;
+
+    // Strict Mathematical Consensus Validation
+    const eligibleUIDs = new Set(
+      match.players?.filter((p: Player) => p.confirmed && p.uid && !p.uid.startsWith("guest_")).map((p: Player) => p.uid) || []
+    );
+    if (match.createdBy) eligibleUIDs.add(match.createdBy);
+
+    const totalEligibleVoters = eligibleUIDs.size;
+    const votesCast = match.mvpVotes ? Object.keys(match.mvpVotes).filter(uid => eligibleUIDs.has(uid)).length : 0;
+    const remainingVotes = totalEligibleVoters - votesCast;
+
+    const voteCounts: Record<string, number> = {};
+    if (match.mvpVotes) {
+      Object.values(match.mvpVotes).forEach((votedId) => {
+        voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
+      });
+    }
+
+    const sortedMVPLeaderboard = Object.entries(voteCounts).sort(([, a], [, b]) => b - a);
+    const topMvpScore = sortedMVPLeaderboard.length > 0 ? sortedMVPLeaderboard[0][1] : 0;
+    const secondHighestScore = sortedMVPLeaderboard.length > 1 ? sortedMVPLeaderboard[1][1] : 0;
+
+    const mathematicallyClosed = (topMvpScore > 0) && (topMvpScore > secondHighestScore + remainingVotes);
+    const allEligibleVoted = totalEligibleVoters > 0 && remainingVotes <= 0;
+
+    const earlyClosure = mathematicallyClosed || allEligibleVoted;
+    const votingClosed = timeLimitClosed || earlyClosure;
+
+    if (votingClosed) {
+      triggerMvpNotification(id).catch(() => { });
+    }
+  }, [match, id]);
 
   // ⏳ Auth o perfil cargando
   if (loading || loadingProfile) {
@@ -296,11 +340,11 @@ export default function JoinMatchPage() {
     .filter(([, score]) => score === topMvpScore && score > 0)
     .map(([id]) => id);
 
-  // 6h Voting Window Validation
+  // 5h Voting Window Validation
   const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
   const now = new Date().getTime();
   const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
-  const timeLimitClosed = hoursSinceClosed > 6;
+  const timeLimitClosed = hoursSinceClosed > 5;
 
   // Strict Mathematical Consensus Validation based on unique physical accounts
   const eligibleUIDs = new Set(

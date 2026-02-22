@@ -1,6 +1,7 @@
 import { getMessaging, getToken } from "firebase/messaging";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
-import { db } from "./firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { db, app } from "./firebase";
 import { handleError } from "./utils/error";
 
 export async function enablePushNotifications(uid: string) {
@@ -37,6 +38,31 @@ export async function enablePushNotifications(uid: string) {
     return token;
   } catch (error: unknown) {
     handleError(error, "Error activando notificaciones push. Verifica los permisos de tu navegador.");
+    return null;
+  }
+}
+
+export async function requestManualReminder(matchId: string) {
+  try {
+    const functions = getFunctions(app);
+    const sendReminder = httpsCallable<{ matchId: string }, { success: boolean, sentTokens: number }>(functions, "sendManualReminder");
+    const result = await sendReminder({ matchId });
+    return result.data;
+  } catch (error: unknown) {
+    handleError(error, "Error al enviar recordatorio manual.");
+    throw error;
+  }
+}
+
+export async function triggerMvpNotification(matchId: string) {
+  try {
+    const functions = getFunctions(app);
+    const sendMvpNotification = httpsCallable<{ matchId: string }, { success: boolean, message: string }>(functions, "sendMvpWinnerNotification");
+    const result = await sendMvpNotification({ matchId });
+    return result.data;
+  } catch (error: unknown) {
+    console.error("Silenced Error triggering MVP notification (idempotency safety):", error);
+    // Silent fail in UI as this is a background opportunistic job triggered by the client
     return null;
   }
 }

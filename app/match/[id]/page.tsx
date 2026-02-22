@@ -14,6 +14,7 @@ import {
   unconfirmAttendance,
   deletePlayerFromMatch,
   markPlayerAttendance,
+  approveFromWaitlist,
 } from "@/lib/matches";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -78,6 +79,21 @@ export default function MatchDetailPage() {
   const [scoreSaved, setScoreSaved] = useState(false);
   const [guestLevels, setGuestLevels] = useState<Record<string, PlayerLevel>>({});
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
+
+  async function handleManualReminder() {
+    if (!confirm("¿Seguro que quieres enviar una notificación Push a todos los jugadores registrados (confirmados y pendientes)?")) return;
+    setSendingReminder(true);
+    try {
+      const { requestManualReminder } = await import("@/lib/push");
+      const res = await requestManualReminder(id);
+      toast.success(`Recordatorios enviados a ${res.sentTokens} dispositivos activos.`);
+    } catch (err: unknown) {
+      handleError(err, "Hubo un error al desencadenar las notificaciones Manuales.");
+    } finally {
+      setSendingReminder(false);
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -445,6 +461,19 @@ export default function MatchDetailPage() {
             </div>
           </div>
 
+          {/* ACCIONES DEL ADMIN */}
+          {isOwner && !isClosed && (
+            <div className="mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+              <button
+                onClick={handleManualReminder}
+                disabled={sendingReminder}
+                className="w-full py-3 mb-4 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm text-amber-700 font-bold flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors disabled:opacity-50"
+              >
+                <span className="text-xl">{sendingReminder ? "⏳" : "🔔"}</span>
+                {sendingReminder ? "Despachando notificaciones..." : "Enviar Recordatorio (Push)"}
+              </button>
+            </div>
+          )}
 
           {/* AGREGAR JUGADORES (Collapsible) */}
           {isOwner && !isClosed && (
@@ -817,21 +846,38 @@ export default function MatchDetailPage() {
                           </span>
 
                           {isOwner && !isClosed && (
-                            <button
-                              onClick={async () => {
-                                if (!confirm(`¿Eliminar a ${p.name} de la lista de espera?`)) return;
-                                try {
-                                  await deletePlayerFromMatch(id, p.name);
-                                  await loadMatch();
-                                  toast.success("Suplente eliminado");
-                                } catch (err: unknown) {
-                                  handleError(err, "Error al eliminar suplente.");
-                                }
-                              }}
-                              className="text-xs font-bold px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
-                            >
-                              Eliminar
-                            </button>
+                            <>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await approveFromWaitlist(id, p.name);
+                                    await loadMatch();
+                                    toast.success("Suplente aceptado y confirmado");
+                                  } catch (err: unknown) {
+                                    handleError(err, "Error al aceptar suplente.");
+                                  }
+                                }}
+                                className="text-xs font-bold px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"
+                              >
+                                Aceptar
+                              </button>
+
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`¿Eliminar a ${p.name} de la lista de espera?`)) return;
+                                  try {
+                                    await deletePlayerFromMatch(id, p.name);
+                                    await loadMatch();
+                                    toast.success("Suplente eliminado");
+                                  } catch (err: unknown) {
+                                    handleError(err, "Error al eliminar suplente.");
+                                  }
+                                }}
+                                className="text-xs font-bold px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
+                              >
+                                Eliminar
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

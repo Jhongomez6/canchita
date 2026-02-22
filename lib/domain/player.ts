@@ -53,6 +53,7 @@ export interface Player {
     attendance?: AttendanceStatus;
     isWaitlist?: boolean;
     waitlistJoinedAt?: string;
+    sex?: 'M' | 'F';
 }
 
 // ========================
