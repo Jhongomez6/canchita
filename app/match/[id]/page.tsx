@@ -65,6 +65,7 @@ export default function MatchDetailPage() {
   const [manualName, setManualName] = useState("");
   const [manualLevel, setManualLevel] = useState(2);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [manualPositions, setManualPositions] = useState<string[]>([]);
   const [maxPlayersDraft, setMaxPlayersDraft] = useState<number | null>(null);
   const [location, setLocation] = useState<Location | null>(null);
@@ -438,28 +439,52 @@ export default function MatchDetailPage() {
               </div>
             )}
 
-            <div className="mt-6 flex gap-2">
-              <div className="relative flex-1">
-                <input
-                  value={`${window.location.origin}/join/${id}`}
-                  readOnly
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 font-mono"
-                />
-                <span className="absolute left-3 top-3 text-slate-400">🔗</span>
+            <div className="mt-6 flex flex-col gap-3">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    value={`${window.location.origin}/join/${id}`}
+                    readOnly
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 font-mono"
+                  />
+                  <span className="absolute left-3 top-3 text-slate-400">🔗</span>
+                </div>
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(
+                      `${window.location.origin}/join/${id}`
+                    );
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  }}
+                  className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${copied ? "bg-[#16a34a]" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                  {copied ? "Copiado" : "Copiar"}
+                </button>
               </div>
-              <button
-                onClick={async () => {
-                  await navigator.clipboard.writeText(
-                    `${window.location.origin}/join/${id}`
-                  );
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                }}
-                className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${copied ? "bg-[#16a34a]" : "bg-blue-600 hover:bg-blue-700"
-                  }`}
-              >
-                {copied ? "Copiado" : "Copiar"}
-              </button>
+
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    value={id}
+                    readOnly
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 font-mono font-bold tracking-wider"
+                  />
+                  <span className="absolute left-3 top-3 text-slate-400">🔐</span>
+                </div>
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(id);
+                    setCopiedCode(true);
+                    setTimeout(() => setCopiedCode(false), 1500);
+                  }}
+                  className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${copiedCode ? "bg-[#16a34a]" : "bg-slate-700 hover:bg-slate-800"
+                    }`}
+                >
+                  {copiedCode ? "Copiado" : "Copiar"}
+                </button>
+              </div>
             </div>
           </div>
 
