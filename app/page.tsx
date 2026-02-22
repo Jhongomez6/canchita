@@ -135,35 +135,49 @@ export default function Home() {
                 </Link>
               </div>
             ) : (
-              <div className="bg-white/10 rounded-2xl p-6 text-center backdrop-blur-sm border border-white/20">
-                <p className="font-medium text-emerald-50 mb-4">No tienes partidos próximos</p>
+              <div className="bg-white/10 rounded-3xl p-6 text-center shadow-inner border border-white/20">
+                <div className="mb-5">
+                  <p className="font-bold text-lg text-white mb-0.5">Empieza a jugar</p>
+                  <p className="text-sm text-emerald-100/90 font-medium">No tienes partidos próximos programados.</p>
+                </div>
 
-                <div className="flex gap-2 max-w-xs mx-auto mb-4">
+                <div className="relative max-w-[260px] mx-auto mb-6">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <span className="text-lg opacity-60">🔑</span>
+                  </div>
                   <input
                     type="text"
                     placeholder="Código privado..."
                     value={quickCode}
                     onChange={(e) => setQuickCode(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-xl text-slate-800 text-sm border border-transparent focus:ring-2 focus:ring-emerald-300 outline-none placeholder:text-slate-400 font-mono"
+                    className="w-full pl-11 pr-16 py-3.5 bg-white text-slate-800 text-sm font-bold placeholder:font-medium placeholder:text-slate-400 rounded-2xl border-none focus:outline-none focus:ring-4 focus:ring-emerald-400/30 transition-all shadow-md"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && quickCode.trim()) {
                         router.push(`/join/${quickCode.trim()}`);
                       }
                     }}
                   />
-                  <button
-                    onClick={() => {
-                      if (quickCode.trim()) router.push(`/join/${quickCode.trim()}`);
-                    }}
-                    disabled={!quickCode.trim()}
-                    className="px-4 py-2 bg-white text-[#1f7a4f] rounded-xl font-bold text-sm shadow-sm hover:bg-emerald-50 disabled:opacity-50 transition-colors"
-                  >
-                    Ir
-                  </button>
+                  <div className="absolute inset-y-1.5 right-1.5">
+                    <button
+                      onClick={() => {
+                        if (quickCode.trim()) router.push(`/join/${quickCode.trim()}`);
+                      }}
+                      disabled={!quickCode.trim()}
+                      className="h-full px-4 bg-[#1f7a4f] text-white rounded-xl font-bold text-sm shadow hover:bg-[#16603c] disabled:opacity-50 transition-colors flex items-center"
+                    >
+                      Ir
+                    </button>
+                  </div>
                 </div>
 
-                <Link href="/explore" className="text-sm font-bold text-white/90 underline mt-1 block hover:text-white transition-colors">
-                  O explorar partidos abiertos 🔍
+                <div className="flex items-center justify-center gap-3 mb-5">
+                  <div className="h-px w-8 bg-white/20"></div>
+                  <span className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">O explora</span>
+                  <div className="h-px w-8 bg-white/20"></div>
+                </div>
+
+                <Link href="/explore" className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold shadow-sm transition-colors border border-white/10 w-full justify-center max-w-[260px] mx-auto">
+                  <span className="text-base">🔍</span> Partidos Abiertos
                 </Link>
               </div>
             )}
