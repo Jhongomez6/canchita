@@ -37,6 +37,8 @@ For each affected feature SDD in `docs/`:
 | Locations | `docs/LOCATIONS_FEATURE_SDD.md` |
 | Team Balance | `docs/TEAM_BALANCE_FEATURE_SDD.md` |
 | Player Stats | `docs/PLAYER_STATS_FEATURE_SDD.md` |
+| Error Handling | `docs/ERROR_HANDLING_SDD.md` |
+| Beta Feedback | `docs/BETA_FEEDBACK_FEATURE_SDD.md` |
 
 ## Checklist
 

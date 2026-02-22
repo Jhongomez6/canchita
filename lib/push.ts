@@ -1,6 +1,7 @@
 import { getMessaging, getToken } from "firebase/messaging";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "./firebase";
+import { handleError } from "./utils/error";
 
 export async function enablePushNotifications(uid: string) {
   try {
@@ -34,8 +35,8 @@ export async function enablePushNotifications(uid: string) {
 
     console.log("✅ Token FCM guardado:", token);
     return token;
-  } catch (error) {
-    console.error("🔥 Error activando notificaciones:", error);
+  } catch (error: unknown) {
+    handleError(error, "Error activando notificaciones push. Verifica los permisos de tu navegador.");
     return null;
   }
 }

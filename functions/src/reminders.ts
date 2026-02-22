@@ -65,12 +65,13 @@ export const matchReminders = onSchedule(
 
       const reminderMinutes = [1440, 720, 360];
 
-      const tolerance = 3; // minutos de margen
+      const windowMinutes = 120; // 2 horas de ventana por si hay delay en el cronjob
 
       for (const min of reminderMinutes) {
         if (
           diffMinutes > 0 &&
-          Math.abs(diffMinutes - min) <= tolerance
+          diffMinutes <= min &&
+          diffMinutes > min - windowMinutes
         ) {
           await sendReminderIfNeeded(
             doc.id,

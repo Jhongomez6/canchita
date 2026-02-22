@@ -47,6 +47,8 @@ import { getTeamSummary } from "@/lib/domain/team";
 import type { Guest } from "@/lib/domain/guest";
 import { guestToPlayer } from "@/lib/domain/guest";
 import { removeGuestFromMatch } from "@/lib/guests";
+import { toast } from "react-hot-toast";
+import { handleError } from "@/lib/utils/error";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -132,14 +134,19 @@ export default function MatchDetailPage() {
     // Clean undefined values to prevent Firebase errors
     const cleanObject = (obj: any) => JSON.parse(JSON.stringify(obj));
 
-    await saveTeams(id, {
-      A: cleanObject(result.teamA.players),
-      B: cleanObject(result.teamB.players),
-    });
+    try {
+      await saveTeams(id, {
+        A: cleanObject(result.teamA.players),
+        B: cleanObject(result.teamB.players),
+      });
 
-    await loadMatch();
-
-    setBalancing(false);
+      await loadMatch();
+      toast.success("Equipos balanceados y guardados");
+    } catch (err: unknown) {
+      handleError(err, "Hubo un error balanceando los equipos.");
+    } finally {
+      setBalancing(false);
+    }
   }
 
   async function generateWhatsAppReport() {
@@ -484,19 +491,24 @@ export default function MatchDetailPage() {
                       disabled={!selectedUid || isFull}
                       onClick={async () => {
                         if (isFull) return;
-                        const profile = await getUserProfile(selectedUid);
-                        if (!profile) return;
+                        try {
+                          const profile = await getUserProfile(selectedUid);
+                          if (!profile) return;
 
-                        await addPlayerToMatch(id, {
-                          uid: selectedUid,
-                          name: profile.name,
-                          level: 2,
-                          positions: profile.positions || [],
-                        });
+                          await addPlayerToMatch(id, {
+                            uid: selectedUid,
+                            name: profile.name,
+                            level: 2,
+                            positions: profile.positions || [],
+                          });
 
-                        setSelectedUid("");
-                        setIsAddPlayerOpen(false);
-                        loadMatch();
+                          setSelectedUid("");
+                          setIsAddPlayerOpen(false);
+                          loadMatch();
+                          toast.success("Jugador agregado!");
+                        } catch (err: unknown) {
+                          handleError(err, "Hubo un error al agregar al jugador.");
+                        }
                       }}
                       className="bg-[#1f7a4f] text-white font-bold py-2 px-6 rounded-xl disabled:opacity-50 hover:bg-[#16603c] transition-colors"
                     >
@@ -808,8 +820,13 @@ export default function MatchDetailPage() {
                             <button
                               onClick={async () => {
                                 if (!confirm(`¿Eliminar a ${p.name} de la lista de espera?`)) return;
-                                await deletePlayerFromMatch(id, p.name);
-                                loadMatch();
+                                try {
+                                  await deletePlayerFromMatch(id, p.name);
+                                  await loadMatch();
+                                  toast.success("Suplente eliminado");
+                                } catch (err: unknown) {
+                                  handleError(err, "Error al eliminar suplente.");
+                                }
                               }}
                               className="text-xs font-bold px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
                             >
@@ -1005,6 +1022,8 @@ export default function MatchDetailPage() {
                             setTeamsSaved(false);
                           }, 2000);
 
+                        } catch (err: unknown) {
+                          handleError(err, "Error al guardar equipos manualmente");
                         } finally {
                           setSavingTeams(false);
                         }
@@ -1038,6 +1057,8 @@ export default function MatchDetailPage() {
                               setCopiedReport(false);
                             }, 2000);
 
+                          } catch (err: unknown) {
+                            handleError(err, "Error al copiar el reporte");
                           } finally {
                             setCopyingReport(false);
                           }
@@ -1157,6 +1178,8 @@ export default function MatchDetailPage() {
 
                       setScoreSaved(true);
                       setTimeout(() => setScoreSaved(false), 2000);
+                    } catch (err: unknown) {
+                      handleError(err, "Error al guardar el marcador.");
                     } finally {
                       setSavingScore(false);
                     }
@@ -1198,7 +1221,7 @@ export default function MatchDetailPage() {
                     const freshMatch = snap.data() as Match;
 
                     if (!freshMatch?.teams?.A || !freshMatch?.teams?.B) {
-                      alert("Primero debes balancear los equipos.");
+                      toast.error("Primero debes balancear los equipos.");
                       return;
                     }
 
@@ -1267,12 +1290,12 @@ export default function MatchDetailPage() {
                       await updatePlayerStats(teamBWithAttendance, "draw", id, previousResultB);
                     }
 
-                    // 5️⃣ Cerrar partido
                     await closeMatch(id);
 
                     await loadMatch();
-                  } catch (error) {
-                    console.error("Error cerrando partido:", error);
+                    toast.success("¡El partido ha sido cerrado!");
+                  } catch (error: unknown) {
+                    handleError(error, "Error cerrando el partido y guardando estado.");
                   }
                 }}
                 className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${!match?.teams
@@ -1299,7 +1322,7 @@ export default function MatchDetailPage() {
             )}
           </div>
         </div>
-      </main>
+      </main >
     </AuthGuard >
   );
 }

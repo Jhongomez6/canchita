@@ -10,7 +10,8 @@ import { getActiveLocations } from "@/lib/locations";
 import { Timestamp } from "firebase/firestore";
 import type { UserProfile } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
-import Image from "next/image";
+import { toast } from "react-hot-toast";
+import { handleError } from "@/lib/utils/error";
 
 export default function NewMatchPage() {
   const { user } = useAuth();
@@ -61,7 +62,7 @@ export default function NewMatchPage() {
     );
 
     if (!date || !locationId) {
-      alert("Completa todos los campos");
+      toast.error("Por favor completa todos los campos del partido");
       setSubmitting(false);
       return;
     }
@@ -83,9 +84,10 @@ export default function NewMatchPage() {
         isPrivate,
       });
 
+      toast.success("¡Partido creado exitosamente!");
       router.push("/");
-    } catch (e: any) {
-      alert("Error al crear el partido: " + e.message);
+    } catch (e: unknown) {
+      handleError(e, "Error al crear el partido");
       setSubmitting(false);
     }
   }

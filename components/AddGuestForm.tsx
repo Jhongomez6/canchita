@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Position, ALLOWED_POSITIONS } from "@/lib/domain/guest";
 import { addGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { POSITION_LABELS } from "@/lib/domain/player";
+import { toast } from "react-hot-toast";
+import { handleError } from "@/lib/utils/error";
 
 interface AddGuestFormProps {
   matchId: string;
@@ -25,7 +27,6 @@ export default function AddGuestForm({
   const [name, setName] = useState("");
   const [selectedPositions, setSelectedPositions] = useState<Position[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // ========================
   // VALIDACIONES
@@ -53,10 +54,9 @@ export default function AddGuestForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
     if (!isFormValid) {
-      setError("Por favor completa todos los campos correctamente");
+      toast.error("Por favor completa todos los campos correctamente");
       return;
     }
 
@@ -72,14 +72,13 @@ export default function AddGuestForm({
       setSelectedPositions([]);
       setIsOpen(false); // Close after success
 
+      toast.success("Invitado agregado correctamente");
       if (onSuccess) onSuccess();
-    } catch (err: any) {
-      if (err.name === "GuestValidationError") {
-        setError(`Error de validación: ${err.message}`);
-      } else if (err.message === "MATCH_FULL") {
-        setError("El partido está lleno");
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "GuestValidationError") {
+        handleError(`Error de validación: ${err.message}`);
       } else {
-        setError(err.message || "Error al agregar invitado");
+        handleError(err, "Error al agregar invitado");
       }
     } finally {
       setIsSubmitting(false);
@@ -90,13 +89,13 @@ export default function AddGuestForm({
     if (!confirm("¿Eliminar a tu invitado?")) return;
 
     setIsSubmitting(true);
-    setError(null);
 
     try {
       await removeGuestFromMatch(matchId, playerUid);
+      toast.success("Invitado eliminado");
       if (onSuccess) onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Error al eliminar invitado");
+    } catch (err: unknown) {
+      handleError(err, "Error al eliminar invitado");
     } finally {
       setIsSubmitting(false);
     }
@@ -130,8 +129,6 @@ export default function AddGuestForm({
         >
           {isSubmitting ? "Eliminando..." : "Eliminar invitado"}
         </button>
-
-        {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
       </div>
     );
   }
@@ -231,12 +228,6 @@ export default function AddGuestForm({
         >
           {isSubmitting ? "Agregando..." : "Confirmar invitado"}
         </button>
-
-        {error && (
-          <p className="text-red-500 text-sm mt-3 text-center font-medium bg-red-50 p-2 rounded-lg">
-            {error}
-          </p>
-        )}
       </form>
     </div>
   );

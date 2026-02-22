@@ -1,0 +1,125 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import AuthGuard from "@/components/AuthGuard";
+import { useAuth } from "@/lib/AuthContext";
+import { getUserProfile } from "@/lib/users";
+import { getAllFeedback } from "@/lib/admin-feedback";
+import type { Feedback } from "@/lib/domain/feedback";
+import { formatDateSpanish } from "@/lib/date";
+
+export default function AdminFeedbackPage() {
+    const { user } = useAuth();
+    const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+    const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+        getUserProfile(user.uid).then((p) => {
+            const admin = p?.roles.includes("admin") ?? false;
+            setIsAdmin(admin);
+            if (admin) {
+                loadData();
+            } else {
+                setLoading(false);
+            }
+        });
+    }, [user]);
+
+    async function loadData() {
+        try {
+            setLoading(true);
+            const data = await getAllFeedback();
+            setFeedbacks(data);
+        } catch (error) {
+            console.error("Error loading feedback", error);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    // 🛡️ Protección Admin-only
+    if (isAdmin === false) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+                <h1 className="text-2xl font-bold text-slate-800 mb-2">Acceso Denegado 🛑</h1>
+                <p className="text-slate-500">No tienes permisos para ver el panel de Feedback.</p>
+            </div>
+        );
+    }
+
+    return (
+        <AuthGuard>
+            <main className="min-h-screen bg-slate-50 pb-28 md:pb-8">
+                <div className="max-w-4xl mx-auto p-4 md:p-8">
+
+                    <div className="mb-6 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-6 text-amber-50 shadow-lg text-center md:text-left flex flex-col md:flex-row items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                                <span className="text-3xl drop-shadow-sm">📣</span> Feedback Recibido
+                            </h1>
+                            <p className="text-sm text-amber-100 font-medium">Bugs e ideas reportadas por los jugadores (Beta).</p>
+                        </div>
+
+                        <div className="mt-4 md:mt-0 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20">
+                            <span className="text-xl font-bold text-white">{feedbacks.length}</span> reportes totales
+                        </div>
+                    </div>
+
+                    {feedbacks.length === 0 ? (
+                        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-dashed border-slate-300">
+                            <span className="text-4xl block mb-2 opacity-50">🦗</span>
+                            <p className="text-slate-500 font-bold mb-1">Aún no hay feedback</p>
+                            <p className="text-xs text-slate-400">Todo parece funcionar de maravilla.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {feedbacks.map((f) => (
+                                <div key={f.id} className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 hover:shadow-md transition-shadow relative overflow-hidden group">
+                                    {/* Etiqueta Visual por tipo */}
+                                    <div className={`absolute top-0 right-0 px-3 py-1 text-[10px] font-bold rounded-bl-xl uppercase tracking-wider ${f.type === 'bug' ? 'bg-red-100 text-red-700' :
+                                            f.type === 'idea' ? 'bg-emerald-100 text-emerald-700' :
+                                                'bg-blue-100 text-blue-700'
+                                        }`}>
+                                        {f.type === 'bug' ? '🐛 Bug' : f.type === 'idea' ? '💡 Idea' : '💬 Otro'}
+                                    </div>
+
+                                    <div className="mb-3 pr-16 text-xs text-slate-400 font-medium">
+                                        {formatDateSpanish(f.createdAt.split('T')[0])}
+                                    </div>
+
+                                    <p className="text-sm font-semibold text-slate-700 mb-3 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">
+                                        "{f.message}"
+                                    </p>
+
+                                    <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                                        <div className="text-xs font-bold text-slate-500">
+                                            👤 {f.userName}
+                                        </div>
+                                        {f.urlContext && (
+                                            <div className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded truncate max-w-[120px]" title={f.urlContext}>
+                                                {f.urlContext.replace('https://la-canchita.vercel.app', '')}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </main>
+        </AuthGuard>
+    );
+}

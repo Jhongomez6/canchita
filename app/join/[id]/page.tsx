@@ -26,6 +26,8 @@ import {
   leaveWaitlist,
   voteForMVP,
 } from "@/lib/matches";
+import { toast } from "react-hot-toast";
+import { handleError } from "@/lib/utils/error";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
@@ -57,8 +59,8 @@ export default function JoinMatchPage() {
       }
 
       setMatch({ id: snap.id, ...snap.data() } as Match);
-    } catch (e) {
-      console.error(e);
+    } catch (e: unknown) {
+      handleError(e, "No se pudo cargar el partido");
       setError("No se pudo cargar el partido");
     }
   }
@@ -76,7 +78,7 @@ export default function JoinMatchPage() {
         setLoadingProfile(false);
       })
       .catch(err => {
-        console.error("Error cargando perfil:", err);
+        handleError(err, "Error cargando perfil");
         setProfile({ uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
         setLoadingProfile(false);
       });
@@ -457,8 +459,9 @@ export default function JoinMatchPage() {
                         name: playerName,
                       });
                       await loadMatch();
-                    } catch (e: any) {
-                      console.error("Error joining waitlist:", e);
+                      toast.success("Te has unido a la lista de espera");
+                    } catch (e: unknown) {
+                      handleError(e, "Hubo un error uniéndose a la lista de espera");
                     } finally {
                       setSubmitting(false);
                     }
@@ -480,6 +483,9 @@ export default function JoinMatchPage() {
                     try {
                       await leaveWaitlist(id, playerName);
                       await loadMatch();
+                      toast.success("Has salido de la lista de espera");
+                    } catch (err: unknown) {
+                      handleError(err, "Hubo un error al salir de la lista de espera");
                     } finally {
                       setSubmitting(false);
                     }
@@ -502,10 +508,9 @@ export default function JoinMatchPage() {
                         name: playerName,
                       });
                       await loadMatch();
-                    } catch (e: any) {
-                      if (e.message === "MATCH_FULL") {
-                        alert("El partido se llenó justo ahora 😬");
-                      }
+                      toast.success("Asistencia confirmada!");
+                    } catch (e: unknown) {
+                      handleError(e, "Hubo un error al confirmar tu asistencia");
                     } finally {
                       setSubmitting(false);
                     }
@@ -531,6 +536,9 @@ export default function JoinMatchPage() {
                       try {
                         await unconfirmAttendance(id, playerName);
                         await loadMatch();
+                        toast.success("Has liberado tu cupo");
+                      } catch (err: unknown) {
+                        handleError(err, "Hubo un error al liberar tu cupo");
                       } finally {
                         setSubmitting(false);
                       }
@@ -563,11 +571,10 @@ export default function JoinMatchPage() {
                         // Also clear waitlist flag just in case
                         await leaveWaitlist(id, playerName);
                         await loadMatch();
-                      } catch (e: any) {
-                        if (e.message === "MATCH_FULL") {
-                          alert("Alguien te ganó el cupo 😬");
-                          await loadMatch();
-                        }
+                        toast.success("¡Asistencia confirmada!");
+                      } catch (e: unknown) {
+                        handleError(e, "Error al tomar el cupo. Alguien pudo haberte ganado.");
+                        await loadMatch();
                       } finally {
                         setSubmitting(false);
                       }
@@ -587,6 +594,9 @@ export default function JoinMatchPage() {
                         try {
                           await leaveWaitlist(id, playerName);
                           await loadMatch();
+                          toast.success("Has salido de la lista de espera");
+                        } catch (err: unknown) {
+                          handleError(err, "Hubo un error al salir de la lista de espera");
                         } finally {
                           setSubmitting(false);
                         }
@@ -866,8 +876,9 @@ export default function JoinMatchPage() {
                                           try {
                                             await voteForMVP(id, user.uid, targetId);
                                             await loadMatch();
-                                          } catch (err: any) {
-                                            alert(err.message);
+                                            toast.success("Tu voto ha sido registrado");
+                                          } catch (err: unknown) {
+                                            handleError(err, "Hubo un error al registrar tu voto");
                                           } finally {
                                             setSubmittingVote(false);
                                           }

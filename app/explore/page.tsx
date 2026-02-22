@@ -13,6 +13,7 @@ import MatchCard from "@/components/MatchCard";
 import type { Match } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
 import type { UserProfile } from "@/lib/domain/user";
+import { handleError } from "@/lib/utils/error";
 
 export default function ExplorePage() {
     const { user } = useAuth();
@@ -66,7 +67,7 @@ export default function ExplorePage() {
             setLocationsMap(map);
             setLoading(false);
         }).catch(err => {
-            console.error("Error fetching open matches:", err);
+            handleError(err, "Error al buscar partidos abiertos");
             setLoading(false);
         });
     }, [user]);

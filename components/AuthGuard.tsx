@@ -8,6 +8,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { isInAppBrowser } from "@/lib/browser";
 import type { UserProfile } from "@/lib/domain/user";
+import { handleError } from "@/lib/utils/error";
 
 export default function AuthGuard({
   children,
@@ -33,7 +34,7 @@ export default function AuthGuard({
         setProfile(p || { uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
       })
       .catch(err => {
-        console.error("Error cargando perfil en AuthGuard:", err);
+        handleError(err, "Error cargando perfil de usuario");
         setProfile({ uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
       });
   }, [user]);

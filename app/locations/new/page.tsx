@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { createLocation } from "@/lib/locations";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
+import { toast } from "react-hot-toast";
+import { handleError } from "@/lib/utils/error";
 
 declare global {
   interface Window {
@@ -22,7 +24,6 @@ export default function NewLocationPage() {
 
   const [place, setPlace] = useState<any>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
   if (!user) return null;
 
@@ -30,7 +31,7 @@ export default function NewLocationPage() {
     if (!place || !user) return;
 
     setSaving(true);
-    setError("");
+    setSaving(true);
 
     try {
       await createLocation({
@@ -43,8 +44,9 @@ export default function NewLocationPage() {
       });
 
       router.push("/new-match");
-    } catch (e: any) {
-      setError(e.message || "Error al guardar la cancha");
+      toast.success("Cancha guardada correctamente.");
+    } catch (e: unknown) {
+      handleError(e, "Error al guardar la cancha");
     } finally {
       setSaving(false);
     }
@@ -115,10 +117,6 @@ export default function NewLocationPage() {
               {saving ? "Guardando..." : "Guardar cancha"}
             </button>
           </div>
-        )}
-
-        {error && (
-          <p style={{ color: "red", marginTop: 12 }}>{error}</p>
         )}
       </main>
 

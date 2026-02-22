@@ -89,5 +89,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /* =========================
+       📢 FEEDBACK
+    ========================= */
+    match /feedback/{feedbackId} {
+      // Leer: solo admins
+      allow read: if request.auth != null && isAdmin();
+      
+      // Crear: cualquier usuario autenticado puede crear su propio feedback
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // Update/Delete: Nadie puede (o administrado desde panel de GCP)
+      allow update, delete: if false;
+    }
+
   }
 }

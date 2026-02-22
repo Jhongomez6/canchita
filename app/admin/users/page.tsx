@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { getAllUsers, deleteUser, getUserProfile, updateUserRoles } from "@/lib/users";
 import AuthGuard from "@/components/AuthGuard";
 import type { UserProfile, UserRole } from "@/lib/domain/user";
+import { toast } from "react-hot-toast";
+import { handleError } from "@/lib/utils/error";
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
@@ -46,9 +48,9 @@ export default function AdminUsersPage() {
     try {
       await deleteUser(uid);
       await loadUsers();
-    } catch (error) {
-      console.error("Error eliminando usuario:", error);
-      alert("Error al eliminar usuario");
+      toast.success("Usuario eliminado");
+    } catch (error: unknown) {
+      handleError(error, "Error al eliminar usuario");
     } finally {
       setDeleting(null);
     }
@@ -66,8 +68,9 @@ export default function AdminUsersPage() {
     try {
       await updateUserRoles(targetUser.uid, newRoles);
       setUsers(prev => prev.map(u => u.uid === targetUser.uid ? { ...u, roles: newRoles as UserRole[] } : u));
-    } catch (err) {
-      console.error("Error actualizando roles:", err);
+      toast.success("Roles actualizados");
+    } catch (err: unknown) {
+      handleError(err, "Error actualizando roles");
     }
   }
 

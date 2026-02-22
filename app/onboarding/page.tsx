@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { saveOnboardingResult } from "@/lib/users";
+import { handleError } from "@/lib/utils/error";
 import {
     calculateInitialRating,
     type OnboardingData,
@@ -170,9 +171,8 @@ export default function OnboardingPage() {
                     setStep(7);
                 }, remaining > 0 ? remaining : 0);
             } catch (err) {
-                console.error("Error saving onboarding:", err);
                 clearInterval(interval);
-                alert("Hubo un error al guardar tu perfil. Intenta de nuevo.");
+                handleError(err, "Hubo un error al guardar tu perfil. Intenta de nuevo.");
                 setStep(5);
             }
         })();

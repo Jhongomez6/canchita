@@ -4,6 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
+import { Toaster } from "react-hot-toast";
+import BetaFeedbackWidget from "@/components/BetaFeedbackWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +45,8 @@ export default function RootLayout({
 
           <div className="pb-24 md:pb-0">
             {children}
+            <Toaster position="top-center" />
+            <BetaFeedbackWidget />
           </div>
 
           <BottomNav />

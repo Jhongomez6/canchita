@@ -9,6 +9,7 @@ import type { Position } from "@/lib/domain/player";
 import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain/player";
 import type { UserStats } from "@/lib/domain/user";
 import type { Foot, CourtSize } from "@/lib/domain/rating";
+import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import StatsCard from "@/components/StatsCard";
 
@@ -80,7 +81,8 @@ export default function ProfilePage() {
         if (profile?.preferredCourt) setPreferredCourt(profile.preferredCourt);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        handleError(err, "Error cargando perfil");
         setPositions([]);
         setLoading(false);
       });
@@ -156,6 +158,8 @@ export default function ProfilePage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       setEditing(false);
+    } catch (err: unknown) {
+      handleError(err, "Error al guardar los cambios del perfil");
     } finally {
       setSaving(false);
     }
@@ -281,7 +285,10 @@ export default function ProfilePage() {
                             try {
                               await requestReEvaluation(user.uid);
                               router.push("/onboarding");
-                            } catch { setRequestingReeval(false); }
+                            } catch (err: unknown) {
+                              handleError(err, "Error solicitando re-evaluación");
+                              setRequestingReeval(false);
+                            }
                           }}
                           className="text-xs font-bold text-amber-600 hover:text-amber-700 underline"
                         >

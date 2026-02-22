@@ -113,6 +113,25 @@ export default function BottomNav() {
                     </Link>
                 )}
 
+                {/* ADMIN FEEDBACK (Admin Only) */}
+                {isAdmin && (
+                    <Link href="/admin/feedback" className={navItemClass(pathname.startsWith("/admin/feedback"))}>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill={pathname.startsWith("/admin/feedback") ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth={pathname.startsWith("/admin/feedback") ? "0" : "2"}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-7 h-7"
+                        >
+                            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                        </svg>
+                        <span className="text-[10px] font-bold tracking-wide">Sugerencias</span>
+                    </Link>
+                )}
+
                 {/* PROFILE */}
                 <Link href="/profile" className={navItemClass(pathname === "/profile")}>
                     <svg
