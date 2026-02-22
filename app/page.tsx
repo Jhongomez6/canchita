@@ -14,8 +14,10 @@ import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
 import MatchCard from "@/components/MatchCard";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -23,6 +25,7 @@ export default function Home() {
   const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
   const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
+  const [quickCode, setQuickCode] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -133,9 +136,34 @@ export default function Home() {
               </div>
             ) : (
               <div className="bg-white/10 rounded-2xl p-6 text-center backdrop-blur-sm border border-white/20">
-                <p className="font-medium text-emerald-50">No tienes partidos próximos</p>
-                <Link href="/explore" className="text-sm font-bold underline mt-1 block">
-                  Buscar partidos
+                <p className="font-medium text-emerald-50 mb-4">No tienes partidos próximos</p>
+
+                <div className="flex gap-2 max-w-xs mx-auto mb-4">
+                  <input
+                    type="text"
+                    placeholder="Código privado..."
+                    value={quickCode}
+                    onChange={(e) => setQuickCode(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-xl text-slate-800 text-sm border border-transparent focus:ring-2 focus:ring-emerald-300 outline-none placeholder:text-slate-400 font-mono"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && quickCode.trim()) {
+                        router.push(`/join/${quickCode.trim()}`);
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      if (quickCode.trim()) router.push(`/join/${quickCode.trim()}`);
+                    }}
+                    disabled={!quickCode.trim()}
+                    className="px-4 py-2 bg-white text-[#1f7a4f] rounded-xl font-bold text-sm shadow-sm hover:bg-emerald-50 disabled:opacity-50 transition-colors"
+                  >
+                    Ir
+                  </button>
+                </div>
+
+                <Link href="/explore" className="text-sm font-bold text-white/90 underline mt-1 block hover:text-white transition-colors">
+                  O explorar partidos abiertos 🔍
                 </Link>
               </div>
             )}

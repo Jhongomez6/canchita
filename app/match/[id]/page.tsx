@@ -309,11 +309,11 @@ export default function MatchDetailPage() {
     .filter(([, score]) => score === topMvpScore && score > 0)
     .map(([id]) => id);
 
-  // 6h Voting Window Validation
+  // 5h Voting Window Validation
   const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
   const now = new Date().getTime();
   const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
-  const timeLimitClosed = hoursSinceClosed > 6;
+  const timeLimitClosed = hoursSinceClosed > 5;
 
   // Strict Mathematical Consensus Validation based on unique physical accounts
   const eligibleUIDs = new Set(
@@ -387,6 +387,12 @@ export default function MatchDetailPage() {
                       🔒 Privado
                     </span>
                   )}
+                  <a
+                    href={`/join/${id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors ml-1"
+                  >
+                    <span>👁️</span> Ver como jugador
+                  </a>
                 </div>
               </div>
 
@@ -424,7 +430,17 @@ export default function MatchDetailPage() {
                 <span className="text-xl">⏰</span>
                 <span className="text-slate-600 font-medium">{formatTime12h(match.time)}</span>
               </div>
-              <div className="flex items-center gap-3">
+
+              {isClosed && match.closedAt && (
+                <div className="flex items-center gap-3 bg-red-50 p-2 rounded-lg border border-red-100 mt-2">
+                  <span className="text-lg">🔒</span>
+                  <span className="text-red-700 font-bold text-sm">
+                    Cerrado a las {new Date(match.closedAt).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 mt-3">
                 <span className="text-xl">👥</span>
                 <span className={`font-bold ${isFull ? "text-red-500" : "text-emerald-600"}`}>
                   {confirmedCount} / {match.maxPlayers} Confirmados
