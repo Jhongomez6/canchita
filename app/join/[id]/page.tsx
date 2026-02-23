@@ -26,6 +26,7 @@ import {
   leaveWaitlist,
   voteForMVP,
 } from "@/lib/matches";
+import { calculateMvpStatus } from "@/lib/mvp";
 import { triggerMvpNotification } from "@/lib/push";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
@@ -323,52 +324,12 @@ export default function JoinMatchPage() {
     ...(match.guests || []).map((g: Guest) => ({ name: g.name, uid: `guest_${g.name}` })) // Fake UIDs for guests to handle votes
   ];
 
-  // Calculate Leaderboard
-  const voteCounts: Record<string, number> = {};
-  if (match.mvpVotes) {
-    Object.values(match.mvpVotes).forEach((votedId) => {
-      voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
-    });
-  }
-
-  const sortedMVPLeaderboard = Object.entries(voteCounts)
-    .sort(([, a], [, b]) => b - a);
-
-  const topMvpScore = sortedMVPLeaderboard.length > 0 ? sortedMVPLeaderboard[0][1] : 0;
-
-  const currentMVPs = sortedMVPLeaderboard
-    .filter(([, score]) => score === topMvpScore && score > 0)
-    .map(([id]) => id);
-
-  // 5h Voting Window Validation
-  const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
-  const now = new Date().getTime();
-  const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
-  const timeLimitClosed = hoursSinceClosed > 5;
-
-  // Strict Mathematical Consensus Validation based on unique physical accounts
-  const eligibleUIDs = new Set(
-    match.players?.filter((p: Player) => p.confirmed && p.uid && !p.uid.startsWith("guest_")).map((p: Player) => p.uid) || []
-  );
-  if (match.createdBy) eligibleUIDs.add(match.createdBy); // Admin can always vote
-
-  const totalEligibleVoters = eligibleUIDs.size;
-  const votesCast = match.mvpVotes ? Object.keys(match.mvpVotes).filter(uid => eligibleUIDs.has(uid)).length : 0;
-  const remainingVotes = totalEligibleVoters - votesCast;
-
-  const secondHighestScore = sortedMVPLeaderboard.length > 1 ? sortedMVPLeaderboard[1][1] : 0;
-
-  // A player has mathematically won if their score is strictly greater than the 
-  // second highest score plus all remaining possible votes.
-  const mathematicallyClosed = (topMvpScore > 0) && (topMvpScore > secondHighestScore + remainingVotes);
-
-  // Voting is also definitively closed if every single eligible player has voted, 
-  // regardless of ties.
-  const allEligibleVoted = totalEligibleVoters > 0 && remainingVotes <= 0;
-
-  const earlyClosure = mathematicallyClosed || allEligibleVoted;
-
-  const votingClosed = isClosed && (timeLimitClosed || earlyClosure);
+  const {
+    currentMVPs,
+    votingClosed,
+    sortedMVPLeaderboard,
+    voteCounts,
+  } = calculateMvpStatus(match);
 
   return (
     <main className="min-h-screen bg-slate-50 pb-24">
@@ -837,7 +798,7 @@ export default function JoinMatchPage() {
                               <span>⭐</span> ¡Crack, la diste toda manito(a)!
                             </div>
                           )}
-                          {sortedMVPLeaderboard.slice(0, 3).map(([targetId, votes], idx) => {
+                          {sortedMVPLeaderboard.slice(0, 3).map(([targetId, votes]: [string, number], idx: number) => {
                             const player = eligiblePlayersAndGuests.find(p => p.uid === targetId || p.name === targetId);
                             if (!player) return null;
                             const isMyVote = myVote === targetId;

@@ -20,6 +20,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams, useRouter } from "next/navigation";
 import { balanceTeams } from "@/lib/balanceTeams";
+import { calculateMvpStatus } from "@/lib/mvp";
 import { getAllUsers, getUserProfile } from "@/lib/users";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
 import {
@@ -82,6 +83,8 @@ export default function MatchDetailPage() {
   const [guestLevels, setGuestLevels] = useState<Record<string, PlayerLevel>>({});
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
+  const [copyingInvitation, setCopyingInvitation] = useState(false);
+  const [copiedInvitation, setCopiedInvitation] = useState(false);
 
   async function handleManualReminder() {
     if (!confirm("¿Seguro que quieres enviar una notificación Push a todos los jugadores registrados (confirmados y pendientes)?")) return;
@@ -177,7 +180,11 @@ export default function MatchDetailPage() {
     const scoreA = match?.score?.A ?? 0;
     const scoreB = match?.score?.B ?? 0;
 
-    let text = `⚽ *La titular de hoy:*\n\n`;
+    let text = match?.status === "closed"
+      ? `📋 *Resumen del partido de hoy:*\n`
+      : `⚽ *La titular de hoy:*\n`;
+
+    text += `📅 ${formatDateSpanish(match?.date || "")}\n\n`;
 
     text += `🔴 *Equipo A*\n`;
     teamA.forEach((p: Player) => {
@@ -192,7 +199,32 @@ export default function MatchDetailPage() {
     if (match?.status === "closed") {
       text += `\n🏆 *Resultado Final*\n`;
       text += `🔴 Equipo A ${scoreA} - ${scoreB} Equipo B 🔵\n`;
+
+      // MVP Calculation
+      if (match.mvpVotes) {
+        const { votingClosed, topMvpScore, winnerNames } = calculateMvpStatus(match);
+
+        if (votingClosed && topMvpScore > 0 && winnerNames.length > 0) {
+          const title = winnerNames.length > 1 ? "MVPs del Partido" : "MVP del Partido";
+          text += `\n⭐ *${title}*\n`;
+          text += `👑 ${winnerNames.join(", ")} (${topMvpScore} ${topMvpScore === 1 ? 'voto' : 'votos'})\n`;
+        }
+      }
     }
+
+    await navigator.clipboard.writeText(text);
+  }
+
+  async function generateMatchInvitation() {
+    if (!match) return;
+
+    const shareUrl = `${window.location.origin}/join/${id}`;
+    const text = `⚽ *¡HAY PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
+      `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
+      `⏰ *Hora:* ${formatTime12h(match.time)}\n` +
+      `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+      `🔑 *Código de acceso:* \`${id}.app\`\n\n` +
+      `🔗 *Link de invitación:* ${shareUrl}\n`;
 
     await navigator.clipboard.writeText(text);
   }
@@ -393,6 +425,31 @@ export default function MatchDetailPage() {
                   >
                     <span>👁️</span> Ver como jugador
                   </a>
+
+                  <button
+                    onClick={async () => {
+                      setCopyingInvitation(true);
+                      setCopiedInvitation(false);
+                      try {
+                        await generateMatchInvitation();
+                        setCopiedInvitation(true);
+                        toast.success("Invitación copiada al portapapeles");
+                        setTimeout(() => setCopiedInvitation(false), 2000);
+                      } catch (err) {
+                        handleError(err, "Error al copiar invitación");
+                      } finally {
+                        setCopyingInvitation(false);
+                      }
+                    }}
+                    disabled={copyingInvitation}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all border ${copiedInvitation
+                      ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                      : "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
+                      }`}
+                  >
+                    <span>{copiedInvitation ? "✅" : "📲"}</span>
+                    {copiedInvitation ? "Invitación copiada" : "Copiar invitación"}
+                  </button>
                 </div>
               </div>
 

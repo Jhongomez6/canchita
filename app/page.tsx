@@ -8,6 +8,7 @@ import { getUserProfile } from "@/lib/users";
 import Link from "next/link";
 import { enablePushNotifications } from "@/lib/push";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
+import { sanitizeMatchCode } from "@/lib/matchCode";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Match } from "@/lib/domain/match";
@@ -153,14 +154,18 @@ export default function Home() {
                     className="w-full pl-11 pr-16 py-3.5 bg-white text-slate-800 text-sm font-bold placeholder:font-medium placeholder:text-slate-400 rounded-2xl border-none focus:outline-none focus:ring-4 focus:ring-emerald-400/30 transition-all shadow-md"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && quickCode.trim()) {
-                        router.push(`/join/${quickCode.trim()}`);
+                        const sanitized = sanitizeMatchCode(quickCode);
+                        router.push(`/join/${sanitized}`);
                       }
                     }}
                   />
                   <div className="absolute inset-y-1.5 right-1.5">
                     <button
                       onClick={() => {
-                        if (quickCode.trim()) router.push(`/join/${quickCode.trim()}`);
+                        if (quickCode.trim()) {
+                          const sanitized = sanitizeMatchCode(quickCode);
+                          router.push(`/join/${sanitized}`);
+                        }
                       }}
                       disabled={!quickCode.trim()}
                       className="h-full px-4 bg-[#1f7a4f] text-white rounded-xl font-bold text-sm shadow hover:bg-[#16603c] disabled:opacity-50 transition-colors flex items-center"

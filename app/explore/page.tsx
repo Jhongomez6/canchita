@@ -14,6 +14,7 @@ import type { Match } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
 import type { UserProfile } from "@/lib/domain/user";
 import { handleError } from "@/lib/utils/error";
+import { sanitizeMatchCode } from "@/lib/matchCode";
 
 export default function ExplorePage() {
     const { user } = useAuth();
@@ -74,7 +75,7 @@ export default function ExplorePage() {
 
     const handleInviteCodeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const code = inviteCode.trim();
+        const code = sanitizeMatchCode(inviteCode);
         if (!code) return;
 
         setIsSubmittingCode(true);
