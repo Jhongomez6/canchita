@@ -56,7 +56,7 @@ interface Player {
 | 8 | Partido reabierto revierte stats previos | `previousResult` param en `updatePlayerStats()` |
 | 9 | Invitados visibles y balanceables desde match detail | Guest display + `guestToPlayer()` en match page |
 | 10 | Reporte WhatsApp usa equipos locales (incluye cambios DnD) | `balanced` state preferred over `match.teams` |
-| 11 | Los códigos de partido pueden tener la extensión `.app` para facilitar el copiado en WhatsApp | `sanitizeMatchCode()` en `lib/matchCode.ts` |
+| 11 | Los códigos de partido pueden ser IDs puros, con extensión `.ai`/`.app`, o enlaces completos (`/join/ID`) | `sanitizeMatchCode()` en `lib/matchCode.ts` |
 
 ---
 
@@ -341,7 +341,7 @@ describe("isMatchFull", () => {
 | API | `lib/matches.ts` | CRUD Firestore |
 | API | `lib/playerStats.ts` | Estadísticas |
 | API | `lib/matchReport.ts` | Reporte WhatsApp |
-| API | `lib/matchCode.ts` | Sanitización de códigos (.app trick) |
+| API | `lib/matchCode.ts` | Sanitización de códigos (.ai trick) |
 | UI | `app/match/[id]/page.tsx` | Admin view |
 | UI | `app/join/[id]/page.tsx` | Player view |
 | UI | `app/page.tsx` | Home / lista |

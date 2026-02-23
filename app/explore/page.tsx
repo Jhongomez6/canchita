@@ -107,16 +107,16 @@ export default function ExplorePage() {
                         {/* PRIVATE INVITE CODE SECTION */}
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                             <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-                                <span>🔐</span> Código de invitación
+                                <span>🔐</span> Código o link de invitación
                             </h2>
                             <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                                ¿Te pasaron un código por WhatsApp para un partido privado? Pégalo aquí.
+                                ¿Te pasaron un código o link por WhatsApp para un partido? Pégalo aquí.
                             </p>
 
                             <form onSubmit={handleInviteCodeSubmit} className="flex gap-2">
                                 <input
                                     type="text"
-                                    placeholder="Ej: ABC123XYZ"
+                                    placeholder="ABC123XYZ o https://canchita.app/join/ABC123XYZ"
                                     value={inviteCode}
                                     onChange={(e) => setInviteCode(e.target.value)}
                                     className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"

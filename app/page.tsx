@@ -148,7 +148,7 @@ export default function Home() {
                   </div>
                   <input
                     type="text"
-                    placeholder="Código privado..."
+                    placeholder="Código o link de invitación"
                     value={quickCode}
                     onChange={(e) => setQuickCode(e.target.value)}
                     className="w-full pl-11 pr-16 py-3.5 bg-white text-slate-800 text-sm font-bold placeholder:font-medium placeholder:text-slate-400 rounded-2xl border-none focus:outline-none focus:ring-4 focus:ring-emerald-400/30 transition-all shadow-md"

@@ -219,11 +219,12 @@ export default function MatchDetailPage() {
     if (!match) return;
 
     const shareUrl = `${window.location.origin}/join/${id}`;
-    const text = `⚽ *¡HAY PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
+    const text = `⚽ *¡NUEVO PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
       `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
       `⏰ *Hora:* ${formatTime12h(match.time)}\n` +
       `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
-      `🔑 *Código de acceso:* \`${id}.app\`\n\n` +
+      `🔑 *Código de búsqueda:* ${id}.ai\n` +
+      `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n\n` +
       `🔗 *Link de invitación:* ${shareUrl}\n`;
 
     await navigator.clipboard.writeText(text);
@@ -425,31 +426,6 @@ export default function MatchDetailPage() {
                   >
                     <span>👁️</span> Ver como jugador
                   </a>
-
-                  <button
-                    onClick={async () => {
-                      setCopyingInvitation(true);
-                      setCopiedInvitation(false);
-                      try {
-                        await generateMatchInvitation();
-                        setCopiedInvitation(true);
-                        toast.success("Invitación copiada al portapapeles");
-                        setTimeout(() => setCopiedInvitation(false), 2000);
-                      } catch (err) {
-                        handleError(err, "Error al copiar invitación");
-                      } finally {
-                        setCopyingInvitation(false);
-                      }
-                    }}
-                    disabled={copyingInvitation}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all border ${copiedInvitation
-                      ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                      : "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
-                      }`}
-                  >
-                    <span>{copiedInvitation ? "✅" : "📲"}</span>
-                    {copiedInvitation ? "Invitación copiada" : "Copiar invitación"}
-                  </button>
                 </div>
               </div>
 
@@ -559,6 +535,31 @@ export default function MatchDetailPage() {
                 </button>
               </div>
             </div>
+
+            <button
+              onClick={async () => {
+                setCopyingInvitation(true);
+                setCopiedInvitation(false);
+                try {
+                  await generateMatchInvitation();
+                  setCopiedInvitation(true);
+                  toast.success("Invitación completa copiada");
+                  setTimeout(() => setCopiedInvitation(false), 2000);
+                } catch (err) {
+                  handleError(err, "Error al copiar invitación");
+                } finally {
+                  setCopyingInvitation(false);
+                }
+              }}
+              disabled={copyingInvitation}
+              className={`w-full mt-4 py-3 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${copiedInvitation
+                ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 shadow-sm"
+                }`}
+            >
+              <span className="text-xl">{copiedInvitation ? "✅" : "📲"}</span>
+              {copiedInvitation ? "¡Invitación lista para WhatsApp!" : "Copiar invitación para WhatsApp"}
+            </button>
           </div>
 
           {/* ACCIONES DEL ADMIN */}
