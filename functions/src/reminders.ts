@@ -6,15 +6,23 @@ const db = admin.firestore();
 
 /**
  * 🔔 Recordatorios automáticos de partidos
- * Corre cada 5 minutos (modo prueba)
+ * Corre cada 30 minutos via Cloud Scheduler.
  *
- * Ventanas reales:
- *  - 24h → 1440 min
- *  - 12h → 720 min
- *  - 6h  → 360 min
+ * Lógica de umbral (threshold-based):
+ * Si faltan ≤ 24h y no se ha enviado "24h" → enviar
+ * Si faltan ≤ 12h y no se ha enviado "12h" → enviar
+ * Si faltan ≤  6h y no se ha enviado "6h"  → enviar
+ *
+ * Ventaja sobre ventanas: no importa cuándo corra el cron,
+ * siempre lo pillará porque una vez que se cruza el umbral,
+ * la condición permanece verdadera hasta que se marque como enviado.
  */
 export const matchReminders = onSchedule(
-  "every 60 minutes",
+  {
+    schedule: "every 30 minutes",
+    timeZone: "America/Bogota",
+    region: "us-central1",
+  },
   async () => {
     const now = new Date();
 
@@ -27,61 +35,58 @@ export const matchReminders = onSchedule(
 
     console.log("📋 Matches abiertos:", snapshot.size);
 
+    if (snapshot.empty) {
+      console.log("✅ No hay matches abiertos. Fin.");
+      return;
+    }
+
+    // Umbrales: key → minutos antes del partido
+    const thresholds: { key: string; minutes: number }[] = [
+      { key: "24h", minutes: 1440 },
+      { key: "12h", minutes: 720 },
+      { key: "6h", minutes: 360 },
+    ];
+
     for (const doc of snapshot.docs) {
       const match = doc.data();
 
-      console.log("⚽ Match:", doc.id);
-
-      // 🔒 Validación fuerte
+      // 🔒 Validación: necesitamos startsAt para calcular la diferencia
       if (!match.startsAt) {
-        console.log("❌ Match sin startsAt");
+        console.log(`❌ Match ${doc.id} sin startsAt — skipping`);
         continue;
       }
 
       const matchDate = match.startsAt.toDate();
-
       const diffMinutes =
         (matchDate.getTime() - now.getTime()) / (1000 * 60);
 
       console.log(
-        "📆 startsAt:",
-        matchDate.toISOString(),
-        "| now time:",
-        now.toISOString(),
-        "| diffMinutes:",
-        diffMinutes.toFixed(2)
+        `⚽ Match ${doc.id} | startsAt: ${matchDate.toISOString()} | diff: ${diffMinutes.toFixed(0)} min`
       );
 
-      /**
-       * 🧪 MODO PRUEBA
-       * Recordatorio ~5 minutos antes
-       * const reminderMinutes = [5];
-       */
+      // Ignorar partidos que ya pasaron
+      if (diffMinutes <= 0) {
+        console.log(`⏭️ Match ${doc.id} ya pasó — skipping`);
+        continue;
+      }
 
+      // Evaluar cada umbral
+      for (const { key, minutes } of thresholds) {
+        // ¿Ya cruzamos el umbral? (faltan ≤ X minutos)
+        if (diffMinutes <= minutes) {
+          // ¿Ya se envió este recordatorio?
+          if (match.remindersSent?.[key]) {
+            console.log(`⛔ Match ${doc.id} — reminder "${key}" ya enviado`);
+            continue;
+          }
 
-      /**
-       * 🟢 PRODUCCIÓN (cuando quieras)
-       * const reminderMinutes = [1440, 720, 360];
-       */
-
-      const reminderMinutes = [1440, 720, 360];
-
-      const windowMinutes = 120; // 2 horas de ventana por si hay delay en el cronjob
-
-      for (const min of reminderMinutes) {
-        if (
-          diffMinutes > 0 &&
-          diffMinutes <= min &&
-          diffMinutes > min - windowMinutes
-        ) {
-          await sendReminderIfNeeded(
-            doc.id,
-            match,
-            `${min}m`
-          );
+          console.log(`🔔 Match ${doc.id} — enviando reminder "${key}" (faltan ${diffMinutes.toFixed(0)} min)`);
+          await sendReminderIfNeeded(doc.id, match, key);
         }
       }
     }
+
+    console.log("✅ Reminder job completado.");
   }
 );
 

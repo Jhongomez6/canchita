@@ -60,10 +60,10 @@ export async function createMatch(match: {
     ...match,
     isPrivate: match.isPrivate || false,
     players: [],
-    reminders: {
-      "24h": true,
-      "12h": true,
-      "6h": true,
+    remindersSent: {
+      "24h": false,
+      "12h": false,
+      "6h": false,
     },
     playerUids: [match.createdBy],
     startsAt: Timestamp.fromDate(startsAt),
