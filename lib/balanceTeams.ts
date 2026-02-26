@@ -10,6 +10,6 @@
  */
 
 // Re-export todo desde el dominio
-export { balanceTeams, getTeamSummary } from "./domain/team";
+export { balanceTeams, getTeamSummary, sortTeamForDisplay } from "./domain/team";
 export type { Team, BalanceResult, TeamSummary } from "./domain/team";
 export type { Player } from "./domain/player";

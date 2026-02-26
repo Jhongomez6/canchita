@@ -11,6 +11,12 @@ Este documento explica cómo la **especificación funcional** gobierna completam
 ### Objetivo
 Permitir que un administrador cree partidos, gestione jugadores, confirme asistencia, balancee equipos, registre marcador y cierre/reabra el partido.
 
+### Algoritmo de Balanceo
+1.  **Paridad Numérica Primero:** Los equipos deben tener la misma cantidad de jugadores (o diferencia de 1 si es impar).
+2.  **Reparto por Categoría (1:1):** Se distribuyen sucesivamente Porteros, Mujeres y Posiciones (DEF, MID, FWD), balanceando cada grupo individualmente.
+3.  **Consideración de Posición Secundaria:** Al balancear roles, se cuenta tanto la posición primaria como la secundaria para evitar desbalances tácticos.
+4.  **Snake Draft:** El equipo con menor nivel/cantidad tiene prioridad para elegir al mejor jugador del siguiente grupo.
+
 ### Entidad: Match
 
 ```typescript

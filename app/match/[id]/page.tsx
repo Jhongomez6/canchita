@@ -45,7 +45,7 @@ import type { Player } from "@/lib/domain/player";
 import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
-import { getTeamSummary } from "@/lib/domain/team";
+import { getTeamSummary, sortTeamForDisplay } from "@/lib/domain/team";
 import type { Guest } from "@/lib/domain/guest";
 import { guestToPlayer } from "@/lib/domain/guest";
 import { removeGuestFromMatch } from "@/lib/guests";
@@ -1091,7 +1091,7 @@ export default function MatchDetailPage() {
                             strategy={verticalListSortingStrategy}
                           >
                             <div className="space-y-2">
-                              {balanced.teamA.players.map((p: Player) => {
+                              {sortTeamForDisplay(balanced.teamA.players).map((p: Player) => {
                                 const targetId = p.id || p.uid || p.name;
                                 const isMvp = votingClosed && currentMVPs.includes(targetId);
                                 const votes = isClosed ? (voteCounts[targetId] || 0) : 0;
@@ -1126,7 +1126,7 @@ export default function MatchDetailPage() {
                             strategy={verticalListSortingStrategy}
                           >
                             <div className="space-y-2">
-                              {balanced.teamB.players.map((p: Player) => {
+                              {sortTeamForDisplay(balanced.teamB.players).map((p: Player) => {
                                 const targetId = p.id || p.uid || p.name;
                                 const isMvp = votingClosed && currentMVPs.includes(targetId);
                                 const votes = isClosed ? (voteCounts[targetId] || 0) : 0;
