@@ -13,6 +13,13 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// ⚡ Force new SW to activate immediately (don't wait for tabs to close)
+self.addEventListener("install", function () {
+  self.skipWaiting();
+});
+self.addEventListener("activate", function (event) {
+  event.waitUntil(clients.claim());
+});
 
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
@@ -46,9 +53,11 @@ messaging.onBackgroundMessage(function (payload) {
 
   if (!title) return;
 
-  self.registration.showNotification(title, {
+  // Return the promise so the SW stays alive until notification is shown
+  return self.registration.showNotification(title, {
     body: body || "",
     icon: "/icon-192x192.png",
     data: { url: url },
   });
 });
+
