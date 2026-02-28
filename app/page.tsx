@@ -48,7 +48,7 @@ export default function Home() {
     if (!user) return;
 
     getMyMatches(user.uid).then(async matches => {
-      // Sort matches by date descending (most recent first)
+      // Sort matches by date DESCENDING (most recent first)
       const sorted = [...matches].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
       setMatches(sorted);
 
@@ -80,7 +80,18 @@ export default function Home() {
     });
   }, [user]);
 
-  const nextMatch = matches.find(m => m.status === 'open');
+  const now = new Date().getTime();
+  const openMatches = matches.filter(m => m.status === 'open');
+
+  // Future open matches (including from the last 4 hours)
+  const futureOpenMatches = openMatches.filter(m => new Date(`${m.date}T${m.time}`).getTime() >= now - 1000 * 60 * 60 * 4);
+
+  // The next match is the closest future open match (sort ascending).
+  // If no future matches exist, pick the most recent past open match (first item of descending openMatches array).
+  const nextMatch = futureOpenMatches.length > 0
+    ? [...futureOpenMatches].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())[0]
+    : openMatches[0];
+
   const upcomingMatches = matches.filter(m => m.id !== nextMatch?.id);
 
   return (
