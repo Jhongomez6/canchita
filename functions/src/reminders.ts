@@ -113,67 +113,57 @@ async function sendReminderIfNeeded(
     return;
   }
 
-  const players = (match.players || []).filter((p: any) => p.uid);
+  const players = (match.players || []).filter((p: any) => p.uid && !p.uid.startsWith("guest_"));
 
   if (players.length === 0) return;
 
   for (const player of players) {
+    // 🎯 MENSAJE DINÁMICO SEGÚN ESTADO
+    let title = "⚽ El partido se acerca";
+    let body = "";
+
+    if (player.confirmed) {
+      title = "⚽ Partido confirmado";
+      body = `Cancela tu asistencia si no puedes ir, dale la oportunidad a otro jugador`;
+    } else {
+      title = "⚽ ¿Vas a jugar?";
+      body = `Confirma tu asistencia ahora.`;
+    }
+
+    // 1. ALWAYS write in-app notification
+    await db.collection("notifications").doc(player.uid).collection("items").add({
+      title,
+      body,
+      type: "match_reminder",
+      url: `/join/${matchId}`,
+      read: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    // 2. BEST-EFFORT push
     const userSnap = await db.collection("users").doc(player.uid).get();
     const user = userSnap.data();
     const tokens = user?.fcmTokens ?? [];
 
     if (tokens.length === 0) continue;
 
-    // 🎯 MENSAJE DINÁMICO SEGÚN ESTADO
-
-    let title = "⚽ El partido se acerca";
-    let body = "";
-
-    if (player.confirmed) {
-      title = "⚽ Partido confirmado";
-    } else {
-      title = "⚽ ¿Vas a jugar?";
-    }
-
-
-    if (player.confirmed) {
-      body = `Cancela tu asistencia si no puedes ir, dale la oportunidad a otro jugador`;
-    } else {
-      body = `Confirma tu asistencia ahora.`;
-    }
-
     const response = await admin.messaging().sendEachForMulticast({
       tokens,
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        url: `https://la-canchita.vercel.app/join/${matchId}`,
-      },
+      notification: { title, body },
+      data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
     });
-
 
     // 🧹 Limpieza de tokens inválidos
     const invalidTokens: string[] = [];
-
     response.responses.forEach((res, idx) => {
-      if (!res.success) {
-        invalidTokens.push(tokens[idx]);
-      }
+      if (!res.success) invalidTokens.push(tokens[idx]);
     });
 
     if (invalidTokens.length > 0) {
       await userSnap.ref.update({
-        fcmTokens: admin.firestore.FieldValue.arrayRemove(
-          ...invalidTokens
-        ),
+        fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
       });
-
-      console.log(
-        "🧹 Tokens inválidos removidos:",
-        invalidTokens.length
-      );
+      console.log("🧹 Tokens inválidos removidos:", invalidTokens.length);
     }
   }
 
@@ -233,13 +223,6 @@ export const sendManualReminder = onCall(async (request) => {
   let sentTokensCount = 0;
 
   for (const player of uniquePlayers) {
-    const pSnap = await db.collection("users").doc(player.uid).get();
-    const pData = pSnap.data();
-    // Desduplicar tokens en caso de que el cliente haya registrado la misma llave web dos veces
-    const tokens = Array.from(new Set<string>(pData?.fcmTokens ?? []));
-
-    if (tokens.length === 0) continue;
-
     let title = "";
     let body = "";
 
@@ -251,25 +234,35 @@ export const sendManualReminder = onCall(async (request) => {
       body = "Por favor confirma tu asistencia al partido lo antes posible.";
     }
 
+    // 1. ALWAYS write in-app notification
+    await db.collection("notifications").doc(player.uid).collection("items").add({
+      title,
+      body,
+      type: "match_reminder",
+      url: `/join/${matchId}`,
+      read: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    // 2. BEST-EFFORT push
+    const pSnap = await db.collection("users").doc(player.uid).get();
+    const pData = pSnap.data();
+    const tokens = Array.from(new Set<string>(pData?.fcmTokens ?? []));
+
+    if (tokens.length === 0) continue;
+
     const response = await admin.messaging().sendEachForMulticast({
       tokens,
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        url: `https://la-canchita.vercel.app/join/${matchId}`,
-      },
+      notification: { title, body },
+      data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
     });
 
     sentTokensCount += response.successCount;
 
-    // 🧹 Limpiar tokens inválidos tras el broadcast
+    // 🧹 Limpiar tokens inválidos
     const invalidTokens: string[] = [];
     response.responses.forEach((res: any, idx: number) => {
-      if (!res.success) {
-        invalidTokens.push(tokens[idx]);
-      }
+      if (!res.success) invalidTokens.push(tokens[idx]);
     });
 
     if (invalidTokens.length > 0) {
@@ -305,6 +298,10 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
     tokensToTies: string[];
     tokensToOthers: string[];
     winnerNames: string[];
+    // For in-app notifications
+    winnerUids: string[];
+    tieUids: string[];
+    otherUids: string[];
   }
 
   let pushData: PushData | null = null;
@@ -362,7 +359,6 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
 
     // 3. Obtener Líderes
     if (topMvpScore === 0) {
-      // Nadie votó por nadie. Solo sellamos la bandera.
       transaction.update(matchRef, { "remindersSent.mvp": true });
       return;
     }
@@ -382,10 +378,13 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       if (p) winnerNames.push(p.name);
     }
 
-    // 4. Preparar colas de Tokens según público
+    // 4. Preparar colas de Tokens y UIDs según público
     const tokensToWinners: string[] = [];
     const tokensToTies: string[] = [];
     const tokensToOthers: string[] = [];
+    const winnerUids: string[] = [];
+    const tieUids: string[] = [];
+    const otherUids: string[] = [];
 
     const physicalPlayers = (match.players || []).filter((p: any) => p.uid && !p.uid.startsWith("guest_"));
 
@@ -394,18 +393,19 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       const pData = pSnap.data();
       const tokens = Array.from(new Set<string>(pData?.fcmTokens ?? []));
 
-      if (tokens.length === 0) continue;
-
       const isMVP = currentMVPs.includes(player.uid) || currentMVPs.includes(player.name);
 
       if (isMVP) {
         if (currentMVPs.length > 1) {
-          tokensToTies.push(...tokens);
+          tieUids.push(player.uid);
+          if (tokens.length > 0) tokensToTies.push(...tokens);
         } else {
-          tokensToWinners.push(...tokens);
+          winnerUids.push(player.uid);
+          if (tokens.length > 0) tokensToWinners.push(...tokens);
         }
       } else {
-        tokensToOthers.push(...tokens);
+        otherUids.push(player.uid);
+        if (tokens.length > 0) tokensToOthers.push(...tokens);
       }
     }
 
@@ -413,7 +413,10 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       tokensToWinners,
       tokensToTies,
       tokensToOthers,
-      winnerNames
+      winnerNames,
+      winnerUids,
+      tieUids,
+      otherUids,
     };
 
     // 5. SELLAR BARRERA ANTI-SPAM
@@ -427,11 +430,52 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
     return { success: true, message: "Partido sellado, sin notificaciones despachables." };
   }
 
-  const { tokensToWinners, tokensToTies, tokensToOthers, winnerNames } = pushData as PushData;
+  const { tokensToWinners, tokensToTies, tokensToOthers, winnerNames, winnerUids, tieUids, otherUids } = pushData as PushData;
   const namesString = winnerNames.join(", ");
+  const now = new Date().toISOString();
 
   let totalSent = 0;
   const urlParams = { url: `https://la-canchita.vercel.app/join/${matchId}` };
+
+  // === IN-APP NOTIFICATIONS (ALWAYS) ===
+  const inAppPromises: Promise<any>[] = [];
+
+  for (const uid of winnerUids) {
+    inAppPromises.push(db.collection("notifications").doc(uid).collection("items").add({
+      title: "⭐ ¡Felicidades crack!",
+      body: "Fuiste elegido como el MVP indiscutible del último partido.",
+      type: "mvp",
+      url: `/join/${matchId}`,
+      read: false,
+      createdAt: now,
+    }));
+  }
+
+  for (const uid of tieUids) {
+    inAppPromises.push(db.collection("notifications").doc(uid).collection("items").add({
+      title: "🤝 ¡Empate!",
+      body: "Tú y otros jugadores compartieron el título MVP del último partido. ¡Cracks!",
+      type: "mvp",
+      url: `/join/${matchId}`,
+      read: false,
+      createdAt: now,
+    }));
+  }
+
+  for (const uid of otherUids) {
+    inAppPromises.push(db.collection("notifications").doc(uid).collection("items").add({
+      title: "🏆 ¡Habemus MVP!",
+      body: `${namesString} la rompió y fue elegido como la figura de la cancha en tu último partido.`,
+      type: "mvp",
+      url: `/join/${matchId}`,
+      read: false,
+      createdAt: now,
+    }));
+  }
+
+  await Promise.all(inAppPromises);
+
+  // === PUSH NOTIFICATIONS (BEST-EFFORT) ===
 
   // A) Mensajes a Ganador(es) únicos
   if (tokensToWinners.length > 0) {
@@ -474,4 +518,125 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
 
   console.log(`📣 Notificaciones de MVP enviadas exitosamente para match ${matchId}. Total: ${totalSent}`);
   return { success: true, message: "Notificaciones despachadas a los jugadores" };
+});
+
+/**
+ * 💬 Notificación de Feedback Resuelto (Dual Channel: In-App + Push)
+ * El admin marca un feedback como resuelto y el usuario recibe notificación.
+ * SIEMPRE escribe in-app notification. Push es best-effort.
+ */
+export const notifyFeedbackResolved = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  }
+
+  const { feedbackId } = request.data;
+  if (!feedbackId) {
+    throw new HttpsError("invalid-argument", "Falta el ID del feedback.");
+  }
+
+  // Validate caller is admin
+  const callerSnap = await db.collection("users").doc(request.auth.uid).get();
+  const callerData = callerSnap.data();
+  const callerIsAdmin = callerData?.roles?.includes("admin") || callerData?.role === "admin";
+
+  if (!callerIsAdmin) {
+    throw new HttpsError("permission-denied", "Solo administradores pueden resolver feedback.");
+  }
+
+  // Read feedback
+  const feedbackRef = db.collection("feedback").doc(feedbackId);
+  const feedbackSnap = await feedbackRef.get();
+
+  if (!feedbackSnap.exists) {
+    throw new HttpsError("not-found", "El feedback no existe.");
+  }
+
+  const feedback = feedbackSnap.data() as {
+    userId: string;
+    userName: string;
+    type: "bug" | "idea" | "other";
+    message: string;
+    status: string;
+  };
+
+  if (feedback.status === "resolved") {
+    throw new HttpsError("already-exists", "Este feedback ya fue resuelto.");
+  }
+
+  // Build contextual message
+  let title = "";
+  let body = "";
+
+  switch (feedback.type) {
+    case "bug":
+      title = "🔧 ¡Tu reporte fue solucionado!";
+      body = `El bug que reportaste fue corregido: "${feedback.message.substring(0, 80)}${feedback.message.length > 80 ? "..." : ""}"`;
+      break;
+    case "idea":
+      title = "💡 ¡Tu idea fue implementada!";
+      body = `La idea que propusiste fue aplicada: "${feedback.message.substring(0, 80)}${feedback.message.length > 80 ? "..." : ""}"`;
+      break;
+    default:
+      title = "✅ ¡Tu feedback fue atendido!";
+      body = `Tu feedback fue revisado y atendido: "${feedback.message.substring(0, 80)}${feedback.message.length > 80 ? "..." : ""}"`;
+      break;
+  }
+
+  const now = new Date().toISOString();
+
+  // 1. ALWAYS write in-app notification
+  await db.collection("notifications").doc(feedback.userId).collection("items").add({
+    title,
+    body,
+    type: "feedback_resolved",
+    read: false,
+    createdAt: now,
+  });
+
+  // 2. BEST-EFFORT push notification
+  let pushSent = false;
+  try {
+    const userSnap = await db.collection("users").doc(feedback.userId).get();
+    const userData = userSnap.data();
+    const tokens = Array.from(new Set<string>(userData?.fcmTokens ?? []));
+
+    if (tokens.length > 0) {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+      });
+
+      pushSent = response.successCount > 0;
+
+      // Cleanup invalid tokens
+      const invalidTokens: string[] = [];
+      response.responses.forEach((res: any, idx: number) => {
+        if (!res.success) invalidTokens.push(tokens[idx]);
+      });
+
+      if (invalidTokens.length > 0) {
+        await userSnap.ref.update({
+          fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("⚠️ Push notification failed (non-critical):", err);
+  }
+
+  // 3. Update feedback status
+  await feedbackRef.update({
+    status: "resolved",
+    resolvedAt: now,
+  });
+
+  console.log(`💬 Feedback ${feedbackId} resuelto. Push: ${pushSent ? "✅" : "❌ (sin tokens)"}`);
+  return {
+    success: true,
+    pushSent,
+    message: pushSent
+      ? "Feedback resuelto y usuario notificado (push + in-app)"
+      : "Feedback resuelto y notificación in-app creada (usuario sin push activo)",
+  };
 });

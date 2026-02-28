@@ -6,17 +6,20 @@ import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState } from "react";
 import { getUserProfile } from "@/lib/users";
 import { UserProfile } from "@/lib/domain/user";
+import { getUnreadCount } from "@/lib/notifications";
 
 export default function BottomNav() {
     const pathname = usePathname();
     const { user } = useAuth();
     const [isAdmin, setIsAdmin] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         if (!user) return;
-        getUserProfile(user.uid).then((profile: UserProfile | null) => { // Type check
-            setIsAdmin(profile?.roles?.includes("admin") ?? false); // Optional chaining
+        getUserProfile(user.uid).then((profile: UserProfile | null) => {
+            setIsAdmin(profile?.roles?.includes("admin") ?? false);
         });
+        getUnreadCount(user.uid).then(setUnreadCount).catch(() => { });
     }, [user]);
 
     if (!user) return null;
@@ -65,6 +68,31 @@ export default function BottomNav() {
                         <path d="m21 21-4.3-4.3" />
                     </svg>
                     <span className="text-[10px] font-bold tracking-wide">Buscar</span>
+                </Link>
+
+                {/* NOTIFICATIONS (All Users) */}
+                <Link href="/notifications" className={navItemClass(pathname === "/notifications")}>
+                    <div className="relative">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill={pathname === "/notifications" ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth={pathname === "/notifications" ? "0" : "2"}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-7 h-7"
+                        >
+                            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                        </svg>
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                                {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                        )}
+                    </div>
+                    <span className="text-[10px] font-bold tracking-wide">Alertas</span>
                 </Link>
 
                 {/* RANKING (Admin Only) */}

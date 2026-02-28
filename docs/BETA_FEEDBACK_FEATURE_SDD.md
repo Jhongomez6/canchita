@@ -47,3 +47,28 @@ Collection: `feedback`
 - [x] Feedback form successfully captures and saves data to Firestore.
 - [x] Toast notification confirms successful submission.
 - [x] Application builds successfully without missing components.
+
+## 5. Feedback Resolution (Admin → User Notification)
+
+### Flow
+1. Admin clicks "Marcar Solucionado/Aplicado/Atendido" on a feedback card
+2. Client calls `resolveFeedback(feedbackId)` → Cloud Function `notifyFeedbackResolved`
+3. Cloud Function:
+   - Validates admin auth
+   - Writes **in-app notification** to `notifications/{userId}/items` (always)
+   - Attempts **push notification** via FCM (best-effort)
+   - Updates feedback status to `"resolved"` with `resolvedAt` timestamp
+4. Toast tells admin if push was sent or only in-app
+
+### Contextual Messages
+| Type | Title | Body |
+|------|-------|------|
+| Bug | 🔧 ¡Tu reporte fue solucionado! | El bug que reportaste fue corregido: "..." |
+| Idea | 💡 ¡Tu idea fue implementada! | La idea que propusiste fue aplicada: "..." |
+| Other | ✅ ¡Tu feedback fue atendido! | Tu feedback fue revisado y atendido: "..." |
+
+### Files
+- Cloud Function: `functions/src/reminders.ts` (`notifyFeedbackResolved`)
+- Client caller: `lib/admin-feedback.ts` (`resolveFeedback`)
+- Admin UI: `app/admin/feedback/page.tsx`
+- Domain: `lib/domain/feedback.ts` (added `resolvedAt`)

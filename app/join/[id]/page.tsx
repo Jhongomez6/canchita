@@ -15,6 +15,7 @@ import { isInAppBrowser } from "@/lib/browser";
 import { Guest } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
+import { isAdmin } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
 import { type Player, type Position, POSITION_ICONS } from "@/lib/domain/player";
 
@@ -347,6 +348,16 @@ export default function JoinMatchPage() {
 
         {/* CONTAINER CON MARGIN NEGATIVO PARA QUE MONTE EL HEADER */}
         <div className="px-4 -mt-10 relative z-20 space-y-4">
+
+          {/* BOTÓN VER COMO ADMIN */}
+          {profile && isAdmin(profile) && (
+            <a
+              href={`/match/${id}`}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition-colors"
+            >
+              👁️ Ver como admin
+            </a>
+          )}
 
           {/* CARD PARTIDO */}
           <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100">

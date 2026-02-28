@@ -48,8 +48,8 @@ export default function Home() {
     if (!user) return;
 
     getMyMatches(user.uid).then(async matches => {
-      // Sort matches by date ascending
-      const sorted = [...matches].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
+      // Sort matches by date descending (most recent first)
+      const sorted = [...matches].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
       setMatches(sorted);
 
       const locationIds = Array.from(

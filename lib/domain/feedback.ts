@@ -9,4 +9,5 @@ export interface Feedback {
     urlContext: string;
     createdAt: string; // ISO string
     status: 'new' | 'reviewed' | 'resolved';
+    resolvedAt?: string; // ISO string, set when feedback is resolved
 }

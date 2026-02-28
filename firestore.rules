@@ -103,5 +103,19 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    /* =========================
+       🔔 NOTIFICACIONES IN-APP
+    ========================= */
+    match /notifications/{userId}/items/{notifId} {
+      // Leer: solo el propio usuario
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Update: solo el propio usuario (para marcar como leída)
+      allow update: if request.auth != null && request.auth.uid == userId;
+
+      // Crear/Borrar: solo Cloud Functions (admin SDK)
+      allow create, delete: if false;
+    }
+
   }
 }

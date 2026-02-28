@@ -35,10 +35,10 @@ self.addEventListener("notificationclick", function (event) {
   );
 });
 
+// FCM automatically shows the notification when the payload contains
+// a `notification` field. We do NOT call showNotification here to
+// avoid duplicate notifications. This handler is kept to log or
+// handle data-only messages in the future if needed.
 messaging.onBackgroundMessage(function (payload) {
-  self.registration.showNotification(payload.notification.title, {
-    body: payload.notification.body,
-    icon: "/icon-192.png",
-    data: payload.data, // Pasa el objeto data (que incluye la url) al evento local de la notificación
-  });
+  console.log("[SW] Background message received:", payload);
 });
