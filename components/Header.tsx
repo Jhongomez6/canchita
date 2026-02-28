@@ -75,7 +75,7 @@ export default function Header() {
             alt="La Canchita"
             width={60}
             height={50}
-            style={{ borderRadius: 6 }}
+            style={{ borderRadius: 6, height: "auto" }}
           />
         </Link>
         <div className="group relative flex items-center" tabIndex={0}>

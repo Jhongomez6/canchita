@@ -64,6 +64,7 @@ export default function AuthGuard({
               alt="La Canchita"
               width={120}
               height={100}
+              style={{ height: "auto" }}
             />
           </div>
           <p className="text-lg text-slate-500 font-medium animate-pulse">Cargando...</p>
@@ -84,6 +85,7 @@ export default function AuthGuard({
               alt="La Canchita"
               width={120}
               height={100}
+              style={{ height: "auto" }}
             />
           </div>
 
@@ -161,6 +163,7 @@ export default function AuthGuard({
               alt="La Canchita"
               width={120}
               height={100}
+              style={{ height: "auto" }}
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Preparando tu evaluación...</p>
