@@ -133,8 +133,8 @@ export default function Home() {
                     <h3 className="font-bold text-lg leading-tight">
                       {locationsMap[nextMatch.locationId]?.name || "Ubicación por definir"}
                     </h3>
-                    <p className="text-sm text-slate-500 font-medium">
-                      {formatTime12h(nextMatch.time)}
+                    <p className="text-sm text-slate-500 font-medium mt-1">
+                      ⏰ {formatTime12h(nextMatch.time)} <span className="mx-1">•</span> ⚽ {Math.floor(nextMatch.maxPlayers / 2)}vs{Math.floor(nextMatch.maxPlayers / 2)}
                     </p>
                   </div>
                 </div>
