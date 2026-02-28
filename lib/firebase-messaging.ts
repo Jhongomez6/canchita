@@ -8,6 +8,12 @@ export async function listenToPushMessages() {
 
   const messaging = getMessaging();
 
+  // Register the SW explicitly with a cache-busting query parameter
+  // to force an update for all existing installed PWAs.
+  if ("serviceWorker" in navigator) {
+    await navigator.serviceWorker.register("/firebase-messaging-sw.js?v=2");
+  }
+
   onMessage(messaging, (payload) => {
     console.log("[FCM] Foreground message received:", payload);
 

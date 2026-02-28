@@ -15,8 +15,16 @@ export async function enablePushNotifications(uid: string) {
 
     // 2️⃣ Obtener token
     const messaging = getMessaging();
+
+    // Explicit SW registration to bypass browser cache for existing PWA users
+    let swRegistration;
+    if ("serviceWorker" in navigator) {
+      swRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js?v=2");
+    }
+
     const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: swRegistration,
     });
 
     if (!token) {
