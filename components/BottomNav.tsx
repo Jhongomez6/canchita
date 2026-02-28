@@ -19,8 +19,20 @@ export default function BottomNav() {
         getUserProfile(user.uid).then((profile: UserProfile | null) => {
             setIsAdmin(profile?.roles?.includes("admin") ?? false);
         });
-        getUnreadCount(user.uid).then(setUnreadCount).catch(() => { });
     }, [user]);
+
+    // Refresh unread count on navigation and tab focus
+    useEffect(() => {
+        if (!user) return;
+        const fetchCount = () => getUnreadCount(user.uid).then(setUnreadCount).catch(() => { });
+        fetchCount();
+
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") fetchCount();
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () => document.removeEventListener("visibilitychange", handleVisibility);
+    }, [user, pathname]);
 
     if (!user) return null;
 

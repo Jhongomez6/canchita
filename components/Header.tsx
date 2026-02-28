@@ -6,12 +6,13 @@ import { useAuth } from "@/lib/AuthContext";
 import { logout } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import { getUserProfile } from "@/lib/users";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
 
 export default function Header() {
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -20,8 +21,20 @@ export default function Header() {
     getUserProfile(user.uid).then(profile => {
       setIsAdmin(profile?.roles.includes("admin") ?? false);
     });
-    getUnreadCount(user.uid).then(setUnreadCount).catch(() => { });
   }, [user]);
+
+  // Refresh unread count on navigation and tab focus
+  useEffect(() => {
+    if (!user) return;
+    const fetchCount = () => getUnreadCount(user.uid).then(setUnreadCount).catch(() => { });
+    fetchCount();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") fetchCount();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [user, pathname]);
 
   const handleLogout = async () => {
     await logout();
