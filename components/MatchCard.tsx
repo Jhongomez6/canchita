@@ -20,6 +20,10 @@ export default function MatchCard({ match, location, href }: MatchCardProps) {
 
     const isClosed = match.status === 'closed';
 
+    // Formato de partido: ej. "9vs9"
+    const playersPerTeam = Math.floor(match.maxPlayers / 2);
+    const matchFormat = `${playersPerTeam}vs${playersPerTeam}`;
+
     return (
         <Link
             href={href}
@@ -40,7 +44,7 @@ export default function MatchCard({ match, location, href }: MatchCardProps) {
                     {location?.name || "Ubicación por definir"}
                 </h3>
                 <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 capitalize">
-                    🗓️ {weekDay} • ⏰ {formatTime12h(match.time)}
+                    🗓️ {weekDay} • ⏰ {formatTime12h(match.time)} • ⚽ {matchFormat}
                 </p>
             </div>
 
