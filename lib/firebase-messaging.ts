@@ -9,11 +9,6 @@ export async function listenToPushMessages() {
   const messaging = getMessaging();
 
   onMessage(messaging, payload => {
-    const title = payload.data?.title || payload.notification?.title;
-    const body = payload.data?.body || payload.notification?.body;
-
-    if (title && Notification.permission === "granted") {
-      new Notification(title, { body: body || "" });
-    }
+    console.log("[FCM] Foreground message received:", payload);
   });
 }

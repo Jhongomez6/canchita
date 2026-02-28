@@ -113,7 +113,15 @@ async function sendReminderIfNeeded(
     return;
   }
 
-  const players = (match.players || []).filter((p: any) => p.uid && !p.uid.startsWith("guest_"));
+  const allPlayers = (match.players || []).filter((p: any) => p.uid && !p.uid.startsWith("guest_"));
+
+  // 🔒 Desduplicar por UID para evitar notificaciones dobles
+  const seen = new Set<string>();
+  const players = allPlayers.filter((p: any) => {
+    if (seen.has(p.uid)) return false;
+    seen.add(p.uid);
+    return true;
+  });
 
   if (players.length === 0) return;
 
@@ -149,11 +157,8 @@ async function sendReminderIfNeeded(
 
     const response = await admin.messaging().sendEachForMulticast({
       tokens,
-      data: {
-        title,
-        body,
-        url: `https://la-canchita.vercel.app/join/${matchId}`,
-      },
+      notification: { title, body },
+      data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
     });
 
     // 🧹 Limpieza de tokens inválidos
@@ -256,11 +261,8 @@ export const sendManualReminder = onCall(async (request) => {
 
     const response = await admin.messaging().sendEachForMulticast({
       tokens,
-      data: {
-        title,
-        body,
-        url: `https://la-canchita.vercel.app/join/${matchId}`,
-      },
+      notification: { title, body },
+      data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
     });
 
     sentTokensCount += response.successCount;
@@ -487,11 +489,11 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
   if (tokensToWinners.length > 0) {
     const res = await admin.messaging().sendEachForMulticast({
       tokens: tokensToWinners,
-      data: {
+      notification: {
         title: "⭐ ¡Felicidades crack!",
         body: "Fuiste elegido como el MVP indiscutible del último partido.",
-        ...urlParams,
       },
+      data: urlParams,
     });
     totalSent += res.successCount;
   }
@@ -500,11 +502,11 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
   if (tokensToTies.length > 0) {
     const res = await admin.messaging().sendEachForMulticast({
       tokens: tokensToTies,
-      data: {
+      notification: {
         title: "🤝 ¡Empate!",
         body: "Tú y otros jugadores compartieron el título MVP del último partido. ¡Cracks!",
-        ...urlParams,
       },
+      data: urlParams,
     });
     totalSent += res.successCount;
   }
@@ -513,11 +515,11 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
   if (tokensToOthers.length > 0) {
     const res = await admin.messaging().sendEachForMulticast({
       tokens: tokensToOthers,
-      data: {
+      notification: {
         title: "🏆 ¡Habemus MVP!",
         body: `${namesString} la rompió y fue elegido como la figura de la cancha en tu último partido.`,
-        ...urlParams,
       },
+      data: urlParams,
     });
     totalSent += res.successCount;
   }
@@ -610,7 +612,7 @@ export const notifyFeedbackResolved = onCall(async (request) => {
     if (tokens.length > 0) {
       const response = await admin.messaging().sendEachForMulticast({
         tokens,
-        data: { title, body },
+        notification: { title, body },
       });
 
       pushSent = response.successCount > 0;

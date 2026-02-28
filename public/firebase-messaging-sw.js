@@ -42,22 +42,10 @@ self.addEventListener("notificationclick", function (event) {
   );
 });
 
-// We send DATA-ONLY messages (no `notification` field) so that FCM
-// does NOT auto-display anything. Instead, we control display here.
+// FCM automatically shows the notification when the payload contains
+// a `notification` field. We do NOT call showNotification here to
+// avoid duplicate notifications.
 messaging.onBackgroundMessage(function (payload) {
   console.log("[SW] Background message received:", payload);
-
-  var title = payload.data && payload.data.title;
-  var body = payload.data && payload.data.body;
-  var url = payload.data && payload.data.url;
-
-  if (!title) return;
-
-  // Return the promise so the SW stays alive until notification is shown
-  return self.registration.showNotification(title, {
-    body: body || "",
-    icon: "/icon-192x192.png",
-    data: { url: url },
-  });
 });
 
