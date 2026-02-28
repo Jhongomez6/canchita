@@ -933,24 +933,52 @@ export default function JoinMatchPage() {
             );
           })() : (
             <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  👥 Jugadores confirmados
-                  <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">{confirmedCount} / {match.maxPlayers || "?"}</span>
-                </h3>
-                <div className="group relative flex items-center" tabIndex={0}>
-                  <span className="cursor-pointer w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
-                    ?
-                  </span>
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-56 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible focus-within:opacity-100 focus-within:visible transition-all pointer-events-none z-50 text-left">
-                    <div className="text-center font-bold text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5">Posiciones de Juego</div>
-                    <div className="mb-1"><span className="mr-2">🧤</span> Portero</div>
-                    <div className="mb-1"><span className="mr-2">🛡️</span> Defensa</div>
-                    <div className="mb-1"><span className="mr-2">⚙️</span> Medio</div>
-                    <div><span className="mr-2">⚡</span> Delantero</div>
-                    <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    👥 Jugadores confirmados
+                    <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">{confirmedCount} / {match.maxPlayers || "?"}</span>
+                  </h3>
+                  <div className="group relative flex items-center" tabIndex={0}>
+                    <span className="cursor-pointer w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
+                      ?
+                    </span>
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-56 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible focus-within:opacity-100 focus-within:visible transition-all pointer-events-none z-50 text-left">
+                      <div className="text-center font-bold text-slate-300 mb-1.5 border-b border-slate-700 pb-1.5">Posiciones de Juego</div>
+                      <div className="mb-1"><span className="mr-2">🧤</span> Portero</div>
+                      <div className="mb-1"><span className="mr-2">🛡️</span> Defensa</div>
+                      <div className="mb-1"><span className="mr-2">⚙️</span> Medio</div>
+                      <div><span className="mr-2">⚡</span> Delantero</div>
+                      <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                    </div>
                   </div>
                 </div>
+
+                {profile?.roles?.includes("admin") && confirmedCount > 0 && (
+                  <button
+                    onClick={async () => {
+                      let text = `📋 *Jugadores Confirmados (${confirmedCount}/${match.maxPlayers || "?"})*\n\n`;
+                      const confirmed = match.players?.filter((p: Player) => p.confirmed) || [];
+                      confirmed.forEach((p: Player, i: number) => {
+                        const icon = POSITION_ICONS[(p.positions?.[0] as Position) || "MID"];
+                        text += `${i + 1}. ${icon} ${p.name}\n`;
+                      });
+                      const guests = match.guests || [];
+                      guests.forEach((g: Guest, i: number) => {
+                        const icon = POSITION_ICONS[(g.positions?.[0] as Position) || "MID"];
+                        text += `${confirmed.length + i + 1}. ${icon} ${g.name} (Inv)\n`;
+                      });
+
+                      await navigator.clipboard.writeText(text);
+                      toast.success("Lista copiada para WhatsApp", { icon: '📋' });
+                    }}
+                    className="p-1.5 px-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors border border-slate-200 flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0"
+                    title="Copiar para WhatsApp"
+                  >
+                    <span className="text-sm">📋</span>
+                    <span className="text-[10px] hidden sm:inline uppercase">Copiar</span>
+                  </button>
+                )}
               </div>
 
               {confirmedCount === 0 ? (

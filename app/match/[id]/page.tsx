@@ -435,12 +435,23 @@ export default function MatchDetailPage() {
                   <input
                     type="number"
                     min={2}
+                    step={2}
                     value={maxPlayersDraft ?? ""}
                     onChange={e => setMaxPlayersDraft(Number(e.target.value))}
                     onBlur={async () => {
-                      if (maxPlayersDraft === match.maxPlayers) return;
+                      if (!maxPlayersDraft) return;
+                      // Ensure it's always even (round up if odd)
+                      const evenVal = maxPlayersDraft % 2 !== 0 ? maxPlayersDraft + 1 : maxPlayersDraft;
+
+                      if (evenVal === match.maxPlayers) {
+                        setMaxPlayersDraft(evenVal); // Revert UI visually if they typed an odd number that rounded to the current even value
+                        return;
+                      }
+
+                      setMaxPlayersDraft(evenVal);
+
                       await updateDoc(doc(db, "matches", id), {
-                        maxPlayers: maxPlayersDraft,
+                        maxPlayers: evenVal,
                       });
                       loadMatch();
                     }}

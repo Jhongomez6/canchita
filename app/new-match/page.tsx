@@ -68,6 +68,9 @@ export default function NewMatchPage() {
     }
 
     try {
+      // Ensure maxPlayers is always even
+      const finalMaxPlayers = maxPlayers % 2 !== 0 ? maxPlayers + 1 : maxPlayers;
+
       await createMatch({
         date,
         time: finalTime24,
@@ -80,7 +83,7 @@ export default function NewMatchPage() {
           lng: selectedLocation.lng,
         },
         createdBy: user.uid,
-        maxPlayers,
+        maxPlayers: finalMaxPlayers,
         isPrivate,
       });
 
