@@ -11,7 +11,7 @@ interface MatchCardProps {
 
 export default function MatchCard({ match, location, href }: MatchCardProps) {
     const dateObj = new Date(`${match.date}T12:00:00`);
-    const month = dateObj.toLocaleDateString('es-CO', { month: 'long' }).toUpperCase();
+    const month = dateObj.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '').toUpperCase();
     const day = dateObj.getDate();
 
     // Day of the week (e.g., "Domingo")
@@ -36,14 +36,11 @@ export default function MatchCard({ match, location, href }: MatchCardProps) {
             </div>
 
             <div className="flex-1 min-w-0">
-                <span className="block text-xs font-semibold text-emerald-600 mb-0.5">
-                    {weekDay}
-                </span>
                 <h3 className="font-bold text-slate-800 text-sm truncate">
                     {location?.name || "Ubicación por definir"}
                 </h3>
-                <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                    ⏰ {formatTime12h(match.time)}
+                <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 capitalize">
+                    🗓️ {weekDay} • ⏰ {formatTime12h(match.time)}
                 </p>
             </div>
 
