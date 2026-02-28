@@ -9,8 +9,11 @@ export async function listenToPushMessages() {
   const messaging = getMessaging();
 
   onMessage(messaging, payload => {
-    if (payload.data?.url) {
-      window.location.href = payload.data.url;
+    const title = payload.data?.title || payload.notification?.title;
+    const body = payload.data?.body || payload.notification?.body;
+
+    if (title && Notification.permission === "granted") {
+      new Notification(title, { body: body || "" });
     }
   });
 }
