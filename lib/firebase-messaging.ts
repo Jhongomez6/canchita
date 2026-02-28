@@ -17,16 +17,13 @@ export async function listenToPushMessages() {
 
     // Show system notification so the user actually sees it
     if (Notification.permission === "granted") {
-      const n = new Notification(title, {
-        body,
-        icon: "/icons/icon-192x192.png",
-        data: { url },
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          body,
+          icon: "/icons/icon-192x192.png",
+          data: { url },
+        });
       });
-
-      n.onclick = () => {
-        if (url) window.open(url, "_blank");
-        n.close();
-      };
     }
   });
 }
