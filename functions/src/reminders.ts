@@ -613,6 +613,7 @@ export const notifyFeedbackResolved = onCall(async (request) => {
       const response = await admin.messaging().sendEachForMulticast({
         tokens,
         notification: { title, body },
+        data: { url: "https://la-canchita.vercel.app/notifications" },
       });
 
       pushSent = response.successCount > 0;

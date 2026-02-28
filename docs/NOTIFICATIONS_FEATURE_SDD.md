@@ -66,7 +66,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 | 3 | El usuario puede marcar como leída | `markAsRead()` en `lib/notifications.ts` |
 | 4 | In-app SIEMPRE se escribe, push es best-effort | Cloud Function: write primero, push después |
 | 5 | Máximo 50 notificaciones visibles | `NOTIFICATIONS_LIMIT` en `lib/notifications.ts` |
-| 6 | FCM usa mensajes **data-only** (sin campo `notification`) | Evita duplicados. SW muestra manualmente via `showNotification` |
+| 6 | FCM usa campo `notification` + `data` (URL de click-through) | SW auto-muestra en background; `onMessage` muestra `Notification()` en foreground |
 
 ---
 
@@ -80,6 +80,9 @@ Colección: `notifications/{userId}/items/{notifId}`
 | UI | `components/Header.tsx` | Campana + badge |
 | UI | `components/BottomNav.tsx` | Tab Alertas + badge |
 | Backend | `functions/src/reminders.ts` | Cloud Functions |
+| Push | `lib/firebase-messaging.ts` | Foreground push display |
+| Push | `lib/push.ts` | Token registration, manual reminders |
+| Push | `public/firebase-messaging-sw.js` | Background push (Service Worker) |
 | Rules | `firestore.rules` | Seguridad subcollection |
 
 ---

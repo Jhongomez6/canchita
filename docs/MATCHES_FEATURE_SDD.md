@@ -62,7 +62,7 @@ interface Player {
 | 8 | Partido reabierto revierte stats previos | `previousResult` param en `updatePlayerStats()` |
 | 9 | Invitados visibles y balanceables desde match detail | Guest display + `guestToPlayer()` en match page |
 | 10 | Reporte WhatsApp usa equipos locales (incluye cambios DnD) | `balanced` state preferred over `match.teams` |
-| 11 | Los códigos de partido pueden ser IDs puros, con extensión `.ai`/`.app`, o enlaces completos (`/join/ID`) | `sanitizeMatchCode()` en `lib/matchCode.ts` |
+| 11 | Los códigos de partido pueden ser IDs puros, con extensión `.ai`/`.app`, enlaces completos (`/join/ID`), con trailing slash o query params | `sanitizeMatchCode()` en `lib/matchCode.ts` |
 
 ---
 
@@ -279,7 +279,7 @@ const isEnrolled = match.players.some(
 
 ---
 
-## 6. TESTING (Recomendado)
+## 6. TESTING
 
 ### Tests de Dominio
 
@@ -305,6 +305,14 @@ describe("isMatchFull", () => {
     expect(isMatchFull(players, 2)).toBe(true);
   });
 });
+```
+
+### Tests de sanitizeMatchCode (22 tests ✅)
+
+```typescript
+// lib/matchCode.test.ts — ejecutar con: npx vitest run lib/matchCode.test.ts
+// Cubre: códigos planos, sufijos .ai/.app, URLs completas,
+//        trailing slashes, query params, inputs vacíos
 ```
 
 ---
@@ -347,7 +355,8 @@ describe("isMatchFull", () => {
 | API | `lib/matches.ts` | CRUD Firestore |
 | API | `lib/playerStats.ts` | Estadísticas |
 | API | `lib/matchReport.ts` | Reporte WhatsApp |
-| API | `lib/matchCode.ts` | Sanitización de códigos (.ai trick) |
+| API | `lib/matchCode.ts` | Sanitización de códigos (.ai/.app trick, URLs, query params) |
+| Test | `lib/matchCode.test.ts` | 22 tests para sanitizeMatchCode |
 | UI | `app/match/[id]/page.tsx` | Admin view |
 | UI | `app/join/[id]/page.tsx` | Player view |
 | UI | `app/page.tsx` | Home / lista |
