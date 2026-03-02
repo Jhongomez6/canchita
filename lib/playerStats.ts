@@ -53,7 +53,7 @@ export async function updatePlayerStats(
     const isNoShow = attendance === "no_show";
 
     // Base stats update
-    const statsUpdate: any = {};
+    const statsUpdate: Record<string, unknown> = {};
 
     if (isNoShow) {
       statsUpdate.noShows = increment(1);

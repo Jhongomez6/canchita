@@ -1,6 +1,6 @@
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Feedback, FeedbackType } from "./domain/feedback";
+import type { FeedbackType } from "./domain/feedback";
 
 export async function submitFeedback(
     userId: string,

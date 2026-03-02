@@ -120,7 +120,7 @@ export function balanceTeams(players: Player[]): BalanceResult {
 
     // Asignar hasta 2 GKs (1 por equipo), el resto va al pool general
     const gksToAssign = gks.slice(0, 2);
-    const gksExtra = gks.slice(2);
+    // gks.slice(2) represent extra GKs, going to general pool
 
     if (gks.length === 0) {
         warnings.push("⚠️ No hay arqueros confirmados");

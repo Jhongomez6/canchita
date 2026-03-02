@@ -7,8 +7,6 @@ import { getUserProfile } from "@/lib/users";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { isInAppBrowser } from "@/lib/browser";
-import type { UserProfile } from "@/lib/domain/user";
-import { handleError } from "@/lib/utils/error";
 
 export default function AuthGuard({
   children,
@@ -21,7 +19,10 @@ export default function AuthGuard({
   const [inApp, setInApp] = useState(false);
 
   useEffect(() => {
-    setInApp(isInAppBrowser());
+    const delay = setTimeout(() => {
+      setInApp(isInAppBrowser());
+    }, 0);
+    return () => clearTimeout(delay);
   }, []);
 
   // 🔹 Redirigir a /onboarding si no ha completado el rating inicial
@@ -99,7 +100,13 @@ export default function AuthGuard({
 
           {/* BOTÓN GOOGLE */}
           <button
-            onClick={loginWithGoogle}
+            onClick={() => {
+              if (isInAppBrowser()) {
+                setInApp(true);
+                return;
+              }
+              loginWithGoogle().catch(console.error);
+            }}
             disabled={inApp}
             className={`w-full bg-white border-2 rounded-xl py-3.5 px-6 text-base font-bold flex items-center justify-center gap-3 transition-all ${inApp
               ? "border-slate-100 text-slate-300 cursor-not-allowed opacity-50"

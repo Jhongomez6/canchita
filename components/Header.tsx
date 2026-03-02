@@ -12,12 +12,9 @@ export default function Header() {
   const { user, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [isAdmin, setIsAdmin] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    setIsAdmin(profile?.roles.includes("admin") ?? false);
-  }, [profile]);
+  const isAdmin = profile?.roles?.includes("admin") ?? false;
 
   // Refresh unread count on navigation and tab focus
   useEffect(() => {

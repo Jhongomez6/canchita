@@ -55,7 +55,7 @@ export function calculateMvpStatus(match: Match | null | undefined): MvpStatus {
     ];
 
     for (const mvpId of currentMVPs) {
-        const p = allPlayersAndGuests.find((p: any) => p.uid === mvpId || p.name === mvpId);
+        const p = allPlayersAndGuests.find((p: { uid?: string, name: string }) => p.uid === mvpId || p.name === mvpId);
         if (p) winnerNames.push(p.name);
     }
 

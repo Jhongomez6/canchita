@@ -3,31 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { useEffect, useState } from "react";
-import { getUnreadCount } from "@/lib/notifications";
 
 export default function BottomNav() {
     const pathname = usePathname();
     const { user, profile } = useAuth();
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
-
-    useEffect(() => {
-        setIsAdmin(profile?.roles?.includes("admin") ?? false);
-    }, [profile]);
-
-    // Refresh unread count on navigation and tab focus
-    useEffect(() => {
-        if (!user) return;
-        const fetchCount = () => getUnreadCount(user.uid).then(setUnreadCount).catch(() => { });
-        fetchCount();
-
-        const handleVisibility = () => {
-            if (document.visibilityState === "visible") fetchCount();
-        };
-        document.addEventListener("visibilitychange", handleVisibility);
-        return () => document.removeEventListener("visibilitychange", handleVisibility);
-    }, [user, pathname]);
+    const isAdmin = profile?.roles?.includes("admin") ?? false;
 
     if (!user) return null;
 

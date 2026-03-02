@@ -20,7 +20,8 @@ import { GuestValidationError } from "./errors";
 
 // Re-export Position desde player.ts (fuente única de verdad)
 export type { Position } from "./player";
-export { ALLOWED_POSITIONS } from "./player";
+import { ALLOWED_POSITIONS } from "./player";
+export { ALLOWED_POSITIONS };
 
 import type { Position } from "./player";
 
@@ -92,7 +93,6 @@ export function validateGuestPositions(positions: Position[]): void {
   }
 
   // Verificar que todas las posiciones sean válidas
-  const { ALLOWED_POSITIONS } = require("./player");
   for (const position of positions) {
     if (!ALLOWED_POSITIONS.includes(position)) {
       throw new GuestValidationError(

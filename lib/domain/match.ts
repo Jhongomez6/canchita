@@ -30,7 +30,7 @@ export interface Match {
     id: string;
     date: string;
     time: string;
-    startsAt?: any; // Firestore Timestamp
+    startsAt?: { seconds: number; nanoseconds: number; toDate?(): Date }; // Firestore Timestamp
     locationId: string;
     locationSnapshot: LocationSnapshot;
     createdBy: string;

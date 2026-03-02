@@ -5,18 +5,18 @@
 export function isInAppBrowser(): boolean {
     if (typeof window === "undefined") return false;
 
-    const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
+    const ua = (navigator.userAgent || navigator.vendor || (window as Window & { opera?: string }).opera || "").toLowerCase();
 
     // Common keywords in user agent strings for in-app browsers
     const rules = [
-        "Instagram",
-        "FBAV", // Facebook App Version
-        "FBAN", // Facebook App Native
-        "WhatsApp",
-        "Line",
-        "Twitter",
-        "Snapchat",
-        "LinkedInApp",
+        "instagram",
+        "fbav", // Facebook App Version
+        "fban", // Facebook App Native
+        "whatsapp",
+        "line",
+        "twitter",
+        "snapchat",
+        "linkedinapp",
     ];
 
     const hasAppKeyword = rules.some((rule) => ua.includes(rule));

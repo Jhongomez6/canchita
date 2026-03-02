@@ -206,7 +206,13 @@ export default function JoinMatchPage() {
 
           {/* BOTÓN GOOGLE */}
           <button
-            onClick={loginWithGoogle}
+            onClick={() => {
+              if (isInAppBrowser()) {
+                setInApp(true);
+                return;
+              }
+              loginWithGoogle().catch(console.error);
+            }}
             disabled={inApp}
             className={`w-full bg-white border-2 rounded-xl py-3.5 px-6 text-base font-bold flex items-center justify-center gap-3 transition-all ${inApp
               ? "border-slate-100 text-slate-300 cursor-not-allowed opacity-50"

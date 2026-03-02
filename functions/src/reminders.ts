@@ -97,7 +97,7 @@ export const matchReminders = onSchedule(
  */
 async function sendReminderIfNeeded(
   matchId: string,
-  match: any,
+  match: Record<string, unknown>,
   reminderKey: string
 ) {
   console.log(
@@ -113,11 +113,11 @@ async function sendReminderIfNeeded(
     return;
   }
 
-  const allPlayers = (match.players || []).filter((p: any) => p.uid && !p.uid.startsWith("guest_"));
+  const allPlayers = (match.players as Array<Record<string, unknown>> || []).filter((p) => p.uid && typeof p.uid === "string" && !p.uid.startsWith("guest_"));
 
   // 🔒 Desduplicar por UID para evitar notificaciones dobles
   const seen = new Set<string>();
-  const players = allPlayers.filter((p: any) => {
+  const players = allPlayers.filter((p: Record<string, unknown>) => {
     if (seen.has(p.uid)) return false;
     seen.add(p.uid);
     return true;

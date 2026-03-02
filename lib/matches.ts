@@ -27,9 +27,9 @@ import { db } from "./firebase";
 import { getUserProfile } from "./users";
 import { Timestamp } from "firebase/firestore";
 import type { Player, Position } from "./domain/player";
-import type { Match, CreateMatchInput } from "./domain/match";
+import type { Match } from "./domain/match";
 import { getConfirmedCount } from "./domain/match";
-import { MatchFullError, DuplicatePlayerError } from "./domain/errors";
+import { MatchFullError } from "./domain/errors";
 
 // Re-export para backward compatibility
 export type { Match };
@@ -559,7 +559,7 @@ export async function voteForMVP(
 
     // 2.5 Validar cierre matemático (alguien ya ganó por mayoría inalcanzable)
     const eligibleUIDs = new Set(
-      data.players?.filter((p: any) => p.confirmed && p.uid && !p.uid.startsWith("guest_")).map((p: any) => p.uid) || []
+      data.players?.filter((p: Player) => p.confirmed && p.uid && !p.uid.startsWith("guest_")).map((p: Player) => p.uid) || []
     );
     if (data.createdBy) eligibleUIDs.add(data.createdBy);
 
