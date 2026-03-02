@@ -108,16 +108,20 @@ async function sendReminderIfNeeded(
   );
 
   // 🛑 Anti-spam
-  if (match.remindersSent?.[reminderKey]) {
+  const remindersSent = match.remindersSent as Record<string, boolean> | undefined;
+  if (remindersSent?.[reminderKey]) {
     console.log("⛔ Reminder ya enviado:", reminderKey);
     return;
   }
 
-  const allPlayers = (match.players as Array<Record<string, unknown>> || []).filter((p) => p.uid && typeof p.uid === "string" && !p.uid.startsWith("guest_"));
+  type ReminderPlayer = { uid?: string; confirmed?: boolean;[key: string]: unknown };
+  const allPlayers = ((match.players as Array<ReminderPlayer>) || []).filter(
+    (p) => p.uid && typeof p.uid === "string" && !p.uid.startsWith("guest_")
+  ) as Array<{ uid: string; confirmed?: boolean;[key: string]: unknown }>;
 
   // 🔒 Desduplicar por UID para evitar notificaciones dobles
   const seen = new Set<string>();
-  const players = allPlayers.filter((p: Record<string, unknown>) => {
+  const players = allPlayers.filter((p) => {
     if (seen.has(p.uid)) return false;
     seen.add(p.uid);
     return true;
