@@ -27,6 +27,7 @@ export default function Home() {
   const [enablingPush, setEnablingPush] = useState(false);
   const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
   const [quickCode, setQuickCode] = useState("");
+  const [loadingMatches, setLoadingMatches] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -47,6 +48,7 @@ export default function Home() {
   useEffect(() => {
     if (!user) return;
 
+    setLoadingMatches(true);
     getMyMatches(user.uid).then(async matches => {
       // Sort matches by date DESCENDING (most recent first)
       const sorted = [...matches].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
@@ -77,6 +79,7 @@ export default function Home() {
       });
 
       setLocationsMap(map);
+      setLoadingMatches(false);
     });
   }, [user]);
 
@@ -114,7 +117,24 @@ export default function Home() {
             </div>
 
             {/* NEXT MATCH HERO CARD */}
-            {nextMatch ? (
+            {loadingMatches ? (
+              <div className="bg-white/90 animate-pulse rounded-2xl p-5 shadow-xl">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="h-6 bg-slate-200 rounded w-32"></div>
+                  <div className="h-4 bg-slate-200 rounded w-20"></div>
+                </div>
+
+                <div className="flex items-center gap-4 mb-4 mt-2">
+                  <div className="w-12 h-12 bg-slate-200 rounded-full shrink-0"></div>
+                  <div className="flex-1">
+                    <div className="h-5 bg-slate-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+
+                <div className="h-12 bg-slate-200 rounded-xl w-full mt-2"></div>
+              </div>
+            ) : nextMatch ? (
               <div className="bg-white text-slate-900 rounded-2xl p-5 shadow-xl">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-xs font-bold text-[#1f7a4f] uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-md">
@@ -272,7 +292,20 @@ export default function Home() {
               </h2>
 
               <div className="space-y-3">
-                {matches.length === 0 ? (
+                {loadingMatches ? (
+                  <>
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 animate-pulse">
+                        <div className="bg-slate-100 rounded-lg p-2 min-w-[3.5rem] mr-4 h-[50px]"></div>
+                        <div className="flex-1">
+                          <div className="h-4 bg-slate-200 rounded w-2/3 mb-2"></div>
+                          <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                        </div>
+                        <div className="h-6 w-12 bg-slate-200 rounded-md"></div>
+                      </div>
+                    ))}
+                  </>
+                ) : matches.length === 0 ? (
                   <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-dashed border-slate-300">
                     <p className="text-slate-500 text-sm mb-1">Aún no tienes partidos</p>
                     <p className="text-xs text-slate-400">Cuando te unas, aparecerán aquí.</p>
@@ -291,7 +324,7 @@ export default function Home() {
                   })
                 )}
                 {/* Fallback if nextMatch was the only match */}
-                {matches.length === 1 && nextMatch && (
+                {!loadingMatches && matches.length === 1 && nextMatch && (
                   <p className="text-center text-xs text-slate-400 py-4">No hay más partidos programados.</p>
                 )}
               </div>
