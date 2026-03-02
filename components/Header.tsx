@@ -5,23 +5,19 @@ import Image from "next/image";
 import { useAuth } from "@/lib/AuthContext";
 import { logout } from "@/lib/auth";
 import { useEffect, useState } from "react";
-import { getUserProfile } from "@/lib/users";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!user) return;
-    getUserProfile(user.uid).then(profile => {
-      setIsAdmin(profile?.roles.includes("admin") ?? false);
-    });
-  }, [user]);
+    setIsAdmin(profile?.roles.includes("admin") ?? false);
+  }, [profile]);
 
   // Refresh unread count on navigation and tab focus
   useEffect(() => {

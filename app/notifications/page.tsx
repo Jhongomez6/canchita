@@ -7,6 +7,8 @@ import { getMyNotifications, markAsRead, markAllAsRead } from "@/lib/notificatio
 import type { AppNotification } from "@/lib/domain/notification";
 import { useRouter } from "next/navigation";
 
+import NotificationsSkeleton from "@/components/skeletons/NotificationsSkeleton";
+
 const TYPE_ICONS: Record<string, string> = {
     feedback_resolved: "💬",
     match_reminder: "⚽",
@@ -31,6 +33,13 @@ export default function NotificationsPage() {
         try {
             const data = await getMyNotifications(user.uid);
             setNotifications(data);
+
+            // Marca todas como leídas en segundo plano nada más cargar
+            // para que los contadores globales se limpien antes de que el usuario vuelva atrás
+            const hasUnread = data.some(n => !n.read);
+            if (hasUnread) {
+                markAllAsRead(user.uid).catch(console.error);
+            }
         } catch (err) {
             console.error("Error loading notifications:", err);
         } finally {
@@ -41,7 +50,7 @@ export default function NotificationsPage() {
     async function handleClick(notif: AppNotification) {
         if (!user || !notif.id) return;
 
-        // Mark as read
+        // Mark as read immediately if clicked (for UX)
         if (!notif.read) {
             await markAsRead(user.uid, notif.id);
             setNotifications(prev =>
@@ -55,22 +64,10 @@ export default function NotificationsPage() {
         }
     }
 
-    async function handleMarkAllRead() {
-        if (!user) return;
-        await markAllAsRead(user.uid);
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    }
-
     const unreadCount = notifications.filter(n => !n.read).length;
 
     if (loading) {
-        return (
-            <AuthGuard>
-                <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                    <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
-                </div>
-            </AuthGuard>
-        );
+        return <NotificationsSkeleton />;
     }
 
     return (
@@ -88,14 +85,6 @@ export default function NotificationsPage() {
                                 </span>
                             )}
                         </h1>
-                        {unreadCount > 0 && (
-                            <button
-                                onClick={handleMarkAllRead}
-                                className="text-xs font-bold text-[#1f7a4f] hover:underline"
-                            >
-                                Marcar todas como leídas
-                            </button>
-                        )}
                     </div>
 
                     {/* LIST */}

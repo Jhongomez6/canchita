@@ -77,8 +77,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 | Dominio | `lib/domain/notification.ts` | Tipos |
 | API | `lib/notifications.ts` | CRUD client |
 | UI | `app/notifications/page.tsx` | Lista de notificaciones |
-| UI | `components/Header.tsx` | Campana + badge |
-| UI | `components/BottomNav.tsx` | Tab Alertas + badge |
+| UI | `app/profile/page.tsx` | Campana + badge en perfil |
 | Backend | `functions/src/reminders.ts` | Cloud Functions |
 | Push | `lib/firebase-messaging.ts` | Foreground push display |
 | Push | `lib/push.ts` | Token registration, manual reminders |
@@ -89,11 +88,10 @@ Colección: `notifications/{userId}/items/{notifId}`
 
 ## 3. CRITERIOS DE ACEPTACIÓN
 
-- [x] Campana 🔔 visible en Header con badge de no leídas
-- [x] Tab "Alertas" en BottomNav con badge de no leídas
+- [x] Campana 🔔 visible en Header de Perfil con badge de no leídas
 - [x] Página `/notifications` con lista de notificaciones
 - [x] Click en notificación marca como leída y navega al URL
-- [x] Botón "Marcar todas como leídas"
+- [x] Auto-marcar como leídas al entrar a la pantalla de notificaciones
 - [x] Estado vacío con mensaje amigable
 - [x] Timestamps relativos ("Hace 5 min", "Hace 2 días")
 - [x] Firestore rules protegen acceso por usuario

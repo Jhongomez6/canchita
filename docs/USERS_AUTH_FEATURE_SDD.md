@@ -57,6 +57,7 @@ interface UserProfile {
     UserProfile    Firestore      AuthGuard
     UserRole       Auth ops       Profile Page
     isAdmin()      CRUD users     Admin Panel
+                                  AuthContext (Real-time Profile)
 ```
 
 ### Capas
@@ -97,9 +98,9 @@ export async function deleteUser(uid: string): Promise<void>
 **✅ Cumple especificación**: Reglas #4, #6, #7
 
 #### **Capa 3: UI**
-- `components/AuthGuard.tsx` — Protege rutas, redirige a `/profile` si incompleto
+- `components/AuthGuard.tsx` — Protege rutas, redirige a `/profile` si incompleto. Consume `profile` localmente del Contexto global para eliminar el "flash de carga" evitando renders intermedios.
 - `app/profile/page.tsx` — Dashboard de perfil:
-  - Edición de nombre con cooldown 30d y validación (mín. 2 caracteres)
+  - Edición de nombre con cooldown 30d y validación (mín. 2 caracteres). Lee perfil en tiempo real.
   - Posiciones con iconos emoji (`POSITION_ICONS`) y bloqueo durante guardado
   - Feedback independiente: `nameSaved` vs `positionsSaved`
   - Visualización de estadísticas (PJ/PG/PE/PP) apoyada por *CSS Tooltips* explicativos (optimizados para Mobile Touch).

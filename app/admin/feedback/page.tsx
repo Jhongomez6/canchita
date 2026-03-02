@@ -3,35 +3,30 @@
 import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import { useAuth } from "@/lib/AuthContext";
-import { getUserProfile } from "@/lib/users";
 import { getAllFeedback, resolveFeedback } from "@/lib/admin-feedback";
 import type { Feedback } from "@/lib/domain/feedback";
 import { formatDateSpanish } from "@/lib/date";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import FeedbackListSkeleton from "@/components/skeletons/FeedbackListSkeleton";
 
 export default function AdminFeedbackPage() {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
     const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
     const [loading, setLoading] = useState(true);
     const [resolvingId, setResolvingId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!user) {
+        if (!profile) return;
+        const admin = profile.roles.includes("admin");
+        setIsAdmin(admin);
+        if (admin) {
+            loadData();
+        } else {
             setLoading(false);
-            return;
         }
-        getUserProfile(user.uid).then((p) => {
-            const admin = p?.roles.includes("admin") ?? false;
-            setIsAdmin(admin);
-            if (admin) {
-                loadData();
-            } else {
-                setLoading(false);
-            }
-        });
-    }, [user]);
+    }, [profile]);
 
     async function loadData() {
         try {
@@ -72,9 +67,9 @@ export default function AdminFeedbackPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
-            </div>
+            <AuthGuard>
+                <FeedbackListSkeleton />
+            </AuthGuard>
         );
     }
 

@@ -13,26 +13,21 @@ import MatchCard from "@/components/MatchCard";
 import type { Match } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
 import type { UserProfile } from "@/lib/domain/user";
+import MatchListSkeleton from "@/components/skeletons/MatchListSkeleton";
 import { handleError } from "@/lib/utils/error";
 import { sanitizeMatchCode } from "@/lib/matchCode";
 
 export default function ExplorePage() {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const router = useRouter();
 
     const [matches, setMatches] = useState<Match[]>([]);
     const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
     const [loading, setLoading] = useState(true);
-    const [profile, setProfile] = useState<UserProfile | null>(null);
 
     // Invite code state
     const [inviteCode, setInviteCode] = useState("");
     const [isSubmittingCode, setIsSubmittingCode] = useState(false);
-
-    useEffect(() => {
-        if (!user) return;
-        getUserProfile(user.uid).then(setProfile);
-    }, [user]);
 
     useEffect(() => {
         if (!user) return;
@@ -146,17 +141,7 @@ export default function ExplorePage() {
                             </h2>
 
                             {loading ? (
-                                <div className="space-y-3">
-                                    {[1, 2].map(i => (
-                                        <div key={i} className="bg-white p-4 rounded-xl border border-slate-100 animate-pulse flex items-center">
-                                            <div className="bg-slate-200 rounded-lg w-14 h-14 mr-4"></div>
-                                            <div className="flex-1 space-y-2">
-                                                <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                                                <div className="h-3 bg-slate-200 rounded w-1/2"></div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                <MatchListSkeleton />
                             ) : matches.length === 0 ? (
                                 <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-dashed border-slate-300">
                                     <div className="text-4xl mb-3 opacity-50">🏟️</div>

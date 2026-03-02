@@ -54,13 +54,12 @@ import { handleError } from "@/lib/utils/error";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
 
   const [match, setMatch] = useState<Match | null>(null);
   const [balanced, setBalanced] = useState<{ teamA: { players: Player[] }; teamB: { players: Player[] } } | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [selectedUid, setSelectedUid] = useState("");
   const [manualName, setManualName] = useState("");
@@ -231,18 +230,9 @@ export default function MatchDetailPage() {
   }
 
   useEffect(() => {
-    if (!user) return;
-
-    getUserProfile(user.uid).then(profile => {
-      setUserProfile(profile);
-      setLoadingProfile(false);
-    });
-  }, [user]);
-
-  useEffect(() => {
-    if (!userProfile) return;
+    if (!profile) return;
     loadMatch();
-  }, [userProfile]);
+  }, [profile]);
 
   useEffect(() => {
     if (!match?.score) return;
@@ -272,12 +262,12 @@ export default function MatchDetailPage() {
 
   // Redirigir si no es admin
   useEffect(() => {
-    if (!loadingProfile && userProfile && !userProfile.roles.includes("admin")) {
+    if (profile && !profile.roles.includes("admin")) {
       router.push("/");
     }
-  }, [loadingProfile, userProfile, router]);
+  }, [profile, router]);
 
-  if (loadingProfile) {
+  if (!profile) {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -287,7 +277,7 @@ export default function MatchDetailPage() {
     );
   }
 
-  if (!userProfile || !userProfile.roles.includes("admin")) {
+  if (!profile || !profile.roles.includes("admin")) {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-slate-50 flex items-center justify-center">

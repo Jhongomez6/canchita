@@ -11,28 +11,22 @@ import { formatDateSpanish, formatTime12h } from "@/lib/date";
 import { sanitizeMatchCode } from "@/lib/matchCode";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import MatchCard from "@/components/MatchCard";
+import { useRouter } from "next/navigation";
 import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
-import MatchCard from "@/components/MatchCard";
-import { useRouter } from "next/navigation";
+import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
 
 export default function Home() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile, justLoggedIn } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const { justLoggedIn } = useAuth();
   const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
   const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
   const [quickCode, setQuickCode] = useState("");
   const [loadingMatches, setLoadingMatches] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-    getUserProfile(user.uid).then(setProfile);
-  }, [user]);
 
   useEffect(() => {
     if (
@@ -83,6 +77,10 @@ export default function Home() {
     });
   }, [user]);
 
+  if (loadingMatches) {
+    return <HomeSkeleton />;
+  }
+
   const now = new Date().getTime();
   const openMatches = matches.filter(m => m.status === 'open');
 
@@ -117,24 +115,7 @@ export default function Home() {
             </div>
 
             {/* NEXT MATCH HERO CARD */}
-            {loadingMatches ? (
-              <div className="bg-white/90 animate-pulse rounded-2xl p-5 shadow-xl">
-                <div className="flex justify-between items-center mb-3">
-                  <div className="h-6 bg-slate-200 rounded w-32"></div>
-                  <div className="h-4 bg-slate-200 rounded w-20"></div>
-                </div>
-
-                <div className="flex items-center gap-4 mb-4 mt-2">
-                  <div className="w-12 h-12 bg-slate-200 rounded-full shrink-0"></div>
-                  <div className="flex-1">
-                    <div className="h-5 bg-slate-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                  </div>
-                </div>
-
-                <div className="h-12 bg-slate-200 rounded-xl w-full mt-2"></div>
-              </div>
-            ) : nextMatch ? (
+            {nextMatch ? (
               <div className="bg-white text-slate-900 rounded-2xl p-5 shadow-xl">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-xs font-bold text-[#1f7a4f] uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-md">

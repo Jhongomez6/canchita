@@ -3,30 +3,25 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
-import { getAllUsers, deleteUser, getUserProfile, updateUserRoles } from "@/lib/users";
+import { getAllUsers, deleteUser, updateUserRoles } from "@/lib/users";
 import AuthGuard from "@/components/AuthGuard";
+import UserListSkeleton from "@/components/skeletons/UserListSkeleton";
 import type { UserProfile, UserRole } from "@/lib/domain/user";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 
 export default function AdminUsersPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-
-    getUserProfile(user.uid).then(p => {
-      setProfile(p);
-      if (!p?.roles.includes("admin")) {
-        router.replace("/");
-      }
-    });
-  }, [user, router]);
+    if (profile && !profile.roles.includes("admin")) {
+      router.replace("/");
+    }
+  }, [profile, router]);
 
   useEffect(() => {
     if (!profile || !profile.roles.includes("admin")) return;
@@ -100,23 +95,7 @@ export default function AdminUsersPage() {
           <h1 style={{ marginBottom: 20 }}>👥 Administrar Usuarios</h1>
 
           {loading ? (
-            <div className="animate-pulse flex flex-col gap-3">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="h-5 bg-slate-200 rounded w-32 mb-1"></div>
-                      <div className="h-3 bg-slate-200 rounded w-24"></div>
-                    </div>
-                    <div className="h-8 bg-slate-200 rounded w-20"></div>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="h-8 bg-slate-200 rounded-full w-24"></div>
-                    <div className="h-8 bg-slate-200 rounded-full w-24"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <UserListSkeleton />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {users.map(u => (

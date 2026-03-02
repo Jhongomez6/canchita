@@ -34,17 +34,15 @@ import { handleError } from "@/lib/utils/error";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
-  const { user, loading } = useAuth();
-  const [isMapOpen, setIsMapOpen] = useState(false);
-  const [submittingVote, setSubmittingVote] = useState(false);
   const router = useRouter();
-
+  const { user, profile, loading } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [location, setLocation] = useState<Location | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [joining, setJoining] = useState(false);
+  const [error, setError] = useState("");
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submittingVote, setSubmittingVote] = useState(false);
   const [inApp, setInApp] = useState(false);
 
   useEffect(() => {
@@ -68,30 +66,11 @@ export default function JoinMatchPage() {
     }
   }
 
-  // Cargar perfil del usuario
-  useEffect(() => {
-    if (!user) {
-      setLoadingProfile(false);
-      return;
-    }
-
-    getUserProfile(user.uid)
-      .then(p => {
-        setProfile(p || { uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
-        setLoadingProfile(false);
-      })
-      .catch(err => {
-        handleError(err, "Error cargando perfil");
-        setProfile({ uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
-        setLoadingProfile(false);
-      });
-  }, [user]);
-
   // Redirigir a /profile si el perfil está incompleto
   useEffect(() => {
     if (
       profile &&
-      profile.roles.includes("player") &&
+      profile.roles?.includes("player") &&
       (!profile.positions || profile.positions.length === 0)
     ) {
       // Guardar el ID del partido para volver después
@@ -165,7 +144,7 @@ export default function JoinMatchPage() {
   }, [match, id]);
 
   // ⏳ Auth o perfil cargando
-  if (loading || loadingProfile) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
         <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">

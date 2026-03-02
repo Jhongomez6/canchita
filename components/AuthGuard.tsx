@@ -15,8 +15,7 @@ export default function AuthGuard({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [inApp, setInApp] = useState(false);
@@ -24,20 +23,6 @@ export default function AuthGuard({
   useEffect(() => {
     setInApp(isInAppBrowser());
   }, []);
-
-  // 🔹 Cargar perfil cuando hay usuario
-  useEffect(() => {
-    if (!user) return;
-
-    getUserProfile(user.uid)
-      .then(p => {
-        setProfile(p || { uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
-      })
-      .catch(err => {
-        handleError(err, "Error cargando perfil de usuario");
-        setProfile({ uid: user.uid, name: user.displayName || '', roles: ["player"] as const, positions: [] });
-      });
-  }, [user]);
 
   // 🔹 Redirigir a /onboarding si no ha completado el rating inicial
   useEffect(() => {
@@ -50,8 +35,6 @@ export default function AuthGuard({
       router.replace("/onboarding");
     }
   }, [profile, pathname, router]);
-
-
 
   // ⏳ Auth o perfil cargando
   if (loading || (user && !profile)) {

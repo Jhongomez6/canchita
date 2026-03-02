@@ -12,13 +12,14 @@ import type { Foot, CourtSize } from "@/lib/domain/rating";
 import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import StatsCard from "@/components/StatsCard";
+import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
 const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado"];
 const LEVEL_EMOJIS = ["", "🌱", "⚡", "🔥"];
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
@@ -50,47 +51,43 @@ export default function ProfilePage() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [returnToMatch, setReturnToMatch] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
+  // Derived
+  const isOnboarding = positions.length === 0;
+  const isPushOnDevice = typeof window !== "undefined" && localStorage.getItem("push-enabled") === "true";
 
+  useEffect(() => {
+    if (!profile) return;
+
+    // Sincronizar estado local con el perfil global
+    if (profile.positions) setPositions(profile.positions);
+    if (profile.notificationsEnabled) setPushEnabled(true);
+    setDisplayName(profile.name || user?.displayName || "");
+    if ((profile as any).nameLastChanged) setNameLastChanged((profile as any).nameLastChanged);
+    if (profile.stats) {
+      setStats({
+        played: Math.max(0, profile.stats.played ?? 0),
+        won: Math.max(0, profile.stats.won ?? 0),
+        lost: Math.max(0, profile.stats.lost ?? 0),
+        draw: Math.max(0, profile.stats.draw ?? 0),
+        lateArrivals: profile.stats.lateArrivals ?? 0,
+        noShows: profile.stats.noShows ?? 0,
+      });
+    }
+    if (profile.level != null) setLevel(profile.level);
+    if (profile.onboardingCompletedAt) setOnboardingCompletedAt(profile.onboardingCompletedAt);
+    if (profile.age != null) setAge(profile.age);
+    if (profile.dominantFoot) setDominantFoot(profile.dominantFoot);
+    if (profile.preferredCourt) setPreferredCourt(profile.preferredCourt);
+    setLoading(false);
+
+  }, [profile, user]);
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const matchId = localStorage.getItem("returnToMatch");
       if (matchId) setReturnToMatch(matchId);
     }
-
-    getUserProfile(user.uid)
-      .then(profile => {
-        if (profile?.positions) setPositions(profile.positions);
-        if (profile?.notificationsEnabled) setPushEnabled(true);
-        setDisplayName(profile?.name || user.displayName || "");
-        if ((profile as any)?.nameLastChanged) setNameLastChanged((profile as any).nameLastChanged);
-        if (profile?.stats) {
-          setStats({
-            played: Math.max(0, profile.stats.played ?? 0),
-            won: Math.max(0, profile.stats.won ?? 0),
-            lost: Math.max(0, profile.stats.lost ?? 0),
-            draw: Math.max(0, profile.stats.draw ?? 0),
-            lateArrivals: profile.stats.lateArrivals ?? 0,
-            noShows: profile.stats.noShows ?? 0,
-          });
-        }
-        if (profile?.level != null) setLevel(profile.level);
-        if (profile?.onboardingCompletedAt) setOnboardingCompletedAt(profile.onboardingCompletedAt);
-        if (profile?.age != null) setAge(profile.age);
-        if (profile?.dominantFoot) setDominantFoot(profile.dominantFoot);
-        if (profile?.preferredCourt) setPreferredCourt(profile.preferredCourt);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        handleError(err, "Error cargando perfil");
-        setPositions([]);
-        setLoading(false);
-      });
-  }, [user]);
-
-  // Derived
-  const isOnboarding = positions.length === 0;
-  const isPushOnDevice = typeof window !== "undefined" && localStorage.getItem("push-enabled") === "true";
+  }, []);
 
   // Name cooldown
   const COOLDOWN_DAYS = 30;
@@ -185,12 +182,8 @@ export default function ProfilePage() {
     </div>
   );
 
-  if (!user || loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
-      </div>
-    );
+  if (!profile || loading) {
+    return <ProfileSkeleton />;
   }
 
   return (
@@ -281,6 +274,7 @@ export default function ProfilePage() {
                         <button
                           disabled={requestingReeval}
                           onClick={async () => {
+                            if (!user) return;
                             setRequestingReeval(true);
                             try {
                               await requestReEvaluation(user.uid);
@@ -530,18 +524,26 @@ export default function ProfilePage() {
               </button>
 
               {/* Notifications */}
-              <div className={`p-5 rounded-2xl border transition-all ${isPushOnDevice ? "bg-emerald-50 border-emerald-100" : "bg-white border-slate-200 shadow-sm"
-                }`}>
-                <div className="flex items-start gap-4">
-                  <div className="text-2xl">🔔</div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-slate-800 text-sm mb-1">Recordatorios</h3>
-                    <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                      No te pierdas nada de lo que pasa en tus partidos. Activa los notificaciones para recibir alertas y recordatorios.
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 p-5">
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                  <span className="text-xl">🔔</span> Notificaciones
+                </h2>
+                {isPushOnDevice ? (
+                  <div className="flex items-center gap-3 text-emerald-700 bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <span className="text-2xl">✅</span>
+                    <div>
+                      <h3 className="font-bold text-sm">Notificaciones activas</h3>
+                      <p className="text-xs opacity-90">Recibirás alertas de cupos y recordatorios.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm text-slate-600">
+                      Activa las notificaciones para no perderte ningún partido.
                     </p>
-
                     <button
                       onClick={async () => {
+                        if (!user) return;
                         setEnablingPush(true);
                         try {
                           const token = await enablePushNotifications(user.uid);
@@ -549,24 +551,28 @@ export default function ProfilePage() {
                             localStorage.setItem("push-enabled", "true");
                             setPushEnabled(true);
                           }
-                        } finally { setEnablingPush(false); }
+                        } catch (err) {
+                          handleError(err, "No pudimos activar las notificaciones");
+                        } finally {
+                          setEnablingPush(false);
+                        }
                       }}
-                      disabled={isPushOnDevice || enablingPush}
-                      className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${isPushOnDevice
-                        ? "bg-white text-emerald-600 border border-emerald-200 cursor-default"
-                        : "bg-slate-900 text-white hover:bg-slate-800"
-                        }`}
+                      disabled={enablingPush}
+                      className="bg-[#1f7a4f] text-white font-bold py-3 px-4 rounded-xl hover:bg-[#16603c] transition-colors disabled:opacity-50 flex justify-center items-center"
                     >
-                      {isPushOnDevice ? "✅ Notificaciones Activas" : enablingPush ? "Activando..." : "Activar Ahora"}
+                      {enablingPush ? (
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      ) : (
+                        "Activar notificaciones"
+                      )}
                     </button>
-
                     {pushEnabled && !isPushOnDevice && (
                       <p className="mt-2 text-[10px] text-amber-600 text-center font-medium">
                         Activas en otro dispositivo. Actívalas aquí también.
                       </p>
                     )}
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="h-4"></div> {/* Bottom spacer */}

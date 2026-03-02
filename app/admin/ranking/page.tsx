@@ -3,31 +3,25 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
-import { getUserProfile } from "@/lib/users";
 import { getPlayersRanking, type PlayerRanking } from "@/lib/usersList";
 import AuthGuard from "@/components/AuthGuard";
-import type { UserProfile } from "@/lib/domain/user";
+import RankingListSkeleton from "@/components/skeletons/RankingListSkeleton";
 
 type SortField = "played" | "won" | "lost" | "draw";
 
 export default function RankingPage() {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const router = useRouter();
-    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [players, setPlayers] = useState<PlayerRanking[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortField, setSortField] = useState<SortField>("won");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
     useEffect(() => {
-        if (!user) return;
-        getUserProfile(user.uid).then((p) => {
-            setProfile(p);
-            if (!p?.roles.includes("admin")) {
-                router.replace("/");
-            }
-        });
-    }, [user, router]);
+        if (profile && !profile.roles.includes("admin")) {
+            router.replace("/");
+        }
+    }, [profile, router]);
 
     useEffect(() => {
         if (!profile || !profile.roles.includes("admin")) return;
@@ -81,12 +75,8 @@ export default function RankingPage() {
         return sortDir === "desc" ? " ▼" : " ▲";
     };
 
-    if (!user || !profile) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center">
-                <div className="w-12 h-12 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
-            </div>
-        );
+    if (!user || !profile || loading) {
+        return <RankingListSkeleton />;
     }
 
     if (!profile.roles.includes("admin")) {
@@ -124,19 +114,7 @@ export default function RankingPage() {
                         Haz clic en las columnas para ordenar
                     </p>
 
-                    {loading ? (
-                        <div className="animate-pulse space-y-4">
-                            <div className="h-10 bg-slate-100 rounded-lg w-full mb-4"></div>
-                            {[1, 2, 3, 4, 5].map(i => (
-                                <div key={i} className="flex gap-4">
-                                    <div className="h-8 bg-slate-100 rounded w-12 shrink-0"></div>
-                                    <div className="h-8 bg-slate-100 rounded w-full"></div>
-                                    <div className="h-8 bg-slate-100 rounded w-16 shrink-0 hidden sm:block"></div>
-                                    <div className="h-8 bg-slate-100 rounded w-16 shrink-0 hidden sm:block"></div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : players.length === 0 ? (
+                    {players.length === 0 ? (
                         <p style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
                             No hay jugadores registrados
                         </p>

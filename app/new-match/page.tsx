@@ -14,7 +14,7 @@ import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 
 export default function NewMatchPage() {
-  const { user } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
 
   const [date, setDate] = useState("");
@@ -24,20 +24,9 @@ export default function NewMatchPage() {
   const [maxPlayers, setMaxPlayers] = useState(14);
   const [isPrivate, setIsPrivate] = useState(false);
 
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState("");
-
-  useEffect(() => {
-    if (!user) return;
-
-    getUserProfile(user.uid).then(profile => {
-      setUserProfile(profile);
-      setLoading(false);
-    });
-  }, [user]);
 
   useEffect(() => {
     getActiveLocations().then(setLocations);
@@ -105,6 +94,32 @@ export default function NewMatchPage() {
     );
   }
 
+  if (profile && !profile.roles.includes("admin")) {
+    return (
+      <AuthGuard>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-5 text-center">
+          <div className="bg-red-50 text-red-600 w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">Acceso Denegado</h3>
+          <p className="text-slate-600 mb-6">
+            No tienes los permisos necesarios para crear partidos.
+            Contacta a un administrador si crees que esto es un error.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="bg-[#1f7a4f] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#145c3a] transition-colors"
+          >
+            Volver al Inicio
+          </button>
+        </div>
+      </AuthGuard>
+    );
+  }
+
   return (
     <AuthGuard>
       <main className="min-h-screen bg-slate-50 pb-24">
@@ -121,7 +136,7 @@ export default function NewMatchPage() {
           </div>
 
           <div className="px-4 -mt-4 relative z-20 space-y-4">
-            {!userProfile?.roles.includes("admin") ? (
+            {!profile?.roles.includes("admin") ? (
               <div className="bg-red-50 text-red-600 p-5 rounded-2xl border border-red-100 shadow-sm text-center font-medium">
                 No tienes permisos para crear partidos.
               </div>

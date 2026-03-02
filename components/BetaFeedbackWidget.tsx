@@ -2,26 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { getUserProfile } from "@/lib/users";
 import { submitFeedback } from "@/lib/feedback";
 import { handleError } from "@/lib/utils/error";
 import { toast } from "react-hot-toast";
 
 export default function BetaFeedbackWidget() {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [type, setType] = useState<'bug' | 'idea' | 'other'>('idea');
     const [message, setMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [userName, setUserName] = useState('');
-
-    useEffect(() => {
-        if (user) {
-            getUserProfile(user.uid).then(p => {
-                setUserName(p?.name || user.displayName || 'Usuario');
-            });
-        }
-    }, [user]);
 
     // Si no está autenticado, no mostramos el widget
     if (!user) return null;
@@ -34,7 +24,7 @@ export default function BetaFeedbackWidget() {
         try {
             await submitFeedback(
                 user.uid,
-                userName,
+                profile?.name || user.displayName || 'Usuario',
                 type,
                 message,
                 window.location.pathname + window.location.search
