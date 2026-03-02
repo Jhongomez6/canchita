@@ -179,7 +179,11 @@ export default function JoinMatchPage() {
               priority={true}
             />
           </div>
-          <p className="text-lg text-slate-500 font-medium animate-pulse">Cargando...</p>
+          <div className="flex justify-center items-center gap-2 mt-4">
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-[bounce_1s_infinite_0ms]"></div>
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-[bounce_1s_infinite_200ms]"></div>
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-[bounce_1s_infinite_400ms]"></div>
+          </div>
         </div>
       </div>
     );

@@ -75,7 +75,11 @@ export default function AdminUsersPage() {
   }
 
   if (!user || !profile) {
-    return <p style={{ padding: 20 }}>Cargando...</p>;
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   if (!profile.roles.includes("admin")) {
@@ -96,7 +100,23 @@ export default function AdminUsersPage() {
           <h1 style={{ marginBottom: 20 }}>👥 Administrar Usuarios</h1>
 
           {loading ? (
-            <p>Cargando usuarios...</p>
+            <div className="animate-pulse flex flex-col gap-3">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="h-5 bg-slate-200 rounded w-32 mb-1"></div>
+                      <div className="h-3 bg-slate-200 rounded w-24"></div>
+                    </div>
+                    <div className="h-8 bg-slate-200 rounded w-20"></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-slate-200 rounded-full w-24"></div>
+                    <div className="h-8 bg-slate-200 rounded-full w-24"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {users.map(u => (

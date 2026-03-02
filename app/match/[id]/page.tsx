@@ -464,7 +464,11 @@ export default function MatchDetailPage() {
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <span className="text-xl">📍</span>
-                <span className="text-slate-600 font-medium">{location?.name || "Cargando cancha..."}</span>
+                {location?.name ? (
+                  <span className="text-slate-600 font-medium">{location.name}</span>
+                ) : (
+                  <div className="h-5 bg-slate-200 rounded animate-pulse w-48"></div>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xl">📅</span>

@@ -82,7 +82,11 @@ export default function RankingPage() {
     };
 
     if (!user || !profile) {
-        return <p style={{ padding: 20 }}>Cargando...</p>;
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center">
+                <div className="w-12 h-12 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+            </div>
+        );
     }
 
     if (!profile.roles.includes("admin")) {
@@ -121,9 +125,17 @@ export default function RankingPage() {
                     </p>
 
                     {loading ? (
-                        <p style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
-                            Cargando ranking...
-                        </p>
+                        <div className="animate-pulse space-y-4">
+                            <div className="h-10 bg-slate-100 rounded-lg w-full mb-4"></div>
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <div key={i} className="flex gap-4">
+                                    <div className="h-8 bg-slate-100 rounded w-12 shrink-0"></div>
+                                    <div className="h-8 bg-slate-100 rounded w-full"></div>
+                                    <div className="h-8 bg-slate-100 rounded w-16 shrink-0 hidden sm:block"></div>
+                                    <div className="h-8 bg-slate-100 rounded w-16 shrink-0 hidden sm:block"></div>
+                                </div>
+                            ))}
+                        </div>
                     ) : players.length === 0 ? (
                         <p style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
                             No hay jugadores registrados
