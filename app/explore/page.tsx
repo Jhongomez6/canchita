@@ -111,7 +111,8 @@ export default function ExplorePage() {
                                     placeholder="ABC123XYZ o https://canchita.app/join/ABC123XYZ"
                                     value={inviteCode}
                                     onChange={(e) => setInviteCode(e.target.value)}
-                                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
+                                    // Cambiado de text-sm a text-base para prevenir auto-zoom en iOS Safari
+                                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
                                 />
                                 <button
                                     type="submit"

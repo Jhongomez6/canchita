@@ -163,7 +163,8 @@ export default function Home() {
                     placeholder="Código o link de invitación"
                     value={quickCode}
                     onChange={(e) => setQuickCode(e.target.value)}
-                    className="w-full pl-11 pr-16 py-3.5 bg-white text-slate-800 text-sm font-bold placeholder:font-medium placeholder:text-slate-400 rounded-2xl border-none focus:outline-none focus:ring-4 focus:ring-emerald-400/30 transition-all shadow-md"
+                    // text-base previene auto-zoom en iOS Safari
+                    className="w-full pl-11 pr-16 py-3.5 bg-white text-slate-800 text-base font-bold placeholder:font-medium placeholder:text-slate-400 rounded-2xl border-none focus:outline-none focus:ring-4 focus:ring-emerald-400/30 transition-all shadow-md"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && quickCode.trim()) {
                         const sanitized = sanitizeMatchCode(quickCode);
