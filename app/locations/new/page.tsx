@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import { useAuth } from "@/lib/AuthContext";
 import { createLocation } from "@/lib/locations";
@@ -11,8 +11,28 @@ import { handleError } from "@/lib/utils/error";
 
 declare global {
   interface Window {
-    google: any;
+    // Basic typing for the global Google Maps object
+    google: {
+      maps: {
+        places: {
+          Autocomplete: new (input: HTMLInputElement, opts?: object) => unknown;
+        };
+      };
+    };
   }
+}
+
+// Basic shape of the picked place
+interface GooglePlace {
+  name: string;
+  formatted_address: string;
+  place_id: string;
+  geometry: {
+    location: {
+      lat: () => number;
+      lng: () => number;
+    };
+  };
 }
 
 export default function NewLocationPage() {
@@ -20,9 +40,9 @@ export default function NewLocationPage() {
   const router = useRouter();
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const autocompleteRef = useRef<any>(null);
+  const autocompleteRef = useRef<unknown>(null);
 
-  const [place, setPlace] = useState<any>(null);
+  const [place, setPlace] = useState<GooglePlace | null>(null);
   const [saving, setSaving] = useState(false);
 
   if (!user) return null;
@@ -30,7 +50,6 @@ export default function NewLocationPage() {
   async function handleSave() {
     if (!place || !user) return;
 
-    setSaving(true);
     setSaving(true);
 
     try {
@@ -61,8 +80,9 @@ export default function NewLocationPage() {
         fields: ["name", "formatted_address", "place_id", "geometry"],
       });
 
-    autocompleteRef.current.addListener("place_changed", () => {
-      const selected = autocompleteRef.current.getPlace();
+    (autocompleteRef.current as { addListener: (event: string, cb: () => void) => void }).addListener("place_changed", () => {
+      // The Autocomplete type from Google Maps isn't fully typed in our interface
+      const selected = (autocompleteRef.current as { getPlace: () => GooglePlace | undefined })?.getPlace();
       if (!selected?.geometry) return;
       setPlace(selected);
     });

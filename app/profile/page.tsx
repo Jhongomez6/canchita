@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { enablePushNotifications } from "@/lib/push";
-import { getUserProfile, updateUserPositions, updateUserName, updatePlayerAttributes, requestReEvaluation } from "@/lib/users";
+import { updateUserPositions, updateUserName, updatePlayerAttributes, requestReEvaluation } from "@/lib/users";
 import { useRouter } from "next/navigation";
 import type { Position } from "@/lib/domain/player";
 import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain/player";
@@ -62,7 +62,7 @@ export default function ProfilePage() {
     if (profile.positions) setPositions(profile.positions);
     if (profile.notificationsEnabled) setPushEnabled(true);
     setDisplayName(profile.name || user?.displayName || "");
-    if ((profile as any).nameLastChanged) setNameLastChanged((profile as any).nameLastChanged);
+    if (profile.nameLastChanged) setNameLastChanged(profile.nameLastChanged);
     if (profile.stats) {
       setStats({
         played: Math.max(0, profile.stats.played ?? 0),

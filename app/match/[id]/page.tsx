@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { buildWhatsAppReport } from "@/lib/matchReport";
 import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
@@ -60,7 +60,6 @@ export default function MatchDetailPage() {
   const [match, setMatch] = useState<Match | null>(null);
   const [balanced, setBalanced] = useState<{ teamA: { players: Player[] }; teamB: { players: Player[] } } | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loadingProfile, setLoadingProfile] = useState(true);
   const [selectedUid, setSelectedUid] = useState("");
   const [manualName, setManualName] = useState("");
   const [manualLevel, setManualLevel] = useState(2);
@@ -108,7 +107,7 @@ export default function MatchDetailPage() {
   );
 
 
-  async function loadMatch() {
+  const loadMatch = useCallback(async () => {
     const snap = await getDoc(doc(db, "matches", id));
     if (!snap.exists()) return;
 
@@ -124,8 +123,8 @@ export default function MatchDetailPage() {
         teamB: { players: data.teams.B },
       });
     }
+  }, [id]);
 
-  }
   async function handleBalance() {
     if (!match || confirmedCount < 4) return;
 
@@ -152,7 +151,7 @@ export default function MatchDetailPage() {
     setBalanced(result);
 
     // Clean undefined values to prevent Firebase errors
-    const cleanObject = (obj: any) => JSON.parse(JSON.stringify(obj));
+    const cleanObject = (obj: unknown) => JSON.parse(JSON.stringify(obj));
 
     try {
       await saveTeams(id, {
@@ -232,7 +231,7 @@ export default function MatchDetailPage() {
   useEffect(() => {
     if (!profile) return;
     loadMatch();
-  }, [profile]);
+  }, [profile, loadMatch]);
 
   useEffect(() => {
     if (!match?.score) return;
@@ -312,7 +311,6 @@ export default function MatchDetailPage() {
 
   const guestCount = match.guests?.length ?? 0;
   const confirmedCount = (match.players?.filter((p: Player) => p.confirmed).length ?? 0) + guestCount;
-  const totalPlayers = (match.players?.length ?? 0) + guestCount;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
 
   // MVP Calculation
@@ -748,9 +746,11 @@ export default function MatchDetailPage() {
                         disabled={!p.confirmed && isFull}
                         onClick={async () => {
                           if (!p.confirmed && isFull) return;
-                          p.confirmed
-                            ? await unconfirmAttendance(id, p.name)
-                            : await confirmAttendance(id, p.name);
+                          if (p.confirmed) {
+                            await unconfirmAttendance(id, p.name);
+                          } else {
+                            await confirmAttendance(id, p.name);
+                          }
                           loadMatch();
                         }}
                         className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${p.confirmed
@@ -832,7 +832,7 @@ export default function MatchDetailPage() {
                           key={opt.status}
                           onClick={async () => {
                             if (!p.uid) return;
-                            await markPlayerAttendance(id, p.uid, opt.status as any);
+                            await markPlayerAttendance(id, p.uid, opt.status as "present" | "late" | "no_show");
                             loadMatch();
                           }}
                           className={`p-1.5 rounded-lg text-sm border transition-all ${(p.attendance ?? "present") === opt.status
@@ -1170,7 +1170,7 @@ export default function MatchDetailPage() {
                           setTeamsSaved(false);
 
                           // Clean undefined values to prevent Firebase errors
-                          const cleanObject = (obj: any) => JSON.parse(JSON.stringify(obj));
+                          const cleanObject = (obj: unknown) => JSON.parse(JSON.stringify(obj));
 
                           try {
                             await saveTeams(id, {

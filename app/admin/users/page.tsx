@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { getAllUsers, deleteUser, updateUserRoles } from "@/lib/users";
@@ -17,6 +17,13 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    const allUsers = await getAllUsers();
+    setUsers(allUsers);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     if (profile && !profile.roles.includes("admin")) {
       router.replace("/");
@@ -27,14 +34,7 @@ export default function AdminUsersPage() {
     if (!profile || !profile.roles.includes("admin")) return;
 
     loadUsers();
-  }, [profile]);
-
-  async function loadUsers() {
-    setLoading(true);
-    const allUsers = await getAllUsers();
-    setUsers(allUsers);
-    setLoading(false);
-  }
+  }, [profile, loadUsers]);
 
   async function handleDelete(uid: string, name: string) {
     if (!confirm(`¿Estás seguro de eliminar a ${name}?`)) return;

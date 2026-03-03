@@ -11,7 +11,7 @@ import { handleError } from "@/lib/utils/error";
 import FeedbackListSkeleton from "@/components/skeletons/FeedbackListSkeleton";
 
 export default function AdminFeedbackPage() {
-    const { user, profile } = useAuth();
+    const { profile } = useAuth();
     const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
     const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,8 +43,8 @@ export default function AdminFeedbackPage() {
     async function handleResolve(feedbackId: string) {
         setResolvingId(feedbackId);
         try {
-            const result = await resolveFeedback(feedbackId);
-            if (result.pushSent) {
+            const { pushSent } = await resolveFeedback(feedbackId);
+            if (pushSent) {
                 toast.success("✅ Resuelto y usuario notificado (push + in-app)");
             } else {
                 toast.success("✅ Resuelto y notificación in-app creada");

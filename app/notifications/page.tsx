@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import { getMyNotifications, markAsRead, markAllAsRead } from "@/lib/notifications";
@@ -22,20 +22,13 @@ export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (!user) return;
-        loadNotifications();
-    }, [user]);
-
-    async function loadNotifications() {
+    const loadNotifications = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
             const data = await getMyNotifications(user.uid);
             setNotifications(data);
 
-            // Marca todas como leídas en segundo plano nada más cargar
-            // para que los contadores globales se limpien antes de que el usuario vuelva atrás
             const hasUnread = data.some(n => !n.read);
             if (hasUnread) {
                 markAllAsRead(user.uid).catch(console.error);
@@ -45,7 +38,11 @@ export default function NotificationsPage() {
         } finally {
             setLoading(false);
         }
-    }
+    }, [user]);
+
+    useEffect(() => {
+        loadNotifications();
+    }, [loadNotifications]);
 
     async function handleClick(notif: AppNotification) {
         if (!user || !notif.id) return;

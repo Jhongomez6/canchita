@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/AuthContext";
 import { loginWithGoogle } from "@/lib/auth";
 import { useEffect, useState } from "react";
-import { getUserProfile } from "@/lib/users";
+
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { isInAppBrowser } from "@/lib/browser";

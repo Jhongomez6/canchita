@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { getPlayersRanking, type PlayerRanking } from "@/lib/usersList";
@@ -23,17 +23,18 @@ export default function RankingPage() {
         }
     }, [profile, router]);
 
-    useEffect(() => {
-        if (!profile || !profile.roles.includes("admin")) return;
-        loadRanking();
-    }, [profile]);
-
-    async function loadRanking() {
+    const loadRanking = useCallback(async () => {
         setLoading(true);
         const data = await getPlayersRanking();
         setPlayers(data);
         setLoading(false);
-    }
+    }, []);
+
+    useEffect(() => {
+        if (!profile || !profile.roles.includes("admin")) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        loadRanking();
+    }, [profile, loadRanking]);
 
     function handleSort(field: SortField) {
         if (sortField === field) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
@@ -9,12 +9,12 @@ import { loginWithGoogle } from "@/lib/auth";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
 import { googleMapsEmbedUrl, googleMapsLink, wazeLink } from "@/lib/maps";
 import Image from "next/image";
-import { getUserProfile } from "@/lib/users";
+
 import AddGuestForm from "@/components/AddGuestForm";
 import { isInAppBrowser } from "@/lib/browser";
 import { Guest } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
-import type { UserProfile } from "@/lib/domain/user";
+
 import { isAdmin } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
 import { type Player, type Position, POSITION_ICONS } from "@/lib/domain/player";
@@ -37,8 +37,7 @@ export default function JoinMatchPage() {
   const router = useRouter();
   const { user, profile, loading } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
-  const [location, setLocation] = useState<Location | null>(null);
-  const [joining, setJoining] = useState(false);
+  const [matchLocation, setMatchLocation] = useState<Location | null>(null);
   const [error, setError] = useState("");
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -49,7 +48,7 @@ export default function JoinMatchPage() {
     setInApp(isInAppBrowser());
   }, []);
 
-  async function loadMatch() {
+  const loadMatch = useCallback(async () => {
     try {
       const ref = doc(db, "matches", id);
       const snap = await getDoc(ref);
@@ -64,7 +63,7 @@ export default function JoinMatchPage() {
       handleError(e, "No se pudo cargar el partido");
       setError("No se pudo cargar el partido");
     }
-  }
+  }, [id]);
 
   // Redirigir a /profile si el perfil está incompleto
   useEffect(() => {
@@ -86,7 +85,7 @@ export default function JoinMatchPage() {
     if (!loading && user && profile && profile.positions?.length > 0) {
       loadMatch();
     }
-  }, [loading, user, profile]);
+  }, [loading, user, profile, loadMatch]);
 
   useEffect(() => {
     if (!match?.locationId) return;
@@ -94,7 +93,7 @@ export default function JoinMatchPage() {
     getDoc(doc(db, "locations", match.locationId))
       .then(snap => {
         if (snap.exists()) {
-          setLocation({ id: snap.id, ...snap.data() } as Location);
+          setMatchLocation({ id: snap.id, ...snap.data() } as Location);
         }
       });
   }, [match]);
@@ -386,7 +385,7 @@ export default function JoinMatchPage() {
                 >
                   <span className="bg-slate-100 p-2 rounded-lg text-lg group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">📍</span>
                   <div className="flex-1">
-                    <span className="font-medium text-sm block">{location?.name || match.locationSnapshot?.name || "Cancha no disponible"}</span>
+                    <span className="font-medium text-sm block">{matchLocation?.name || match.locationSnapshot?.name || "Cancha no disponible"}</span>
                     <span className={`
                       text-xs font-bold px-2.5 py-1 rounded-lg transition-colors mt-1.5 inline-flex items-center gap-1.5
                       ${isMapOpen
@@ -399,12 +398,12 @@ export default function JoinMatchPage() {
                 </button>
 
                 {/* MAPA EXPANDIBLE */}
-                {isMapOpen && location && (
+                {isMapOpen && matchLocation && (
                   <div className="mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <p className="text-xs text-slate-500 mb-3 ml-11">{location.address}</p>
+                    <p className="text-xs text-slate-500 mb-3 ml-11">{matchLocation.address}</p>
 
                     <iframe
-                      src={googleMapsEmbedUrl(location.lat, location.lng)}
+                      src={googleMapsEmbedUrl(matchLocation.lat, matchLocation.lng)}
                       width="100%"
                       height="200"
                       className="rounded-xl border-0 bg-slate-100 mb-3"
@@ -414,7 +413,7 @@ export default function JoinMatchPage() {
 
                     <div className="flex gap-2">
                       <a
-                        href={googleMapsLink(location.lat, location.lng)}
+                        href={googleMapsLink(matchLocation.lat, matchLocation.lng)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
@@ -423,7 +422,7 @@ export default function JoinMatchPage() {
                         Maps
                       </a>
                       <a
-                        href={wazeLink(location.lat, location.lng)}
+                        href={wazeLink(matchLocation.lat, matchLocation.lng)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"

@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState } from "react";
 import { getMyMatches } from "@/lib/matches";
 import AuthGuard from "@/components/AuthGuard";
-import { getUserProfile } from "@/lib/users";
+
 import Link from "next/link";
 import { enablePushNotifications } from "@/lib/push";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
@@ -14,7 +14,7 @@ import { db } from "@/lib/firebase";
 import MatchCard from "@/components/MatchCard";
 import { useRouter } from "next/navigation";
 import type { Match } from "@/lib/domain/match";
-import type { UserProfile } from "@/lib/domain/user";
+
 import type { Location } from "@/lib/domain/location";
 import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
 
@@ -43,14 +43,14 @@ export default function Home() {
     if (!user) return;
 
     setLoadingMatches(true);
-    getMyMatches(user.uid).then(async matches => {
+    getMyMatches(user.uid).then(async matchesData => {
       // Sort matches by date DESCENDING (most recent first)
-      const sorted = [...matches].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+      const sorted = [...matchesData].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
       setMatches(sorted);
 
       const locationIds = Array.from(
         new Set(
-          matches
+          matchesData
             .map(m => m.locationId)
             .filter(Boolean)
         )

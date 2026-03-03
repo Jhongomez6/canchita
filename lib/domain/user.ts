@@ -36,6 +36,7 @@ export interface UserProfile {
     initialRatingCalculated?: boolean;
     onboardingCompletedAt?: string;
     rating?: number;
+    nameLastChanged?: string;
     age?: number;
     sex?: Sex;
     dominantFoot?: Foot;

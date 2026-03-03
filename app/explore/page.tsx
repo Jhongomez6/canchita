@@ -6,13 +6,10 @@ import AuthGuard from "@/components/AuthGuard";
 import { getOpenMatches } from "@/lib/matches";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getUserProfile } from "@/lib/users";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import MatchCard from "@/components/MatchCard";
 import type { Match } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
-import type { UserProfile } from "@/lib/domain/user";
 import MatchListSkeleton from "@/components/skeletons/MatchListSkeleton";
 import { handleError } from "@/lib/utils/error";
 import { sanitizeMatchCode } from "@/lib/matchCode";
@@ -66,7 +63,7 @@ export default function ExplorePage() {
             handleError(err, "Error al buscar partidos abiertos");
             setLoading(false);
         });
-    }, [user]);
+    }, [user, router]);
 
     const handleInviteCodeSubmit = (e: React.FormEvent) => {
         e.preventDefault();

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { useRouter } from "next/navigation";
 import { saveOnboardingResult } from "@/lib/users";
 import { handleError } from "@/lib/utils/error";
 import {
@@ -76,11 +75,9 @@ const CALCULATING_MESSAGES = [
 
 export default function OnboardingPage() {
     const { user } = useAuth();
-    const router = useRouter();
 
     // Step state
     const [step, setStep] = useState(1);
-    const TOTAL_STEPS = 7;
 
     // Form data
     const [age, setAge] = useState("");
