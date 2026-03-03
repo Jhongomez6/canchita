@@ -394,6 +394,7 @@ En lugar de fotos de perfil o iniciales, se debe mostrar el **icono de la posici
 ### Estados de Carga (Skeletons)
 - Para evitar saltos de diseño (layout shifts) durante la carga de las páginas, la aplicación usa componentes `Skeleton` (ej. `HomeSkeleton`, `MatchListSkeleton`, `ProfileSkeleton`).
 - Estos componentes reflejan exactamente la misma estructura de CSS, bordes, paddings y truncamientos de texto que la vista final para asegurar transiciones visualmente imperceptibles.
+- **Integración con Auth**: Los skeletons de página principal (como `HomeSkeleton` en `app/page.tsx`) se coordinan explícitamente con el estado `authLoading` del `AuthContext`. Esto asegura que los esqueletos se muestren fluidamente mientras se resuelve la sesión sin bloquear la evaluación de `AuthGuard`, permitiendo la correcta redirección a Login si el usuario resulta no autenticado o previniendo bloqueos si ocurren errores de red.
 
 ### Fuente de Verdad
 - Iconos definidos en `lib/domain/player.ts` (`POSITION_ICONS`)

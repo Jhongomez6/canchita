@@ -20,7 +20,7 @@ import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
 
 export default function Home() {
   const router = useRouter();
-  const { user, profile, justLoggedIn } = useAuth();
+  const { user, profile, justLoggedIn, loading: authLoading } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
@@ -40,42 +40,57 @@ export default function Home() {
   }, [justLoggedIn, profile]);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+
+    if (!user) {
+      setLoadingMatches(false);
+      return;
+    }
 
     setLoadingMatches(true);
-    getMyMatches(user.uid).then(async matchesData => {
-      // Sort matches by date DESCENDING (most recent first)
-      const sorted = [...matchesData].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
-      setMatches(sorted);
+    getMyMatches(user.uid)
+      .then(async matchesData => {
+        try {
+          // Sort matches by date DESCENDING (most recent first)
+          const sorted = [...matchesData].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+          setMatches(sorted);
 
-      const locationIds = Array.from(
-        new Set(
-          matchesData
-            .map(m => m.locationId)
-            .filter(Boolean)
-        )
-      );
+          const locationIds = Array.from(
+            new Set(
+              matchesData
+                .map(m => m.locationId)
+                .filter(Boolean)
+            )
+          );
 
-      const entries: [string, Location][] = (
-        await Promise.all(
-          locationIds.map(async id => {
-            const snap = await getDoc(doc(db, "locations", id));
-            if (!snap.exists()) return null;
+          const entries: [string, Location][] = (
+            await Promise.all(
+              locationIds.map(async id => {
+                const snap = await getDoc(doc(db, "locations", id));
+                if (!snap.exists()) return null;
 
-            return [snap.id, { id: snap.id, ...snap.data() }] as [string, Location];
-          })
-        )
-      ).filter(Boolean) as [string, Location][];
+                return [snap.id, { id: snap.id, ...snap.data() }] as [string, Location];
+              })
+            )
+          ).filter(Boolean) as [string, Location][];
 
-      const map: Record<string, Location> = {};
-      entries.forEach(([id, data]) => {
-        map[id] = data;
+          const map: Record<string, Location> = {};
+          entries.forEach(([id, data]) => {
+            map[id] = data;
+          });
+
+          setLocationsMap(map);
+        } catch (error) {
+          console.error("Error processing matches or locations:", error);
+        } finally {
+          setLoadingMatches(false);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching matches:", error);
+        setLoadingMatches(false);
       });
-
-      setLocationsMap(map);
-      setLoadingMatches(false);
-    });
-  }, [user]);
+  }, [user, authLoading]);
 
   if (loadingMatches) {
     return <HomeSkeleton />;
