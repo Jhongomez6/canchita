@@ -46,7 +46,10 @@ export default function JoinMatchPage() {
   const [inApp, setInApp] = useState(false);
 
   useEffect(() => {
-    setInApp(isInAppBrowser());
+    const delay = setTimeout(() => {
+      setInApp(isInAppBrowser());
+    }, 0);
+    return () => clearTimeout(delay);
   }, []);
 
   const loadMatch = useCallback(async () => {
