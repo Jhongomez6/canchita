@@ -153,6 +153,7 @@ getUserProfile(user.uid).then((p) => {
 | API | `lib/usersList.ts` | getPlayersRanking() |
 | API | `lib/playerStats.ts` | updatePlayerStats() (alimenta stats) |
 | UI | `app/admin/ranking/page.tsx` | Tabla interactiva |
+| UI | `components/skeletons/RankingListSkeleton.tsx` | Skeleton exacto de tabla |
 | UI | `components/Header.tsx` | Link "Ranking 🏆" (admin only) |
 
 ---

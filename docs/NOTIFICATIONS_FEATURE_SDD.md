@@ -77,6 +77,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 | Dominio | `lib/domain/notification.ts` | Tipos |
 | API | `lib/notifications.ts` | CRUD client |
 | UI | `app/notifications/page.tsx` | Lista de notificaciones |
+| UI | `components/skeletons/NotificationsSkeleton.tsx` | Skeleton exacto de carga |
 | UI | `app/profile/page.tsx` | Campana + badge en perfil |
 | Backend | `functions/src/reminders.ts` | Cloud Functions |
 | Push | `lib/firebase-messaging.ts` | Foreground push display |

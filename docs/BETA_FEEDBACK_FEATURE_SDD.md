@@ -70,5 +70,5 @@ Collection: `feedback`
 ### Files
 - Cloud Function: `functions/src/reminders.ts` (`notifyFeedbackResolved`)
 - Client caller: `lib/admin-feedback.ts` (`resolveFeedback`)
-- Admin UI: `app/admin/feedback/page.tsx`
+- Admin UI: `app/admin/feedback/page.tsx` (`FeedbackListSkeleton.tsx`)
 - Domain: `lib/domain/feedback.ts` (added `resolvedAt`)

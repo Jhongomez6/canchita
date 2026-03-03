@@ -105,7 +105,8 @@ export async function deleteUser(uid: string): Promise<void>
   - Feedback independiente: `nameSaved` vs `positionsSaved`
   - Visualización de estadísticas (PJ/PG/PE/PP) apoyada por *CSS Tooltips* explicativos (optimizados para Mobile Touch).
   - Tracker de "Compromiso" con apoyos visuales (*Tooltips Touch*) enseñando la fórmula de penalización por llegadas tarde y faltas.
-- `app/admin/users/page.tsx` — Panel admin con lista de usuarios tipada `UserProfile[]`
+- `app/admin/users/page.tsx` — Panel admin con lista de usuarios tipada `UserProfile[]`. Usa `UserListSkeleton.tsx` para una transición perfecta.
+- `lib/AuthContext.tsx` — Centraliza el "Splash Screen" (logo Canchita) que se muestra globalmente durante la carga inicial de cualquier página, reemplazando los parpadeos de skeletons iniciales.
 
 **✅ Cumple especificación**: Reglas #3, #4, #5, #7, #8, #9, #10
 
@@ -202,11 +203,12 @@ export const POSITION_ICONS: Record<Position, string> = {
 | Dominio | `lib/domain/player.ts` | Position, ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS |
 | API | `lib/users.ts` | CRUD Firestore |
 | API | `lib/auth.ts` | Login Google |
-| API | `lib/AuthContext.tsx` | Context de autenticación |
 | API | `lib/push.ts` | Push notifications |
+| UI | `lib/AuthContext.tsx` | Splash Screen centralizado |
 | UI | `components/AuthGuard.tsx` | Guard de rutas |
 | UI | `app/profile/page.tsx` | Ficha Técnica con modo vista/edición y re-evaluación |
 | UI | `app/admin/users/page.tsx` | Panel admin |
+| UI | `components/skeletons/UserListSkeleton.tsx` | Skeleton exacto de usuarios |
 
 ---
 
