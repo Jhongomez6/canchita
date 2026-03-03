@@ -32,6 +32,7 @@ import { triggerMvpNotification } from "@/lib/push";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 import JoinSkeleton from "@/components/skeletons/JoinSkeleton";
+import Link from "next/link";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
@@ -325,12 +326,12 @@ export default function JoinMatchPage() {
 
           {/* BOTÓN VER COMO ADMIN */}
           {profile && isAdmin(profile) && (
-            <a
+            <Link
               href={`/match/${id}`}
               className="flex items-center justify-center gap-2 w-full py-3 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition-colors"
             >
               👁️ Ver como admin
-            </a>
+            </Link>
           )}
 
           {/* CARD PARTIDO */}

@@ -19,6 +19,7 @@ import {
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { balanceTeams } from "@/lib/balanceTeams";
 import { calculateMvpStatus } from "@/lib/mvp";
 import { getAllUsers, getUserProfile } from "@/lib/users";
@@ -51,6 +52,7 @@ import { guestToPlayer } from "@/lib/domain/guest";
 import { removeGuestFromMatch } from "@/lib/guests";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -286,11 +288,7 @@ export default function MatchDetailPage() {
     );
   }
 
-  if (!match) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
-    </div>
-  );
+  if (!match) return <MatchAdminSkeleton />;
 
   const isOwner = user?.uid === match.createdBy;
   const isClosed = match.status === "closed";
@@ -408,12 +406,12 @@ export default function MatchDetailPage() {
                       🔒 Privado
                     </span>
                   )}
-                  <a
+                  <Link
                     href={`/join/${id}`}
                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors ml-1"
                   >
                     <span>👁️</span> Ver como jugador
-                  </a>
+                  </Link>
                 </div>
               </div>
 

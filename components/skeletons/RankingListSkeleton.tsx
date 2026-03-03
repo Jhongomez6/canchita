@@ -2,67 +2,99 @@ import React from 'react';
 
 export default function RankingListSkeleton() {
     return (
-        <div className="w-full h-full min-h-screen bg-slate-50 animate-pulse pt-safe">
-            <div className="max-w-4xl mx-auto p-5 relative z-20 pb-24">
+        <main style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+            <div
+                style={{
+                    background: "#fff",
+                    borderRadius: 16,
+                    padding: 24,
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                }}
+            >
+                {/* STATIC TITLE */}
+                <h1
+                    style={{
+                        marginBottom: 4,
+                        fontSize: 24,
+                        fontWeight: 700,
+                        color: "#111827",
+                    }}
+                >
+                    🏆 Ranking de Jugadores
+                </h1>
+                <p
+                    style={{
+                        marginBottom: 20,
+                        fontSize: 14,
+                        color: "#6b7280",
+                    }}
+                >
+                    Haz clic en las columnas para ordenar
+                </p>
 
-                {/* HEADER AREA */}
-                <div className="flex items-center gap-3 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                    <div className="h-10 w-10 bg-slate-200 rounded-xl"></div>
-                    <div className="flex-1">
-                        <div className="h-6 w-48 bg-slate-200 rounded mb-1"></div>
-                        <div className="h-4 w-32 bg-slate-200 rounded"></div>
-                    </div>
-                </div>
-
-                {/* CONTROLS */}
-                <div className="flex justify-end gap-2 mb-4">
-                    <div className="h-10 w-32 bg-white border border-slate-100 rounded-xl shadow-sm"></div>
-                    <div className="h-10 w-32 bg-white border border-slate-100 rounded-xl shadow-sm"></div>
-                </div>
-
-                {/* DESKTOP TABLE SKELETON */}
-                <div className="hidden md:block bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
-                    <div className="w-full h-12 bg-slate-100 flex items-center px-6 gap-4">
-                        <div className="h-4 w-8 bg-slate-200 rounded"></div>
-                        <div className="h-4 w-48 bg-slate-200 rounded flex-1"></div>
-                        {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="h-4 w-16 bg-slate-200 rounded"></div>
-                        ))}
-                    </div>
-
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                        <div key={i} className="w-full h-16 border-t border-slate-100 flex items-center px-6 gap-4">
-                            <div className="h-6 w-8 bg-slate-200 rounded"></div>
-                            <div className="flex items-center gap-3 flex-1">
-                                <div className="h-10 w-10 bg-slate-200 rounded-full"></div>
-                                <div className="h-5 w-32 bg-slate-200 rounded"></div>
-                            </div>
-                            {[1, 2, 3, 4, 5, 6].map(j => (
-                                <div key={j} className="h-5 w-12 bg-slate-200 rounded"></div>
+                {/* SKELETON TABLE */}
+                <div style={{ overflowX: "auto" }} className="animate-pulse">
+                    <table
+                        style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                            fontSize: 15,
+                        }}
+                    >
+                        <thead>
+                            <tr>
+                                {[
+                                    { label: "#", w: 30 },
+                                    { label: "Jugador", w: 120 },
+                                    { label: "PJ", w: 40 },
+                                    { label: "PG", w: 40 },
+                                    { label: "PE", w: 40 },
+                                    { label: "PP", w: 40 },
+                                ].map((col, idx) => (
+                                    <th
+                                        key={idx}
+                                        style={{
+                                            padding: "12px 16px",
+                                            textAlign: idx === 0 || idx === 1 ? "left" : "center",
+                                            borderBottom: "2px solid #e5e7eb",
+                                        }}
+                                    >
+                                        <div
+                                            className="h-4 bg-slate-200 rounded"
+                                            style={{
+                                                width: col.w,
+                                                margin: idx === 0 || idx === 1 ? "0" : "0 auto",
+                                            }}
+                                        ></div>
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                <tr
+                                    key={i}
+                                    style={{
+                                        background: i % 2 === 0 ? "#fff" : "#f9fafb",
+                                    }}
+                                >
+                                    <td style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
+                                        <div className="h-5 w-6 bg-slate-200 rounded"></div>
+                                    </td>
+                                    <td style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
+                                        <div className="h-5 w-40 bg-slate-200 rounded"></div>
+                                    </td>
+                                    {[1, 2, 3, 4].map((j) => (
+                                        <td key={j} style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
+                                            <div className="h-5 w-8 bg-slate-200 rounded mx-auto"></div>
+                                        </td>
+                                    ))}
+                                </tr>
                             ))}
-                        </div>
-                    ))}
+                        </tbody>
+                    </table>
                 </div>
-
-                {/* MOBILE CARDS SKELETON */}
-                <div className="md:hidden space-y-3">
-                    {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 bg-emerald-100 rounded-lg flex items-center justify-center font-black text-emerald-700">#</div>
-                                <div className="h-12 w-12 bg-slate-200 rounded-full"></div>
-                                <div className="h-5 w-32 bg-slate-200 rounded"></div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl">
-                                <div className="h-8 w-full bg-slate-200 rounded"></div>
-                                <div className="h-8 w-full bg-slate-200 rounded"></div>
-                                <div className="h-8 w-full bg-slate-200 rounded"></div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
             </div>
-        </div>
+        </main>
     );
 }
