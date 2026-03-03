@@ -129,8 +129,11 @@ export default function ExplorePage() {
 
                         {/* OPEN MATCHES LIST */}
                         <div>
-                            <h2 className="text-sm font-bold text-slate-800 mb-4 px-1 flex justify-between items-center">
+                            <h2 className="text-sm font-bold text-slate-800 mb-4 px-1 flex justify-between items-center min-h-[22px]">
                                 <span>Partidos Abiertos</span>
+                                {loading && (
+                                    <div className="h-[20px] w-[85px] bg-slate-200 rounded-full animate-pulse"></div>
+                                )}
                                 {!loading && matches.length > 0 && (
                                     <span className="bg-emerald-100 text-emerald-700 font-bold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
                                         {matches.length} Disponibles

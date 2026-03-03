@@ -126,12 +126,12 @@ export default function Home() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-2xl shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-11 h-11 bg-emerald-100 rounded-full flex items-center justify-center text-xl shadow-sm shrink-0">
                     ⚽
                   </div>
-                  <div>
-                    <h3 className="font-bold text-lg leading-tight">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-base leading-tight">
                       {locationsMap[nextMatch.locationId]?.name || "Ubicación por definir"}
                     </h3>
                     <p className="text-sm text-slate-500 font-medium mt-1">

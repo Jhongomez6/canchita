@@ -31,6 +31,7 @@ import { calculateMvpStatus } from "@/lib/mvp";
 import { triggerMvpNotification } from "@/lib/push";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import JoinSkeleton from "@/components/skeletons/JoinSkeleton";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
@@ -144,27 +145,7 @@ export default function JoinMatchPage() {
 
   // ⏳ Auth o perfil cargando
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
-        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
-          <div className="mb-6 flex justify-center">
-            <Image
-              src="/logo/lacanchita-logo.png"
-              alt="La Canchita"
-              width={120}
-              height={100}
-              style={{ height: "auto", width: "auto" }}
-              priority={true}
-            />
-          </div>
-          <div className="flex justify-center items-center gap-2 mt-4">
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-[bounce_1s_infinite_0ms]"></div>
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-[bounce_1s_infinite_200ms]"></div>
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-[bounce_1s_infinite_400ms]"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <JoinSkeleton />;
   }
 
   // 🔐 No logueado
@@ -287,11 +268,7 @@ export default function JoinMatchPage() {
 
   // ⏳ Partido cargando
   if (!match) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
-      </div>
-    );
+    return <JoinSkeleton />;
   }
 
   const playerName = user.displayName || user.email || "Jugador";

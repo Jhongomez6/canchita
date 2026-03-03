@@ -391,6 +391,9 @@ En lugar de fotos de perfil o iniciales, se debe mostrar el **icono de la posici
 - Los usuarios con rol `admin` verán un botón destacado "👁️ Ver como admin" en la parte superior del detalle del partido.
 - Este botón los redirige a la vista completa de administración (`/match/[id]`), facilitando el salto entre la vista pública y la gestión del partido.
 
+### Estados de Carga (Skeletons)
+- Para evitar saltos de diseño (layout shifts) durante la carga de las páginas, la aplicación usa componentes `Skeleton` (ej. `HomeSkeleton`, `MatchListSkeleton`, `ProfileSkeleton`).
+- Estos componentes reflejan exactamente la misma estructura de CSS, bordes, paddings y truncamientos de texto que la vista final para asegurar transiciones visualmente imperceptibles.
 
 ### Fuente de Verdad
 - Iconos definidos en `lib/domain/player.ts` (`POSITION_ICONS`)
