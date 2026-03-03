@@ -190,7 +190,7 @@ export default function JoinMatchPage() {
           {/* BOTÓN GOOGLE */}
           <button
             onClick={() => {
-              if (isInAppBrowser()) {
+              if (inApp || isInAppBrowser()) {
                 setInApp(true);
                 return;
               }
