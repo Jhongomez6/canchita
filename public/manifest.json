@@ -1,10 +1,10 @@
 {
-  "name": "Canchita",
+  "name": "La Canchita",
   "short_name": "Canchita",
-  "description": "Organiza partidos de fútbol fácilmente",
+  "description": "Encuentra donde jugar hoy",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
+  "background_color": "#1f7a4f",
   "theme_color": "#1f7a4f",
   "icons": [
     {
