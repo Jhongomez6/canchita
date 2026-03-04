@@ -2,23 +2,45 @@
 
 import { useState, useEffect } from "react";
 
+// Evento global para capturarlo independientemente de cuándo se monte el hook
+let globalDeferredPrompt: any = null;
+let globalIsInstallable = false;
+const listeners = new Set<() => void>();
+
+function notifyListeners() {
+    listeners.forEach((listener) => listener());
+}
+
+if (typeof window !== "undefined") {
+    window.addEventListener("beforeinstallprompt", (e: Event) => {
+        e.preventDefault();
+        globalDeferredPrompt = e;
+        globalIsInstallable = true;
+        notifyListeners();
+    });
+}
+
 export interface PWAInstallHook {
     isInstallable: boolean;
     isStandalone: boolean;
     isIOS: boolean;
-    promptToInstall: () => void;
+    isAndroid: boolean;
+    promptToInstall: () => { success: boolean };
     dismissPrompt: () => void;
     hasDismissed: boolean;
 }
 
 export function usePWAInstall(cooldownDays = 7): PWAInstallHook {
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-    const [isInstallable, setIsInstallable] = useState(false);
+    const [isInstallable, setIsInstallable] = useState(globalIsInstallable);
     const [isStandalone, setIsStandalone] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
+    const [isAndroid, setIsAndroid] = useState(false);
     const [hasDismissed, setHasDismissed] = useState(false);
 
     useEffect(() => {
+        const listener = () => setIsInstallable(globalIsInstallable);
+        listeners.add(listener);
+
         // Check if it's already installed (standalone mode)
         const checkStandalone = () => {
             if (typeof window === "undefined") return false;
@@ -27,17 +49,20 @@ export function usePWAInstall(cooldownDays = 7): PWAInstallHook {
                 (window.navigator as any).standalone === true
             );
         };
-
         setIsStandalone(checkStandalone());
 
-        // Check if iOS
-        const checkIOS = () => {
-            if (typeof window === "undefined") return false;
+        // Check OS
+        const checkOS = () => {
+            if (typeof window === "undefined") return { ios: false, android: false };
             const userAgent = window.navigator.userAgent.toLowerCase();
-            return /iphone|ipad|ipod/.test(userAgent);
+            return {
+                ios: /iphone|ipad|ipod/.test(userAgent),
+                android: /android/.test(userAgent),
+            };
         };
-
-        setIsIOS(checkIOS());
+        const os = checkOS();
+        setIsIOS(os.ios);
+        setIsAndroid(os.android);
 
         // Check dismiss status
         const dismissKey = "pwa_prompt_dismissed_at";
@@ -54,41 +79,27 @@ export function usePWAInstall(cooldownDays = 7): PWAInstallHook {
             }
         }
 
-        // Handle beforeinstallprompt
-        const handleBeforeInstallPrompt = (e: Event) => {
-            // Prevent the mini-infobar from appearing on mobile
-            e.preventDefault();
-            // Stash the event so it can be triggered later.
-            setDeferredPrompt(e);
-            // Update UI notify the user they can install the PWA
-            setIsInstallable(true);
-        };
-
-        window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
         return () => {
-            window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+            listeners.delete(listener);
         };
     }, [cooldownDays]);
 
     const promptToInstall = () => {
-        if (deferredPrompt) {
-            // Show the install prompt
-            deferredPrompt.prompt();
-            // Wait for the user to respond to the prompt
-            deferredPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+        if (globalDeferredPrompt) {
+            globalDeferredPrompt.prompt();
+            globalDeferredPrompt.userChoice.then((choiceResult: { outcome: string }) => {
                 if (choiceResult.outcome === "accepted") {
                     console.log("User accepted the install prompt");
                 } else {
                     console.log("User dismissed the install prompt");
                 }
-                setDeferredPrompt(null);
-                setIsInstallable(false);
+                globalDeferredPrompt = null;
+                globalIsInstallable = false;
+                notifyListeners();
             });
-        } else if (isIOS) {
-            // For iOS, the caller will handle showing the modal based on isIOS
-            console.log("iOS detected, use manual instructions");
+            return { success: true };
         }
+        return { success: false };
     };
 
     const dismissPrompt = () => {
@@ -100,6 +111,7 @@ export function usePWAInstall(cooldownDays = 7): PWAInstallHook {
         isInstallable,
         isStandalone,
         isIOS,
+        isAndroid,
         promptToInstall,
         dismissPrompt,
         hasDismissed,

@@ -43,9 +43,9 @@ export default function ProfilePage() {
   const [requestingReeval, setRequestingReeval] = useState(false);
 
   // PWA Install
-  const { isInstallable, isStandalone, isIOS, promptToInstall } = usePWAInstall();
+  const { isInstallable, isStandalone, isIOS, isAndroid, promptToInstall } = usePWAInstall();
   const [showInstallModal, setShowInstallModal] = useState(false);
-  const canInstall = !isStandalone && (isInstallable || isIOS);
+  const canInstall = !isStandalone && (isInstallable || isIOS || isAndroid);
 
   // Edit buffers
   const [editName, setEditName] = useState("");
@@ -599,7 +599,10 @@ export default function ProfilePage() {
                         if (isIOS) {
                           setShowInstallModal(true);
                         } else {
-                          promptToInstall();
+                          const result = promptToInstall();
+                          if (!result.success && isAndroid) {
+                            setShowInstallModal(true);
+                          }
                         }
                       }}
                       className="bg-slate-900 border border-slate-800 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition-colors flex justify-center items-center shadow-lg"
@@ -608,8 +611,8 @@ export default function ProfilePage() {
                     </button>
                   </div>
 
-                  {/* iOS Modal directly in Profile */}
-                  {showInstallModal && isIOS && (
+                  {/* Manual Instructions Modal (iOS & Android Fallback) */}
+                  {showInstallModal && (isIOS || isAndroid) && (
                     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
                       <div className="bg-white text-slate-900 rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 relative animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 shadow-2xl text-left">
                         <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
@@ -621,29 +624,53 @@ export default function ProfilePage() {
                           <X size={20} />
                         </button>
 
-                        <h3 className="text-xl font-bold mb-2">Instalar en iOS</h3>
+                        <h3 className="text-xl font-bold mb-2">Instalar en {isIOS ? "iOS" : "Android"}</h3>
                         <p className="text-slate-500 mb-6 text-sm">Sigue estos rápidos pasos para añadir Canchita a tu pantalla de inicio:</p>
 
                         <div className="space-y-3">
-                          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-blue-500 flex-shrink-0">
-                              <Share size={24} />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-sm">Paso 1</div>
-                              <div className="text-slate-600 text-xs">Toca el botón <strong>Compartir</strong> en la barra inferior de Safari.</div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
-                              <PlusSquare size={24} />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-sm">Paso 2</div>
-                              <div className="text-slate-600 text-xs">Desliza hacia abajo y selecciona <strong>Agregar a Inicio</strong>.</div>
-                            </div>
-                          </div>
+                          {isIOS ? (
+                            <>
+                              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-blue-500 flex-shrink-0">
+                                  <Share size={24} />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-sm">Paso 1</div>
+                                  <div className="text-slate-600 text-xs">Toca el botón <strong>Compartir</strong> en la barra inferior de Safari.</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
+                                  <PlusSquare size={24} />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-sm">Paso 2</div>
+                                  <div className="text-slate-600 text-xs">Desliza hacia abajo y selecciona <strong>Agregar a Inicio</strong>.</div>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-sm">Paso 1</div>
+                                  <div className="text-slate-600 text-xs">Toca el botón de <strong>Menú (3 puntos)</strong> arriba a la derecha en Chrome.</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
+                                  <PlusSquare size={24} />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-sm">Paso 2</div>
+                                  <div className="text-slate-600 text-xs">Selecciona <strong>Agregar a la pantalla principal</strong>.</div>
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
 
                         <button
