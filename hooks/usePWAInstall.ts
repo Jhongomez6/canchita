@@ -25,7 +25,7 @@ export interface PWAInstallHook {
     isStandalone: boolean;
     isIOS: boolean;
     isAndroid: boolean;
-    promptToInstall: () => { success: boolean };
+    promptToInstall: () => Promise<{ success: boolean }>;
     dismissPrompt: () => void;
     hasDismissed: boolean;
 }
@@ -84,20 +84,25 @@ export function usePWAInstall(cooldownDays = 7): PWAInstallHook {
         };
     }, [cooldownDays]);
 
-    const promptToInstall = () => {
+    const promptToInstall = async () => {
         if (globalDeferredPrompt) {
-            globalDeferredPrompt.prompt();
-            globalDeferredPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+            try {
+                await globalDeferredPrompt.prompt();
+                const choiceResult = await globalDeferredPrompt.userChoice;
                 if (choiceResult.outcome === "accepted") {
                     console.log("User accepted the install prompt");
                 } else {
                     console.log("User dismissed the install prompt");
                 }
+                // We only clear it after it's been consumed
                 globalDeferredPrompt = null;
                 globalIsInstallable = false;
                 notifyListeners();
-            });
-            return { success: true };
+                return { success: true };
+            } catch (err) {
+                console.error("Install prompt error:", err);
+                return { success: false };
+            }
         }
         return { success: false };
     };

@@ -595,11 +595,11 @@ export default function ProfilePage() {
                       Instala La Canchita en tu pantalla de inicio para un acceso más rápido y experiencia a pantalla completa.
                     </p>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (isIOS) {
                           setShowInstallModal(true);
                         } else {
-                          const result = promptToInstall();
+                          const result = await promptToInstall();
                           if (!result.success && isAndroid) {
                             setShowInstallModal(true);
                           }
