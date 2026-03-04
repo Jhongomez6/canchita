@@ -4,7 +4,7 @@
   "description": "Organiza partidos de fútbol fácilmente",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1f7a4f",
+  "background_color": "#f8fafc",
   "theme_color": "#1f7a4f",
   "icons": [
     {
