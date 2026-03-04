@@ -13,6 +13,8 @@ import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import StatsCard from "@/components/StatsCard";
 import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { X, Share, PlusSquare } from "lucide-react";
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
 const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado"];
@@ -39,6 +41,11 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [requestingReeval, setRequestingReeval] = useState(false);
+
+  // PWA Install
+  const { isInstallable, isStandalone, isIOS, promptToInstall } = usePWAInstall();
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const canInstall = !isStandalone && (isInstallable || isIOS);
 
   // Edit buffers
   const [editName, setEditName] = useState("");
@@ -574,6 +581,82 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
+
+              {/* ========================= */}
+              {/*     APP INSTALLATION      */}
+              {/* ========================= */}
+              {canInstall && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 p-5">
+                  <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <span className="text-xl">📱</span> Instalar App
+                  </h2>
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm text-slate-600">
+                      Instala La Canchita en tu pantalla de inicio para un acceso más rápido y experiencia a pantalla completa.
+                    </p>
+                    <button
+                      onClick={() => {
+                        if (isIOS) {
+                          setShowInstallModal(true);
+                        } else {
+                          promptToInstall();
+                        }
+                      }}
+                      className="bg-slate-900 border border-slate-800 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition-colors flex justify-center items-center shadow-lg"
+                    >
+                      Instalar en Pantalla de Inicio
+                    </button>
+                  </div>
+
+                  {/* iOS Modal directly in Profile */}
+                  {showInstallModal && isIOS && (
+                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+                      <div className="bg-white text-slate-900 rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 relative animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 shadow-2xl text-left">
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+
+                        <button
+                          onClick={() => setShowInstallModal(false)}
+                          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full transition"
+                        >
+                          <X size={20} />
+                        </button>
+
+                        <h3 className="text-xl font-bold mb-2">Instalar en iOS</h3>
+                        <p className="text-slate-500 mb-6 text-sm">Sigue estos rápidos pasos para añadir Canchita a tu pantalla de inicio:</p>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-blue-500 flex-shrink-0">
+                              <Share size={24} />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">Paso 1</div>
+                              <div className="text-slate-600 text-xs">Toca el botón <strong>Compartir</strong> en la barra inferior de Safari.</div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
+                              <PlusSquare size={24} />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">Paso 2</div>
+                              <div className="text-slate-600 text-xs">Desliza hacia abajo y selecciona <strong>Agregar a Inicio</strong>.</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setShowInstallModal(false)}
+                          className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-xl transition shadow-lg"
+                        >
+                          Entendido
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="h-4"></div> {/* Bottom spacer */}
             </div>

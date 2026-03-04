@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import { Toaster } from "react-hot-toast";
 import BetaFeedbackWidget from "@/components/BetaFeedbackWidget";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 
 
@@ -38,6 +39,7 @@ export default function RootLayout({
             {children}
             <Toaster position="top-center" />
             <BetaFeedbackWidget />
+            <PWAInstallPrompt />
           </div>
 
           <BottomNav />
