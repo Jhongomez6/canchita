@@ -93,7 +93,10 @@ Colección: `notifications/{userId}/items/{notifId}`
 - [x] Componente `NotificationsDrawer` con lista emergente de notificaciones
 - [x] Click en notificación marca como leída, cierra el drawer y navega al URL
 - [x] Auto-marcar como leídas al abrir el drawer
+- [x] Drawer soporta gesto de arrastrar para cerrar (drag-to-close) y diseño responsive
 - [x] Estado vacío con mensaje amigable
 - [x] Timestamps relativos ("Hace 5 min", "Hace 2 días")
 - [x] Firestore rules protegen acceso por usuario
 - [x] Cloud Functions son la única fuente de creación
+- [x] Cloud Functions incluyen logging detallado de errores FCM para diagnóstico
+- [x] URLs de click-through actualizadas (sin apuntar a rutas eliminadas)

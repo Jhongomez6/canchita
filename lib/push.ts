@@ -14,7 +14,7 @@ export async function enablePushNotifications(uid: string) {
     }
 
     // 2️⃣ Obtener token
-    const messaging = getMessaging();
+    const messaging = getMessaging(app);
 
     // Explicit SW registration to bypass browser cache for existing PWA users
     let swRegistration;

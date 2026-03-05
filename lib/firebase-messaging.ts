@@ -1,4 +1,5 @@
 import { getMessaging, onMessage, isSupported } from "firebase/messaging";
+import { app } from "./firebase";
 
 export async function listenToPushMessages() {
   if (typeof window === "undefined") return;
@@ -6,7 +7,7 @@ export async function listenToPushMessages() {
   const supported = await isSupported();
   if (!supported) return;
 
-  const messaging = getMessaging();
+  const messaging = getMessaging(app);
 
   // Register the SW explicitly with a cache-busting query parameter
   // to force an update for all existing installed PWAs.

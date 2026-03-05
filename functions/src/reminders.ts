@@ -168,8 +168,13 @@ async function sendReminderIfNeeded(
     // 🧹 Limpieza de tokens inválidos
     const invalidTokens: string[] = [];
     response.responses.forEach((res, idx) => {
-      if (!res.success) invalidTokens.push(tokens[idx]);
+      if (!res.success) {
+        console.error(`❌ FCM Error [scheduled] token[${idx}]:`, res.error?.code, res.error?.message);
+        invalidTokens.push(tokens[idx]);
+      }
     });
+
+    console.log(`📨 Match ${matchId} reminder "${reminderKey}" — sent: ${response.successCount}, failed: ${response.failureCount}`);
 
     if (invalidTokens.length > 0) {
       await userSnap.ref.update({
@@ -274,8 +279,13 @@ export const sendManualReminder = onCall(async (request) => {
     // 🧹 Limpiar tokens inválidos
     const invalidTokens: string[] = [];
     response.responses.forEach((res: any, idx: number) => {
-      if (!res.success) invalidTokens.push(tokens[idx]);
+      if (!res.success) {
+        console.error(`❌ FCM Error [manual] token[${idx}]:`, res.error?.code, res.error?.message);
+        invalidTokens.push(tokens[idx]);
+      }
     });
+
+    console.log(`📨 Manual reminder match ${matchId} — sent: ${response.successCount}, failed: ${response.failureCount}`);
 
     if (invalidTokens.length > 0) {
       await pSnap.ref.update({
@@ -617,7 +627,7 @@ export const notifyFeedbackResolved = onCall(async (request) => {
       const response = await admin.messaging().sendEachForMulticast({
         tokens,
         notification: { title, body },
-        data: { url: "https://la-canchita.vercel.app/notifications" },
+        data: { url: "https://la-canchita.vercel.app/" },
       });
 
       pushSent = response.successCount > 0;
@@ -625,8 +635,13 @@ export const notifyFeedbackResolved = onCall(async (request) => {
       // Cleanup invalid tokens
       const invalidTokens: string[] = [];
       response.responses.forEach((res: any, idx: number) => {
-        if (!res.success) invalidTokens.push(tokens[idx]);
+        if (!res.success) {
+          console.error(`❌ FCM Error [feedback] token[${idx}]:`, res.error?.code, res.error?.message);
+          invalidTokens.push(tokens[idx]);
+        }
       });
+
+      console.log(`📨 Feedback ${feedbackId} — sent: ${response.successCount}, failed: ${response.failureCount}`);
 
       if (invalidTokens.length > 0) {
         await userSnap.ref.update({
