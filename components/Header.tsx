@@ -7,12 +7,14 @@ import { logout } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
+import NotificationsDrawer from "./NotificationsDrawer";
 
 export default function Header() {
   const { user, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const isAdmin = profile?.roles?.includes("admin") ?? false;
 
@@ -157,17 +159,18 @@ export default function Header() {
           )}
 
           {/* BELL ICON */}
-          <Link
-            href="/notifications"
+          <button
+            onClick={() => setIsDrawerOpen(true)}
             style={{
               position: "relative",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               background: "rgba(255,255,255,0.15)",
+              border: "none",
               borderRadius: 8,
               padding: "6px 8px",
-              textDecoration: "none",
+              cursor: "pointer",
               color: "#fff",
             }}
           >
@@ -195,7 +198,7 @@ export default function Header() {
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
-          </Link>
+          </button>
 
           <button
             onClick={handleLogout}
@@ -213,6 +216,11 @@ export default function Header() {
           </button>
         </div>
       )}
+      {/* NOTIFICATIONS DRAWER */}
+      <NotificationsDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+      />
     </header>
   );
 }

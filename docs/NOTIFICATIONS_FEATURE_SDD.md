@@ -76,9 +76,9 @@ Colección: `notifications/{userId}/items/{notifId}`
 |------|---------|----------------|
 | Dominio | `lib/domain/notification.ts` | Tipos |
 | API | `lib/notifications.ts` | CRUD client |
-| UI | `app/notifications/page.tsx` | Lista de notificaciones |
+| UI | `components/NotificationsDrawer.tsx` | UI emergente (Drawer) para lista de notificaciones |
 | UI | `components/skeletons/NotificationsSkeleton.tsx` | Skeleton exacto de carga |
-| UI | `app/profile/page.tsx` | Campana + badge en perfil |
+| UI | `components/Header.tsx` | Campana + botón para abrir Drawer |
 | Backend | `functions/src/reminders.ts` | Cloud Functions |
 | Push | `lib/firebase-messaging.ts` | Foreground push display |
 | Push | `lib/push.ts` | Token registration, manual reminders |
@@ -89,10 +89,10 @@ Colección: `notifications/{userId}/items/{notifId}`
 
 ## 3. CRITERIOS DE ACEPTACIÓN
 
-- [x] Campana 🔔 visible en Header de Perfil con badge de no leídas
-- [x] Página `/notifications` con lista de notificaciones
-- [x] Click en notificación marca como leída y navega al URL
-- [x] Auto-marcar como leídas al entrar a la pantalla de notificaciones
+- [x] Campana 🔔 visible en Header global con badge de no leídas
+- [x] Componente `NotificationsDrawer` con lista emergente de notificaciones
+- [x] Click en notificación marca como leída, cierra el drawer y navega al URL
+- [x] Auto-marcar como leídas al abrir el drawer
 - [x] Estado vacío con mensaje amigable
 - [x] Timestamps relativos ("Hace 5 min", "Hace 2 días")
 - [x] Firestore rules protegen acceso por usuario
