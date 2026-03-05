@@ -166,11 +166,8 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    {notifications.map((notif, idx) => (
-                                        <motion.button
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: idx * 0.05 }}
+                                    {notifications.map((notif) => (
+                                        <button
                                             key={notif.id}
                                             onClick={() => handleClick(notif)}
                                             className={`group w-full text-left p-4 rounded-2xl transition-all duration-200 block outline-none focus:ring-2 focus:ring-emerald-500/20 active:scale-[0.98] relative overflow-hidden ${notif.read
@@ -207,7 +204,7 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
                                                     </div>
                                                 )}
                                             </div>
-                                        </motion.button>
+                                        </button>
                                     ))}
                                 </div>
                             )}

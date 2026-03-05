@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/AuthContext";
 import { logout } from "@/lib/auth";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
 import NotificationsDrawer from "./NotificationsDrawer";
@@ -15,21 +15,33 @@ export default function Header() {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const skipFetchRef = useRef(false);
 
   const isAdmin = profile?.roles?.includes("admin") ?? false;
 
   // Refresh unread count on navigation and tab focus
   useEffect(() => {
     if (!user) return;
-    const fetchCount = () => getUnreadCount(user.uid).then(setUnreadCount).catch(() => { });
-    fetchCount();
+
+    const fetchCount = () => {
+      if (skipFetchRef.current) {
+        skipFetchRef.current = false;
+        return;
+      }
+      getUnreadCount(user.uid).then(setUnreadCount).catch(() => { });
+    };
+
+    // Don't fetch while drawer is open (it handles its own state)
+    if (!isDrawerOpen) {
+      fetchCount();
+    }
 
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") fetchCount();
+      if (document.visibilityState === "visible" && !isDrawerOpen) fetchCount();
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [user, pathname]);
+  }, [user, pathname, isDrawerOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -220,8 +232,9 @@ export default function Header() {
       <NotificationsDrawer
         isOpen={isDrawerOpen}
         onClose={() => {
-          setIsDrawerOpen(false);
+          skipFetchRef.current = true;
           setUnreadCount(0);
+          setIsDrawerOpen(false);
         }}
       />
     </header>
