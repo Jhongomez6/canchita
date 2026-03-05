@@ -54,6 +54,7 @@ export interface Player {
     isWaitlist?: boolean;
     waitlistJoinedAt?: string;
     sex?: 'M' | 'F';
+    phone?: string;
 }
 
 // ========================

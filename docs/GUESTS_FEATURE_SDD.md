@@ -9,7 +9,7 @@ Este documento explica cómo la **especificación funcional** gobierna completam
 ## 1. ESPECIFICACIÓN FUNCIONAL (Fuente de Verdad)
 
 ### Objetivo
-Permitir que un jugador agregue **máximo 1 invitado** a un partido, solicitando datos básicos del invitado, y respetando reglas de negocio claras.
+Permitir que un jugador agregue **hasta 2 invitados** a un partido, sujeto a que la configuración del partido lo permita (`allowGuests`), solicitando datos básicos del invitado y respetando reglas de negocio claras.
 
 ### Entidad: Guest
 
@@ -31,14 +31,15 @@ interface Guest {
 
 | # | Regla | Implementación |
 |---|-------|----------------|
-| 1 | Un jugador puede agregar máximo 1 invitado por partido | `canAddGuest()` en `lib/domain/guest.ts` |
-| 2 | El invitado NO tiene cuenta de usuario | No se crea documento en `users` collection |
-| 3 | El invitado NO puede editar el partido | Firestore Rules + No tiene `uid` |
-| 4 | El invitado ocupa un cupo del partido | Validado en `addGuestToMatch()` |
-| 5 | Nombre obligatorio, mínimo 2 caracteres | `validateGuestName()` en `lib/domain/guest.ts` |
-| 6 | Posiciones: entre 1 y 2, sin duplicados | `validateGuestPositions()` en `lib/domain/guest.ts` |
-| 7 | Si ya tiene invitado, debe eliminarlo primero | `GuestBusinessError` en `lib/guests.ts` |
-| 8 | El invitado participa en el balanceo de equipos | `guestToPlayer()` en `lib/domain/guest.ts` |
+| 1 | Un jugador puede agregar máximo 2 invitados por partido | `canAddGuest()` en `lib/domain/guest.ts` |
+| 2 | El partido debe tener habilitado el permiso de invitados | `allowGuests !== false` en `Match` |
+| 3 | El invitado NO tiene cuenta de usuario | No se crea documento en `users` collection |
+| 4 | El invitado NO puede editar el partido | Firestore Rules + No tiene `uid` |
+| 5 | El invitado ocupa un cupo del partido | Validado en `addGuestToMatch()` |
+| 6 | Nombre obligatorio, mínimo 2 caracteres | `validateGuestName()` en `lib/domain/guest.ts` |
+| 7 | Posiciones: entre 1 y 2, sin duplicados | `validateGuestPositions()` en `lib/domain/guest.ts` |
+| 8 | Cada invitado se puede eliminar de forma independiente | `removeGuestFromMatch()` |
+| 9 | El invitado participa en el balanceo de equipos | `guestToPlayer()` en `lib/domain/guest.ts` |
 
 ---
 
@@ -118,10 +119,10 @@ export async function addGuestToMatch(
   await runTransaction(db, async (transaction) => {
     const guests: Guest[] = data.guests || [];
 
-    // REGLA #1: Máximo 1 invitado por jugador
+    // REGLA #1 y #2: Máximo 2 invitados por jugador, si el partido lo permite
     if (!canAddGuest(guests, playerUid)) {
       throw new GuestBusinessError(
-        "Ya tienes un invitado en este partido. Elimínalo antes de agregar otro."
+        "Ya has alcanzado el límite de 2 invitados en este partido."
       );
     }
 
@@ -182,17 +183,18 @@ const handleSubmit = async (e: React.FormEvent) => {
 
 ## 3. TRAZABILIDAD: ESPECIFICACIÓN → CÓDIGO
 
-### Regla #1: Máximo 1 invitado por jugador
+### Regla #1: Máximo 2 invitados por jugador
 
 **Especificación**:
-> Un jugador puede agregar máximo 1 invitado por partido
+> Un jugador puede agregar hasta 2 invitados por partido. Si el partido deshabilita invitados, el límite es 0.
 
 **Implementación**:
 
 1. **Dominio** (`lib/domain/guest.ts:145-148`):
 ```typescript
 export function canAddGuest(guests: Guest[], playerUid: string): boolean {
-  return !hasExistingGuest(guests, playerUid);
+  const userGuests = guests.filter(g => g.invitedBy === playerUid);
+  return userGuests.length < 2;
 }
 ```
 
@@ -207,12 +209,16 @@ if (!canAddGuest(guests, playerUid)) {
 
 3. **UI** (`components/AddGuestForm.tsx:159-175`):
 ```typescript
-if (existingGuest) {
+if (existingGuests.length > 0) {
   return (
     <div>
-      <h3>👥 Tu invitado</h3>
-      <p>{existingGuest.name}</p>
-      <button onClick={handleRemoveGuest}>Eliminar invitado</button>
+      {existingGuests.map(guest => (
+        <div key={guest.name}>
+          <h3>👥 Tu invitado</h3>
+          <p>{guest.name}</p>
+          <button onClick={() => handleRemoveGuest(guest)}>Eliminar invitado</button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -309,14 +315,14 @@ const handlePositionToggle = (position: Position) => {
 - `totalOccupiedSlots` incluye invitados
 
 ### ✅ Criterio 2
-**Given** un jugador con invitado existente  
-**When** intenta agregar otro invitado  
+**Given** un jugador con 2 invitados ya registrados  
+**When** intenta agregar un tercer invitado  
 **Then** la acción es rechazada
 
 **Verificación**:
 - `canAddGuest()` retorna `false`
 - `GuestBusinessError` se lanza
-- UI muestra mensaje de error
+- UI oculta el formulario o muestra mensaje de error
 
 ### ✅ Criterio 3
 **Given** un invitado con más de 2 posiciones  

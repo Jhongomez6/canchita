@@ -36,6 +36,7 @@ export interface Match {
     createdBy: string;
     maxPlayers: number;
     status: MatchStatus;
+    allowGuests?: boolean;
     players: Player[];
     guests?: Guest[];
     teams?: { A: Player[]; B: Player[] };
@@ -55,6 +56,7 @@ export interface CreateMatchInput {
     locationSnapshot: LocationSnapshot;
     createdBy: string;
     maxPlayers: number;
+    allowGuests?: boolean;
     isPrivate?: boolean;
 }
 

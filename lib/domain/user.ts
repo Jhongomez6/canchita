@@ -32,6 +32,7 @@ export interface UserProfile {
     notificationsEnabled?: boolean;
     fcmTokens?: string[];
     stats?: UserStats;
+    phone?: string;
     // Onboarding
     initialRatingCalculated?: boolean;
     onboardingCompletedAt?: string;

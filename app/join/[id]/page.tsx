@@ -602,16 +602,23 @@ export default function JoinMatchPage() {
             </div>
           )}
 
-          {/* AGREGAR INVITADO - Solo para jugadores confirmados */}
-          {!isClosed && existingPlayer?.confirmed && (
+          {/* AGREGAR INVITADO - Solo para jugadores confirmados Y si el partido lo permite */}
+          {!isClosed && existingPlayer?.confirmed && match.allowGuests !== false && (
             <AddGuestForm
               matchId={id}
               playerUid={user.uid}
-              existingGuest={
-                match.guests?.find((g: Guest) => g.invitedBy === user.uid) || null
+              existingGuests={
+                match.guests?.filter((g: Guest) => g.invitedBy === user.uid) || []
               }
               onSuccess={() => loadMatch()}
             />
+          )}
+
+          {/* MENSAJE INVITADOS NO PERMITIDOS */}
+          {!isClosed && existingPlayer?.confirmed && match.allowGuests === false && (
+            <div className="bg-slate-100 rounded-2xl p-4 text-center text-sm font-medium text-slate-500 border border-slate-200">
+              🚫 Las invitaciones están deshabilitadas para este partido
+            </div>
           )}
 
 
@@ -961,7 +968,14 @@ export default function JoinMatchPage() {
                         <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm">
                           {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
                         </div>
-                        <span className="font-bold text-slate-800 text-sm">{p.name}</span>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 text-sm">{p.name}</span>
+                          {profile && isAdmin(profile) && p.phone && (
+                            <a href={`tel:+57${p.phone}`} className="text-xs font-medium text-emerald-600 hover:underline flex items-center gap-1 mt-0.5">
+                              📞 +57 {p.phone}
+                            </a>
+                          )}
+                        </div>
                       </div>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600">
                         Confirmado
@@ -1020,7 +1034,14 @@ export default function JoinMatchPage() {
                         <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
                           #{i + 1}
                         </div>
-                        <span className="font-bold text-slate-700 text-sm">{p.name} {p.uid === user.uid && "(Tú)"}</span>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-700 text-sm">{p.name} {p.uid === user.uid && "(Tú)"}</span>
+                          {profile && isAdmin(profile) && p.phone && (
+                            <a href={`tel:+57${p.phone}`} className="text-[10px] font-medium text-amber-600 hover:underline flex items-center gap-1 mt-0.5">
+                              📞 +57 {p.phone}
+                            </a>
+                          )}
+                        </div>
                       </div>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase tracking-widest">
                         En espera

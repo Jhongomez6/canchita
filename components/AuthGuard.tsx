@@ -37,6 +37,19 @@ export default function AuthGuard({
     }
   }, [profile, pathname, router]);
 
+  // 🔹 Redirigir a /onboarding/phone si ya hizo onboarding pero no tiene teléfono
+  useEffect(() => {
+    if (
+      profile &&
+      profile.roles.includes("player") &&
+      profile.initialRatingCalculated &&
+      !profile.phone &&
+      pathname !== "/onboarding/phone"
+    ) {
+      router.replace("/onboarding/phone");
+    }
+  }, [profile, pathname, router]);
+
   // ⏳ Auth o perfil cargando
   if (loading || (user && !profile)) {
     return (
@@ -164,6 +177,33 @@ export default function AuthGuard({
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Preparando tu evaluación...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 🚨 FALTA CELULAR → Mostrar pantalla de redirección
+  if (
+    profile &&
+    profile.roles.includes("player") &&
+    profile.initialRatingCalculated &&
+    !profile.phone &&
+    pathname !== "/onboarding/phone"
+  ) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
+          <div className="mb-6 flex justify-center">
+            <Image
+              src="/logo/lacanchita-logo.png"
+              alt="La Canchita"
+              width={120}
+              height={100}
+              style={{ height: "auto", width: "auto" }}
+              priority={true}
+            />
+          </div>
+          <p className="text-lg text-slate-500 font-medium">Verificando información de contacto...</p>
         </div>
       </div>
     );

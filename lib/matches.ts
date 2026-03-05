@@ -53,12 +53,14 @@ export async function createMatch(match: {
     lng: number;
   };
   isPrivate?: boolean;
+  allowGuests?: boolean;
 }) {
   const startsAt = new Date(`${match.date}T${match.time}:00-05:00`);
 
   await addDoc(matchesRef, {
     ...match,
     isPrivate: match.isPrivate || false,
+    allowGuests: match.allowGuests ?? true,
     players: [],
     remindersSent: {
       "24h": false,
@@ -179,6 +181,7 @@ export async function joinMatch(
           level,
           positions,
           sex: profile?.sex,
+          phone: profile?.phone,
         },
       ],
       playerUids: arrayUnion(user.uid),
@@ -228,6 +231,7 @@ export async function joinWaitlist(
           level,
           positions,
           sex: profile?.sex,
+          phone: profile?.phone,
         },
       ],
       playerUids: arrayUnion(user.uid),

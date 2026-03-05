@@ -107,6 +107,7 @@ export async function saveOnboardingResult(
     hasSchool: boolean;
     hasTournaments: boolean;
     frequency: string;
+    phone: string;
   }
 ) {
   const ref = doc(db, "users", uid);
@@ -115,6 +116,14 @@ export async function saveOnboardingResult(
     initialRatingCalculated: true,
     onboardingCompletedAt: new Date().toISOString(),
   }, { merge: true });
+}
+
+/* =========================
+   ACTUALIZAR TELÉFONO (AISLADO)
+========================= */
+export async function updateUserPhone(uid: string, phone: string) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { phone });
 }
 
 /* =========================

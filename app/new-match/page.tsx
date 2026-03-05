@@ -21,6 +21,7 @@ export default function NewMatchPage() {
   const [timePeriod, setTimePeriod] = useState("PM");
   const [maxPlayers, setMaxPlayers] = useState(14);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [allowGuests, setAllowGuests] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -72,6 +73,7 @@ export default function NewMatchPage() {
         createdBy: user.uid,
         maxPlayers: finalMaxPlayers,
         isPrivate,
+        allowGuests,
       });
 
       toast.success("¡Partido creado exitosamente!");
@@ -250,31 +252,56 @@ export default function NewMatchPage() {
                     <p className="text-[10px] text-slate-400 mt-1">
                       Número total de jugadores. Ej: 14 para Fútbol 7.
                     </p>
-                  </div>
+                    <div className="space-y-4">
+                      {/* PRIVATE TOGGLE */}
+                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">
+                        <div className="relative inline-flex items-center cursor-pointer mt-0.5">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={isPrivate}
+                            onChange={e => setIsPrivate(e.target.checked)}
+                          />
+                          <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1f7a4f]"></div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                            Partido Privado
+                            {isPrivate ? <span className="text-xs">🔒</span> : <span className="text-xs">🌍</span>}
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
+                            {isPrivate
+                              ? "Oculto de la sección Explorar. Solo quienes tengan el link podrán unirse."
+                              : "Público en la sección Explorar. Cualquier usuario de la app puede verlo."}
+                          </p>
+                        </div>
+                      </label>
 
-                  {/* PRIVATE TOGGLE */}
-                  <label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">
-                    <div className="relative inline-flex items-center cursor-pointer mt-0.5">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={isPrivate}
-                        onChange={e => setIsPrivate(e.target.checked)}
-                      />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1f7a4f]"></div>
+                      {/* PERMITIR INVITADOS TOGGLE */}
+                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">
+                        <div className="relative inline-flex items-center cursor-pointer mt-0.5">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={allowGuests}
+                            onChange={e => setAllowGuests(e.target.checked)}
+                          />
+                          <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1f7a4f]"></div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                            Permitir Invitados
+                            {allowGuests ? <span className="text-xs">✅</span> : <span className="text-xs">❌</span>}
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
+                            {allowGuests
+                              ? "Los jugadores podrán llevar hasta 2 invitados sin cuenta."
+                              : "Solo usuarios con cuenta en La Canchita podrán asistir (cero invitados)."}
+                          </p>
+                        </div>
+                      </label>
                     </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                        Partido Privado
-                        {isPrivate ? <span className="text-xs">🔒</span> : <span className="text-xs">🌍</span>}
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
-                        {isPrivate
-                          ? "Oculto de la sección Explorar. Solo quienes tengan el link podrán unirse."
-                          : "Público en la sección Explorar. Cualquier usuario de la app puede verlo."}
-                      </p>
-                    </div>
-                  </label>
+                  </div>
                 </div>
 
                 {/* BOTÓN CREAR */}

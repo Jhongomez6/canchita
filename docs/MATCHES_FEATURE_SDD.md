@@ -28,6 +28,7 @@ interface Match {
   locationId: string;     // Referencia a la cancha
   status: "open" | "closed";
   createdBy: string;      // UID del administrador
+  allowGuests?: boolean;  // Si el partido permite agregar invitados (por defecto true si no existe)
   players: Player[];      // Lista de jugadores
   guests?: Guest[];       // Invitados (ver GUESTS_FEATURE_SDD.md)
   teams?: { A: Player[]; B: Player[] };

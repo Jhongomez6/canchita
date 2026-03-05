@@ -81,6 +81,7 @@ export default function OnboardingPage() {
 
     // Form data
     const [age, setAge] = useState("");
+    const [phone, setPhone] = useState("");
     const [sex, setSex] = useState<Sex | "">("");
     const [foot, setFoot] = useState<Foot | "">("");
     const [court, setCourt] = useState<CourtSize | "">("");
@@ -101,12 +102,14 @@ export default function OnboardingPage() {
             case 1:
                 return !!age && Number(age) >= 10 && Number(age) <= 70 && !!sex && !!foot && !!court;
             case 2:
-                return techLevel > 0;
+                return /^3\d{9}$/.test(phone);
             case 3:
-                return physLevel > 0;
+                return techLevel > 0;
             case 4:
-                return !!frequency;
+                return physLevel > 0;
             case 5:
+                return !!frequency;
+            case 6:
                 return positions.length >= 1 && positions.length <= 2;
             default:
                 return false;
@@ -115,7 +118,7 @@ export default function OnboardingPage() {
 
     // Calculating animation + Firebase save
     useEffect(() => {
-        if (step !== 6) return;
+        if (step !== 7) return;
 
         const data: OnboardingData = {
             age: Number(age),
@@ -157,6 +160,7 @@ export default function OnboardingPage() {
                     hasSchool,
                     hasTournaments,
                     frequency: frequency as string,
+                    phone,
                 });
 
                 const elapsed = Date.now() - startTime;
@@ -165,12 +169,12 @@ export default function OnboardingPage() {
                 setTimeout(() => {
                     clearInterval(interval);
                     setResult(ratingResult);
-                    setStep(7);
+                    setStep(8);
                 }, remaining > 0 ? remaining : 0);
             } catch (err) {
                 clearInterval(interval);
                 handleError(err, "Hubo un error al guardar tu perfil. Intenta de nuevo.");
-                setStep(5);
+                setStep(6);
             }
         })();
 
@@ -188,7 +192,7 @@ export default function OnboardingPage() {
         <div className="h-1 bg-gray-200 rounded-full mb-8 overflow-hidden">
             <div
                 className="h-full bg-[#1f7a4f] rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${(Math.min(step, 5) / 5) * 100}%` }}
+                style={{ width: `${(Math.min(step, 6) / 6) * 100}%` }}
             />
         </div>
     );
@@ -202,7 +206,7 @@ export default function OnboardingPage() {
                 <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
                     <div className="text-center mb-6">
-                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 1 de 5</p>
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 1 de 6</p>
                         <h1 className="text-2xl font-bold text-gray-800 mt-1">📋 Datos Personales</h1>
                     </div>
 
@@ -293,7 +297,7 @@ export default function OnboardingPage() {
     }
 
     // ========================
-    // STEP 2: Nivel Técnico
+    // STEP 2: Celular de Contacto
     // ========================
     if (step === 2) {
         return (
@@ -301,38 +305,47 @@ export default function OnboardingPage() {
                 <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
                     <div className="text-center mb-6">
-                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 2 de 5</p>
-                        <h1 className="text-2xl font-bold text-gray-800 mt-1">⚽ Nivel Técnico</h1>
-                        <p className="text-gray-500 text-sm mt-1">Selecciona el nivel que mejor te describe</p>
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 2 de 6</p>
+                        <h1 className="text-2xl font-bold text-gray-800 mt-1">📱 Celular de Contacto</h1>
                     </div>
 
-                    <div className="space-y-3">
-                        {TECH_OPTIONS.map(o => {
-                            const selected = techLevel === o.level;
-                            return (
-                                <div
-                                    key={o.level}
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => setTechLevel(o.level)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setTechLevel(o.level); }}
-                                    className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
-                                        ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
-                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
-                                        }`}
-                                >
-                                    <span className={`block font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
-                                        {selected ? "✔ " : ""}Nivel {o.level} — {o.title}
-                                    </span>
-                                    <span className="block text-xs text-gray-500 leading-relaxed">
-                                        {o.desc}
-                                    </span>
-                                </div>
-                            );
-                        })}
+                    <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl mb-6">
+                        <p className="text-sm text-emerald-800 leading-relaxed font-medium">
+                            Lo necesitamos para que el capitán o administrador del partido pueda contactarte en caso de alguna novedad, cambio de horario o información importante.
+                            <br /><br />
+                            <strong>🔒 Solo será visible para los organizadores, nunca de forma pública.</strong>
+                        </p>
                     </div>
 
-                    <div className="flex gap-3 mt-6">
+                    <label className="block mb-8 relative">
+                        <span className="text-sm font-semibold text-gray-700 block mb-2">WhatsApp / Número Móvil</span>
+                        <div className="flex relative items-center">
+                            <span className="absolute left-4 font-bold text-gray-400 select-none">+57</span>
+                            <input
+                                type="tel"
+                                value={phone}
+                                onChange={e => {
+                                    // Limpiar no-números
+                                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                    setPhone(val);
+                                }}
+                                placeholder="3XX XXX XXXX"
+                                className="w-full px-4 py-4 pl-14 border-2 border-gray-200 rounded-xl text-xl font-bold focus:outline-none focus:ring-0 focus:border-[#1f7a4f] tracking-wider transition-all"
+                            />
+                        </div>
+                        {phone && !canNext() && (
+                            <p className="text-xs font-bold text-red-500 mt-1 absolute top-full left-0 w-full">
+                                Debe ser un número válido de 10 dígitos (ej:3001234567).
+                            </p>
+                        )}
+                        {canNext() && (
+                            <p className="text-xs font-bold text-[#1f7a4f] mt-1 absolute top-full left-0 w-full">
+                                ✔ Formato válido
+                            </p>
+                        )}
+                    </label>
+
+                    <div className="flex gap-3">
                         <button
                             onClick={() => setStep(1)}
                             className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
@@ -356,7 +369,7 @@ export default function OnboardingPage() {
     }
 
     // ========================
-    // STEP 3: Condición Física
+    // STEP 3: Nivel Técnico
     // ========================
     if (step === 3) {
         return (
@@ -364,21 +377,21 @@ export default function OnboardingPage() {
                 <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
                     <div className="text-center mb-6">
-                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 3 de 5</p>
-                        <h1 className="text-2xl font-bold text-gray-800 mt-1">🏃 Condición Física</h1>
-                        <p className="text-gray-500 text-sm mt-1">¿Cómo describes tu resistencia en los partidos?</p>
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 3 de 6</p>
+                        <h1 className="text-2xl font-bold text-gray-800 mt-1">⚽ Nivel Técnico</h1>
+                        <p className="text-gray-500 text-sm mt-1">Selecciona el nivel que mejor te describe</p>
                     </div>
 
                     <div className="space-y-3">
-                        {PHYS_OPTIONS.map(o => {
-                            const selected = physLevel === o.level;
+                        {TECH_OPTIONS.map(o => {
+                            const selected = techLevel === o.level;
                             return (
                                 <div
                                     key={o.level}
                                     role="button"
                                     tabIndex={0}
-                                    onClick={() => setPhysLevel(o.level)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setPhysLevel(o.level); }}
+                                    onClick={() => setTechLevel(o.level)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setTechLevel(o.level); }}
                                     className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
                                         ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
                                         : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
@@ -419,7 +432,7 @@ export default function OnboardingPage() {
     }
 
     // ========================
-    // STEP 4: Trayectoria
+    // STEP 4: Condición Física
     // ========================
     if (step === 4) {
         return (
@@ -427,7 +440,70 @@ export default function OnboardingPage() {
                 <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
                     <div className="text-center mb-6">
-                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 4 de 5</p>
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 4 de 6</p>
+                        <h1 className="text-2xl font-bold text-gray-800 mt-1">🏃 Condición Física</h1>
+                        <p className="text-gray-500 text-sm mt-1">¿Cómo describes tu resistencia en los partidos?</p>
+                    </div>
+
+                    <div className="space-y-3">
+                        {PHYS_OPTIONS.map(o => {
+                            const selected = physLevel === o.level;
+                            return (
+                                <div
+                                    key={o.level}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setPhysLevel(o.level)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setPhysLevel(o.level); }}
+                                    className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${selected
+                                        ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f]"
+                                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
+                                        }`}
+                                >
+                                    <span className={`block font-bold text-sm mb-1 ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
+                                        {selected ? "✔ " : ""}Nivel {o.level} — {o.title}
+                                    </span>
+                                    <span className="block text-xs text-gray-500 leading-relaxed">
+                                        {o.desc}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={() => setStep(3)}
+                            className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                        >
+                            Atrás
+                        </button>
+                        <button
+                            disabled={!canNext()}
+                            onClick={() => setStep(5)}
+                            className={`flex-[2] py-3 rounded-xl text-white font-bold transition-all shadow-lg ${!canNext()
+                                ? "bg-gray-300 cursor-not-allowed shadow-none"
+                                : "bg-[#1f7a4f] hover:bg-[#16603c] hover:shadow-xl hover:-translate-y-0.5"
+                                }`}
+                        >
+                            Continuar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ========================
+    // STEP 5: Trayectoria
+    // ========================
+    if (step === 5) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
+                    {progressBar}
+                    <div className="text-center mb-6">
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 5 de 6</p>
                         <h1 className="text-2xl font-bold text-gray-800 mt-1">🏆 Trayectoria</h1>
                     </div>
 
@@ -505,14 +581,14 @@ export default function OnboardingPage() {
 
                     <div className="flex gap-3 mt-6">
                         <button
-                            onClick={() => setStep(3)}
+                            onClick={() => setStep(4)}
                             className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
                         >
                             Atrás
                         </button>
                         <button
                             disabled={!canNext()}
-                            onClick={() => setStep(5)}
+                            onClick={() => setStep(6)}
                             className={`flex-[2] py-3 rounded-xl text-white font-bold transition-all shadow-lg ${!canNext()
                                 ? "bg-gray-300 cursor-not-allowed shadow-none"
                                 : "bg-[#1f7a4f] hover:bg-[#16603c] hover:shadow-xl hover:-translate-y-0.5"
@@ -527,15 +603,15 @@ export default function OnboardingPage() {
     }
 
     // ========================
-    // STEP 5: Posiciones
+    // STEP 6: Posiciones
     // ========================
-    if (step === 5) {
+    if (step === 6) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
                     {progressBar}
                     <div className="text-center mb-6">
-                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 5 de 5</p>
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 6 de 6</p>
                         <h1 className="text-2xl font-bold text-gray-800 mt-1">🥅 Posiciones</h1>
                         <p className="text-gray-500 text-sm mt-1">¿En qué posiciones te sientes más cómodo? (Máx. 2)</p>
                     </div>
@@ -584,14 +660,14 @@ export default function OnboardingPage() {
 
                     <div className="flex gap-3 mt-6">
                         <button
-                            onClick={() => setStep(4)}
+                            onClick={() => setStep(5)}
                             className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
                         >
                             Atrás
                         </button>
                         <button
                             disabled={!canNext()}
-                            onClick={() => { setCalcMsgIndex(0); setStep(6); }}
+                            onClick={() => { setCalcMsgIndex(0); setStep(7); }}
                             className={`flex-[2] py-3 rounded-xl text-white font-bold transition-all shadow-lg ${!canNext()
                                 ? "bg-gray-300 cursor-not-allowed shadow-none"
                                 : "bg-[#1f7a4f] hover:bg-[#16603c] hover:shadow-xl hover:-translate-y-0.5"
@@ -606,9 +682,9 @@ export default function OnboardingPage() {
     }
 
     // ========================
-    // STEP 6: CALCULANDO (Animation)
+    // STEP 7: CALCULANDO (Animation)
     // ========================
-    if (step === 6) {
+    if (step === 7) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl text-center">
@@ -640,9 +716,9 @@ export default function OnboardingPage() {
     }
 
     // ========================
-    // STEP 7: RESULTADO
+    // STEP 8: RESULTADO
     // ========================
-    if (step === 7 && result) {
+    if (step === 8 && result) {
         const levelLabels = ["", "Básico", "Intermedio", "Avanzado"];
         const levelEmojis = ["", "🌱", "⚡", "🔥"];
 

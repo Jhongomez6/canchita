@@ -146,35 +146,36 @@ export function createGuest(
 // ========================
 
 /**
- * Verifica si un jugador ya tiene un invitado en el partido
- * Regla: Un jugador puede agregar máximo 1 invitado por partido
+ * Verifica si un jugador ya alcanzó su límite de invitados
+ * Regla: Un jugador puede agregar máximo 2 invitados por partido
  */
-export function hasExistingGuest(
+export function hasReachedGuestLimit(
   guests: Guest[],
   playerUid: string
 ): boolean {
-  return guests.some((guest) => guest.invitedBy === playerUid);
+  const userGuests = guests.filter((guest) => guest.invitedBy === playerUid);
+  return userGuests.length >= 2;
 }
 
 /**
- * Obtiene el invitado de un jugador en un partido
+ * Obtiene todos los invitados de un jugador en un partido
  */
-export function getPlayerGuest(
+export function getPlayerGuests(
   guests: Guest[],
   playerUid: string
-): Guest | null {
-  return guests.find((guest) => guest.invitedBy === playerUid) || null;
+): Guest[] {
+  return guests.filter((guest) => guest.invitedBy === playerUid);
 }
 
 /**
  * Valida que se pueda agregar un invitado
- * Regla: Un jugador puede agregar máximo 1 invitado por partido
+ * Regla: Un jugador puede agregar máximo 2 invitados por partido
  */
 export function canAddGuest(
   guests: Guest[],
   playerUid: string
 ): boolean {
-  return !hasExistingGuest(guests, playerUid);
+  return !hasReachedGuestLimit(guests, playerUid);
 }
 
 // ========================

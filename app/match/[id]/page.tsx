@@ -731,6 +731,11 @@ export default function MatchDetailPage() {
                     </div>
                     <div>
                       <div className="font-bold text-slate-800">{p.name}</div>
+                      {isOwner && p.phone && (
+                        <a href={`tel:+57${p.phone}`} className="text-[10px] font-medium text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 mt-0.5">
+                          📞 +57 {p.phone}
+                        </a>
+                      )}
                       <div className={`text-xs font-semibold px-2 py-0.5 rounded-md inline-block ${p.confirmed ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
                         }`}>
                         {p.confirmed ? "Confirmado" : "Pendiente"}
@@ -886,7 +891,7 @@ export default function MatchDetailPage() {
                             <button
                               onClick={async () => {
                                 if (!confirm(`Eliminar invitado ${g.name}?`)) return;
-                                await removeGuestFromMatch(id, g.invitedBy);
+                                await removeGuestFromMatch(id, g.invitedBy, g.name);
                                 loadMatch();
                               }}
                               className="text-xs font-bold px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100"
@@ -941,7 +946,14 @@ export default function MatchDetailPage() {
                           <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
                             #{i + 1}
                           </div>
-                          <span className="font-bold text-slate-700 text-sm">{p.name}</span>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-700 text-sm">{p.name}</span>
+                            {isOwner && p.phone && (
+                              <a href={`tel:+57${p.phone}`} className="text-[10px] font-medium text-amber-600 hover:underline flex items-center gap-1 mt-0.5">
+                                📞 +57 {p.phone}
+                              </a>
+                            )}
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap">

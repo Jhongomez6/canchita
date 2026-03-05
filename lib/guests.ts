@@ -22,7 +22,7 @@ import {
   Position,
   validateGuest,
   canAddGuest,
-  getPlayerGuest,
+  getPlayerGuests,
 } from "./domain/guest";
 import { GuestBusinessError, MatchFullError } from "./domain/errors";
 import type { Player } from "./domain/player";
@@ -65,10 +65,16 @@ export async function addGuestToMatch(
     const players: Player[] = data.players || [];
     const maxPlayers = data.maxPlayers ?? Infinity;
 
-    // REGLA: Un jugador puede agregar máximo 1 invitado por partido
+    if (data.allowGuests === false) {
+      throw new GuestBusinessError(
+        "Este partido no permite invitados."
+      );
+    }
+
+    // REGLA: Un jugador puede agregar máximo 2 invitados por partido
     if (!canAddGuest(guests, playerUid)) {
       throw new GuestBusinessError(
-        "Ya tienes un invitado en este partido. Elimínalo antes de agregar otro."
+        "Ya has alcanzado el límite de 2 invitados en este partido."
       );
     }
 
@@ -108,7 +114,8 @@ export async function addGuestToMatch(
  */
 export async function removeGuestFromMatch(
   matchId: string,
-  playerUid: string
+  playerUid: string,
+  guestName: string
 ): Promise<void> {
   const ref = doc(db, "matches", matchId);
 
@@ -121,22 +128,34 @@ export async function removeGuestFromMatch(
     const data = snap.data();
     const guests: Guest[] = data.guests || [];
 
-    // Buscar el invitado del jugador
-    const playerGuest = getPlayerGuest(guests, playerUid);
+    // Buscar los invitados del jugador
+    const playerGuests = getPlayerGuests(guests, playerUid);
 
-    if (!playerGuest) {
+    if (playerGuests.length === 0) {
       throw new GuestBusinessError(
         "No tienes ningún invitado en este partido"
       );
     }
 
-    // Eliminar el invitado
-    const updatedGuests = guests.filter(
-      (guest) => guest.invitedBy !== playerUid
+    // Verificar si existe el invitado específico a eliminar
+    const targetGuest = playerGuests.find(g => g.name === guestName);
+    if (!targetGuest) {
+      throw new GuestBusinessError(
+        "El invitado especificado no existe o no te pertenece"
+      );
+    }
+
+    // Eliminar solo el invitado específico
+    const guestIndex = guests.findIndex(
+      (guest) => guest.invitedBy === playerUid && guest.name === guestName
     );
 
+    if (guestIndex > -1) {
+      guests.splice(guestIndex, 1);
+    }
+
     transaction.update(ref, {
-      guests: updatedGuests,
+      guests: guests,
     });
   });
 }
@@ -146,23 +165,23 @@ export async function removeGuestFromMatch(
 // ========================
 
 /**
- * Obtiene el invitado de un jugador en un partido
+ * Obtiene los invitados de un jugador en un partido
  */
-export async function getPlayerGuestInMatch(
+export async function getPlayerGuestsInMatch(
   matchId: string,
   playerUid: string
-): Promise<Guest | null> {
+): Promise<Guest[]> {
   const ref = doc(db, "matches", matchId);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    return null;
+    return [];
   }
 
   const data = snap.data();
   const guests: Guest[] = data.guests || [];
 
-  return getPlayerGuest(guests, playerUid);
+  return getPlayerGuests(guests, playerUid);
 }
 
 /**
