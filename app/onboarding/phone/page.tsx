@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { updateUserPhone } from "@/lib/users";
 import { handleError } from "@/lib/utils/error";

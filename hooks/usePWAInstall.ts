@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from "react";
 
+interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 // Evento global para capturarlo independientemente de cuándo se monte el hook
-let globalDeferredPrompt: any = null;
+let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
 let globalIsInstallable = false;
 const listeners = new Set<() => void>();
 
@@ -14,7 +19,7 @@ function notifyListeners() {
 if (typeof window !== "undefined") {
     window.addEventListener("beforeinstallprompt", (e: Event) => {
         e.preventDefault();
-        globalDeferredPrompt = e;
+        globalDeferredPrompt = e as BeforeInstallPromptEvent;
         globalIsInstallable = true;
         notifyListeners();
     });
@@ -46,9 +51,10 @@ export function usePWAInstall(cooldownDays = 7): PWAInstallHook {
             if (typeof window === "undefined") return false;
             return (
                 window.matchMedia("(display-mode: standalone)").matches ||
-                (window.navigator as any).standalone === true
+                (window.navigator as Navigator & { standalone?: boolean }).standalone === true
             );
         };
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsStandalone(checkStandalone());
 
         // Check OS
