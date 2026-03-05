@@ -219,7 +219,10 @@ export default function Header() {
       {/* NOTIFICATIONS DRAWER */}
       <NotificationsDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setUnreadCount(0);
+        }}
       />
     </header>
   );

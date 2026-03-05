@@ -34,6 +34,7 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
             const data = await getMyNotifications(user.uid);
             setNotifications(data);
 
+            // Mark as read in Firestore immediately (so re-opening won't show them again)
             const hasUnread = data.some(n => !n.read);
             if (hasUnread) {
                 markAllAsRead(user.uid).catch(console.error);
@@ -51,6 +52,12 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
         }
     }, [isOpen, loadNotifications]);
 
+    // Visually mark all as read when drawer CLOSES
+    const handleClose = useCallback(() => {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        onClose();
+    }, [onClose]);
+
     async function handleClick(notif: AppNotification) {
         if (!user || !notif.id) return;
 
@@ -65,7 +72,7 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
         // Navigate if URL exists
         if (notif.url) {
             setTimeout(() => {
-                onClose(); // Close drawer slightly after click for better feel
+                handleClose(); // Close drawer slightly after click for better feel
                 router.push(notif.url!);
             }, 150);
         }
@@ -84,7 +91,7 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
                         className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[100]"
-                        onClick={onClose}
+                        onClick={handleClose}
                     />
 
                     {/* Drawer */}
@@ -98,7 +105,7 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
                         dragElastic={0.05}
                         onDragEnd={(_, info) => {
                             if (info.offset.x > 100 || info.velocity.x > 500) {
-                                onClose();
+                                handleClose();
                             }
                         }}
                         className="fixed top-0 right-0 h-full w-[85vw] max-w-[320px] bg-white shadow-[-10px_0_40px_rgba(0,0,0,0.1)] z-[101] flex flex-col rounded-l-3xl overflow-hidden border-l border-white/50"
@@ -124,7 +131,7 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
                                 </h2>
                             </div>
                             <button
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="p-2 -mr-2 hover:bg-slate-50 active:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
