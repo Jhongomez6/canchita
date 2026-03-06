@@ -48,17 +48,24 @@ export interface UserProfile {
 - Se interceptará la llamada a `saveOnboardingResult` agregando el tipado del teléfono.
 - Se creará un método `updateUserPhone(uid, phone)` para procesar exclusivamente el dato en escenarios de retrocompatibilidad.
 
-### 4.3 Redirección Obligatoria (AuthGuard)
+### 4.3 Redirección Obligatoria (AuthGuard y Join Page)
 Para garantizar la captura en perfiles antiguos:
 - El componente `AuthGuard` monitoreará el estado del perfil.
-- **Regla:** `Si (roles incluye "player") Y (initialRatingCalculated === true) Y (phone es nulo)`
+- **Regla Principal:** `Si (roles incluye "player") Y (initialRatingCalculated === true) Y (phone es nulo)`
 - **Acción:** Redirigir a `/onboarding/phone`. El usuario no podrá escapar de esta ruta navegando a otras páginas, ya que AuthGuard lo devolverá ahí.
+
+**Gate en Join Page (`app/join/[id]/page.tsx`):**
+- Usuarios que entran por link directo (`/join/[id]`) también son interceptados.
+- `useEffect` verifica: `profile.positions?.length > 0 && !profile.phone` → redirige a `/onboarding/phone`.
+- El ID del partido se guarda en `localStorage("returnToMatch")` para que al completar el teléfono, el usuario regrese automáticamente al partido.
 
 ### 4.4 Página Aislada (`app/onboarding/phone/page.tsx`)
 Una página nueva que funciona similar al onboarding general pero enfocada solo en este dato. Se usará para "desatascar" a los usuarios antiguos que sean atrapados por el AuthGuard.
+- Al guardar exitosamente, verifica `localStorage("returnToMatch")` y redirige a `/join/{matchId}` si existe, sino a `/`.
 
 ### 4.5 Propagación en Matches y Vistas
 - Cuando un jugador se une a un partido (o lista de espera), su `phone` será copiado en su entrada de `players[]` (`lib/matches.ts`).
+- **Manejo defensivo:** El campo `phone` se incluye condicionalmente usando spread (`...(profile?.phone ? { phone: profile.phone } : {})`), evitando escribir `undefined` a Firestore que causaría un error de transacción.
 - En la vista de detalles del partido (`app/join/[id]/page.tsx` y `app/match/[id]/page.tsx`), se añadirá un renderizado condicional del tipo `tel:+57...` si el usuario tiene rol `admin`.
 
 ---

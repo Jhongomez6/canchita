@@ -85,6 +85,21 @@ export default function JoinMatchPage() {
     }
   }, [profile, router, id]);
 
+  // Redirigir a /onboarding/phone si falta teléfono
+  useEffect(() => {
+    if (
+      profile &&
+      profile.roles?.includes("player") &&
+      profile.positions?.length > 0 &&
+      !profile.phone
+    ) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("returnToMatch", id);
+      }
+      router.replace("/onboarding/phone");
+    }
+  }, [profile, router, id]);
+
   // Cargar partido cuando auth y perfil estén listos
   useEffect(() => {
     if (!loading && user && profile && profile.positions?.length > 0) {
@@ -253,6 +268,32 @@ export default function JoinMatchPage() {
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Redirigiendo a tu perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 📱 TELÉFONO FALTANTE → Mostrar pantalla de redirección
+  if (
+    profile &&
+    profile.roles.includes("player") &&
+    profile.positions?.length > 0 &&
+    !profile.phone
+  ) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-10 max-w-md w-full shadow-2xl text-center">
+          <div className="mb-6 flex justify-center">
+            <Image
+              src="/logo/lacanchita-logo.png"
+              alt="La Canchita"
+              width={120}
+              height={100}
+              style={{ height: "auto", width: "auto" }}
+              priority={true}
+            />
+          </div>
+          <p className="text-lg text-slate-500 font-medium">Necesitamos tu número de teléfono...</p>
         </div>
       </div>
     );

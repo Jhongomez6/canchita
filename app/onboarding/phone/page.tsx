@@ -28,9 +28,14 @@ export default function PhoneOnboardingPage() {
         setIsSaving(true);
         try {
             await updateUserPhone(user.uid, phone);
-            // Al actualizar exitosamente, forzamos la recarga (o dejamos que AuthGuard lo libere).
-            // Lo más seguro es redirigir al home o recargar la app para que el contexto re-evalúe todo.
-            window.location.href = "/";
+            // Redirigir al partido si se vino desde un join link, sino al home
+            const returnTo = localStorage.getItem("returnToMatch");
+            if (returnTo) {
+                localStorage.removeItem("returnToMatch");
+                window.location.href = `/join/${returnTo}`;
+            } else {
+                window.location.href = "/";
+            }
         } catch (error) {
             handleError(error, "Error al guardar el teléfono. Intenta de nuevo.");
             setIsSaving(false);
