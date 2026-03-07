@@ -7,7 +7,6 @@ import { db } from "./firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { ensureUserProfile } from "@/lib/users";
 import { listenToPushMessages } from "./firebase-messaging";
-import { enablePushNotifications } from "./push";
 import type { UserProfile } from "@/lib/domain/user";
 import Image from "next/image";
 
@@ -38,20 +37,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     listenToPushMessages();
   }, []);
-
-  // 🔄 Auto-refresh FCM token if push was previously enabled
-  // This ensures PWAs and new browser sessions always have a valid token
-  useEffect(() => {
-    if (!user || !profile) return;
-    if (!profile.notificationsEnabled) return;
-    if (typeof Notification === "undefined") return;
-    if (Notification.permission !== "granted") return;
-
-    // Silently re-register token (no prompt, permission already granted)
-    enablePushNotifications(user.uid).catch((err) =>
-      console.warn("[FCM] Auto token refresh failed:", err)
-    );
-  }, [user, profile?.notificationsEnabled]);
 
   useEffect(() => {
     let unsubscribeProfile: () => void;

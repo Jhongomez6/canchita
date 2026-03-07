@@ -7,9 +7,16 @@ import { app } from "@/lib/firebase";
 import { enablePushNotifications } from "@/lib/push";
 import AuthGuard from "@/components/AuthGuard";
 
+interface DiagnosticResult {
+    success: boolean;
+    message?: string;
+    error?: string;
+    diagnostics?: Record<string, unknown> | null;
+}
+
 export default function PushTestPage() {
     const { user, profile } = useAuth();
-    const [result, setResult] = useState<any>(null);
+    const [result, setResult] = useState<DiagnosticResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [tokenResult, setTokenResult] = useState<string | null>(null);
 
@@ -38,8 +45,9 @@ export default function PushTestPage() {
         try {
             const token = await enablePushNotifications(user.uid);
             setTokenResult(token ? `✅ Token: ${token.substring(0, 30)}...` : "❌ No token returned (check console)");
-        } catch (err: any) {
-            setTokenResult(`❌ Error: ${err.message}`);
+        } catch (err) {
+            const error = err as Error;
+            setTokenResult(`❌ Error: ${error.message}`);
         } finally {
             setLoading(false);
         }
@@ -52,9 +60,10 @@ export default function PushTestPage() {
             const functions = getFunctions(app);
             const testPush = httpsCallable(functions, "testPushNotification");
             const res = await testPush({});
-            setResult(res.data);
-        } catch (err: any) {
-            setResult({ success: false, error: err.message });
+            setResult(res.data as DiagnosticResult);
+        } catch (err) {
+            const error = err as Error;
+            setResult({ success: false, error: error.message });
         } finally {
             setLoading(false);
         }

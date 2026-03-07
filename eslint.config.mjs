@@ -13,7 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     // Custom ignores:
-    "functions/**"
+    "functions/**",
+    "scripts/**"
   ]),
 ]);
 
