@@ -66,7 +66,11 @@ Colección: `notifications/{userId}/items/{notifId}`
 | 3 | El usuario puede marcar como leída | `markAsRead()` en `lib/notifications.ts` |
 | 4 | In-app SIEMPRE se escribe, push es best-effort | Cloud Function: write primero, push después |
 | 5 | Máximo 50 notificaciones visibles | `NOTIFICATIONS_LIMIT` en `lib/notifications.ts` |
-| 6 | FCM usa campo `notification` + `data` (URL de click-through) | SW auto-muestra en background; `onMessage` muestra `Notification()` en foreground |
+| 6 | FCM usa campo `notification` + `data` (URL de click-through) | SW explícitamente muestra notificación en background para data-only msgs; `onMessage` muestra en foreground |
+| 7 | Service Worker SDK debe coincidir con versión del cliente | SW compat SDK v12.8.0, cliente firebase v12.8.0 |
+| 8 | Registro de SW centralizado (singleton) | `getSwRegistration()` en `firebase-messaging.ts`, reusado por `push.ts` |
+| 9 | Token cleanup solo para errores permanentes | Solo `registration-token-not-registered`, `invalid-registration-token`, `invalid-argument` |
+
 
 ---
 

@@ -1,6 +1,22 @@
 import { getMessaging, onMessage, isSupported } from "firebase/messaging";
 import { app } from "./firebase";
 
+// Shared SW registration promise — reused by push.ts to avoid duplicate registrations
+let swRegistrationPromise: Promise<ServiceWorkerRegistration> | null = null;
+
+/**
+ * Registers the Firebase Messaging service worker (singleton).
+ * Cache-busting v3 forces update for existing PWA installs.
+ */
+export function getSwRegistration(): Promise<ServiceWorkerRegistration> | null {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+
+  if (!swRegistrationPromise) {
+    swRegistrationPromise = navigator.serviceWorker.register("/firebase-messaging-sw.js?v=3");
+  }
+  return swRegistrationPromise;
+}
+
 export async function listenToPushMessages() {
   if (typeof window === "undefined") return;
 
@@ -9,11 +25,8 @@ export async function listenToPushMessages() {
 
   const messaging = getMessaging(app);
 
-  // Register the SW explicitly with a cache-busting query parameter
-  // to force an update for all existing installed PWAs.
-  if ("serviceWorker" in navigator) {
-    await navigator.serviceWorker.register("/firebase-messaging-sw.js?v=2");
-  }
+  // Register the SW via singleton
+  await getSwRegistration();
 
   onMessage(messaging, (payload) => {
     console.log("[FCM] Foreground message received:", payload);

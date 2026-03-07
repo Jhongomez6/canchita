@@ -3,46 +3,51 @@ import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
 import { handleError } from "./utils/error";
+import { getSwRegistration } from "./firebase-messaging";
 
 export async function enablePushNotifications(uid: string) {
   try {
-    // 1️⃣ Pedir permiso
+    // 1️⃣ Validate VAPID key exists
+    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+    if (!vapidKey) {
+      console.error("❌ NEXT_PUBLIC_FIREBASE_VAPID_KEY is not set. Push notifications will not work.");
+      return null;
+    }
+
+    // 2️⃣ Pedir permiso
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
       console.warn("🔕 Permiso de notificaciones denegado");
       return null;
     }
 
-    // 2️⃣ Obtener token
+    // 3️⃣ Obtener token usando SW compartido
     const messaging = getMessaging(app);
 
-    // Explicit SW registration to bypass browser cache for existing PWA users
-    let swRegistration;
-    if ("serviceWorker" in navigator) {
-      swRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js?v=2");
-    }
+    // Reuse the singleton SW registration from firebase-messaging.ts
+    const swRegistration = await getSwRegistration();
 
     const token = await getToken(messaging, {
-      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-      serviceWorkerRegistration: swRegistration,
+      vapidKey,
+      serviceWorkerRegistration: swRegistration || undefined,
     });
 
     if (!token) {
-      console.error("❌ No se pudo obtener el token FCM");
+      console.error("❌ No se pudo obtener el token FCM (getToken returned null)");
       return null;
     }
 
-    // 3️⃣ Guardar token en Firestore
+    // 4️⃣ Guardar token en Firestore
     await updateDoc(doc(db, "users", uid), {
       fcmTokens: arrayUnion(token),
-      notificationsEnabled: true, // opcional, informativo
+      notificationsEnabled: true,
       lastNotificationOptInAt: new Date(),
     });
 
-    // 4️⃣ Guardar estado LOCAL por device
+    // 5️⃣ Guardar estado LOCAL por device
     localStorage.setItem("push-enabled", "true");
 
-    console.log("✅ Token FCM guardado:", token);
+    console.log("✅ Token FCM guardado:", token.substring(0, 20) + "...");
     return token;
   } catch (error: unknown) {
     handleError(error, "Error activando notificaciones push. Verifica los permisos de tu navegador.");

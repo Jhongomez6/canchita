@@ -165,12 +165,16 @@ async function sendReminderIfNeeded(
       data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
     });
 
-    // 🧹 Limpieza de tokens inválidos
+    // 🧹 Limpieza de tokens PERMANENTEMENTE inválidos (no transitorios)
+    const PERMANENT_ERROR_CODES = ["messaging/registration-token-not-registered", "messaging/invalid-registration-token", "messaging/invalid-argument"];
     const invalidTokens: string[] = [];
     response.responses.forEach((res, idx) => {
       if (!res.success) {
-        console.error(`❌ FCM Error [scheduled] token[${idx}]:`, res.error?.code, res.error?.message);
-        invalidTokens.push(tokens[idx]);
+        const code = res.error?.code || "";
+        console.error(`❌ FCM Error [scheduled] token[${idx}]:`, code, res.error?.message);
+        if (PERMANENT_ERROR_CODES.includes(code)) {
+          invalidTokens.push(tokens[idx]);
+        }
       }
     });
 
@@ -276,12 +280,16 @@ export const sendManualReminder = onCall(async (request) => {
 
     sentTokensCount += response.successCount;
 
-    // 🧹 Limpiar tokens inválidos
+    // 🧹 Limpiar tokens PERMANENTEMENTE inválidos
+    const PERMANENT_ERROR_CODES_M = ["messaging/registration-token-not-registered", "messaging/invalid-registration-token", "messaging/invalid-argument"];
     const invalidTokens: string[] = [];
     response.responses.forEach((res: any, idx: number) => {
       if (!res.success) {
-        console.error(`❌ FCM Error [manual] token[${idx}]:`, res.error?.code, res.error?.message);
-        invalidTokens.push(tokens[idx]);
+        const code = res.error?.code || "";
+        console.error(`❌ FCM Error [manual] token[${idx}]:`, code, res.error?.message);
+        if (PERMANENT_ERROR_CODES_M.includes(code)) {
+          invalidTokens.push(tokens[idx]);
+        }
       }
     });
 
@@ -633,11 +641,15 @@ export const notifyFeedbackResolved = onCall(async (request) => {
       pushSent = response.successCount > 0;
 
       // Cleanup invalid tokens
+      const PERMANENT_ERROR_CODES_F = ["messaging/registration-token-not-registered", "messaging/invalid-registration-token", "messaging/invalid-argument"];
       const invalidTokens: string[] = [];
       response.responses.forEach((res: any, idx: number) => {
         if (!res.success) {
-          console.error(`❌ FCM Error [feedback] token[${idx}]:`, res.error?.code, res.error?.message);
-          invalidTokens.push(tokens[idx]);
+          const code = res.error?.code || "";
+          console.error(`❌ FCM Error [feedback] token[${idx}]:`, code, res.error?.message);
+          if (PERMANENT_ERROR_CODES_F.includes(code)) {
+            invalidTokens.push(tokens[idx]);
+          }
         }
       });
 

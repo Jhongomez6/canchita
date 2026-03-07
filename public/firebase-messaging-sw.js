@@ -1,5 +1,5 @@
-importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/12.8.0/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/12.8.0/firebase-messaging-compat.js");
 
 firebase.initializeApp({
   apiKey: "AIzaSyAOMOZgWi2DkEZ1tTrZyFWCLE416D17KH0",
@@ -41,10 +41,25 @@ self.addEventListener("notificationclick", function (event) {
   );
 });
 
-// FCM automatically shows the notification when the payload contains
-// a `notification` field. We do NOT call showNotification here to
-// avoid duplicate notifications.
+// 🔔 Background message handler — explicitly show notification
+// as a robust fallback in case FCM auto-display fails.
 messaging.onBackgroundMessage(function (payload) {
   console.log("[SW] Background message received:", payload);
-});
 
+  // If FCM already shows the notification (via `notification` field),
+  // this won't duplicate because we check for the notification field
+  // and only show manually for data-only messages or as a safety net.
+  const title = payload.notification?.title || payload.data?.title || "La Canchita";
+  const body = payload.notification?.body || payload.data?.body || "";
+  const url = payload.data?.url || "/";
+
+  // Only show if this is a data-only message (no notification field)
+  // to avoid duplicates with FCM's auto-display
+  if (!payload.notification) {
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192x192.png",
+      data: { url },
+    });
+  }
+});
