@@ -680,3 +680,85 @@ export const notifyFeedbackResolved = onCall(async (request) => {
       : "Feedback resuelto y notificación in-app creada (usuario sin push activo)",
   };
 });
+
+/**
+ * 🧪 DIAGNOSTIC: Test Push Notification Pipeline
+ * Sends a test push to the calling user and returns detailed results.
+ * Admin-only. Helps diagnose why push notifications aren't arriving.
+ */
+export const testPushNotification = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  }
+
+  const uid = request.auth.uid;
+
+  // 1. Read user profile
+  const userSnap = await db.collection("users").doc(uid).get();
+  if (!userSnap.exists) {
+    return { success: false, error: "User document not found in Firestore" };
+  }
+
+  const userData = userSnap.data();
+  const tokens: string[] = userData?.fcmTokens ?? [];
+  const notificationsEnabled = userData?.notificationsEnabled ?? false;
+
+  const diagnostics: Record<string, unknown> = {
+    uid,
+    notificationsEnabled,
+    tokenCount: tokens.length,
+    tokens: tokens.map((t: string) => t.substring(0, 25) + "..."),
+  };
+
+  if (tokens.length === 0) {
+    return {
+      success: false,
+      diagnostics,
+      error: "No FCM tokens found. User needs to enable push notifications first.",
+    };
+  }
+
+  // 2. Try sending a test notification
+  try {
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: {
+        title: "🧪 Test Push Notification",
+        body: `Diagnóstico exitoso. ${new Date().toISOString()}`,
+      },
+      data: {
+        url: "https://la-canchita.vercel.app/",
+      },
+    });
+
+    const results = response.responses.map((res, idx) => ({
+      tokenPrefix: tokens[idx].substring(0, 25) + "...",
+      success: res.success,
+      messageId: res.messageId || null,
+      errorCode: res.error?.code || null,
+      errorMessage: res.error?.message || null,
+    }));
+
+    diagnostics.fcmResults = results;
+    diagnostics.successCount = response.successCount;
+    diagnostics.failureCount = response.failureCount;
+
+    console.log("🧪 Push test results:", JSON.stringify(diagnostics, null, 2));
+
+    return {
+      success: response.successCount > 0,
+      diagnostics,
+      message: response.successCount > 0
+        ? `Push enviado exitosamente a ${response.successCount}/${tokens.length} dispositivos. Si no llega, el problema está en el Service Worker del navegador.`
+        : `Todos los tokens fallaron. Ver errorCode para detalles.`,
+    };
+  } catch (err: any) {
+    console.error("🧪 Push test EXCEPTION:", err);
+    return {
+      success: false,
+      diagnostics,
+      error: `FCM exception: ${err.code || err.message || String(err)}`,
+    };
+  }
+});
+
