@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { loginWithGoogle } from "@/lib/auth";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
@@ -53,23 +53,6 @@ export default function JoinMatchPage() {
     return () => clearTimeout(delay);
   }, []);
 
-  const loadMatch = useCallback(async () => {
-    try {
-      const ref = doc(db, "matches", id);
-      const snap = await getDoc(ref);
-
-      if (!snap.exists()) {
-        setError("El partido no existe");
-        return;
-      }
-
-      setMatch({ id: snap.id, ...snap.data() } as Match);
-    } catch (e: unknown) {
-      handleError(e, "No se pudo cargar el partido");
-      setError("No se pudo cargar el partido");
-    }
-  }, [id]);
-
   // Redirigir a /profile si el perfil está incompleto
   useEffect(() => {
     if (
@@ -77,7 +60,6 @@ export default function JoinMatchPage() {
       profile.roles?.includes("player") &&
       (!profile.positions || profile.positions.length === 0)
     ) {
-      // Guardar el ID del partido para volver después
       if (typeof window !== "undefined") {
         localStorage.setItem("returnToMatch", id);
       }
@@ -100,12 +82,28 @@ export default function JoinMatchPage() {
     }
   }, [profile, router, id]);
 
-  // Cargar partido cuando auth y perfil estén listos
+  // 🔴 Real-time listener — auto-updates when Firestore changes
   useEffect(() => {
-    if (!loading && user && profile && profile.positions?.length > 0) {
-      loadMatch();
-    }
-  }, [loading, user, profile, loadMatch]);
+    if (loading || !user || !profile || !(profile.positions?.length > 0)) return;
+
+    const ref = doc(db, "matches", id);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) {
+          setError("El partido no existe");
+          return;
+        }
+        setMatch({ id: snap.id, ...snap.data() } as Match);
+      },
+      (e) => {
+        handleError(e, "No se pudo cargar el partido");
+        setError("No se pudo cargar el partido");
+      }
+    );
+
+    return () => unsubscribe();
+  }, [loading, user, id, profile]);
 
   useEffect(() => {
     if (!match?.locationId) return;
@@ -440,7 +438,7 @@ export default function JoinMatchPage() {
                         rel="noopener noreferrer"
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
-                        <img src="/icons/google-maps.svg" alt="G" className="w-4 h-4" />
+                        <Image src="/icons/google-maps.svg" alt="G" width={16} height={16} className="w-4 h-4" />
                         Maps
                       </a>
                       <a
@@ -449,7 +447,7 @@ export default function JoinMatchPage() {
                         rel="noopener noreferrer"
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
-                        <img src="/icons/waze.svg" alt="W" className="w-4 h-4" />
+                        <Image src="/icons/waze.svg" alt="W" width={16} height={16} className="w-4 h-4" />
                         Waze
                       </a>
                     </div>
@@ -490,7 +488,6 @@ export default function JoinMatchPage() {
                         uid: user.uid,
                         name: playerName,
                       });
-                      await loadMatch();
                       toast.success("Te has unido a la lista de espera");
                     } catch (e: unknown) {
                       handleError(e, "Hubo un error uniéndose a la lista de espera");
@@ -514,7 +511,6 @@ export default function JoinMatchPage() {
                     setSubmitting(true);
                     try {
                       await leaveWaitlist(id, playerName);
-                      await loadMatch();
                       toast.success("Has salido de la lista de espera");
                     } catch (err: unknown) {
                       handleError(err, "Hubo un error al salir de la lista de espera");
@@ -539,7 +535,6 @@ export default function JoinMatchPage() {
                         uid: user.uid,
                         name: playerName,
                       });
-                      await loadMatch();
                       toast.success("Asistencia confirmada!");
                     } catch (e: unknown) {
                       handleError(e, "Hubo un error al confirmar tu asistencia");
@@ -567,7 +562,6 @@ export default function JoinMatchPage() {
                       setSubmitting(true);
                       try {
                         await unconfirmAttendance(id, playerName);
-                        await loadMatch();
                         toast.success("Has liberado tu cupo");
                       } catch (err: unknown) {
                         handleError(err, "Hubo un error al liberar tu cupo");
@@ -602,11 +596,9 @@ export default function JoinMatchPage() {
                         await confirmAttendance(id, playerName);
                         // Also clear waitlist flag just in case
                         await leaveWaitlist(id, playerName);
-                        await loadMatch();
                         toast.success("¡Asistencia confirmada!");
                       } catch (e: unknown) {
                         handleError(e, "Error al tomar el cupo. Alguien pudo haberte ganado.");
-                        await loadMatch();
                       } finally {
                         setSubmitting(false);
                       }
@@ -625,7 +617,6 @@ export default function JoinMatchPage() {
                         setSubmitting(true);
                         try {
                           await leaveWaitlist(id, playerName);
-                          await loadMatch();
                           toast.success("Has salido de la lista de espera");
                         } catch (err: unknown) {
                           handleError(err, "Hubo un error al salir de la lista de espera");
@@ -651,7 +642,7 @@ export default function JoinMatchPage() {
               existingGuests={
                 match.guests?.filter((g: Guest) => g.invitedBy === user.uid) || []
               }
-              onSuccess={() => loadMatch()}
+              onSuccess={() => { /* snapshot auto-refreshes */ }}
             />
           )}
 
@@ -914,7 +905,6 @@ export default function JoinMatchPage() {
                                           setSubmittingVote(true);
                                           try {
                                             await voteForMVP(id, user.uid, targetId);
-                                            await loadMatch();
                                             toast.success("Tu voto ha sido registrado");
                                           } catch (err: unknown) {
                                             handleError(err, "Hubo un error al registrar tu voto");

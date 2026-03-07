@@ -185,10 +185,10 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
                                                     </div>
                                                 </div>
                                                 <div className="flex-1 min-w-0 pr-4">
-                                                    <h3 className={`text-sm font-bold truncate tracking-tight transition-colors ${notif.read ? "text-slate-500" : "text-slate-800"}`}>
+                                                    <h3 className={`text-sm font-bold tracking-tight transition-colors pr-2 ${notif.read ? "text-slate-500" : "text-slate-800"}`}>
                                                         {notif.title}
                                                     </h3>
-                                                    <p className={`text-xs mt-1 leading-relaxed transition-colors line-clamp-2 ${notif.read ? "text-slate-400" : "text-slate-600"}`}>
+                                                    <p className={`text-xs mt-1 leading-relaxed transition-colors ${notif.read ? "text-slate-400" : "text-slate-600"}`}>
                                                         {notif.body}
                                                     </p>
                                                     <div className="flex items-center gap-2 mt-2">

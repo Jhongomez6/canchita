@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { buildWhatsAppReport } from "@/lib/matchReport";
 import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
@@ -16,7 +16,7 @@ import {
   markPlayerAttendance,
   approveFromWaitlist,
 } from "@/lib/matches";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -109,23 +109,28 @@ export default function MatchDetailPage() {
   );
 
 
-  const loadMatch = useCallback(async () => {
-    const snap = await getDoc(doc(db, "matches", id));
-    if (!snap.exists()) return;
+  // 🔴 Real-time listener — auto-updates when Firestore changes
+  useEffect(() => {
+    if (!profile) return;
 
-    const data = snap.data() as Omit<Match, "id">;
+    const ref = doc(db, "matches", id);
+    const unsubscribe = onSnapshot(ref, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() as Omit<Match, "id">;
+      setMatch({ id: snap.id, ...data } as Match);
+      setMaxPlayersDraft(
+        typeof data.maxPlayers === "number" ? data.maxPlayers : null
+      );
+      if (data.teams?.A && data.teams?.B) {
+        setBalanced({
+          teamA: { players: data.teams.A },
+          teamB: { players: data.teams.B },
+        });
+      }
+    });
 
-    setMatch({ id: snap.id, ...data } as Match);
-    setMaxPlayersDraft(
-      typeof data.maxPlayers === "number" ? data.maxPlayers : null
-    );
-    if (data.teams?.A && data.teams?.B) {
-      setBalanced({
-        teamA: { players: data.teams.A },
-        teamB: { players: data.teams.B },
-      });
-    }
-  }, [id]);
+    return () => unsubscribe();
+  }, [profile, id]);
 
   async function handleBalance() {
     if (!match || confirmedCount < 4) return;
@@ -161,7 +166,6 @@ export default function MatchDetailPage() {
         B: cleanObject(result.teamB.players),
       });
 
-      await loadMatch();
       toast.success("Equipos balanceados y guardados");
     } catch (err: unknown) {
       handleError(err, "Hubo un error balanceando los equipos.");
@@ -230,10 +234,6 @@ export default function MatchDetailPage() {
     await navigator.clipboard.writeText(text);
   }
 
-  useEffect(() => {
-    if (!profile) return;
-    loadMatch();
-  }, [profile, loadMatch]);
 
   useEffect(() => {
     if (!match?.score) return;
@@ -439,7 +439,6 @@ export default function MatchDetailPage() {
                       await updateDoc(doc(db, "matches", id), {
                         maxPlayers: evenVal,
                       });
-                      loadMatch();
                     }}
                     className="w-12 text-center font-bold bg-white border border-slate-200 rounded-lg py-1 focus:ring-2 focus:ring-[#1f7a4f] outline-none"
                   />
@@ -635,7 +634,6 @@ export default function MatchDetailPage() {
 
                           setSelectedUid("");
                           setIsAddPlayerOpen(false);
-                          loadMatch();
                           toast.success("Jugador agregado!");
                         } catch (err: unknown) {
                           handleError(err, "Hubo un error al agregar al jugador.");
@@ -701,7 +699,6 @@ export default function MatchDetailPage() {
                           setManualPositions([]);
                           setManualLevel(2);
                           setIsAddPlayerOpen(false);
-                          loadMatch();
                         }}
                         className="mt-2 w-full bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-700 transition-colors disabled:opacity-50"
                       >
@@ -754,7 +751,6 @@ export default function MatchDetailPage() {
                           } else {
                             await confirmAttendance(id, p.name);
                           }
-                          loadMatch();
                         }}
                         className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${p.confirmed
                           ? "bg-red-50 text-red-600 hover:bg-red-100"
@@ -771,7 +767,6 @@ export default function MatchDetailPage() {
                           onClick={async () => {
                             if (!confirm(`Eliminar a ${p.name}?`)) return;
                             await deletePlayerFromMatch(id, p.name);
-                            loadMatch();
                           }}
                           className="text-xs font-bold px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"
                         >
@@ -784,7 +779,6 @@ export default function MatchDetailPage() {
                             await updatePlayerData(id, p.name, {
                               level: Number(e.target.value),
                             });
-                            loadMatch();
                           }}
                           className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 outline-none"
                         >
@@ -814,7 +808,6 @@ export default function MatchDetailPage() {
                                 : current.filter((x: Position) => x !== pos);
                               if (updated.length > 2) return;
                               await updatePlayerData(id, p.name, { positions: updated });
-                              loadMatch();
                             }}
                           />
                           {pos}
@@ -836,7 +829,6 @@ export default function MatchDetailPage() {
                           onClick={async () => {
                             if (!p.uid) return;
                             await markPlayerAttendance(id, p.uid, opt.status as "present" | "late" | "no_show");
-                            loadMatch();
                           }}
                           className={`p-1.5 rounded-lg text-sm border transition-all ${(p.attendance ?? "present") === opt.status
                             ? "bg-slate-800 border-slate-800 text-white shadow-sm"
@@ -892,7 +884,6 @@ export default function MatchDetailPage() {
                               onClick={async () => {
                                 if (!confirm(`Eliminar invitado ${g.name}?`)) return;
                                 await removeGuestFromMatch(id, g.invitedBy, g.name);
-                                loadMatch();
                               }}
                               className="text-xs font-bold px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100"
                             >
@@ -967,7 +958,6 @@ export default function MatchDetailPage() {
                                 onClick={async () => {
                                   try {
                                     await approveFromWaitlist(id, p.name);
-                                    await loadMatch();
                                     toast.success("Suplente aceptado y confirmado");
                                   } catch (err: unknown) {
                                     handleError(err, "Error al aceptar suplente.");
@@ -983,7 +973,6 @@ export default function MatchDetailPage() {
                                   if (!confirm(`¿Eliminar a ${p.name} de la lista de espera?`)) return;
                                   try {
                                     await deletePlayerFromMatch(id, p.name);
-                                    await loadMatch();
                                     toast.success("Suplente eliminado");
                                   } catch (err: unknown) {
                                     handleError(err, "Error al eliminar suplente.");
@@ -1375,7 +1364,6 @@ export default function MatchDetailPage() {
                         },
                       });
 
-                      await loadMatch();
 
                       setScoreSaved(true);
                       setTimeout(() => setScoreSaved(false), 2000);
@@ -1498,7 +1486,6 @@ export default function MatchDetailPage() {
 
                     await closeMatch(id);
 
-                    await loadMatch();
                     toast.success("¡El partido ha sido cerrado!");
                   } catch (error: unknown) {
                     handleError(error, "Error cerrando el partido y guardando estado.");
@@ -1518,7 +1505,6 @@ export default function MatchDetailPage() {
                 onClick={async () => {
                   if (confirm("¿Reabrir el partido?")) {
                     await reopenMatch(id);
-                    loadMatch();
                   }
                 }}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-[#1f7a4f] text-white hover:bg-[#16603c] transition-all shadow-lg active:scale-[0.98]"

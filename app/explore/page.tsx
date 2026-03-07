@@ -3,8 +3,7 @@
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
-import { getOpenMatches } from "@/lib/matches";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, where, QuerySnapshot, QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import MatchCard from "@/components/MatchCard";
@@ -27,16 +26,21 @@ export default function ExplorePage() {
     const [isSubmittingCode, setIsSubmittingCode] = useState(false);
 
     useEffect(() => {
-        if (!user) return;
+        // 🔴 Real-time listener — updates when any match opens or closes
+        const q = query(
+            collection(db, "matches"),
+            where("status", "==", "open")
+        );
 
-        getOpenMatches().then(async openMatches => {
+        const unsubscribe = onSnapshot(q, async (snapshot: QuerySnapshot) => {
+            const openMatches = snapshot.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() } as Match));
             setMatches(openMatches);
 
             // Fetch locations for these matches
-            const locationIds = Array.from(
+            const locationIds: string[] = Array.from(
                 new Set(
                     openMatches
-                        .map(m => m.locationId)
+                        .map((m: Match) => m.locationId as string)
                         .filter(Boolean)
                 )
             );
@@ -46,7 +50,6 @@ export default function ExplorePage() {
                     locationIds.map(async id => {
                         const snap = await getDoc(doc(db, "locations", id));
                         if (!snap.exists()) return null;
-
                         return [snap.id, { id: snap.id, ...snap.data() }] as [string, Location];
                     })
                 )
@@ -59,11 +62,13 @@ export default function ExplorePage() {
 
             setLocationsMap(map);
             setLoading(false);
-        }).catch(err => {
+        }, (err: Error) => {
             handleError(err, "Error al buscar partidos abiertos");
             setLoading(false);
         });
-    }, [user, router]);
+
+        return () => unsubscribe();
+    }, [user]);
 
     const handleInviteCodeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
