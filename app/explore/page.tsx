@@ -164,8 +164,8 @@ export default function ExplorePage() {
                                         // Count spots logic (Optional enhancement)
                                         const isClosed = m.status === 'closed';
                                         const maxPlayers = m.maxPlayers ?? Infinity;
-                                        const confirmedCount = (m.players?.filter(p => p.confirmed).length || 0) + (m.guests?.length || 0);
-                                        const waitlistCount = m.players?.filter(p => p.isWaitlist && !p.confirmed).length || 0;
+                                        const confirmedCount = (m.players?.filter(p => p.confirmed).length || 0) + (m.guests?.filter(g => !g.isWaitlist).length || 0);
+                                        const waitlistCount = (m.players?.filter(p => p.isWaitlist && !p.confirmed).length || 0) + (m.guests?.filter(g => g.isWaitlist && !g.confirmed).length || 0);
                                         const spotsLeft = maxPlayers !== Infinity ? Math.max(0, maxPlayers - confirmedCount) : null;
                                         const isFull = spotsLeft === 0;
 

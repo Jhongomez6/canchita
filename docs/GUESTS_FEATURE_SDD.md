@@ -40,6 +40,8 @@ interface Guest {
 | 7 | Posiciones: entre 1 y 2, sin duplicados | `validateGuestPositions()` en `lib/domain/guest.ts` |
 | 8 | Cada invitado se puede eliminar de forma independiente | `removeGuestFromMatch()` |
 | 9 | El invitado participa en el balanceo de equipos | `guestToPlayer()` en `lib/domain/guest.ts` |
+| 10 | Si el partido está lleno, el invitado entra a Lista de Espera | Se almacena con `isWaitlist: true` y `confirmed: false` |
+| 11 | El jugador que invitó (o el admin) debe confirmar al invitado suplente para subirlo a la lista principal si se abre un cupo | Función `promoteGuestToMatch()` en `lib/guests.ts` |
 
 ---
 
@@ -134,11 +136,21 @@ export async function addGuestToMatch(
     };
     validateGuest(guest);
 
-    // REGLA #4: El invitado ocupa un cupo
-    const totalOccupiedSlots = confirmedCount + guests.length;
-    if (totalOccupiedSlots >= maxPlayers) {
-      throw new Error("MATCH_FULL");
-    }
+    // REGLA #4 y #10: El invitado ocupa un cupo, o entra a lista de espera
+    const confirmedGuests = guests.filter(g => !g.isWaitlist);
+    const totalOccupiedSlots = confirmedCount + confirmedGuests.length;
+    
+    // Si está lleno, en lugar de error, lo mandamos a lista de espera
+    const isFull = totalOccupiedSlots >= maxPlayers;
+
+    const guest: Guest = {
+      name: guestData.name.trim(),
+      positions: guestData.positions,
+      invitedBy: playerUid,
+      isWaitlist: isFull,
+      waitlistJoinedAt: isFull ? new Date().toISOString() : undefined,
+      confirmed: !isFull,
+    };
 
     // Agregar invitado
     transaction.update(ref, {

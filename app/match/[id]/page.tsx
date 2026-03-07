@@ -47,9 +47,8 @@ import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
 import { getTeamSummary, sortTeamForDisplay } from "@/lib/domain/team";
-import type { Guest } from "@/lib/domain/guest";
-import { guestToPlayer } from "@/lib/domain/guest";
-import { removeGuestFromMatch } from "@/lib/guests";
+import { Guest, guestToPlayer } from "@/lib/domain/guest";
+import { promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
@@ -149,7 +148,7 @@ export default function MatchDetailPage() {
       }));
 
     // Incluir invitados en el balanceo
-    const guestPlayers = (match.guests ?? []).map((g: Guest) =>
+    const guestPlayers = (match.guests ?? []).filter((g: Guest) => !g.isWaitlist).map((g: Guest) =>
       guestToPlayer(g, guestLevels[g.name] ?? 2)
     );
 
@@ -307,7 +306,7 @@ export default function MatchDetailPage() {
     return !uidExists && !nameExists;
   });
 
-  const guestCount = match.guests?.length ?? 0;
+  const guestCount = match.guests?.filter((g: Guest) => !g.isWaitlist).length ?? 0;
   const confirmedCount = (match.players?.filter((p: Player) => p.confirmed).length ?? 0) + guestCount;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
 
@@ -854,13 +853,13 @@ export default function MatchDetailPage() {
             </div>
 
             {/* INVITADOS */}
-            {(match.guests ?? []).length > 0 && (
+            {(match.guests?.filter((g: Guest) => !g.isWaitlist) ?? []).length > 0 && (
               <div className="mt-8">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-                  🎟️ Invitados ({match.guests!.length})
+                  🎟️ Invitados ({match.guests!.filter((g: Guest) => !g.isWaitlist).length})
                 </h4>
                 <div className="divide-y divide-slate-100">
-                  {match.guests!.map((g: Guest, i: number) => {
+                  {match.guests!.filter((g: Guest) => !g.isWaitlist).map((g: Guest, i: number) => {
                     const inviter = match.players?.find((p: Player) => p.uid === g.invitedBy);
                     return (
                       <div key={`guest-${i}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
@@ -916,14 +915,15 @@ export default function MatchDetailPage() {
             )}
 
             {/* WAITLIST (SUPLENTES) (Admin View) */}
-            {(!isClosed && match.players?.filter((p: Player) => p.isWaitlist && !p.confirmed).length > 0) ? (() => {
-              const waitlistPlayers = match.players
-                .filter((p: Player) => p.isWaitlist && !p.confirmed)
-                .sort((a: Player, b: Player) => {
-                  const tA = a.waitlistJoinedAt ? new Date(a.waitlistJoinedAt).getTime() : 0;
-                  const tB = b.waitlistJoinedAt ? new Date(b.waitlistJoinedAt).getTime() : 0;
-                  return tA - tB;
-                });
+            {(!isClosed && ((match.players?.filter((p: Player) => p.isWaitlist && !p.confirmed).length || 0) > 0 || (match.guests?.filter((g: Guest) => g.isWaitlist && !g.confirmed).length || 0) > 0)) ? (() => {
+              const waitlistPlayers: Player[] = [
+                ...(match.players?.filter((p: Player) => p.isWaitlist && !p.confirmed) || []),
+                ...(match.guests?.filter((g: Guest) => g.isWaitlist && !g.confirmed).map((g: Guest) => guestToPlayer(g, 2)) || [])
+              ].sort((a: Player, b: Player) => {
+                const tA = a.waitlistJoinedAt ? new Date(a.waitlistJoinedAt).getTime() : 0;
+                const tB = b.waitlistJoinedAt ? new Date(b.waitlistJoinedAt).getTime() : 0;
+                return tA - tB;
+              });
 
               return (
                 <div className="mt-8 border-t border-slate-100 pt-6">
@@ -931,62 +931,87 @@ export default function MatchDetailPage() {
                     📋 Lista de Espera ({waitlistPlayers.length})
                   </h4>
                   <div className="divide-y divide-slate-100">
-                    {waitlistPlayers.map((p: Player, i: number) => (
-                      <div key={`wl-${i}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
-                            #{i + 1}
+                    {waitlistPlayers.map((p: Player, i: number) => {
+                      const isGuest = p.id?.startsWith("guest-");
+                      let guestInviterUid = "";
+                      let rawGuestName = "";
+                      let guestHostName = "";
+                      if (isGuest && p.id) {
+                        guestInviterUid = p.id.split("-")[1];
+                        rawGuestName = p.name.replace(" (inv)", "");
+                        guestHostName = match.players?.find(player => player.uid === guestInviterUid)?.name || "";
+                      }
+
+                      return (
+                        <div key={`wl-${i}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
+                              #{i + 1}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-700 text-sm">{p.name}</span>
+                              {isGuest && guestHostName && (
+                                <span className="text-[10px] text-slate-400">
+                                  Invitado de {guestHostName}
+                                </span>
+                              )}
+                              {isOwner && p.phone && (
+                                <a href={`tel:+57${p.phone}`} className="text-[10px] font-medium text-amber-600 hover:underline flex items-center gap-1 mt-0.5">
+                                  📞 +57 {p.phone}
+                                </a>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-700 text-sm">{p.name}</span>
-                            {isOwner && p.phone && (
-                              <a href={`tel:+57${p.phone}`} className="text-[10px] font-medium text-amber-600 hover:underline flex items-center gap-1 mt-0.5">
-                                📞 +57 {p.phone}
-                              </a>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-bold px-2 py-1 rounded bg-slate-100 text-slate-500 uppercase tracking-widest">
+                              En espera
+                            </span>
+
+                            {isOwner && !isClosed && (
+                              <>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      if (isGuest) {
+                                        await promoteGuestToMatch(id, rawGuestName, guestInviterUid);
+                                      } else {
+                                        await approveFromWaitlist(id, p.name);
+                                      }
+                                      toast.success("Suplente aceptado y confirmado");
+                                    } catch (err: unknown) {
+                                      handleError(err, "Error al aceptar suplente.");
+                                    }
+                                  }}
+                                  className="text-xs font-bold px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"
+                                >
+                                  Aceptar
+                                </button>
+
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`¿Eliminar a ${p.name} de la lista de espera?`)) return;
+                                    try {
+                                      if (isGuest) {
+                                        await removeGuestFromMatch(id, guestInviterUid, rawGuestName);
+                                      } else {
+                                        await deletePlayerFromMatch(id, p.name);
+                                      }
+                                      toast.success("Suplente eliminado");
+                                    } catch (err: unknown) {
+                                      handleError(err, "Error al eliminar suplente.");
+                                    }
+                                  }}
+                                  className="text-xs font-bold px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
+                                >
+                                  Eliminar
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-bold px-2 py-1 rounded bg-slate-100 text-slate-500 uppercase tracking-widest">
-                            En espera
-                          </span>
-
-                          {isOwner && !isClosed && (
-                            <>
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    await approveFromWaitlist(id, p.name);
-                                    toast.success("Suplente aceptado y confirmado");
-                                  } catch (err: unknown) {
-                                    handleError(err, "Error al aceptar suplente.");
-                                  }
-                                }}
-                                className="text-xs font-bold px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"
-                              >
-                                Aceptar
-                              </button>
-
-                              <button
-                                onClick={async () => {
-                                  if (!confirm(`¿Eliminar a ${p.name} de la lista de espera?`)) return;
-                                  try {
-                                    await deletePlayerFromMatch(id, p.name);
-                                    toast.success("Suplente eliminado");
-                                  } catch (err: unknown) {
-                                    handleError(err, "Error al eliminar suplente.");
-                                  }
-                                }}
-                                className="text-xs font-bold px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
-                              >
-                                Eliminar
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               );

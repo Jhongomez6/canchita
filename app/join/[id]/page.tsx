@@ -12,7 +12,7 @@ import Image from "next/image";
 
 import AddGuestForm from "@/components/AddGuestForm";
 import { isInAppBrowser } from "@/lib/browser";
-import { Guest } from "@/lib/domain/guest";
+import { Guest, guestToPlayer } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
 
 import { isAdmin } from "@/lib/domain/user";
@@ -27,6 +27,8 @@ import {
   leaveWaitlist,
   voteForMVP,
 } from "@/lib/matches";
+import { buildRosterReport } from "@/lib/matchReport";
+import { promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { calculateMvpStatus } from "@/lib/mvp";
 import { triggerMvpNotification } from "@/lib/push";
 import { toast } from "react-hot-toast";
@@ -45,6 +47,7 @@ export default function JoinMatchPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submittingVote, setSubmittingVote] = useState(false);
   const [inApp, setInApp] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const delay = setTimeout(() => {
@@ -316,7 +319,7 @@ export default function JoinMatchPage() {
 
   const playerName = user.displayName || user.email || "Jugador";
   const isClosed = match.status === "closed";
-  const guestCount = match.guests?.length ?? 0;
+  const guestCount = match.guests?.filter((g: Guest) => !g.isWaitlist).length ?? 0;
   const confirmedCount = match.players.filter((p: Player) => p.confirmed).length + guestCount;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
 
@@ -345,6 +348,19 @@ export default function JoinMatchPage() {
     sortedMVPLeaderboard,
     voteCounts,
   } = calculateMvpStatus(match);
+
+  const handlePromoteGuest = async (guestName: string, inviterUid: string) => {
+    if (!user) return;
+    setSubmitting(true);
+    try {
+      await promoteGuestToMatch(id, guestName, inviterUid);
+      toast.success(`Invitado ${guestName} ascendido a titular`);
+    } catch (err: unknown) {
+      handleError(err, "Error al promover invitado");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 pb-24">
@@ -964,26 +980,18 @@ export default function JoinMatchPage() {
                 {profile?.roles?.includes("admin") && confirmedCount > 0 && (
                   <button
                     onClick={async () => {
-                      let text = `📋 *Jugadores Confirmados (${confirmedCount}/${match.maxPlayers || "?"})*\n\n`;
-                      const confirmed = match.players?.filter((p: Player) => p.confirmed) || [];
-                      confirmed.forEach((p: Player, i: number) => {
-                        const icon = POSITION_ICONS[(p.positions?.[0] as Position) || "MID"];
-                        text += `${i + 1}. ${icon} ${p.name}\n`;
-                      });
-                      const guests = match.guests || [];
-                      guests.forEach((g: Guest, i: number) => {
-                        const icon = POSITION_ICONS[(g.positions?.[0] as Position) || "MID"];
-                        text += `${confirmed.length + i + 1}. ${icon} ${g.name} (Inv)\n`;
-                      });
+                      const locName = matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir";
+                      const text = buildRosterReport(match, locName, confirmedCount);
 
                       await navigator.clipboard.writeText(text);
-                      toast.success("Lista copiada para WhatsApp", { icon: '📋' });
+                      setIsCopied(true);
+                      setTimeout(() => setIsCopied(false), 2500);
                     }}
-                    className="p-1.5 px-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors border border-slate-200 flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0"
+                    className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${isCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                     title="Copiar para WhatsApp"
                   >
-                    <span className="text-sm">📋</span>
-                    <span className="text-[10px] hidden sm:inline uppercase">Copiar</span>
+                    <span className="text-sm">{isCopied ? "✅" : "📋"}</span>
+                    <span className="text-[10px] hidden sm:inline uppercase">{isCopied ? "Copiado" : "Copiar"}</span>
                   </button>
                 )}
               </div>
@@ -1015,8 +1023,10 @@ export default function JoinMatchPage() {
                   ))}
 
                   {/* GUESTS */}
-                  {match.guests?.map((g: Guest, i: number) => {
+                  {match.guests?.filter((g: Guest) => !g.isWaitlist).map((g: Guest, i: number) => {
                     const hostName = match.players?.find((p: Player) => p.uid === g.invitedBy)?.name;
+                    const canDelete = !isClosed && (g.invitedBy === user?.uid || (profile && isAdmin(profile)));
+
                     return (
                       <div key={`g-${i}`} className="py-3 flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -1030,9 +1040,27 @@ export default function JoinMatchPage() {
                             </span>
                           </div>
                         </div>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-600">
-                          Confirmado
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {canDelete && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`¿Estás seguro de que deseas eliminar al invitado ${g.name}?`)) return;
+                                try {
+                                  await removeGuestFromMatch(id, g.invitedBy, g.name);
+                                  toast.success("Invitado cancelado");
+                                } catch (err: unknown) {
+                                  handleError(err, "Hubo un error al eliminar el invitado.");
+                                }
+                              }}
+                              className="text-xs font-bold px-2 py-0.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
+                            >
+                              Cancelar
+                            </button>
+                          )}
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-600">
+                            Confirmado
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
@@ -1042,43 +1070,97 @@ export default function JoinMatchPage() {
           )}
 
           {/* WAITLIST (SUPLENTES) DISPLAY */}
-          {(!isClosed && match.players?.filter((p: Player) => p.isWaitlist && !p.confirmed).length > 0) ? (() => {
+          {(!isClosed && ((match.players?.filter((p: Player) => p.isWaitlist && !p.confirmed).length || 0) > 0 || (match.guests?.filter((g: Guest) => g.isWaitlist && !g.confirmed).length || 0) > 0)) ? (() => {
             // Ordenar la lista de espera por fecha de ingreso para ser transparentes
-            const waitlistPlayers = match.players
-              .filter((p: Player) => p.isWaitlist && !p.confirmed)
-              .sort((a: Player, b: Player) => {
-                const tA = a.waitlistJoinedAt ? new Date(a.waitlistJoinedAt).getTime() : 0;
-                const tB = b.waitlistJoinedAt ? new Date(b.waitlistJoinedAt).getTime() : 0;
-                return tA - tB;
-              });
+            const waitlistPlayers: Player[] = [
+              ...(match.players?.filter((p: Player) => p.isWaitlist && !p.confirmed) || []),
+              ...(match.guests?.filter((g: Guest) => g.isWaitlist && !g.confirmed).map((g: Guest) => guestToPlayer(g, 2)) || [])
+            ].sort((a: Player, b: Player) => {
+              const tA = a.waitlistJoinedAt ? new Date(a.waitlistJoinedAt).getTime() : 0;
+              const tB = b.waitlistJoinedAt ? new Date(b.waitlistJoinedAt).getTime() : 0;
+              return tA - tB;
+            });
+
+            const maxP = match.maxPlayers ?? Infinity;
+            const openSpots = maxP !== Infinity ? Math.max(0, maxP - confirmedCount) : Infinity;
 
             return (
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6 mt-4 opacity-90">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  📋 Lista de Espera (Suplentes)
+                  📋 Lista de espera (Suplentes)
                   <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-black">{waitlistPlayers.length}</span>
                 </h3>
                 <div className="divide-y divide-slate-100">
-                  {waitlistPlayers.map((p: Player, i: number) => (
-                    <div key={`wl-${i}`} className="py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
-                          #{i + 1}
+                  {waitlistPlayers.map((p: Player, i: number) => {
+                    const isGuest = p.id?.startsWith("guest-");
+                    let guestInviterUid = "";
+                    let rawGuestName = "";
+                    let guestHostName = "";
+                    if (isGuest && p.id) {
+                      guestInviterUid = p.id.split("-")[1];
+                      rawGuestName = p.name.replace(" (inv)", "");
+                      guestHostName = match.players?.find(player => player.uid === guestInviterUid)?.name || "";
+                    }
+                    const canPromote = isGuest && (user.uid === guestInviterUid || (profile && isAdmin(profile))) && openSpots > 0;
+
+                    return (
+                      <div key={`wl-${i}`} className="py-3 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200 shrink-0">
+                            #{i + 1}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-700 text-sm">
+                              {isGuest ? rawGuestName : p.name} {p.uid === user.uid && "(Tú)"}
+                            </span>
+                            {isGuest && guestHostName && (
+                              <span className="text-[10px] text-slate-400">
+                                Invitado de {guestHostName}
+                              </span>
+                            )}
+                            {profile && isAdmin(profile) && p.phone && (
+                              <a href={`tel:+57${p.phone}`} className="text-[10px] font-medium text-amber-600 hover:underline flex items-center gap-1 mt-0.5">
+                                📞 +57 {p.phone}
+                              </a>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-700 text-sm">{p.name} {p.uid === user.uid && "(Tú)"}</span>
-                          {profile && isAdmin(profile) && p.phone && (
-                            <a href={`tel:+57${p.phone}`} className="text-[10px] font-medium text-amber-600 hover:underline flex items-center gap-1 mt-0.5">
-                              📞 +57 {p.phone}
-                            </a>
+
+                        <div className="flex items-center gap-2 text-right">
+                          {isGuest && !isClosed && (user?.uid === guestInviterUid || (profile && isAdmin(profile))) && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`¿Eliminar a ${rawGuestName} de la lista de espera?`)) return;
+                                try {
+                                  await removeGuestFromMatch(id, guestInviterUid, rawGuestName);
+                                  toast.success("Invitado removido de espera");
+                                } catch (err: unknown) {
+                                  handleError(err, "Error al remover invitado.");
+                                }
+                              }}
+                              className="text-[10px] font-bold px-2 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors shadow-sm"
+                            >
+                              Cancelar
+                            </button>
+                          )}
+
+                          {canPromote ? (
+                            <button
+                              disabled={submitting}
+                              onClick={() => handlePromoteGuest(rawGuestName, guestInviterUid)}
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors shadow-sm"
+                            >
+                              {submitting ? "..." : "Confirmar invitado"}
+                            </button>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase tracking-widest shrink-0">
+                              En espera
+                            </span>
                           )}
                         </div>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase tracking-widest">
-                        En espera
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );

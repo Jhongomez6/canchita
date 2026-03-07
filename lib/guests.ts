@@ -78,25 +78,84 @@ export async function addGuestToMatch(
       );
     }
 
-    // Validar datos del invitado (dominio)
+    // REGLA: El invitado ocupa un cupo del partido SOLO si no va a la lista de espera
+    const confirmedCount = getConfirmedCount(players);
+    const confirmedGuests = guests.filter(g => g.confirmed !== false && !g.isWaitlist);
+    const totalOccupiedSlots = confirmedCount + confirmedGuests.length;
+
+    // Si está lleno, en lugar de error, lo mandamos a lista de espera
+    const isFull = totalOccupiedSlots >= maxPlayers;
+
+    // Modificar datos del invitado (dominio)
     const guest: Guest = {
       name: guestData.name.trim(),
       positions: guestData.positions,
       invitedBy: playerUid,
+      isWaitlist: isFull,
+      waitlistJoinedAt: isFull ? new Date().toISOString() : undefined,
+      confirmed: !isFull,
     };
-    validateGuest(guest);
-
-    // REGLA: El invitado ocupa un cupo del partido
-    const confirmedCount = getConfirmedCount(players);
-    const totalOccupiedSlots = confirmedCount + guests.length;
-
-    if (totalOccupiedSlots >= maxPlayers) {
-      throw new MatchFullError();
-    }
+    validateGuest(guest); // Validate standard fields
 
     // Agregar invitado
     transaction.update(ref, {
       guests: [...guests, guest],
+    });
+  });
+}
+
+// ========================
+// PROMOVER INVITADO DE LISTA DE ESPERA
+// ========================
+
+/**
+ * Promueve un invitado desde la lista de espera a titular si hay cupo disponible.
+ */
+export async function promoteGuestToMatch(
+  matchId: string,
+  guestName: string,
+  inviterUid: string
+): Promise<void> {
+  const ref = doc(db, "matches", matchId);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) {
+      throw new Error("El partido no existe");
+    }
+
+    const data = snap.data();
+    const guests: Guest[] = data.guests || [];
+    const players: Player[] = data.players || [];
+    const maxPlayers = data.maxPlayers ?? Infinity;
+
+    // Verificar si el partido ya está lleno
+    const confirmedCount = getConfirmedCount(players);
+    const confirmedGuests = guests.filter(g => g.confirmed !== false && !g.isWaitlist);
+    const totalOccupiedSlots = confirmedCount + confirmedGuests.length;
+
+    if (totalOccupiedSlots >= maxPlayers) {
+      throw new MatchFullError(); // "El partido ya está lleno."
+    }
+
+    // Buscar al invitado
+    const guestIndex = guests.findIndex(
+      (g) => g.name === guestName && g.invitedBy === inviterUid
+    );
+
+    if (guestIndex === -1) {
+      throw new GuestBusinessError("El invitado no se encuentra en el partido o no fue invitado por ti.");
+    }
+
+    // Actualizar sus propiedades a confirmado
+    guests[guestIndex] = {
+      ...guests[guestIndex],
+      isWaitlist: false,
+      confirmed: true,
+    };
+
+    transaction.update(ref, {
+      guests: guests,
     });
   });
 }

@@ -33,6 +33,9 @@ export interface Guest {
   name: string;
   positions: Position[];
   invitedBy: string; // UID del jugador que invitó
+  isWaitlist?: boolean;
+  waitlistJoinedAt?: string;
+  confirmed?: boolean;
 }
 
 // Re-export error para backward compatibility
@@ -192,11 +195,13 @@ import type { Player, PlayerLevel } from "./player";
  */
 export function guestToPlayer(guest: Guest, level: PlayerLevel = 2): Player {
   return {
-    id: `guest-${guest.invitedBy}`,
+    id: `guest-${guest.invitedBy}-${guest.name.replace(/\s+/g, '-')}`,
     name: `${guest.name} (inv)`,
     level,
     positions: guest.positions,
-    confirmed: true,
+    confirmed: guest.confirmed !== false, // Defaults to true if not specified
+    isWaitlist: guest.isWaitlist,
+    waitlistJoinedAt: guest.waitlistJoinedAt,
   };
 }
 

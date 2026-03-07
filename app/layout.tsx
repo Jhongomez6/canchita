@@ -37,7 +37,22 @@ export default function RootLayout({
 
           <div className="pb-24 md:pb-0">
             {children}
-            <Toaster position="top-center" />
+            <Toaster
+              position="bottom-center"
+              containerStyle={{
+                bottom: 100, // Above the 80px bottom nav
+              }}
+              toastOptions={{
+                style: {
+                  background: '#334155', // slate-700
+                  color: '#fff',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                },
+              }}
+            />
             <BetaFeedbackWidget />
             <PWAInstallPrompt />
           </div>
