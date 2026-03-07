@@ -4,15 +4,39 @@ import { app } from "./firebase";
 // Shared SW registration promise — reused by push.ts to avoid duplicate registrations
 let swRegistrationPromise: Promise<ServiceWorkerRegistration> | null = null;
 
+const CURRENT_SW_URL = "/firebase-messaging-sw.js?v=3";
+
+/**
+ * Cleans up old/duplicate service worker registrations that may
+ * intercept FCM messages with outdated code.
+ */
+async function cleanupOldServiceWorkers() {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  for (const reg of registrations) {
+    const scriptURL = reg.active?.scriptURL || reg.installing?.scriptURL || "";
+    // Keep only our current versioned SW
+    if (scriptURL && !scriptURL.includes("?v=3")) {
+      console.log("[FCM] Unregistering old SW:", scriptURL);
+      await reg.unregister();
+    }
+  }
+}
+
 /**
  * Registers the Firebase Messaging service worker (singleton).
  * Cache-busting v3 forces update for existing PWA installs.
+ * Also cleans up old/duplicate SWs first.
  */
 export function getSwRegistration(): Promise<ServiceWorkerRegistration> | null {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
 
   if (!swRegistrationPromise) {
-    swRegistrationPromise = navigator.serviceWorker.register("/firebase-messaging-sw.js?v=3");
+    swRegistrationPromise = (async () => {
+      await cleanupOldServiceWorkers();
+      return navigator.serviceWorker.register(CURRENT_SW_URL);
+    })();
   }
   return swRegistrationPromise;
 }
@@ -25,7 +49,7 @@ export async function listenToPushMessages() {
 
   const messaging = getMessaging(app);
 
-  // Register the SW via singleton
+  // Register the SW via singleton (also cleans up old SWs)
   await getSwRegistration();
 
   onMessage(messaging, (payload) => {
