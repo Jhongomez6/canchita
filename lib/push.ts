@@ -37,11 +37,14 @@ export async function enablePushNotifications(uid: string) {
       return null;
     }
 
-    // 4️⃣ Guardar token en Firestore
+    // 4️⃣ Guardar token en Firestore + diagnostics
     await updateDoc(doc(db, "users", uid), {
       fcmTokens: arrayUnion(token),
       notificationsEnabled: true,
       lastNotificationOptInAt: new Date(),
+      lastTokenRefresh: new Date().toISOString(),
+      lastTokenDevice: navigator.userAgent.substring(0, 100),
+      lastTokenPrefix: token.substring(0, 30),
     });
 
     // 5️⃣ Guardar estado LOCAL por device
