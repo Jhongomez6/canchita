@@ -624,60 +624,16 @@ export const notifyFeedbackResolved = onCall(async (request) => {
     createdAt: now,
   });
 
-  // 2. BEST-EFFORT push notification
-  let pushSent = false;
-  try {
-    const userSnap = await db.collection("users").doc(feedback.userId).get();
-    const userData = userSnap.data();
-    const tokens = Array.from(new Set<string>(userData?.fcmTokens ?? []));
-
-    if (tokens.length > 0) {
-      const response = await admin.messaging().sendEachForMulticast({
-        tokens,
-        notification: { title, body },
-        data: { url: "https://la-canchita.vercel.app/" },
-      });
-
-      pushSent = response.successCount > 0;
-
-      // Cleanup invalid tokens
-      const PERMANENT_ERROR_CODES_F = ["messaging/registration-token-not-registered", "messaging/invalid-registration-token", "messaging/invalid-argument"];
-      const invalidTokens: string[] = [];
-      response.responses.forEach((res: any, idx: number) => {
-        if (!res.success) {
-          const code = res.error?.code || "";
-          console.error(`❌ FCM Error [feedback] token[${idx}]:`, code, res.error?.message);
-          if (PERMANENT_ERROR_CODES_F.includes(code)) {
-            invalidTokens.push(tokens[idx]);
-          }
-        }
-      });
-
-      console.log(`📨 Feedback ${feedbackId} — sent: ${response.successCount}, failed: ${response.failureCount}`);
-
-      if (invalidTokens.length > 0) {
-        await userSnap.ref.update({
-          fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
-        });
-      }
-    }
-  } catch (err) {
-    console.warn("⚠️ Push notification failed (non-critical):", err);
-  }
-
-  // 3. Update feedback status
+  // 2. Update feedback status
   await feedbackRef.update({
     status: "resolved",
     resolvedAt: now,
   });
 
-  console.log(`💬 Feedback ${feedbackId} resuelto. Push: ${pushSent ? "✅" : "❌ (sin tokens)"}`);
+  console.log(`💬 Feedback ${feedbackId} resuelto (in-app only)`);
   return {
     success: true,
-    pushSent,
-    message: pushSent
-      ? "Feedback resuelto y usuario notificado (push + in-app)"
-      : "Feedback resuelto y notificación in-app creada (usuario sin push activo)",
+    message: "Feedback resuelto y usuario notificado via in-app notification.",
   };
 });
 
