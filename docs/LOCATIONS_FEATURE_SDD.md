@@ -28,7 +28,7 @@ interface Location {
 
 | # | Regla | Implementación |
 |---|-------|----------------|
-| 1 | Solo admin puede crear canchas | Verificación de rol en UI |
+| 1 | Solo Super Admin puede crear canchas | Verificación de `isSuperAdmin()` en UI y Backend |
 | 2 | No se permiten canchas duplicadas (mismo nombre) | `DuplicateLocationError` en `lib/locations.ts` |
 | 3 | Datos de ubicación vienen de Google Places API | `app/locations/new/page.tsx` |
 | 4 | Las canchas activas aparecen al crear partidos | `getActiveLocations()` en `lib/locations.ts` |
@@ -84,7 +84,11 @@ export function validateLocationName(name: string): void {
 #### **Capa 2: API** (`lib/locations.ts`)
 
 ```typescript
-export async function addLocation(input: CreateLocationInput): Promise<string> {
+export async function addLocation(input: CreateLocationInput, createdBy: UserProfile): Promise<string> {
+  if (!isSuperAdmin(createdBy)) {
+    throw new Error("Solo los Super Admins pueden crear canchas.");
+  }
+
   // Verificar duplicados
   const existing = await getDocs(
     query(collection(db, "locations"), where("name", "==", input.name))

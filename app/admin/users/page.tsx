@@ -3,10 +3,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
-import { getAllUsers, deleteUser, updateUserRoles } from "@/lib/users";
+import { getAllUsers, deleteUser, updateUserRoles, updateAdminType, assignLocationsToAdmin } from "@/lib/users";
+import { getActiveLocations } from "@/lib/locations";
 import AuthGuard from "@/components/AuthGuard";
 import UserListSkeleton from "@/components/skeletons/UserListSkeleton";
-import type { UserProfile, UserRole } from "@/lib/domain/user";
+import type { UserProfile, UserRole, AdminType } from "@/lib/domain/user";
+import type { Location } from "@/lib/domain/location";
+import { isSuperAdmin } from "@/lib/domain/user";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 
@@ -14,6 +17,7 @@ export default function AdminUsersPage() {
   const { user, profile } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -25,14 +29,17 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => {
-    if (profile && !profile.roles.includes("admin")) {
+    getActiveLocations().then(setLocations);
+  }, []);
+
+  useEffect(() => {
+    if (profile && !isSuperAdmin(profile)) {
       router.replace("/");
     }
   }, [profile, router]);
 
   useEffect(() => {
-    if (!profile || !profile.roles.includes("admin")) return;
-
+    if (!profile || !isSuperAdmin(profile)) return;
     loadUsers();
   }, [profile, loadUsers]);
 
@@ -69,6 +76,32 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function handleUpdateAdminType(uid: string, adminType: AdminType) {
+    try {
+      if (!adminType) return;
+      await updateAdminType(uid, adminType);
+      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, adminType } : u));
+      toast.success("Tier de admin actualizado");
+    } catch (e: unknown) {
+      handleError(e, "Error al actualizar tier");
+    }
+  }
+
+  async function handleToggleLocation(targetUser: UserProfile, locationId: string, add: boolean) {
+    try {
+      const currentLocs = targetUser.assignedLocationIds || [];
+      const newLocs = add
+        ? [...currentLocs, locationId]
+        : currentLocs.filter(id => id !== locationId);
+
+      await assignLocationsToAdmin(targetUser.uid, newLocs);
+      setUsers(prev => prev.map(u => u.uid === targetUser.uid ? { ...u, assignedLocationIds: newLocs } : u));
+      toast.success("Locations actualizadas");
+    } catch (e: unknown) {
+      handleError(e, "Error al actualizar locations");
+    }
+  }
+
   if (!user || !profile) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center">
@@ -77,7 +110,7 @@ export default function AdminUsersPage() {
     );
   }
 
-  if (!profile.roles.includes("admin")) {
+  if (!isSuperAdmin(profile)) {
     return null;
   }
 
@@ -92,7 +125,7 @@ export default function AdminUsersPage() {
             boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
           }}
         >
-          <h1 style={{ marginBottom: 20 }}>👥 Administrar Usuarios</h1>
+          <h1 style={{ marginBottom: 20 }}>👑 Administrar Usuarios (Super Admin)</h1>
 
           {loading ? (
             <UserListSkeleton />
@@ -153,15 +186,64 @@ export default function AdminUsersPage() {
                             opacity: isSelfAdmin ? 0.7 : 1,
                           }}
                         >
-                          {role === "admin" ? "👑 Admin" : "⚽ Jugador"}
+                          {role === "admin" ? "🛡️ Rol Admin" : "⚽ Rol Jugador"}
                         </button>
                       );
                     })}
                   </div>
 
+                  {/* Admin Tier Configurations */}
+                  {u.roles.includes("admin") && (
+                    <div style={{ marginTop: 16, borderTop: "1px dashed #eee", paddingTop: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: "bold", color: "#666", marginBottom: 8 }}>
+                        ⚙️ Tier de Administrador
+                      </div>
+                      <select
+                        value={u.adminType || ""}
+                        onChange={(e) => handleUpdateAdminType(u.uid, e.target.value as AdminType)}
+                        style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ddd", fontSize: 14, outline: 'none' }}
+                      >
+                        <option value="">Seleccionar Tier...</option>
+                        <option value="super_admin">🏆 Super Admin (Acceso Total)</option>
+                        <option value="location_admin">🏟️ Location Admin (Partidos Públicos & Privados)</option>
+                        <option value="team_admin">👥 Team Admin (Solo Partidos Privados)</option>
+                      </select>
+
+                      {/* Locations configurator (only for scoped admins) */}
+                      {(u.adminType === "location_admin" || u.adminType === "team_admin") && (
+                        <div style={{ marginTop: 16 }}>
+                          <div style={{ fontSize: 13, fontWeight: "bold", color: "#666", marginBottom: 8 }}>
+                            📍 Canchas Asignadas ({u.assignedLocationIds?.length || 0})
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "#f8fafc", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                            {locations.map(loc => {
+                              const isAssigned = u.assignedLocationIds?.includes(loc.id);
+                              return (
+                                <label key={loc.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, cursor: "pointer" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!isAssigned}
+                                    onChange={(e) => handleToggleLocation(u, loc.id, e.target.checked)}
+                                    style={{ width: 16, height: 16, accentColor: "#1f7a4f" }}
+                                  />
+                                  <span style={{ fontWeight: isAssigned ? 600 : 400, color: isAssigned ? "#0f172a" : "#475569" }}>
+                                    {loc.name}
+                                  </span>
+                                </label>
+                              )
+                            })}
+                            {locations.length === 0 && (
+                              <span style={{ fontSize: 13, color: "#94a3b8" }}>No hay canchas registradas en el sistema.</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {u.positions && u.positions.length > 0 && (
-                    <div style={{ fontSize: 12, color: "#888", marginTop: 6 }}>
-                      Posiciones: {u.positions.join(", ")}
+                    <div style={{ fontSize: 12, color: "#888", marginTop: 12 }}>
+                      Posiciones jugables: {u.positions.join(", ")}
                     </div>
                   )}
                 </div>

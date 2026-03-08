@@ -12,20 +12,25 @@ service cloud.firestore {
       );
     }
 
+    function isSuperAdmin() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data.get('adminType', '') == "super_admin";
+    }
+
     // 🏟️ CANCHAS
     match /locations/{locationId} {
 
       // 👀 Leer: cualquier usuario autenticado
       allow read: if request.auth != null;
 
-      // ➕ Crear: solo admins
+      // ➕ Crear: solo super admins
       allow create: if request.auth != null
-        && isAdmin()
+        && isSuperAdmin()
         && request.resource.data.createdBy == request.auth.uid;
 
-      // ✏️ Update: solo admins
+      // ✏️ Update: solo super admins
       allow update: if request.auth != null
-        && isAdmin();
+        && isSuperAdmin();
 
       // ❌ Delete: nadie (por ahora)aaqPa
       allow delete: if false;
@@ -44,16 +49,19 @@ service cloud.firestore {
       // Crear: solo el propio usuario
       allow create: if request.auth != null && request.auth.uid == userId;
  
-      // Update: usuario NO puede cambiar su rol o roles, admin puede todo
+      // Update: usuario NO puede cambiar su rol o roles, admin puede todo salvo roles/tiers (superadmin only)
       allow update: if request.auth != null
         && (
           (
             request.auth.uid == userId
             // Verificamos que no intente modificar campos sensibles
-            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles']))
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'adminType', 'assignedLocationIds']))
           )
           ||
-          isAdmin()
+          (
+            isAdmin() 
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'adminType', 'assignedLocationIds']) || isSuperAdmin())
+          )
         );
  
       // Delete: solo admins

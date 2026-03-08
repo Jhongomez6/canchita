@@ -30,6 +30,7 @@ import type { Player, Position } from "./domain/player";
 import type { Match } from "./domain/match";
 import { getConfirmedCount } from "./domain/match";
 import { MatchFullError } from "./domain/errors";
+import { canManageLocation, canCreatePublicMatch } from "./domain/user";
 
 // Re-export para backward compatibility
 export type { Match };
@@ -55,6 +56,19 @@ export async function createMatch(match: {
   isPrivate?: boolean;
   allowGuests?: boolean;
 }) {
+  const profile = await getUserProfile(match.createdBy);
+  if (!profile) throw new Error("No se encontró el perfil de usuario");
+
+  // Validate location permissions
+  if (!canManageLocation(profile, match.locationId)) {
+    throw new Error("No tienes permisos para crear partidos en esta cancha.");
+  }
+
+  // Validate match visibility permissions
+  if (!match.isPrivate && !canCreatePublicMatch(profile)) {
+    throw new Error("No tienes permisos para crear partidos públicos.");
+  }
+
   const startsAt = new Date(`${match.date}T${match.time}:00-05:00`);
 
   await addDoc(matchesRef, {

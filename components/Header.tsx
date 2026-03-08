@@ -7,6 +7,7 @@ import { logout } from "@/lib/auth";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
+import { isSuperAdmin } from "@/lib/domain/user";
 import NotificationsDrawer from "./NotificationsDrawer";
 
 export default function Header() {
@@ -18,6 +19,17 @@ export default function Header() {
   const skipFetchRef = useRef(false);
 
   const isAdmin = profile?.roles?.includes("admin") ?? false;
+  const isSuperAdminUser = profile ? isSuperAdmin(profile) : false;
+
+  const getAdminBadge = () => {
+    if (!isAdmin) return null;
+    switch (profile?.adminType) {
+      case "super_admin": return "🏆 SA";
+      case "location_admin": return "🏟️ ADMIN";
+      case "team_admin": return "👥 ADMIN";
+      default: return "🛡️ ADMIN";
+    }
+  };
 
   // Refresh unread count on navigation and tab focus
   useEffect(() => {
@@ -86,10 +98,17 @@ export default function Header() {
             priority={true}
           />
         </Link>
-        <div className="group relative flex items-center" tabIndex={0}>
+        <div className="group relative flex items-center gap-1" tabIndex={0}>
           <span className="cursor-pointer bg-amber-500 text-amber-950 px-2 py-0.5 rounded-full text-[10px] font-black tracking-widest uppercase shadow-sm border border-amber-600/50 hover:bg-amber-400 transition-colors">
             BETA
           </span>
+
+          {isAdmin && (
+            <span className="bg-emerald-800 text-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm border border-emerald-700">
+              {getAdminBadge()}
+            </span>
+          )}
+
           <div className="absolute left-0 top-full mt-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible focus-within:opacity-100 focus-within:visible transition-all z-50 pointer-events-none">
             <span className="font-bold text-amber-400 block mb-1">¡Estamos en Beta! 🚀</span>
             Estamos construyendo La Canchita contigo. Es posible que encuentres detalles por pulir, pero tu <strong className="text-emerald-300">feedback</strong> es vital para ayudarnos a mejorar.
@@ -132,7 +151,7 @@ export default function Header() {
             Perfil
           </Link>
 
-          {isAdmin && (
+          {isSuperAdminUser && (
             <>
               <Link
                 href="/admin/users"

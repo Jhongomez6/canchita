@@ -17,7 +17,9 @@ Gestionar usuarios con autenticación Google, perfiles con roles y posiciones, y
 interface UserProfile {
   uid: string;              // Firebase Auth UID
   name: string;             // Nombre del jugador (editable)
-  role: "admin" | "player"; // Rol del usuario
+  roles: UserRole[];        // Roles del usuario (ej: ["player", "admin"])
+  adminType?: AdminType;    // Nivel de admin: "super_admin", "location_admin", "team_admin"
+  assignedLocationIds?: string[]; // IDs de canchas administradas
   positions?: Position[];   // 1-2 posiciones de juego
   stats?: UserStats;        // Estadísticas de partidos
   nameLastChanged?: string; // ISO timestamp del último cambio de nombre
@@ -31,14 +33,15 @@ interface UserProfile {
 |---|-------|----------------|
 | 1 | Login exclusivamente con Google | `loginWithGoogle()` en `lib/auth.ts` |
 | 2 | Roles múltiples: "admin" y/o "player" | `roles: UserRole[]` en `lib/domain/user.ts` |
-| 3 | Solo admin accede a panel de gestión | `roles.includes("admin")` |
-| 4 | Perfil debe tener al menos 1 posición | Redirect en `AuthGuard.tsx` |
-| 5 | Máximo 2 posiciones por jugador | Validación en profile page |
-| 6 | Admin puede eliminar usuarios | `deleteUser()` en `lib/users.ts` |
-| 7 | Jugador puede editar su nombre | `updateUserName()` en `lib/users.ts` |
-| 8 | Cambio de nombre solo cada 30 días | `nameLastChanged` + cooldown en profile page |
-| 9 | Posiciones con iconos visuales | `POSITION_ICONS` en `lib/domain/player.ts` |
-| 10 | Feedback separado nombre/posiciones | `nameSaved` / `positionsSaved` estados independientes |
+| 3 | Jerarquía Admin (Tiers) | `adminType` y funciones `isSuperAdmin`, `isLocationAdmin`, etc. |
+| 4 | Panel de gestión (Ranking/Admin) | `isSuperAdmin()` restringe áreas globales |
+| 5 | Perfil debe tener al menos 1 posición | Redirect en `AuthGuard.tsx` |
+| 6 | Máximo 2 posiciones por jugador | Validación en profile page |
+| 7 | Super Admin puede eliminar usuarios| `deleteUser()` en `lib/users.ts` |
+| 8 | Jugador puede editar su nombre | `updateUserName()` en `lib/users.ts` |
+| 9 | Cambio de nombre solo cada 30 días | `nameLastChanged` + cooldown en profile page |
+| 10 | Posiciones con iconos visuales | `POSITION_ICONS` en `lib/domain/player.ts` |
+| 11 | Feedback separado nombre/posiciones | `nameSaved` / `positionsSaved` estados independientes |
 
 ---
 
@@ -66,17 +69,32 @@ interface UserProfile {
 
 ```typescript
 export type UserRole = "admin" | "player";
+export type AdminType = "super_admin" | "location_admin" | "team_admin";
 
 export interface UserProfile {
   uid: string;
   name: string;
-  role: UserRole;
+  roles: UserRole[];
+  adminType?: AdminType;
+  assignedLocationIds?: string[];
   positions?: Position[];
   notificationsEnabled?: boolean;
 }
 
 export function isAdmin(profile: UserProfile): boolean {
   return profile.roles.includes("admin");
+}
+
+export function isSuperAdmin(profile: UserProfile): boolean {
+  return profile.adminType === "super_admin";
+}
+
+export function isLocationAdmin(profile: UserProfile): boolean {
+  return profile.adminType === "location_admin";
+}
+
+export function isTeamAdmin(profile: UserProfile): boolean {
+  return profile.adminType === "team_admin";
 }
 ```
 

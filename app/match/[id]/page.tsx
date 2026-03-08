@@ -45,6 +45,7 @@ import type { Position, PlayerLevel } from "@/lib/domain/player";
 import type { Player } from "@/lib/domain/player";
 import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
+import { isSuperAdmin } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
 import { getTeamSummary, sortTeamForDisplay } from "@/lib/domain/team";
 import { Guest, guestToPlayer } from "@/lib/domain/guest";
@@ -289,7 +290,7 @@ export default function MatchDetailPage() {
 
   if (!match) return <MatchAdminSkeleton />;
 
-  const isOwner = user?.uid === match.createdBy;
+  const isOwner = Boolean(user?.uid && (user.uid === match.createdBy || (profile && isSuperAdmin(profile))));
   const isClosed = match.status === "closed";
   const existingPlayers = match.players ?? [];
 
@@ -414,35 +415,6 @@ export default function MatchDetailPage() {
                 </div>
               </div>
 
-              {isOwner && !isClosed && (
-                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-                  <span className="text-xs font-bold text-slate-500 uppercase">Máx Jugadores</span>
-                  <input
-                    type="number"
-                    min={2}
-                    step={2}
-                    value={maxPlayersDraft ?? ""}
-                    onChange={e => setMaxPlayersDraft(Number(e.target.value))}
-                    onBlur={async () => {
-                      if (!maxPlayersDraft) return;
-                      // Ensure it's always even (round up if odd)
-                      const evenVal = maxPlayersDraft % 2 !== 0 ? maxPlayersDraft + 1 : maxPlayersDraft;
-
-                      if (evenVal === match.maxPlayers) {
-                        setMaxPlayersDraft(evenVal); // Revert UI visually if they typed an odd number that rounded to the current even value
-                        return;
-                      }
-
-                      setMaxPlayersDraft(evenVal);
-
-                      await updateDoc(doc(db, "matches", id), {
-                        maxPlayers: evenVal,
-                      });
-                    }}
-                    className="w-12 text-center font-bold bg-white border border-slate-200 rounded-lg py-1 focus:ring-2 focus:ring-[#1f7a4f] outline-none"
-                  />
-                </div>
-              )}
             </div>
 
             <div className="space-y-3">
@@ -462,6 +434,60 @@ export default function MatchDetailPage() {
                 <span className="text-xl">⏰</span>
                 <span className="text-slate-600 font-medium">{formatTime12h(match.time)}</span>
               </div>
+
+              {isOwner && !isClosed && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🎟️</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-600 font-medium">Cupo máximo:</span>
+                    <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm h-8">
+                      <button
+                        onClick={async () => {
+                          const currentVal = maxPlayersDraft !== null ? maxPlayersDraft : (match.maxPlayers ?? 14);
+                          const newVal = currentVal - 2;
+                          if (newVal < 2) return;
+                          setMaxPlayersDraft(newVal);
+                          await updateDoc(doc(db, "matches", id), { maxPlayers: newVal });
+                        }}
+                        className="px-3 md:px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold border-r border-slate-200 transition-colors h-full"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={2}
+                        step={2}
+                        value={maxPlayersDraft ?? ""}
+                        onChange={e => setMaxPlayersDraft(Number(e.target.value))}
+                        onBlur={async () => {
+                          if (!maxPlayersDraft) return;
+                          const evenVal = maxPlayersDraft % 2 !== 0 ? maxPlayersDraft + 1 : maxPlayersDraft;
+                          if (evenVal === match.maxPlayers) {
+                            setMaxPlayersDraft(evenVal);
+                            return;
+                          }
+                          setMaxPlayersDraft(evenVal);
+                          await updateDoc(doc(db, "matches", id), {
+                            maxPlayers: evenVal,
+                          });
+                        }}
+                        className="w-12 text-center font-bold text-sm py-1 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        onClick={async () => {
+                          const currentVal = maxPlayersDraft !== null ? maxPlayersDraft : (match.maxPlayers ?? 14);
+                          const newVal = currentVal + 2;
+                          setMaxPlayersDraft(newVal);
+                          await updateDoc(doc(db, "matches", id), { maxPlayers: newVal });
+                        }}
+                        className="px-3 md:px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold border-l border-slate-200 transition-colors h-full"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {isClosed && match.closedAt && (
                 <div className="flex items-center gap-3 bg-red-50 p-2 rounded-lg border border-red-100 mt-2">

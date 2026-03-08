@@ -33,13 +33,14 @@ export default function ExplorePage() {
         );
 
         const unsubscribe = onSnapshot(q, async (snapshot: QuerySnapshot) => {
-            const openMatches = snapshot.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() } as Match));
-            setMatches(openMatches);
+            const allOpenMatches = snapshot.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() } as Match));
+            const publicMatches = allOpenMatches.filter(m => !m.isPrivate);
+            setMatches(publicMatches);
 
             // Fetch locations for these matches
             const locationIds: string[] = Array.from(
                 new Set(
-                    openMatches
+                    publicMatches
                         .map((m: Match) => m.locationId as string)
                         .filter(Boolean)
                 )

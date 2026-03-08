@@ -5,6 +5,7 @@ import AuthGuard from "@/components/AuthGuard";
 import { useAuth } from "@/lib/AuthContext";
 import { getAllFeedback, resolveFeedback } from "@/lib/admin-feedback";
 import type { Feedback } from "@/lib/domain/feedback";
+import { isSuperAdmin } from "@/lib/domain/user";
 import { formatDateSpanish } from "@/lib/date";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
@@ -19,7 +20,7 @@ export default function AdminFeedbackPage() {
 
     useEffect(() => {
         if (!profile) return;
-        const admin = profile.roles.includes("admin");
+        const admin = isSuperAdmin(profile);
         setIsAdmin(admin);
         if (admin) {
             loadData();

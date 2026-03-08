@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
+import { isSuperAdmin as checkIsSuperAdmin } from "@/lib/domain/user";
 
 export default function BottomNav() {
     const pathname = usePathname();
     const { user, profile } = useAuth();
-    const isAdmin = profile?.roles?.includes("admin") ?? false;
+    const isSuperAdminUser = profile ? checkIsSuperAdmin(profile) : false;
 
     if (!user) return null;
 
@@ -57,8 +58,8 @@ export default function BottomNav() {
                     <span className="text-[10px] font-bold tracking-wide">Buscar</span>
                 </Link>
 
-                {/* RANKING (Admin Only) */}
-                {isAdmin && (
+                {/* RANKING (Super Admin Only) */}
+                {isSuperAdminUser && (
                     <Link href="/admin/ranking" className={navItemClass(pathname.startsWith("/admin/ranking"))}>
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -81,8 +82,8 @@ export default function BottomNav() {
                     </Link>
                 )}
 
-                {/* ADMIN USERS (Admin Only) */}
-                {isAdmin && (
+                {/* ADMIN USERS (Super Admin Only) */}
+                {isSuperAdminUser && (
                     <Link href="/admin/users" className={navItemClass(pathname.startsWith("/admin/users"))}>
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -103,8 +104,8 @@ export default function BottomNav() {
                     </Link>
                 )}
 
-                {/* ADMIN FEEDBACK (Admin Only) */}
-                {isAdmin && (
+                {/* ADMIN FEEDBACK (Super Admin Only) */}
+                {isSuperAdminUser && (
                     <Link href="/admin/feedback" className={navItemClass(pathname.startsWith("/admin/feedback"))}>
                         <svg
                             xmlns="http://www.w3.org/2000/svg"

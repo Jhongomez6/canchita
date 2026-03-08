@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { getPlayersRanking, type PlayerRanking } from "@/lib/usersList";
 import AuthGuard from "@/components/AuthGuard";
 import RankingListSkeleton from "@/components/skeletons/RankingListSkeleton";
+import { isSuperAdmin } from "@/lib/domain/user";
 
 type SortField = "played" | "won" | "lost" | "draw";
 
@@ -18,7 +19,7 @@ export default function RankingPage() {
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
     useEffect(() => {
-        if (profile && !profile.roles.includes("admin")) {
+        if (profile && !isSuperAdmin(profile)) {
             router.replace("/");
         }
     }, [profile, router]);
@@ -31,7 +32,7 @@ export default function RankingPage() {
     }, []);
 
     useEffect(() => {
-        if (!profile || !profile.roles.includes("admin")) return;
+        if (!profile || !isSuperAdmin(profile)) return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         loadRanking();
     }, [profile, loadRanking]);
@@ -80,7 +81,7 @@ export default function RankingPage() {
         return <RankingListSkeleton />;
     }
 
-    if (!profile.roles.includes("admin")) {
+    if (!isSuperAdmin(profile)) {
         return null;
     }
 

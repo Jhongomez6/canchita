@@ -19,7 +19,9 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Location, CreateLocationInput } from "./domain/location";
+import type { UserProfile } from "./domain/user";
 import { DuplicateLocationError } from "./domain/errors";
+import { isSuperAdmin } from "./domain/user";
 
 const locationsRef = collection(db, "locations");
 
@@ -58,3 +60,22 @@ export async function getActiveLocations(): Promise<Location[]> {
     ...d.data(),
   })) as Location[];
 }
+
+/* =========================
+   OBTENER CANCHAS DEL ADMIN (SCOPED)
+   Super Admin → todas las activas
+   Location/Team Admin → solo sus assignedLocationIds
+========================= */
+export async function getAdminLocations(profile: UserProfile): Promise<Location[]> {
+  const allActive = await getActiveLocations();
+
+  // Super Admin ve todas
+  if (isSuperAdmin(profile)) return allActive;
+
+  // Location/Team Admin ve solo las asignadas
+  const assignedIds = profile.assignedLocationIds ?? [];
+  if (assignedIds.length === 0) return [];
+
+  return allActive.filter((loc) => assignedIds.includes(loc.id));
+}
+

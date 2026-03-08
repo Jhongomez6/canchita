@@ -9,9 +9,11 @@
  *
  * ESPECIFICACIÓN:
  * - Roles: array de "admin" y/o "player" (multi-rol)
+ * - Admin Tiers: super_admin, location_admin, team_admin
  * - Posiciones: entre 1 y 2 (requeridas para jugadores)
  * - Estadísticas: partidos jugados, ganados, perdidos, empatados
  * - Rating inicial: calculado en onboarding (Cold Start)
+ * - Location scoping: admins location/team solo operan en locations asignadas
  */
 
 import type { Position } from "./player";
@@ -22,6 +24,7 @@ import type { Sex, Foot, CourtSize, TechLevel, PhysLevel, Frequency } from "./ra
 // ========================
 
 export type UserRole = "admin" | "player";
+export type AdminType = "super_admin" | "location_admin" | "team_admin";
 
 export interface UserProfile {
     uid: string;
@@ -33,6 +36,9 @@ export interface UserProfile {
     fcmTokens?: string[];
     stats?: UserStats;
     phone?: string;
+    // Admin Tier System
+    adminType?: AdminType;             // Tier del admin (solo relevante si roles incluye "admin")
+    assignedLocationIds?: string[];    // IDs de locations donde puede operar (location/team admins)
     // Onboarding
     initialRatingCalculated?: boolean;
     onboardingCompletedAt?: string;
@@ -65,10 +71,52 @@ export interface UserStats {
 // ========================
 
 /**
- * Verifica si un perfil tiene rol de admin.
+ * Verifica si un perfil tiene rol de admin (cualquier tier).
  */
 export function isAdmin(profile: UserProfile): boolean {
     return profile.roles.includes("admin");
+}
+
+/**
+ * Verifica si un perfil es Super Admin (control total de la plataforma).
+ */
+export function isSuperAdmin(profile: UserProfile): boolean {
+    return isAdmin(profile) && profile.adminType === "super_admin";
+}
+
+/**
+ * Verifica si un perfil es Location Admin (dueño de cancha).
+ * Puede crear partidos públicos y privados en sus locations asignadas.
+ */
+export function isLocationAdmin(profile: UserProfile): boolean {
+    return isAdmin(profile) && profile.adminType === "location_admin";
+}
+
+/**
+ * Verifica si un perfil es Team Admin (organizador de equipo amateur).
+ * Solo puede crear partidos privados en sus locations asignadas.
+ * Puede ser Player simultáneamente.
+ */
+export function isTeamAdmin(profile: UserProfile): boolean {
+    return isAdmin(profile) && profile.adminType === "team_admin";
+}
+
+/**
+ * Verifica si un admin puede crear partidos públicos.
+ * Solo super_admin y location_admin pueden.
+ */
+export function canCreatePublicMatch(profile: UserProfile): boolean {
+    return isSuperAdmin(profile) || isLocationAdmin(profile);
+}
+
+/**
+ * Verifica si un admin puede operar en una location específica.
+ * Super Admin puede operar en cualquier location.
+ * Location/Team Admin solo en sus locations asignadas.
+ */
+export function canManageLocation(profile: UserProfile, locationId: string): boolean {
+    if (isSuperAdmin(profile)) return true;
+    return profile.assignedLocationIds?.includes(locationId) ?? false;
 }
 
 /**

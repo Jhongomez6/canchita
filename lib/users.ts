@@ -19,7 +19,7 @@ import {
   getDocs,
   deleteDoc,
 } from "firebase/firestore";
-import type { UserProfile } from "./domain/user";
+import type { UserProfile, AdminType } from "./domain/user";
 
 /* =========================
    CREAR / ASEGURAR PERFIL
@@ -154,9 +154,28 @@ export async function updateUserRoles(uid: string, roles: string[]) {
 }
 
 /* =========================
+   ASIGNAR TIPO DE ADMIN
+   Solo Super Admin puede llamar esta función (verificado en UI + Firestore Rules)
+========================= */
+export async function updateAdminType(uid: string, adminType: AdminType) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { adminType });
+}
+
+/* =========================
+   ASIGNAR LOCATIONS A ADMIN
+   Solo Super Admin puede llamar esta función (verificado en UI + Firestore Rules)
+========================= */
+export async function assignLocationsToAdmin(uid: string, locationIds: string[]) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { assignedLocationIds: locationIds });
+}
+
+/* =========================
    ELIMINAR USUARIO
 ========================= */
 export async function deleteUser(uid: string) {
   const ref = doc(db, "users", uid);
   await deleteDoc(ref);
 }
+

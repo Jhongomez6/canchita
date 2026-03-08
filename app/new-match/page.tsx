@@ -5,7 +5,8 @@ import { createMatch } from "@/lib/matches";
 import AuthGuard from "@/components/AuthGuard";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getActiveLocations } from "@/lib/locations";
+import { getAdminLocations } from "@/lib/locations";
+import { canCreatePublicMatch, isSuperAdmin } from "@/lib/domain/user";
 import { Timestamp } from "firebase/firestore";
 import type { Location } from "@/lib/domain/location";
 import { toast } from "react-hot-toast";
@@ -28,8 +29,17 @@ export default function NewMatchPage() {
   const [locationId, setLocationId] = useState("");
 
   useEffect(() => {
-    getActiveLocations().then(setLocations);
-  }, []);
+    if (profile) {
+      getAdminLocations(profile).then(setLocations);
+    }
+  }, [profile]);
+
+  // Forzar privacidad automáticamente si no puede crear partidos públicos
+  useEffect(() => {
+    if (profile && !canCreatePublicMatch(profile)) {
+      setIsPrivate(true);
+    }
+  }, [profile]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -216,12 +226,14 @@ export default function NewMatchPage() {
                       </option>
                     ))}
                   </select>
-                  <a
-                    href="/locations/new"
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-[#1f7a4f] hover:text-[#145c3a] transition-colors"
-                  >
-                    ➕ Añadir nueva cancha
-                  </a>
+                  {profile && isSuperAdmin(profile) && (
+                    <a
+                      href="/locations/new"
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-[#1f7a4f] hover:text-[#145c3a] transition-colors"
+                    >
+                      ➕ Añadir nueva cancha
+                    </a>
+                  )}
                 </div>
 
                 {/* CARD: DETALLES EXTRA */}
@@ -254,15 +266,16 @@ export default function NewMatchPage() {
                     </p>
                     <div className="space-y-4">
                       {/* PRIVATE TOGGLE */}
-                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">
-                        <div className="relative inline-flex items-center cursor-pointer mt-0.5">
+                      <label className={`flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 transition-colors ${!profile || canCreatePublicMatch(profile) ? 'cursor-pointer hover:bg-slate-100' : 'opacity-70 cursor-not-allowed'}`}>
+                        <div className="relative inline-flex items-center mt-0.5">
                           <input
                             type="checkbox"
                             className="sr-only peer"
                             checked={isPrivate}
+                            disabled={profile ? !canCreatePublicMatch(profile) : false}
                             onChange={e => setIsPrivate(e.target.checked)}
                           />
-                          <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1f7a4f]"></div>
+                          <div className={`w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1f7a4f] ${profile && !canCreatePublicMatch(profile) ? '' : 'peer-focus:outline-none'}`}></div>
                         </div>
                         <div className="flex-1">
                           <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
@@ -273,6 +286,7 @@ export default function NewMatchPage() {
                             {isPrivate
                               ? "Oculto de la sección Explorar. Solo quienes tengan el link podrán unirse."
                               : "Público en la sección Explorar. Cualquier usuario de la app puede verlo."}
+                            {profile && !canCreatePublicMatch(profile) && " (Tu rol solo permite crear partidos privados)"}
                           </p>
                         </div>
                       </label>

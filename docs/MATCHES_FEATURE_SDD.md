@@ -53,12 +53,12 @@ interface Player {
 
 | # | Regla | Implementación |
 |---|-------|----------------|
-| 1 | Solo admin puede crear partidos | `isAdmin()` en `lib/domain/user.ts` |
+| 1 | Roles pueden crear partidos según Tier | `canManageLocation()` y `canCreatePublicMatch()` en `lib/domain/user.ts` |
 | 2 | Máximo `maxPlayers` jugadores confirmados | `getConfirmedCount()` + `isMatchFull()` en `lib/domain/match.ts` |
 | 3 | Partido no puede cerrarse sin equipos balanceados | Validación en UI (`disabled={!match?.teams}`) |
 | 4 | Jugador puede confirmar/cancelar asistencia | `confirmAttendance()` / `unconfirmAttendance()` en `lib/matches.ts` |
 | 5 | Admin puede agregar jugadores registrados o manuales | `addPlayerToMatch()` en `lib/matches.ts` |
-| 6 | Admin puede eliminar jugadores | `deletePlayerFromMatch()` en `lib/matches.ts` |
+| 6 | Owner (o Super Admin) puede eliminar jugadores | `deletePlayerFromMatch()` en `lib/matches.ts` |
 | 7 | Al cerrar partido se registran estadísticas | `updatePlayerStats()` en `lib/playerStats.ts` |
 | 8 | Partido reabierto revierte stats previos | `previousResult` param en `updatePlayerStats()` |
 | 9 | Invitados visibles y balanceables desde match detail | Guest display + `guestToPlayer()` en match page |
@@ -137,6 +137,24 @@ export async function addPlayerToMatch(
 
 **✅ Cumple especificación**: Reglas #2, #5
 
+### Limitación por Tier (Creación de Partidos)
+```typescript
+export async function createMatch(data: CreateMatchInput, createdBy: UserProfile): Promise<string> {
+  const isSuper = isSuperAdmin(createdBy);
+  const canManage = canManageLocation(createdBy, data.locationId);
+
+  if (!isSuper && !canManage) {
+    throw new Error("No tienes acceso a esta cancha.");
+  }
+
+  if (!data.isPrivate && !canCreatePublicMatch(createdBy)) {
+    throw new Error("Solo Super y Location Admins pueden crear partidos públicos.");
+  }
+
+  // Creación del partido
+}
+```
+
 #### **Capa 3: UI** (`app/match/[id]/page.tsx`, `app/join/[id]/page.tsx`)
 - **Responsabilidad**: Interfaz de usuario, feedback visual
 - **Depende de**: API, Dominio (tipos)
@@ -161,10 +179,11 @@ const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
 - **Comportamiento**: Header con nombre de cancha y chevron rotativo. Al expandir muestra mapa y botones (Waze/Maps).
 - **Estilo**: Card unificada en "Match Info", eliminando tarjeta separada.
 
-#### 2. Admin Actions (Collapsible)
+#### 2. Admin Actions (Collapsible & Controls)
 - **Estado**: `isAddPlayerOpen` (boolean)
 - **Comportamiento**: Botón "+ Agregar Jugador o Invitado" expande el formulario.
 - **Objetivo**: Reducir ruido visual en el dashboard.
+- **Max Jugadores**: Selector ergonómico con botones `-` y `+` (stepper) que autoguarda y redondea a números pares el cupo total del partido de forma ágil.
 
 #### 3. Match Result View (Closed Matches)
 - **Condición**: `status === "closed" && teams !== undefined`
