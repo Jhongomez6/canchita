@@ -15,7 +15,7 @@ Soportar la creación de partidos exclusivos (p. ej., cumpleaños, ligas cerrada
 
 | # | Regla | Impacto / UI |
 |---|---|---|
-| 1 | Visibilidad Condicional | Si `Match.isPrivate === true`, el partido NO se renderiza bajo ninguna circunstancia en la grilla de `/explore` y es omitido activamente del método `getOpenMatches`. |
+| 1 | Visibilidad Condicional | Si `Match.isPrivate === true`, el partido NO se renderiza bajo ninguna circunstancia en la grilla de `/explore`. Se filtra activamente en el *real-time listener* (`onSnapshot`) y en métodos de respaldo como `getOpenMatches`. |
 | 2 | Acceso por Enlace (Link) | La única ruta de acceso a un partido privado es poseer el link directo (`/join/[id]`), comportándose conceptualmente como un "Enlace Oculto" o "Unlisted". |
 | 3 | Distintivos Visuales | La interfaz de usuario en `Match Detail` (`/match/[id]`) y `Join Match` (`/join/[id]`) exponen un "badge" dinámico `🔒 Privado` junto al estado del partido si éste es de tipo privado. |
 | 4 | UX Renovada de Creación | El listado del formulario `[app/new-match]` deja de ser un esqueleto funcional y adquiere el aspecto Emerald Green, separando semánticamente en "Cards" el `Cuándo`, `Dónde` y la `Configuración`. |
@@ -37,8 +37,8 @@ Soportar la creación de partidos exclusivos (p. ej., cumpleaños, ligas cerrada
 ### 2.2 Mutaciones en Backend Firebase (`lib/matches.ts`)
 *   `createMatch(...)`: 
     Recibe el inyector del objeto y fuerza el fallback a `false` obligatoriamente previendo undefined behavior: `isPrivate: match.isPrivate || false`.
-*   `getOpenMatches()`:
-    Posee un interceptor en-memoria `filter(m => { if (m.isPrivate) return false; ... })` que blinda la exhibición de partidos privados. (*Nota: El filter local previene generar índices de Firebase DB costosos para colecciones ligeras*).
+*   `getOpenMatches()` (y el *real-time listener* en `/explore`):
+    Poseen un interceptor en-memoria `filter(m => !m.isPrivate)` que blinda la exhibición de partidos privados en el frontend. (*Nota: El filter local previene generar índices compuestos de Firebase DB obligatorios para colecciones ligeras*).
 
 ### 2.3 Componente Gráfico: `app/new-match/page.tsx`
 *   Se reescribió la arquitectura HTML abandonando los `<div>` planos y etiquetas `style={{...}}`.
