@@ -142,7 +142,10 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const trimmedName = editName.trim();
-      if (canEditName && trimmedName.length >= 2 && trimmedName !== displayName) {
+      const words = trimmedName.split(/\s+/);
+      const hasValidFullName = words.length >= 2 && words.every(word => word.length >= 2);
+
+      if (canEditName && hasValidFullName && trimmedName !== displayName) {
         await updateUserName(user.uid, trimmedName);
         setDisplayName(trimmedName);
         setNameLastChanged(new Date().toISOString());
@@ -317,12 +320,13 @@ export default function ProfilePage() {
                           type="text"
                           value={editName}
                           onChange={e => setEditName(e.target.value)}
-                          placeholder="Tu nombre"
+                          placeholder="Nombre y Apellido (ej. Carlos Gomez)"
                           className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
                         />
-                        {editName.trim().length > 0 && editName.trim().length < 2 && (
-                          <p className="text-red-500 text-xs mt-1 font-medium">Mínimo 2 caracteres</p>
-                        )}
+                        {editName.trim().length > 0 &&
+                          (editName.trim().split(/\s+/).length < 2 || editName.trim().split(/\s+/).some(word => word.length < 2)) && (
+                            <p className="text-red-500 text-xs mt-1 font-medium">Ingresa al menos tu primer nombre y apellido</p>
+                          )}
                       </div>
                     ) : (
                       <div className="px-4 py-3 bg-slate-100 rounded-xl text-slate-400 font-medium text-sm border border-slate-200">
