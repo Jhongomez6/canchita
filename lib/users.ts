@@ -34,6 +34,7 @@ export async function ensureUserProfile(
   if (!snap.exists()) {
     await setDoc(ref, {
       name,
+      originalGoogleName: name,
       positions: [],
       roles: ["player"],
     });
@@ -84,9 +85,13 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 /* =========================
    ACTUALIZAR NOMBRE
 ========================= */
-export async function updateUserName(uid: string, name: string) {
+export async function updateUserName(uid: string, name: string, originalGoogleName?: string | null) {
   const ref = doc(db, "users", uid);
-  await updateDoc(ref, { name, nameLastChanged: new Date().toISOString() });
+  const data: any = { name, nameLastChanged: new Date().toISOString() };
+  if (originalGoogleName) {
+    data.originalGoogleName = originalGoogleName;
+  }
+  await updateDoc(ref, data);
 }
 
 /* =========================

@@ -146,7 +146,7 @@ export default function ProfilePage() {
       const hasValidFullName = words.length >= 2 && words.every(word => word.length >= 2);
 
       if (canEditName && hasValidFullName && trimmedName !== displayName) {
-        await updateUserName(user.uid, trimmedName);
+        await updateUserName(user.uid, trimmedName, user.displayName);
         setDisplayName(trimmedName);
         setNameLastChanged(new Date().toISOString());
       }

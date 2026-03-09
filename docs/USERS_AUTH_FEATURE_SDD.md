@@ -17,6 +17,7 @@ Gestionar usuarios con autenticación Google, perfiles con roles y posiciones, y
 interface UserProfile {
   uid: string;              // Firebase Auth UID
   name: string;             // Nombre del jugador (editable)
+  originalGoogleName?: string; // Trazabilidad de seguridad: Nombre original de la cuenta de Google
   roles: UserRole[];        // Roles del usuario (ej: ["player", "admin"])
   adminType?: AdminType;    // Nivel de admin: "super_admin", "location_admin", "team_admin"
   assignedLocationIds?: string[]; // IDs de canchas administradas

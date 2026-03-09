@@ -29,6 +29,7 @@ export type AdminType = "super_admin" | "location_admin" | "team_admin";
 export interface UserProfile {
     uid: string;
     name: string;
+    originalGoogleName?: string;
     roles: UserRole[];
     positions: Position[];
     level?: number;
