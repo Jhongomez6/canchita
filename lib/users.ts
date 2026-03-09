@@ -26,18 +26,29 @@ import type { UserProfile, AdminType } from "./domain/user";
 ========================= */
 export async function ensureUserProfile(
   uid: string,
-  name: string
+  name: string,
+  email?: string | null
 ) {
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    await setDoc(ref, {
+    const data: any = {
       name,
       originalGoogleName: name,
       positions: [],
       roles: ["player"],
-    });
+    };
+    if (email) {
+      data.email = email;
+    }
+    await setDoc(ref, data);
+  } else {
+    // Si ya existe pero no tiene email y ahora sí lo tenemos, lo actualizamos por debajo
+    const currentData = snap.data();
+    if (email && !currentData.email) {
+      await updateDoc(ref, { email });
+    }
   }
 }
 
