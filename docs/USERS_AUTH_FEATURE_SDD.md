@@ -38,7 +38,7 @@ interface UserProfile {
 | 5 | Perfil debe tener al menos 1 posición | Redirect en `AuthGuard.tsx` |
 | 6 | Máximo 2 posiciones por jugador | Validación en profile page |
 | 7 | Super Admin puede eliminar usuarios| `deleteUser()` en `lib/users.ts` |
-| 8 | Jugador puede editar su nombre | `updateUserName()` en `lib/users.ts` |
+| 8 | Jugador puede editar su nombre (mínimo 2 palabras) | `updateUserName()` en `lib/users.ts` y validación en `app/profile/page.tsx` |
 | 9 | Cambio de nombre solo cada 30 días | `nameLastChanged` + cooldown en profile page |
 | 10 | Posiciones con iconos visuales | `POSITION_ICONS` en `lib/domain/player.ts` |
 | 11 | Feedback separado nombre/posiciones | `nameSaved` / `positionsSaved` estados independientes |
@@ -118,7 +118,7 @@ export async function deleteUser(uid: string): Promise<void>
 #### **Capa 3: UI**
 - `components/AuthGuard.tsx` — Protege rutas, redirige a `/profile` si incompleto. Consume `profile` localmente del Contexto global para eliminar el "flash de carga" evitando renders intermedios.
 - `app/profile/page.tsx` — Dashboard de perfil:
-  - Edición de nombre con cooldown 30d y validación (mín. 2 caracteres). Lee perfil en tiempo real.
+  - Edición de nombre con cooldown 30d y validación (mín. 2 palabras de 2 caracteres). Lee perfil en tiempo real.
   - Posiciones con iconos emoji (`POSITION_ICONS`) y bloqueo durante guardado
   - Feedback independiente: `nameSaved` vs `positionsSaved`
   - Visualización de estadísticas (PJ/PG/PE/PP) apoyada por *CSS Tooltips* explicativos (optimizados para Mobile Touch).
