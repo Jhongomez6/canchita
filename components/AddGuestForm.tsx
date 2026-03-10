@@ -6,6 +6,7 @@ import { addGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { POSITION_LABELS } from "@/lib/domain/player";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import Link from "next/link";
 
 interface AddGuestFormProps {
   matchId: string;
@@ -224,7 +225,7 @@ export default function AddGuestForm({
         </div>
 
         <p className="text-xs text-slate-500 text-center mb-4 px-2 leading-relaxed">
-          Al agregar un invitado, <strong className="text-slate-600">confirmas que tienes su permiso</strong> para compartir sus datos según nuestra <a href="/privacy" target="_blank" className="text-[#1f7a4f] hover:underline">Política de Privacidad</a>.
+          Al agregar un invitado, <strong className="text-slate-600">confirmas que tienes su permiso</strong> para compartir sus datos según nuestra <Link href="/privacy" target="_blank" className="text-[#1f7a4f] hover:underline">Política de Privacidad</Link>.
         </p>
 
         <button
