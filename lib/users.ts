@@ -49,6 +49,7 @@ export async function ensureUserProfile(
     const updates: any = {};
     if (email && !currentData.email) updates.email = email;
     if (photoURL && !currentData.photoURL) updates.photoURL = photoURL;
+    if (!currentData.originalGoogleName) updates.originalGoogleName = name;
 
     if (Object.keys(updates).length > 0) {
       await updateDoc(ref, updates);
