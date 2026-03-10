@@ -16,11 +16,11 @@ export default function ProfileSkeleton() {
 
                     <div className="p-5">
                         <div className="space-y-1">
-                            {[1, 2, 3, 4, 5].map(i => (
-                                <div key={i} className={`flex justify-between items-center py-3 border-b border-slate-100 ${i !== 3 ? 'h-[45px]' : ''}`}>
+                            {[1, 2, 3, 4, 5, 6].map(i => (
+                                <div key={i} className={`flex justify-between items-center py-3 border-b border-slate-100 ${i !== 4 ? 'h-[45px]' : ''}`}>
                                     <div className="h-5 w-28 bg-slate-200 rounded"></div>
                                     <div className="flex items-center gap-2">
-                                        {i === 3 ? (
+                                        {i === 4 ? (
                                             <>
                                                 <div className="h-[26px] w-[80px] bg-slate-200 rounded-full"></div>
                                                 <div className="h-[26px] w-[85px] bg-slate-200 rounded-full"></div>

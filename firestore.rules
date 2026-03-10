@@ -64,8 +64,8 @@ service cloud.firestore {
           )
         );
  
-      // Delete: solo admins
-      allow delete: if request.auth != null && isAdmin();
+      // Delete: el propio usuario o admins
+      allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
     /* =========================

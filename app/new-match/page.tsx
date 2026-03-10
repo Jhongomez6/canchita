@@ -13,7 +13,7 @@ import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 
 export default function NewMatchPage() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [date, setDate] = useState("");
@@ -29,17 +29,18 @@ export default function NewMatchPage() {
   const [locationId, setLocationId] = useState("");
 
   useEffect(() => {
-    if (profile) {
-      getAdminLocations(profile).then(setLocations);
-    }
-  }, [profile]);
+    if (authLoading || !profile) return;
+    getAdminLocations(profile).then(setLocations);
+  }, [profile, authLoading]);
 
   // Forzar privacidad automáticamente si no puede crear partidos públicos
   useEffect(() => {
-    if (profile && !canCreatePublicMatch(profile)) {
-      setIsPrivate(true);
+    if (authLoading || !profile) return;
+    if (!canCreatePublicMatch(profile)) {
+      // Usamos un timeout ligero para evitar el warning de React por setState recursivo
+      setTimeout(() => setIsPrivate(true), 0);
     }
-  }, [profile]);
+  }, [profile, authLoading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,7 +95,7 @@ export default function NewMatchPage() {
     }
   }
 
-  if (loading) {
+  if (authLoading) {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-slate-50 flex items-center justify-center">

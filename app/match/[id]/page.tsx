@@ -56,7 +56,7 @@ import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [match, setMatch] = useState<Match | null>(null);
@@ -111,7 +111,7 @@ export default function MatchDetailPage() {
 
   // 🔴 Real-time listener — auto-updates when Firestore changes
   useEffect(() => {
-    if (!profile) return;
+    if (authLoading || !profile) return;
 
     const ref = doc(db, "matches", id);
     const unsubscribe = onSnapshot(ref, (snap) => {
@@ -130,7 +130,7 @@ export default function MatchDetailPage() {
     });
 
     return () => unsubscribe();
-  }, [profile, id]);
+  }, [profile, authLoading, id]);
 
   async function handleBalance() {
     if (!match || confirmedCount < 4) return;

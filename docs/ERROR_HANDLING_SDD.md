@@ -28,7 +28,7 @@ The `<Toaster />` component from `react-hot-toast` is mounted globally at the ap
 The error handling utility is natively integrated into critical paths:
 - **Matches**: `app/match/[id]`, `app/new-match`, `app/join/[id]`, `app/explore`
 - **Users**: `app/onboarding`, `app/profile`, `app/admin/users`, `components/AddGuestForm`
-- **Infrastructure**: `lib/push.ts`, `app/locations/new`
+- **Infrastructure**: `lib/push.ts`, `app/locations/new`, `app/not-found.tsx` (Global 404)
 
 ## 6. Acceptance Criteria
 - [x] Catch blocks properly delegate to `handleError`.

@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { enablePushNotifications } from "@/lib/push";
-import { updateUserPositions, updateUserName, updatePlayerAttributes, requestReEvaluation } from "@/lib/users";
+import { updateUserPositions, updateUserName, updatePlayerAttributes, requestReEvaluation, deleteUser } from "@/lib/users";
+import { deleteUser as deleteAuthUser } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import type { Position } from "@/lib/domain/player";
 import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain/player";
 import type { UserStats } from "@/lib/domain/user";
-import type { Foot, CourtSize } from "@/lib/domain/rating";
+import type { Sex, Foot, CourtSize } from "@/lib/domain/rating";
 import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import StatsCard from "@/components/StatsCard";
@@ -17,11 +18,12 @@ import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { X, Share, PlusSquare } from "lucide-react";
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
+const SEX_LABELS: Record<string, string> = { male: "M", female: "F", other: "Otro" };
 const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado"];
 const LEVEL_EMOJIS = ["", "🌱", "⚡", "🔥"];
 
 export default function ProfilePage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +32,7 @@ export default function ProfilePage() {
   const [positions, setPositions] = useState<string[]>([]);
   const [level, setLevel] = useState<number | null>(null);
   const [age, setAge] = useState<number | null>(null);
+  const [sex, setSex] = useState<Sex | null>(null);
   const [dominantFoot, setDominantFoot] = useState<Foot | null>(null);
   const [preferredCourt, setPreferredCourt] = useState<CourtSize | null>(null);
   const [stats, setStats] = useState<UserStats>({ played: 0, won: 0, lost: 0, draw: 0 });
@@ -41,6 +44,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [requestingReeval, setRequestingReeval] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
   // PWA Install
   const { isInstallable, isStandalone, isIOS, isAndroid, promptToInstall } = usePWAInstall();
@@ -83,6 +89,7 @@ export default function ProfilePage() {
     if (profile.level != null) setLevel(profile.level);
     if (profile.onboardingCompletedAt) setOnboardingCompletedAt(profile.onboardingCompletedAt);
     if (profile.age != null) setAge(profile.age);
+    if (profile.sex) setSex(profile.sex as Sex);
     if (profile.dominantFoot) setDominantFoot(profile.dominantFoot);
     if (profile.preferredCourt) setPreferredCourt(profile.preferredCourt);
     setLoading(false);
@@ -162,6 +169,7 @@ export default function ProfilePage() {
       const attrUpdate: { dominantFoot?: string; preferredCourt?: string } = {};
       if (editFoot && editFoot !== dominantFoot) attrUpdate.dominantFoot = editFoot;
       if (editCourt && editCourt !== preferredCourt) attrUpdate.preferredCourt = editCourt;
+
       if (Object.keys(attrUpdate).length > 0) {
         await updatePlayerAttributes(user.uid, attrUpdate);
         if (editFoot) setDominantFoot(editFoot);
@@ -174,6 +182,39 @@ export default function ProfilePage() {
       handleError(err, "Error al guardar los cambios del perfil");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!user) return;
+    setDeletingAccount(true);
+    try {
+      // 1. Borrar datos de Firestore (Habeas Data)
+      await deleteUser(user.uid);
+      // 2. Borrar el usuario de Firebase Auth
+      await deleteAuthUser(user);
+      // Redirige automáticamente porque el AuthContext detecta onAuthStateChanged
+    } catch (err: unknown) {
+      if (err instanceof Error && "code" in err && err.code === "auth/requires-recent-login") {
+        try {
+          // Attempt inline re-authentication
+          const { GoogleAuthProvider, reauthenticateWithPopup } = await import("firebase/auth");
+          const provider = new GoogleAuthProvider();
+          await reauthenticateWithPopup(user, provider);
+
+          // Retry deletion after successful re-auth
+          await deleteUser(user.uid);
+          await deleteAuthUser(user);
+        } catch (reauthErr: unknown) {
+          handleError(reauthErr, "No se pudo re-autenticar para eliminar la cuenta. Por favor intente más tarde.");
+          setDeletingAccount(false);
+          setShowDeleteConfirm(false);
+        }
+      } else {
+        handleError(err, "Error al eliminar la cuenta");
+        setDeletingAccount(false);
+        setShowDeleteConfirm(false);
+      }
     }
   }
 
@@ -197,7 +238,13 @@ export default function ProfilePage() {
     </div>
   );
 
-  if (!profile || loading) {
+  // Si la sesión ya cargó y definitivamente no hay usuario, renderizamos AuthGuard 
+  // para que gestione la redirección a la Landing Page.
+  if (!authLoading && !user) {
+    return <AuthGuard><div /></AuthGuard>;
+  }
+
+  if (authLoading || !profile || loading) {
     return <ProfileSkeleton />;
   }
 
@@ -248,6 +295,7 @@ export default function ProfilePage() {
                 <div className="space-y-1">
                   <InfoRow label="Nombre" value={displayName || "—"} />
                   {age != null && <InfoRow label="Edad" value={`${age} años`} />}
+                  {sex && <InfoRow label="Sexo" value={SEX_LABELS[sex] || sex} />}
 
                   <InfoRow label="Posiciones" value={
                     positions.length > 0 ? (
@@ -338,6 +386,36 @@ export default function ProfilePage() {
                         {displayName} <span className="text-xs ml-2 opacity-70">🔒 cambio el {nameUnlockDate}</span>
                       </div>
                     )}
+                  </div>
+
+                  {/* Age & Sex (Locked in Edit Mode) */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="group relative" tabIndex={0}>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                        Edad <span className="text-[10px] opacity-40">🔒</span>
+                      </label>
+                      <div className="px-4 py-3 bg-slate-100 rounded-xl text-slate-400 font-medium text-sm border border-slate-200 cursor-help focus:outline-none">
+                        {age || "—"}
+                      </div>
+                      {/* Tooltip */}
+                      <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all pointer-events-none z-50 text-center leading-tight">
+                        Para rectificar tu edad, contacta a un administrador.
+                        <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                      </div>
+                    </div>
+                    <div className="group relative" tabIndex={0}>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                        Sexo <span className="text-[10px] opacity-40">🔒</span>
+                      </label>
+                      <div className="px-4 py-3 bg-slate-100 rounded-xl text-slate-400 font-medium text-sm border border-slate-200 cursor-help focus:outline-none">
+                        {sex ? SEX_LABELS[sex] : "—"}
+                      </div>
+                      {/* Tooltip */}
+                      <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all pointer-events-none z-50 text-center leading-tight">
+                        Para rectificar tu sexo, contacta a un administrador.
+                        <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Positions */}
@@ -697,6 +775,74 @@ export default function ProfilePage() {
               <div className="h-4"></div> {/* Bottom spacer */}
             </div>
           )}
+
+          {/* ========================= */}
+          {/*     ZONA DE PELIGRO       */}
+          {/* ========================= */}
+          {!isOnboarding && (
+            <div className="mt-8 mb-4 border-t border-red-100 pt-8 text-center">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(true);
+                  setDeleteConfirmationText("");
+                }}
+                className="text-xs font-bold text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors"
+              >
+                Eliminar mi cuenta y todos mis datos
+              </button>
+            </div>
+          )}
+
+          {/* Delete Account Modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-white text-slate-900 rounded-3xl w-full max-w-sm p-8 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-sm">
+                  ⚠️
+                </div>
+                <h3 className="text-xl font-black mb-2 text-slate-800">¿Eliminar cuenta?</h3>
+                <p className="text-sm text-slate-500 mb-6 font-medium">
+                  Esta acción es permanente. Tu historial de partidos, estadísticas y nivel serán borrados de nuestros servidores (Ley Habeas Data).
+                </p>
+                <div className="mb-6 text-left">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                    Escriba &quot;ELIMINAR&quot; para confirmar:
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmationText}
+                    onChange={(e) => setDeleteConfirmationText(e.target.value.toUpperCase())}
+                    placeholder="ELIMINAR"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                  />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={deletingAccount || deleteConfirmationText !== "ELIMINAR"}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-xl shadow-md transition-all disabled:opacity-50 flex justify-center items-center"
+                  >
+                    {deletingAccount ? (
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    ) : (
+                      "Sí, eliminar todo"
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteConfirmationText("");
+                    }}
+                    disabled={deletingAccount}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    Mantener mi cuenta
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
     </AuthGuard>

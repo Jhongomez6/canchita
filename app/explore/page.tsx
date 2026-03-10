@@ -14,7 +14,7 @@ import { handleError } from "@/lib/utils/error";
 import { sanitizeMatchCode } from "@/lib/matchCode";
 
 export default function ExplorePage() {
-    const { user, profile } = useAuth();
+    const { profile, loading: authLoading } = useAuth();
     const router = useRouter();
 
     const [matches, setMatches] = useState<Match[]>([]);
@@ -26,6 +26,9 @@ export default function ExplorePage() {
     const [isSubmittingCode, setIsSubmittingCode] = useState(false);
 
     useEffect(() => {
+        // Wait until auth is resolved and the profile is loaded. Unauthenticated users shouldn't read matches.
+        if (authLoading || !profile) return;
+
         // 🔴 Real-time listener — updates when any match opens or closes
         const q = query(
             collection(db, "matches"),
@@ -69,7 +72,7 @@ export default function ExplorePage() {
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [profile, authLoading]);
 
     const handleInviteCodeSubmit = (e: React.FormEvent) => {
         e.preventDefault();

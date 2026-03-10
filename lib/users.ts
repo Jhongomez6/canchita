@@ -20,6 +20,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import type { UserProfile, AdminType } from "./domain/user";
+import { APP_LEGAL_CONSTANTS } from "./constants";
 
 /* =========================
    CREAR / ASEGURAR PERFIL
@@ -34,11 +35,13 @@ export async function ensureUserProfile(
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    const data: any = {
+    const data: Record<string, unknown> = {
       name,
       originalGoogleName: name,
       positions: [],
       roles: ["player"],
+      createdAt: new Date().toISOString(),
+      authAcceptedVersion: APP_LEGAL_CONSTANTS.CURRENT_TERMS_VERSION, // Current version of Terms & Privacy
     };
     if (email) data.email = email;
     if (photoURL) data.photoURL = photoURL;
@@ -46,7 +49,7 @@ export async function ensureUserProfile(
   } else {
     // Si ya existe pero le faltan datos que ahora tenemos, los actualizamos
     const currentData = snap.data();
-    const updates: any = {};
+    const updates: Record<string, unknown> = {};
     if (email && !currentData.email) updates.email = email;
     if (photoURL && !currentData.photoURL) updates.photoURL = photoURL;
     if (!currentData.originalGoogleName) updates.originalGoogleName = name;
@@ -103,7 +106,7 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 ========================= */
 export async function updateUserName(uid: string, name: string, originalGoogleName?: string | null) {
   const ref = doc(db, "users", uid);
-  const data: any = { name, nameLastChanged: new Date().toISOString() };
+  const data: Record<string, string> = { name, nameLastChanged: new Date().toISOString() };
   if (originalGoogleName) {
     data.originalGoogleName = originalGoogleName;
   }

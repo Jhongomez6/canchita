@@ -11,7 +11,7 @@ import { isSuperAdmin } from "@/lib/domain/user";
 type SortField = "played" | "won" | "lost" | "draw";
 
 export default function RankingPage() {
-    const { user, profile } = useAuth();
+    const { profile } = useAuth();
     const router = useRouter();
     const [players, setPlayers] = useState<PlayerRanking[]>([]);
     const [loading, setLoading] = useState(true);
@@ -19,6 +19,8 @@ export default function RankingPage() {
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
     useEffect(() => {
+        // Only redirect if we HAVE a profile and it's NOT a super admin.
+        // If profile is still loading (null), AuthGuard handles the generic redirect.
         if (profile && !isSuperAdmin(profile)) {
             router.replace("/");
         }
@@ -32,6 +34,7 @@ export default function RankingPage() {
     }, []);
 
     useEffect(() => {
+        // Prevent fetching if not logged in or not a super admin
         if (!profile || !isSuperAdmin(profile)) return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         loadRanking();
@@ -77,12 +80,20 @@ export default function RankingPage() {
         return sortDir === "desc" ? " ▼" : " ▲";
     };
 
-    if (!user || !profile || loading) {
-        return <RankingListSkeleton />;
+    if (!profile || !isSuperAdmin(profile)) {
+        return (
+            <AuthGuard>
+                <RankingListSkeleton />
+            </AuthGuard>
+        );
     }
 
-    if (!isSuperAdmin(profile)) {
-        return null;
+    if (loading) {
+        return (
+            <AuthGuard>
+                <RankingListSkeleton />
+            </AuthGuard>
+        );
     }
 
     return (

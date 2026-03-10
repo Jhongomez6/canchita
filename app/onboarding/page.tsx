@@ -100,7 +100,7 @@ export default function OnboardingPage() {
     const canNext = (): boolean => {
         switch (step) {
             case 1:
-                return !!age && Number(age) >= 10 && Number(age) <= 70 && !!sex && !!foot && !!court;
+                return !!age && Number(age) >= 18 && Number(age) <= 70 && !!sex && !!foot && !!court;
             case 2:
                 return /^3\d{9}$/.test(phone);
             case 3:
@@ -218,10 +218,15 @@ export default function OnboardingPage() {
                             value={age}
                             onChange={e => setAge(e.target.value)}
                             placeholder="Ej: 25"
-                            min={10}
+                            min={18}
                             max={70}
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
                         />
+                        {age && Number(age) < 18 && (
+                            <p className="text-xs text-red-500 font-medium mt-2 animate-in fade-in">
+                                Debes ser mayor de 18 años para usar la plataforma.
+                            </p>
+                        )}
                     </label>
 
                     {/* SEXO */}

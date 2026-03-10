@@ -223,6 +223,10 @@ export default function AddGuestForm({
           </div>
         </div>
 
+        <p className="text-xs text-slate-500 text-center mb-4 px-2 leading-relaxed">
+          Al agregar un invitado, <strong className="text-slate-600">confirmas que tienes su permiso</strong> para compartir sus datos según nuestra <a href="/privacy" target="_blank" className="text-[#1f7a4f] hover:underline">Política de Privacidad</a>.
+        </p>
+
         <button
           type="submit"
           disabled={!isFormValid || isSubmitting}

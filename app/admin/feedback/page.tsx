@@ -12,14 +12,14 @@ import { handleError } from "@/lib/utils/error";
 import FeedbackListSkeleton from "@/components/skeletons/FeedbackListSkeleton";
 
 export default function AdminFeedbackPage() {
-    const { profile } = useAuth();
+    const { profile, loading: authLoading } = useAuth();
     const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
     const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
     const [loading, setLoading] = useState(true);
     const [resolvingId, setResolvingId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!profile) return;
+        if (authLoading || !profile) return;
         const admin = isSuperAdmin(profile);
         setIsAdmin(admin);
         if (admin) {
@@ -27,7 +27,7 @@ export default function AdminFeedbackPage() {
         } else {
             setLoading(false);
         }
-    }, [profile]);
+    }, [profile, authLoading]);
 
     async function loadData() {
         try {
@@ -77,10 +77,12 @@ export default function AdminFeedbackPage() {
     // 🛡️ Protección Admin-only
     if (isAdmin === false) {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-                <h1 className="text-2xl font-bold text-slate-800 mb-2">Acceso Denegado 🛑</h1>
-                <p className="text-slate-500">No tienes permisos para ver el panel de Feedback.</p>
-            </div>
+            <AuthGuard>
+                <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+                    <h1 className="text-2xl font-bold text-slate-800 mb-2">Acceso Denegado 🛑</h1>
+                    <p className="text-slate-500">No tienes permisos para ver el panel de Feedback.</p>
+                </div>
+            </AuthGuard>
         );
     }
 

@@ -82,6 +82,9 @@ export interface UserProfile {
   assignedLocationIds?: string[];
   positions?: Position[];
   notificationsEnabled?: boolean;
+  // Habeas Data / Legal Proof
+  createdAt?: string;
+  authAcceptedVersion?: string;
 }
 
 export function isAdmin(profile: UserProfile): boolean {
@@ -119,6 +122,7 @@ export async function deleteUser(uid: string): Promise<void>
 **✅ Cumple especificación**: Reglas #4, #6, #7
 
 #### **Capa 3: UI**
+- `components/LandingPage.tsx` — Página de inicio pública para usuarios no autenticados, presentando la propuesta de valor y el botón de inicio de sesión con Google. Maneja lógica condicional de navegadores in-app.
 - `components/AuthGuard.tsx` — Protege rutas, redirige a `/profile` si incompleto. Consume `profile` localmente del Contexto global para eliminar el "flash de carga" evitando renders intermedios.
 - `app/profile/page.tsx` — Dashboard de perfil:
   - Edición de nombre con cooldown 30d y validación (mín. 2 palabras de 2 caracteres). Lee perfil en tiempo real.
@@ -126,10 +130,14 @@ export async function deleteUser(uid: string): Promise<void>
   - Feedback independiente: `nameSaved` vs `positionsSaved`
   - Visualización de estadísticas (PJ/PG/PE/PP) apoyada por *CSS Tooltips* explicativos (optimizados para Mobile Touch).
   - Tracker de "Compromiso" con apoyos visuales (*Tooltips Touch*) enseñando la fórmula de penalización por llegadas tarde y faltas.
+  - **Habeas Data**: Zona de Peligro para eliminación permanente de cuenta (requiere confirmación robusta escribiendo "ELIMINAR" y flujo de re-autenticación OAuth si es necesario).
+  - **Habeas Data**: Campos sensibles (Edad y Sexo) son de solo lectura y requieren intervención directiva (admin) para su rectificación, protegiendo la integridad del algoritmo deportivo.
 - `app/admin/users/page.tsx` — Panel admin con lista de usuarios tipada `UserProfile[]`. Usa `UserListSkeleton.tsx` para una transición perfecta.
+- `app/terms/page.tsx` y `app/privacy/page.tsx` — Páginas legales estáticas públicas (sin AuthGuard) donde se establecen los contratos digitales.
+- `lib/constants.ts` — Almacena la constante global `APP_LEGAL_CONSTANTS.CURRENT_TERMS_VERSION` inyectada durante la creación de perfil.
 - `lib/AuthContext.tsx` — Centraliza el "Splash Screen" (logo Canchita) que se muestra globalmente durante la carga inicial de cualquier página, reemplazando los parpadeos de skeletons iniciales.
 
-**✅ Cumple especificación**: Reglas #3, #4, #5, #7, #8, #9, #10
+**✅ Cumple especificación**: Reglas #3, #4, #5, #7, #8, #9, #10, Requisitos Legales (Habeas Data Ley 1581)
 
 ---
 
@@ -213,6 +221,16 @@ export const POSITION_ICONS: Record<Position, string> = {
 **Given** un jugador cuyo onboarding se completó hace más de 90 días
 **When** solicita nueva autoevaluación desde su perfil
 **Then** se resetea `initialRatingCalculated` y es redirigido a `/onboarding`
+
+### ✅ Criterio 9 (Legal)
+**Given** un usuario nuevo
+**When** inicia sesión por primera vez con Google
+**Then** se registra su `createdAt` y `authAcceptedVersion` como prueba de autorización legal
+
+### ✅ Criterio 10 (Habeas Data)
+**Given** un usuario autenticado
+**When** escribe "ELIMINAR" en la zona de peligro de su perfil y confirma
+**Then** su documento en Firestore es borrado (con sus reglas que lo permiten) y su usuario de Auth es eliminado. Si lleva mucho logueado, se abre un popup para re-verificar identidad en el mismo flujo.
 
 ---
 

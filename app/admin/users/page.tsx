@@ -39,9 +39,9 @@ export default function AdminUsersPage() {
   }, [profile, router]);
 
   useEffect(() => {
-    if (!profile || !isSuperAdmin(profile)) return;
+    if (!user || !profile || !isSuperAdmin(profile)) return;
     loadUsers();
-  }, [profile, loadUsers]);
+  }, [user, profile, loadUsers]);
 
   async function handleDelete(uid: string, name: string) {
     if (!confirm(`¿Estás seguro de eliminar a ${name}?`)) return;
@@ -102,16 +102,14 @@ export default function AdminUsersPage() {
     }
   }
 
-  if (!user || !profile) {
+  if (!user || !profile || !isSuperAdmin(profile)) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center">
-        <div className="w-12 h-12 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
-      </div>
+      <AuthGuard>
+        <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center">
+          <div className="w-12 h-12 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+        </div>
+      </AuthGuard>
     );
-  }
-
-  if (!isSuperAdmin(profile)) {
-    return null;
   }
 
   return (

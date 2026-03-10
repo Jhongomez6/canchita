@@ -57,6 +57,9 @@ export interface UserProfile {
     hasTournaments?: boolean;
     frequency?: Frequency;
     mvpAwards?: number;
+    // Habeas Data / Legal
+    createdAt?: string;                // ISO date of profile creation (first login)
+    authAcceptedVersion?: string;      // Version of Terms/Privacy accepted at first login
 }
 
 export interface UserStats {
