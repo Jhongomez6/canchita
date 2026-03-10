@@ -145,6 +145,11 @@ export default function ProfilePage() {
       const words = trimmedName.split(/\s+/);
       const hasValidFullName = words.length >= 2 && words.every(word => word.length >= 2);
 
+      if (canEditName && !hasValidFullName) {
+        setSaving(false);
+        return;
+      }
+
       if (canEditName && hasValidFullName && trimmedName !== displayName) {
         await updateUserName(user.uid, trimmedName, user.displayName);
         setDisplayName(trimmedName);
@@ -420,7 +425,7 @@ export default function ProfilePage() {
                       Cancelar
                     </button>
                     <button
-                      disabled={saving}
+                      disabled={saving || (canEditName && editName.trim().length > 0 && (editName.trim().split(/\s+/).length < 2 || editName.trim().split(/\s+/).some(word => word.length < 2)))}
                       onClick={saveAll}
                       className="flex-[2] py-3 bg-[#1f7a4f] text-white font-bold rounded-xl hover:bg-[#16603c] transition-all shadow-md active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                     >

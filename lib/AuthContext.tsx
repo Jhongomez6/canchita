@@ -45,11 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         setUser(currentUser);
 
-        // 👤 Asegurar perfil (solo crea si no existe o actualiza email faltante)
+        // 👤 Asegurar perfil (solo crea si no existe o actualiza email/foto faltante)
         await ensureUserProfile(
           currentUser.uid,
           currentUser.displayName || "Jugador",
-          currentUser.email
+          currentUser.email,
+          currentUser.photoURL
         );
 
         // ✅ Marca login reciente (se consume en la UI)

@@ -30,6 +30,7 @@ export interface UserProfile {
     uid: string;
     name: string;
     email?: string;
+    photoURL?: string;
     originalGoogleName?: string;
     roles: UserRole[];
     positions: Position[];

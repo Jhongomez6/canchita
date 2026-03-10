@@ -27,7 +27,8 @@ import type { UserProfile, AdminType } from "./domain/user";
 export async function ensureUserProfile(
   uid: string,
   name: string,
-  email?: string | null
+  email?: string | null,
+  photoURL?: string | null
 ) {
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
@@ -39,15 +40,18 @@ export async function ensureUserProfile(
       positions: [],
       roles: ["player"],
     };
-    if (email) {
-      data.email = email;
-    }
+    if (email) data.email = email;
+    if (photoURL) data.photoURL = photoURL;
     await setDoc(ref, data);
   } else {
-    // Si ya existe pero no tiene email y ahora sí lo tenemos, lo actualizamos por debajo
+    // Si ya existe pero le faltan datos que ahora tenemos, los actualizamos
     const currentData = snap.data();
-    if (email && !currentData.email) {
-      await updateDoc(ref, { email });
+    const updates: any = {};
+    if (email && !currentData.email) updates.email = email;
+    if (photoURL && !currentData.photoURL) updates.photoURL = photoURL;
+
+    if (Object.keys(updates).length > 0) {
+      await updateDoc(ref, updates);
     }
   }
 }
