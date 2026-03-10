@@ -399,7 +399,7 @@ export default function ProfilePage() {
                       </div>
                       {/* Tooltip */}
                       <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all pointer-events-none z-50 text-center leading-tight">
-                        Para rectificar tu edad, contacta a un administrador.
+                        Para rectificar este campo, contacta a un administrador.
                         <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
                       </div>
                     </div>
@@ -412,7 +412,7 @@ export default function ProfilePage() {
                       </div>
                       {/* Tooltip */}
                       <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all pointer-events-none z-50 text-center leading-tight">
-                        Para rectificar tu sexo, contacta a un administrador.
+                        Para rectificar este campo, contacta a un administrador.
                         <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
                       </div>
                     </div>
