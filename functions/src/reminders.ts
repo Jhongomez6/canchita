@@ -150,6 +150,7 @@ async function sendReminderIfNeeded(
       url: `/join/${matchId}`,
       read: false,
       createdAt: new Date().toISOString(),
+      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
     // 2. BEST-EFFORT push
@@ -263,6 +264,7 @@ export const sendManualReminder = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: new Date().toISOString(),
+      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
     // 2. BEST-EFFORT push
@@ -478,6 +480,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
+      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
     }));
   }
 
@@ -489,6 +492,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
+      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
     }));
   }
 
@@ -500,6 +504,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
+      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
     }));
   }
 
@@ -622,6 +627,7 @@ export const notifyFeedbackResolved = onCall(async (request) => {
     type: "feedback_resolved",
     read: false,
     createdAt: now,
+    expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
   });
 
   // 2. Update feedback status

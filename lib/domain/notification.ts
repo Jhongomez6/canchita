@@ -24,4 +24,5 @@ export interface AppNotification {
     url?: string;        // deeplink (e.g. "/join/matchId")
     read: boolean;
     createdAt: string;   // ISO string
+    expireAt?: string;   // ISO string (TTL Firestore policy)
 }
