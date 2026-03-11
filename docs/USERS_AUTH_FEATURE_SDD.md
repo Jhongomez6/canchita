@@ -23,7 +23,8 @@ interface UserProfile {
   roles: UserRole[];        // Roles del usuario (ej: ["player", "admin"])
   adminType?: AdminType;    // Nivel de admin: "super_admin", "location_admin", "team_admin"
   assignedLocationIds?: string[]; // IDs de canchas administradas
-  positions?: Position[];   // 1-2 posiciones de juego
+  positions?: Position[];   // 1-3 posiciones de juego
+  primaryPosition?: Position; // Posición principal preferida (renderizada con 👑)
   stats?: UserStats;        // Estadísticas de partidos
   nameLastChanged?: string; // ISO timestamp del último cambio de nombre
   notificationsEnabled?: boolean;
@@ -39,7 +40,7 @@ interface UserProfile {
 | 3 | Jerarquía Admin (Tiers) | `adminType` y funciones `isSuperAdmin`, `isLocationAdmin`, etc. |
 | 4 | Panel de gestión (Ranking/Admin) | `isSuperAdmin()` restringe áreas globales |
 | 5 | Perfil debe tener al menos 1 posición | Redirect en `AuthGuard.tsx` |
-| 6 | Máximo 2 posiciones por jugador | Validación en profile page |
+| 6 | Máximo 3 posiciones por jugador (y una principal) | Validación en profile page y onboarding |
 | 7 | Super Admin puede eliminar usuarios| `deleteUser()` en `lib/users.ts` |
 | 8 | Jugador puede editar su nombre (mínimo 2 palabras) | `updateUserName()` en `lib/users.ts` y validación en `app/profile/page.tsx` |
 | 9 | Cambio de nombre solo cada 30 días | `nameLastChanged` + cooldown en profile page |

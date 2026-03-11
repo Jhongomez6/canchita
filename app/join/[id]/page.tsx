@@ -764,7 +764,7 @@ export default function JoinMatchPage() {
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full bg-white text-red-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-red-100">
-                                {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                                {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
                               {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
@@ -792,7 +792,7 @@ export default function JoinMatchPage() {
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full bg-white text-blue-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-blue-100">
-                                {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                                {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
                               {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
@@ -1005,7 +1005,7 @@ export default function JoinMatchPage() {
                     <div key={`p-${i}`} className="py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm">
-                          {POSITION_ICONS[(p.positions?.[0] as Position) || "MID"]}
+                          {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
                         </div>
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-800 text-sm">{p.name}</span>
@@ -1031,7 +1031,7 @@ export default function JoinMatchPage() {
                       <div key={`g-${i}`} className="py-3 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm">
-                            {POSITION_ICONS[(g.positions?.[0] as Position) || "MID"]}
+                            {POSITION_ICONS[g.primaryPosition || (g.positions?.[0] as Position) || "MID"]}
                           </div>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-800 text-sm">{g.name}</span>

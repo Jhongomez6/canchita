@@ -32,6 +32,7 @@ import type { Position } from "./player";
 export interface Guest {
   name: string;
   positions: Position[];
+  primaryPosition?: Position;
   invitedBy: string; // UID del jugador que invitó
   isWaitlist?: boolean;
   waitlistJoinedAt?: string;
@@ -66,7 +67,7 @@ export function validateGuestName(name: string): void {
 
 /**
  * Valida las posiciones del invitado según la especificación:
- * - Deben ser entre 1 y 2
+ * - Deben ser entre 1 y 3
  * - No se permiten posiciones duplicadas
  * - Solo posiciones permitidas: GK, DEF, MID, FWD
  */
@@ -81,9 +82,9 @@ export function validateGuestPositions(positions: Position[]): void {
     );
   }
 
-  if (positions.length > 2) {
+  if (positions.length > 3) {
     throw new GuestValidationError(
-      "El invitado puede tener máximo 2 posiciones"
+      "El invitado puede tener máximo 3 posiciones"
     );
   }
 
@@ -131,11 +132,13 @@ export function validateGuest(guest: Partial<Guest>): void {
 export function createGuest(
   name: string,
   positions: Position[],
-  invitedBy: string
+  invitedBy: string,
+  primaryPosition?: Position
 ): Guest {
   const guest: Guest = {
     name: name.trim(),
     positions,
+    ...(primaryPosition ? { primaryPosition } : {}),
     invitedBy,
   };
 
@@ -199,6 +202,7 @@ export function guestToPlayer(guest: Guest, level: PlayerLevel = 2): Player {
     name: `${guest.name} (inv)`,
     level,
     positions: guest.positions,
+    ...(guest.primaryPosition ? { primaryPosition: guest.primaryPosition } : {}),
     confirmed: guest.confirmed !== false, // Defaults to true if not specified
     isWaitlist: guest.isWaitlist,
     waitlistJoinedAt: guest.waitlistJoinedAt,

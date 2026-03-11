@@ -1156,7 +1156,10 @@ export default function MatchDetailPage() {
                                     key={targetId}
                                     id={targetId}
                                     name={p.name}
-                                    details={`⚡${p.level} · ${(p.positions || []).join("/")}`}
+                                    details={`⚡${p.level} · ${[
+                                      p.primaryPosition ? `👑${p.primaryPosition}` : null,
+                                      ...(p.positions || []).filter(pos => pos !== p.primaryPosition)
+                                    ].filter(Boolean).join("/")}`}
                                     isMvp={isMvp}
                                     votes={votes}
                                   />
@@ -1191,7 +1194,10 @@ export default function MatchDetailPage() {
                                     key={targetId}
                                     id={targetId}
                                     name={p.name}
-                                    details={`⚡${p.level} · ${(p.positions || []).join("/")}`}
+                                    details={`⚡${p.level} · ${[
+                                      p.primaryPosition ? `👑${p.primaryPosition}` : null,
+                                      ...(p.positions || []).filter(pos => pos !== p.primaryPosition)
+                                    ].filter(Boolean).join("/")}`}
                                     isMvp={isMvp}
                                     votes={votes}
                                   />

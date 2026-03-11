@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { saveOnboardingResult } from "@/lib/users";
 import { handleError } from "@/lib/utils/error";
@@ -74,10 +75,18 @@ const CALCULATING_MESSAGES = [
 // ========================
 
 export default function OnboardingPage() {
-    const { user } = useAuth();
+    const { user, profile, loading: authLoading } = useAuth();
+    const router = useRouter();
 
     // Step state
     const [step, setStep] = useState(1);
+
+    // 🛡️ Redirect if onboarding is already completed
+    useEffect(() => {
+        if (!authLoading && profile?.initialRatingCalculated) {
+            router.replace("/profile");
+        }
+    }, [profile, authLoading, router]);
 
     // Form data
     const [age, setAge] = useState("");
@@ -91,6 +100,7 @@ export default function OnboardingPage() {
     const [hasTournaments, setHasTournaments] = useState(false);
     const [frequency, setFrequency] = useState<Frequency | "">("");
     const [positions, setPositions] = useState<Position[]>([]);
+    const [primaryPosition, setPrimaryPosition] = useState<Position | null>(null);
 
     // Calculating + result
     const [calcMsgIndex, setCalcMsgIndex] = useState(0);
@@ -110,7 +120,7 @@ export default function OnboardingPage() {
             case 5:
                 return !!frequency;
             case 6:
-                return positions.length >= 1 && positions.length <= 2;
+                return positions.length >= 1 && positions.length <= 3 && !!primaryPosition;
             default:
                 return false;
         }
@@ -155,6 +165,7 @@ export default function OnboardingPage() {
                     dominantFoot: foot as string,
                     preferredCourt: court as string,
                     positions,
+                    primaryPosition: primaryPosition as Position,
                     techLevel: techLevel as number,
                     physLevel: physLevel as number,
                     hasSchool,
@@ -182,7 +193,7 @@ export default function OnboardingPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]);
 
-    if (!user) return null;
+    if (!user || authLoading || profile?.initialRatingCalculated) return null;
 
     // ========================
     // SHARED COMPONENTS
@@ -618,46 +629,76 @@ export default function OnboardingPage() {
                     <div className="text-center mb-6">
                         <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Paso 6 de 6</p>
                         <h1 className="text-2xl font-bold text-gray-800 mt-1">🥅 Posiciones</h1>
-                        <p className="text-gray-500 text-sm mt-1">¿En qué posiciones te sientes más cómodo? (Máx. 2)</p>
+                        <p className="text-gray-500 text-sm mt-1">Elige hasta 3 posiciones. <br/> <strong className="text-[#1f7a4f]">Toca una posición seleccionada nuevamente</strong> para marcarla como principal (👑).</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         {ALLOWED_POSITIONS.map((pos: Position) => {
                             const selected = positions.includes(pos);
+                            const isPrimary = primaryPosition === pos;
+                            
+                            const handleClick = () => {
+                                if (selected) {
+                                    if (isPrimary) {
+                                        // Si es primaria y le doy click, la deselecciono por completo
+                                        const newPositions = positions.filter(p => p !== pos);
+                                        setPositions(newPositions);
+                                        setPrimaryPosition(newPositions.length > 0 ? newPositions[0] : null);
+                                    } else {
+                                        // Si ya estaba seleccionada pero NO era primaria, la hago primaria
+                                        setPrimaryPosition(pos);
+                                    }
+                                } else {
+                                    const newArr = [...positions];
+                                    if (newArr.length >= 3) {
+                                        const idxToRemove = newArr.findIndex(p => p !== primaryPosition);
+                                        if (idxToRemove !== -1) {
+                                            newArr.splice(idxToRemove, 1);
+                                        } else {
+                                            newArr.shift();
+                                        }
+                                    }
+                                    newArr.push(pos);
+                                    setPositions(newArr);
+                                    if (newArr.length === 1 || !primaryPosition) {
+                                        setPrimaryPosition(pos);
+                                    }
+                                }
+                            };
+
                             return (
                                 <div
                                     key={pos}
                                     role="button"
                                     tabIndex={0}
-                                    onClick={() => {
-                                        if (selected) {
-                                            setPositions(positions.filter(p => p !== pos));
-                                        } else if (positions.length < 2) {
-                                            setPositions([...positions, pos]);
-                                        } else {
-                                            setPositions([positions[1], pos]);
-                                        }
-                                    }}
+                                    onClick={handleClick}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' || e.key === ' ') {
-                                            if (selected) {
-                                                setPositions(positions.filter(p => p !== pos));
-                                            } else if (positions.length < 2) {
-                                                setPositions([...positions, pos]);
-                                            } else {
-                                                setPositions([positions[1], pos]);
-                                            }
+                                            handleClick();
                                         }
                                     }}
-                                    className={`flex flex-col items-center justify-center p-4 border-2 rounded-2xl transition-all h-32 ${selected
-                                        ? "border-[#1f7a4f] bg-emerald-50 shadow-md ring-1 ring-[#1f7a4f] scale-105"
+                                    className={`relative flex flex-col items-center justify-center p-4 border-2 rounded-2xl transition-all h-32 ${selected
+                                        ? isPrimary 
+                                            ? "border-[#16603c] bg-[#1f7a4f] shadow-lg ring-2 ring-[#1f7a4f] scale-105"
+                                            : "border-emerald-800 bg-emerald-100/40 shadow-sm"
                                         : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 hover:scale-105 cursor-pointer"
                                         }`}
                                 >
+                                    {isPrimary && (
+                                        <div className="absolute -top-2 -right-2 bg-white text-amber-500 rounded-full w-6 h-6 flex items-center justify-center shadow-md border-2 border-amber-300 text-[10px] z-10 animate-in zoom-in-50 duration-300" title="Posición Principal">
+                                            👑
+                                        </div>
+                                    )}
                                     <span className="block text-4xl mb-2">{POSITION_ICONS[pos]}</span>
-                                    <span className={`block font-bold text-sm ${selected ? "text-[#1f7a4f]" : "text-gray-700"}`}>
+                                    <span className={`block font-bold text-sm ${selected ? (isPrimary ? "text-white" : "text-emerald-700") : "text-gray-700"}`}>
                                         {selected ? "✔ " : ""}{POSITION_LABELS[pos]}
                                     </span>
+                                    {selected && !isPrimary && (
+                                        <span className="text-[10px] text-emerald-600 mt-1 opacity-70 font-semibold">Secundaria</span>
+                                    )}
+                                    {isPrimary && (
+                                        <span className="text-[10px] font-bold text-emerald-100 mt-1">Principal</span>
+                                    )}
                                 </div>
                             );
                         })}

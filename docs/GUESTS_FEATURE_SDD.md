@@ -16,7 +16,8 @@ Permitir que un jugador agregue **hasta 2 invitados** a un partido, sujeto a que
 ```typescript
 interface Guest {
   name: string;           // Mínimo 2 caracteres
-  positions: Position[];  // Mínimo 1, máximo 2
+  positions: Position[];  // Mínimo 1, máximo 3
+  primaryPosition?: Position; // Posición principal
   invitedBy: string;      // UID del jugador que invitó
 }
 ```
@@ -37,7 +38,7 @@ interface Guest {
 | 4 | El invitado NO puede editar el partido | Firestore Rules + No tiene `uid` |
 | 5 | El invitado ocupa un cupo del partido | Validado en `addGuestToMatch()` |
 | 6 | Nombre obligatorio, mínimo 2 caracteres | `validateGuestName()` en `lib/domain/guest.ts` |
-| 7 | Posiciones: entre 1 y 2, sin duplicados | `validateGuestPositions()` en `lib/domain/guest.ts` |
+| 7 | Posiciones: entre 1 y 3, sin duplicados + 1 principal | `validateGuestPositions()` en `lib/domain/guest.ts` |
 | 8 | Cada invitado se puede eliminar de forma independiente | `removeGuestFromMatch()` |
 | 9 | El invitado participa en el balanceo de equipos | `guestToPlayer()` en `lib/domain/guest.ts` |
 | 10 | Si el partido está lleno, el invitado entra a Lista de Espera | Se almacena con `isWaitlist: true` y `confirmed: false` |

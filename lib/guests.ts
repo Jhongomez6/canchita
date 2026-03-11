@@ -50,6 +50,7 @@ export async function addGuestToMatch(
   guestData: {
     name: string;
     positions: Position[];
+    primaryPosition?: Position;
   }
 ): Promise<void> {
   const ref = doc(db, "matches", matchId);
@@ -90,6 +91,7 @@ export async function addGuestToMatch(
     const guest: Guest = {
       name: guestData.name.trim(),
       positions: guestData.positions,
+      ...(guestData.primaryPosition ? { primaryPosition: guestData.primaryPosition } : {}),
       invitedBy: playerUid,
       isWaitlist: isFull,
       waitlistJoinedAt: isFull ? new Date().toISOString() : undefined,

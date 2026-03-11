@@ -82,10 +82,15 @@ export async function getUserProfile(
 ========================= */
 export async function updateUserPositions(
   uid: string,
-  positions: string[]
+  positions: string[],
+  primaryPosition?: string
 ) {
   const ref = doc(db, "users", uid);
-  await updateDoc(ref, { positions });
+  const data: Record<string, unknown> = { positions };
+  if (primaryPosition) {
+    data.primaryPosition = primaryPosition;
+  }
+  await updateDoc(ref, data);
 }
 
 /* =========================
@@ -126,6 +131,7 @@ export async function saveOnboardingResult(
     dominantFoot: string;
     preferredCourt: string;
     positions: string[];
+    primaryPosition?: string;
     techLevel: number;
     physLevel: number;
     hasSchool: boolean;
@@ -135,11 +141,14 @@ export async function saveOnboardingResult(
   }
 ) {
   const ref = doc(db, "users", uid);
-  await setDoc(ref, {
+  
+  const payload: Record<string, unknown> = {
     ...data,
     initialRatingCalculated: true,
     onboardingCompletedAt: new Date().toISOString(),
-  }, { merge: true });
+  };
+
+  await setDoc(ref, payload, { merge: true });
 }
 
 /* =========================

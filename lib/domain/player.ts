@@ -49,6 +49,7 @@ export interface Player {
     name: string;
     level: PlayerLevel;
     positions: Position[];
+    primaryPosition?: Position; // Añadido soporte explícito de posición principal
     confirmed: boolean;
     attendance?: AttendanceStatus;
     isWaitlist?: boolean;
@@ -89,7 +90,7 @@ export function validateLevel(level: number): void {
 
 /**
  * Valida las posiciones de un jugador.
- * Regla: Entre 1 y 2 posiciones, sin duplicados, solo posiciones permitidas.
+ * Regla: Entre 1 y 3 posiciones, sin duplicados, solo posiciones permitidas.
  */
 export function validatePositions(positions: Position[]): void {
     if (!Array.isArray(positions)) {
@@ -100,8 +101,8 @@ export function validatePositions(positions: Position[]): void {
         throw new ValidationError("Debe tener al menos 1 posición");
     }
 
-    if (positions.length > 2) {
-        throw new ValidationError("Puede tener máximo 2 posiciones");
+    if (positions.length > 3) {
+        throw new ValidationError("Puede tener máximo 3 posiciones");
     }
 
     const unique = new Set(positions);

@@ -30,6 +30,7 @@ export default function ProfilePage() {
   // Profile data
   const [displayName, setDisplayName] = useState("");
   const [positions, setPositions] = useState<string[]>([]);
+  const [primaryPosition, setPrimaryPosition] = useState<string | null>(null);
   const [level, setLevel] = useState<number | null>(null);
   const [age, setAge] = useState<number | null>(null);
   const [sex, setSex] = useState<Sex | null>(null);
@@ -56,6 +57,7 @@ export default function ProfilePage() {
   // Edit buffers
   const [editName, setEditName] = useState("");
   const [editPositions, setEditPositions] = useState<string[]>([]);
+  const [editPrimaryPosition, setEditPrimaryPosition] = useState<string | null>(null);
   const [editFoot, setEditFoot] = useState<Foot | null>(null);
   const [editCourt, setEditCourt] = useState<CourtSize | null>(null);
 
@@ -73,6 +75,7 @@ export default function ProfilePage() {
 
     // Sincronizar estado local con el perfil global
     if (profile.positions) setPositions(profile.positions);
+    if (profile.primaryPosition) setPrimaryPosition(profile.primaryPosition);
     if (profile.notificationsEnabled) setPushEnabled(true);
     setDisplayName(profile.name || user?.displayName || "");
     if (profile.nameLastChanged) setNameLastChanged(profile.nameLastChanged);
@@ -135,6 +138,7 @@ export default function ProfilePage() {
   function startEditing() {
     setEditName(displayName);
     setEditPositions([...positions]);
+    setEditPrimaryPosition(primaryPosition);
     setEditFoot(dominantFoot);
     setEditCourt(preferredCourt);
     setEditing(true);
@@ -162,9 +166,10 @@ export default function ProfilePage() {
         setDisplayName(trimmedName);
         setNameLastChanged(new Date().toISOString());
       }
-      if (JSON.stringify(editPositions) !== JSON.stringify(positions)) {
-        await updateUserPositions(user.uid, editPositions);
+      if (JSON.stringify(editPositions) !== JSON.stringify(positions) || editPrimaryPosition !== primaryPosition) {
+        await updateUserPositions(user.uid, editPositions, editPrimaryPosition ?? undefined);
         setPositions(editPositions);
+        setPrimaryPosition(editPrimaryPosition);
       }
       const attrUpdate: { dominantFoot?: string; preferredCourt?: string } = {};
       if (editFoot && editFoot !== dominantFoot) attrUpdate.dominantFoot = editFoot;
@@ -222,11 +227,18 @@ export default function ProfilePage() {
 
 
 
-  const Chip = ({ active, children }: { active: boolean, children: React.ReactNode }) => (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${active
-      ? "bg-emerald-50 text-[#1f7a4f] border-emerald-200"
+  const Chip = ({ active, isPrimary, children }: { active: boolean, isPrimary?: boolean, children: React.ReactNode }) => (
+    <span className={`relative inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${active
+      ? isPrimary 
+        ? "bg-[#1f7a4f] text-white border-[#16603c] shadow-sm ring-1 ring-[#1f7a4f]" 
+        : "bg-emerald-100/50 text-emerald-700 border-emerald-200"
       : "bg-slate-100 text-slate-500 border-slate-200"
       }`}>
+      {isPrimary && (
+        <span className="absolute -top-1 -right-1 bg-white text-amber-500 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm border border-amber-300 text-[8px] z-10" title="Posición Principal">
+          👑
+        </span>
+      )}
       {children}
     </span>
   );
@@ -300,11 +312,14 @@ export default function ProfilePage() {
                   <InfoRow label="Posiciones" value={
                     positions.length > 0 ? (
                       <div className="flex gap-2 flex-wrap justify-end">
-                        {positions.map(p => (
-                          <Chip key={p} active={true}>
-                            {POSITION_ICONS[p as Position]} {POSITION_LABELS[p as Position]}
-                          </Chip>
-                        ))}
+                        {positions.map(p => {
+                          const isPri = primaryPosition ? primaryPosition === p : positions[0] === p; // Fallback legacy a index 0
+                          return (
+                            <Chip key={p} active={true} isPrimary={isPri}>
+                              {POSITION_ICONS[p as Position]} {POSITION_LABELS[p as Position]}
+                            </Chip>
+                          )
+                        })}
                       </div>
                     ) : (
                       <span className="text-slate-400 italic text-xs">Sin seleccionar</span>
@@ -420,32 +435,59 @@ export default function ProfilePage() {
 
                   {/* Positions */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                      Posiciones <span className="text-[10px] font-normal normal-case opacity-70">(máx. 2)</span>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex flex-col">
+                      Posiciones
+                      <span className="text-[10px] font-normal normal-case opacity-70 mt-1">Elige máx. 3. Toca de nuevo una seleccionada para hacerla principal (👑)</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       {ALLOWED_POSITIONS.map((pos: Position) => {
                         const sel = editPositions.includes(pos);
+                        const isPrimary = editPrimaryPosition === pos;
+                        
                         return (
                           <button
                             key={pos}
                             onClick={() => {
                               if (sel) {
-                                setEditPositions(editPositions.filter(p => p !== pos));
-                              } else if (editPositions.length >= 2) {
-                                setEditPositions([editPositions[1], pos]);
+                                if (isPrimary) {
+                                  // Remover completa
+                                  const newPos = editPositions.filter(p => p !== pos);
+                                  setEditPositions(newPos);
+                                  setEditPrimaryPosition(newPos.length > 0 ? newPos[0] : null);
+                                } else {
+                                  // Hacer primaria
+                                  setEditPrimaryPosition(pos);
+                                }
                               } else {
-                                setEditPositions([...editPositions, pos]);
+                                const newPos = [...editPositions];
+                                if (newPos.length >= 3) {
+                                  const idxToRemove = newPos.findIndex(p => p !== editPrimaryPosition);
+                                  if (idxToRemove !== -1) {
+                                    newPos.splice(idxToRemove, 1);
+                                  } else {
+                                    newPos.shift();
+                                  }
+                                }
+                                newPos.push(pos);
+                                setEditPositions(newPos);
+                                if (newPos.length === 1 || !editPrimaryPosition) {
+                                  setEditPrimaryPosition(pos);
+                                }
                               }
                             }}
                             className={`
-                                       flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-bold transition-all border
+                                       relative flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-bold transition-all border
                                        ${sel
-                                ? "bg-emerald-50 border-[#1f7a4f] text-[#1f7a4f] shadow-sm"
-                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                ? isPrimary 
+                                    ? "bg-[#1f7a4f] border-[#16603c] text-white shadow-md ring-2 ring-[#1f7a4f]" 
+                                    : "bg-emerald-100/50 border-emerald-800 text-emerald-800"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
                               }
                                     `}
                           >
+                            {isPrimary && (
+                              <div className="absolute -top-1.5 -right-1.5 bg-white text-amber-500 rounded-full w-4 h-4 flex items-center justify-center shadow border border-amber-300 text-[8px] z-10 animate-in zoom-in-50 duration-200" title="Posición Principal">👑</div>
+                            )}
                             <span className="text-lg">{POSITION_ICONS[pos]}</span>
                             <span>{POSITION_LABELS[pos]}</span>
                           </button>

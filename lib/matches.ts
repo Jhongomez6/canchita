@@ -182,6 +182,8 @@ export async function joinMatch(
       profile?.positions && profile.positions.length > 0
         ? profile.positions
         : ["MID"];
+        
+    const primaryPosition: Position | undefined = profile?.primaryPosition;
 
     const level = profile?.level ?? 2;
 
@@ -194,6 +196,7 @@ export async function joinMatch(
           confirmed: true,
           level,
           positions,
+          ...(primaryPosition ? { primaryPosition } : {}),
           sex: profile?.sex,
           ...(profile?.phone ? { phone: profile.phone } : {}),
         },
@@ -231,6 +234,9 @@ export async function joinWaitlist(
       profile?.positions && profile.positions.length > 0
         ? profile.positions
         : ["MID"];
+        
+    const primaryPosition: Position | undefined = profile?.primaryPosition;
+    
     const level = profile?.level ?? 2;
 
     transaction.update(ref, {
@@ -244,6 +250,7 @@ export async function joinWaitlist(
           waitlistJoinedAt: new Date().toISOString(),
           level,
           positions,
+          ...(primaryPosition ? { primaryPosition } : {}),
           sex: profile?.sex,
           ...(profile?.phone ? { phone: profile.phone } : {}),
         },
@@ -395,6 +402,7 @@ export async function updatePlayerData(
   data: {
     level?: number;
     positions?: string[];
+    primaryPosition?: string;
   }
 ) {
   const ref = doc(db, "matches", matchId);
@@ -421,6 +429,7 @@ export async function addPlayerToMatch(
     name: string;
     level: number;
     positions: string[];
+    primaryPosition?: string;
   }
 ) {
   const ref = doc(db, "matches", matchId);

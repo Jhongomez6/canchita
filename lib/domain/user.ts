@@ -34,6 +34,7 @@ export interface UserProfile {
     originalGoogleName?: string;
     roles: UserRole[];
     positions: Position[];
+    primaryPosition?: Position;
     level?: number;
     notificationsEnabled?: boolean;
     fcmTokens?: string[];

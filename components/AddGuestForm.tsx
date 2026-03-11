@@ -24,6 +24,7 @@ export default function AddGuestForm({
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
   const [selectedPositions, setSelectedPositions] = useState<Position[]>([]);
+  const [primaryPosition, setPrimaryPosition] = useState<Position | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ========================
@@ -31,23 +32,39 @@ export default function AddGuestForm({
   // ========================
   const isNameValid = name.trim().length >= 2;
   const arePositionsValid =
-    selectedPositions.length >= 1 && selectedPositions.length <= 2;
+    selectedPositions.length >= 1 && selectedPositions.length <= 3 && !!primaryPosition;
   const isFormValid = isNameValid && arePositionsValid;
 
   // ========================
   // HANDLERS
   // ========================
   const handlePositionToggle = (position: Position) => {
-    setSelectedPositions((prev) => {
-      if (prev.includes(position)) {
-        return prev.filter((p) => p !== position);
+    if (selectedPositions.includes(position)) {
+      if (primaryPosition === position) {
+        // Remover completa
+        const newPos = selectedPositions.filter((p) => p !== position);
+        setSelectedPositions(newPos);
+        setPrimaryPosition(newPos.length > 0 ? newPos[0] : null);
       } else {
-        if (prev.length >= 2) {
-          return [...prev.slice(1), position];
-        }
-        return [...prev, position];
+        // Hacer primaria
+        setPrimaryPosition(position);
       }
-    });
+    } else {
+      const newPos = [...selectedPositions];
+      if (newPos.length >= 3) {
+        const idxToRemove = newPos.findIndex((p) => p !== primaryPosition);
+        if (idxToRemove !== -1) {
+          newPos.splice(idxToRemove, 1);
+        } else {
+          newPos.shift();
+        }
+      }
+      newPos.push(position);
+      setSelectedPositions(newPos);
+      if (newPos.length === 1 || !primaryPosition) {
+        setPrimaryPosition(position);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,10 +81,12 @@ export default function AddGuestForm({
       await addGuestToMatch(matchId, playerUid, {
         name: name.trim(),
         positions: selectedPositions,
+        ...(primaryPosition ? { primaryPosition } : {}),
       });
 
       setName("");
       setSelectedPositions([]);
+      setPrimaryPosition(null);
       setIsOpen(false); // Close after success
 
       toast.success("Invitado agregado correctamente");
@@ -125,7 +144,10 @@ export default function AddGuestForm({
                   <p className="font-bold text-slate-800 mb-1">{guest.name}</p>
                   <p className="text-sm text-purple-700">
                     {guest.positions
-                      .map((pos) => POSITION_LABELS[pos])
+                      .map((pos) => {
+                        const isPri = guest.primaryPosition ? guest.primaryPosition === pos : guest.positions[0] === pos;
+                        return isPri ? `👑 ${POSITION_LABELS[pos]}` : POSITION_LABELS[pos]
+                      })
                       .join(", ")}
                   </p>
                 </div>
@@ -172,7 +194,7 @@ export default function AddGuestForm({
       </div>
 
       <p className="text-sm text-slate-500 mb-4">
-        Puedes invitar hasta 2 personas sin cuenta por partido.
+        Puedes invitar hasta 2 personas sin cuenta por partido. <br /> <strong className="text-emerald-600">Elige hasta 3 posiciones y toca de nuevo una seleccionada para hacerla principal (👑)</strong>.
       </p>
 
       <form onSubmit={handleSubmit}>
@@ -194,30 +216,32 @@ export default function AddGuestForm({
           )}
         </div>
 
-        {/* POSICIONES */}
         <div className="mb-6">
           <label className="block text-sm font-bold text-slate-700 mb-2">
-            Posiciones (1-2) *
+            Posiciones * (máx. 3)
           </label>
           <div className="grid grid-cols-2 gap-2">
             {ALLOWED_POSITIONS.map((pos) => {
               const isSelected = selectedPositions.includes(pos);
+              const isPrimary = primaryPosition === pos;
               return (
                 <button
                   key={pos}
                   type="button"
                   onClick={() => handlePositionToggle(pos)}
                   className={`
-                    p-3 rounded-xl border text-sm font-bold transition-all relative
+                    flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all relative
                     ${isSelected
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}
+                      ? isPrimary 
+                        ? "border-[#16603c] bg-[#1f7a4f] text-white ring-2 ring-[#1f7a4f] shadow-md" 
+                        : "border-emerald-800 bg-emerald-100/50 text-emerald-800"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300"}
                   `}
                 >
-                  {POSITION_LABELS[pos]}
-                  {isSelected && (
-                    <span className="absolute top-1 right-1 text-emerald-600 text-xs">✓</span>
+                  {isPrimary && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-white text-amber-500 w-4 h-4 flex items-center justify-center rounded-full shadow border border-amber-300 text-[8px] animate-in zoom-in-50 duration-200 z-10" title="Posición Principal">👑</span>
                   )}
+                  {POSITION_LABELS[pos]}
                 </button>
               );
             })}

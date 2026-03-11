@@ -44,7 +44,8 @@ interface Player {
   uid?: string;           // UID del usuario (opcional para manuales)
   name: string;           // Nombre del jugador
   level: 1 | 2 | 3;      // Nivel: Bajo, Medio, Alto
-  positions: Position[];  // 1-2 posiciones
+  positions: Position[];  // 1-3 posiciones
+  primaryPosition?: Position; // Posición principal preferida (renderizada con 👑)
   confirmed: boolean;     // Si confirmó asistencia
 }
 ```
