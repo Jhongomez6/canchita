@@ -39,6 +39,7 @@ interface AppNotification {
     url?: string;       // deeplink para navegación
     read: boolean;
     createdAt: string;  // ISO string
+    expireAt?: string;  // TTL index for automatic deletion (set to +10 days)
 }
 ```
 

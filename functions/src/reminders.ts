@@ -4,6 +4,9 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 
 const db = admin.firestore();
 
+// 10 days in milliseconds for notification Time-To-Live
+const NOTIFICATION_TTL_MS = 10 * 24 * 60 * 60 * 1000;
+
 /**
  * 🔔 Recordatorios automáticos de partidos
  * Corre cada 30 minutos via Cloud Scheduler.
@@ -150,7 +153,7 @@ async function sendReminderIfNeeded(
       url: `/join/${matchId}`,
       read: false,
       createdAt: new Date().toISOString(),
-      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
     });
 
     // 2. BEST-EFFORT push
@@ -264,7 +267,7 @@ export const sendManualReminder = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: new Date().toISOString(),
-      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
     });
 
     // 2. BEST-EFFORT push
@@ -480,7 +483,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
-      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
     }));
   }
 
@@ -492,7 +495,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
-      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
     }));
   }
 
@@ -504,7 +507,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
-      expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
     }));
   }
 
@@ -627,7 +630,7 @@ export const notifyFeedbackResolved = onCall(async (request) => {
     type: "feedback_resolved",
     read: false,
     createdAt: now,
-    expireAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+    expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
   });
 
   // 2. Update feedback status
