@@ -47,6 +47,7 @@ interface Player {
   positions: Position[];  // 1-3 posiciones
   primaryPosition?: Position; // Posición principal preferida (renderizada con 👑)
   confirmed: boolean;     // Si confirmó asistencia
+  photoURL?: string;      // URL de la foto de perfil (Firebase Storage)
 }
 ```
 
@@ -399,14 +400,21 @@ Esta implementación demuestra cómo **SDD** garantiza que:
 
 ## 10. ESPECIFICACIÓN UI: LISTA DE JUGADORES (Join Page)
 
-### Visualización de Avatar
-En lugar de fotos de perfil o iniciales, se debe mostrar el **icono de la posición primaria** del jugador para facilitar la lectura táctica.
+### Visualización de Avatar y Posición
+En todos los listados de jugadores (Join Page, Admin, MVP), se utiliza un sistema de avatar unificado que combina identidad y rol táctico.
 
 ### Reglas de Visualización
-| Tipo | Fondo | Color Icono | Contenido |
-|------|-------|-------------|-----------|
-| **Jugador Registrado** | `bg-emerald-100` | `text-emerald-700` | `POSITION_ICONS[p.positions[0]]` (o MID por defecto) |
-| **Invitado** | `bg-purple-100` | `text-purple-700` | `POSITION_ICONS[g.positions[0]]` (o icono invitado si no hay pos) |
+| Elemento | Fuente de Datos | Comportamiento |
+|------|-----------------------|---------------------------|
+| **Base del Avatar** | `photoURL` | Si existe, muestra la foto; si no, muestra las **iniciales** del nombre. |
+| **Badge de Posición** | `primaryPosition` | Se muestra siempre como un badge flotante sobre el avatar. |
+| **Prioridad de Icono** | `primaryPosition` > `positions[0]` | Prioriza la posición principal del perfil sobre la lista general. |
+
+### Sincronización de Perfiles
+Para asegurar que los datos visuales sean consistentes, la página de Join implementa una sincronización reactiva:
+- **Evento**: Al cargar el detalle del partido.
+- **Lógica**: Si el `photoURL` o las `positions` del perfil del usuario difieren de los almacenados en el documento del partido, el sistema los actualiza automáticamente sin requerir acción del usuario.
+- **Objetivo**: Garantizar que los cambios en el perfil se reflejen en todos los partidos activos del jugador.
 
 ### Navegación de Administrador
 - Los usuarios con rol `admin` verán un botón destacado "👁️ Ver como admin" en la parte superior del detalle del partido.

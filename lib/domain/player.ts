@@ -56,6 +56,7 @@ export interface Player {
     waitlistJoinedAt?: string;
     sex?: 'M' | 'F';
     phone?: string;
+    photoURL?: string;
 }
 
 // ========================

@@ -20,6 +20,7 @@ import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { balanceTeams } from "@/lib/balanceTeams";
 import { calculateMvpStatus } from "@/lib/mvp";
 import { getAllUsers, getUserProfile } from "@/lib/users";
@@ -42,7 +43,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { updatePlayerStats } from "@/lib/playerStats";
 import type { Position, PlayerLevel } from "@/lib/domain/player";
-import type { Player } from "@/lib/domain/player";
+import { type Player, POSITION_ICONS } from "@/lib/domain/player";
 import type { Match } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
 import { isSuperAdmin } from "@/lib/domain/user";
@@ -747,9 +748,20 @@ export default function MatchDetailPage() {
               {match.players?.filter((p: Player) => !p.isWaitlist).map((p: Player, i: number) => (
                 <div key={i} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${p.confirmed ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                      }`}>
-                      {p.name.charAt(0).toUpperCase()}
+                    <div className="relative shrink-0">
+                      {p.photoURL ? (
+                        <div className="w-10 h-10 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                          <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="40px" />
+                        </div>
+                      ) : (
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${p.confirmed ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                          }`}>
+                          {p.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center text-[10px] shadow-md border border-slate-100 font-bold z-10">
+                        {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
+                      </div>
                     </div>
                     <div>
                       <div className="font-bold text-slate-800">{p.name}</div>
@@ -890,8 +902,11 @@ export default function MatchDetailPage() {
                     return (
                       <div key={`guest-${i}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
+                          <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-[10px] font-bold shrink-0 relative shadow-sm">
                             Inv
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-purple-50 z-10">
+                              {POSITION_ICONS[g.primaryPosition || (g.positions?.[0] as Position) || "MID"]}
+                            </div>
                           </div>
                           <div>
                             <div className="font-bold text-sm text-slate-800">{g.name}</div>
@@ -971,8 +986,19 @@ export default function MatchDetailPage() {
                       return (
                         <div key={`wl-${i}`} className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
-                              #{i + 1}
+                            <div className="relative shrink-0">
+                              {p.photoURL ? (
+                                <div className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm ring-1 ring-amber-200">
+                                  <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="32px" />
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
+                                  #{i + 1}
+                                </div>
+                              )}
+                              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px] shadow-sm border border-amber-100 z-10">
+                                {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
+                              </div>
                             </div>
                             <div className="flex flex-col">
                               <span className="font-bold text-slate-700 text-sm">{p.name}</span>
@@ -1156,6 +1182,7 @@ export default function MatchDetailPage() {
                                     key={targetId}
                                     id={targetId}
                                     name={p.name}
+                                    photoURL={p.photoURL}
                                     details={`⚡${p.level} · ${[
                                       p.primaryPosition ? `👑${p.primaryPosition}` : null,
                                       ...(p.positions || []).filter(pos => pos !== p.primaryPosition)
@@ -1194,6 +1221,7 @@ export default function MatchDetailPage() {
                                     key={targetId}
                                     id={targetId}
                                     name={p.name}
+                                    photoURL={p.photoURL}
                                     details={`⚡${p.level} · ${[
                                       p.primaryPosition ? `👑${p.primaryPosition}` : null,
                                       ...(p.positions || []).filter(pos => pos !== p.primaryPosition)
@@ -1576,7 +1604,7 @@ export default function MatchDetailPage() {
   );
 }
 
-function PlayerItem({ id, name, details, isMvp, votes }: { id: string; name: string, details: string, isMvp?: boolean, votes?: number }) {
+function PlayerItem({ id, name, photoURL, details, isMvp, votes }: { id: string; name: string, photoURL?: string, details: string, isMvp?: boolean, votes?: number }) {
   const {
     attributes,
     listeners,
@@ -1601,12 +1629,28 @@ function PlayerItem({ id, name, details, isMvp, votes }: { id: string; name: str
       {...listeners}
       className={`p-3 bg-white border rounded-lg shadow-sm flex justify-between items-center cursor-grab active:cursor-grabbing hover:border-slate-300 transition-colors ${isDragging ? "ring-2 ring-emerald-500 rotate-2" : "border-slate-200"} ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border-amber-200 ring-1 ring-amber-100" : ""}`}
     >
-      <div>
-        <div className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
-          {name}
-          {isMvp && <span className="text-sm drop-shadow-sm" title="MVP Actual">👑</span>}
+      <div className="flex items-center gap-3">
+        <div className="relative shrink-0">
+          {photoURL ? (
+            <div className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+              <Image src={photoURL} alt={name} fill className="object-cover" sizes="32px" />
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
+              {name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-slate-100 z-10">
+            {POSITION_ICONS[details.split(" · ")[1].split("/")[0].replace("👑", "") as Position] || POSITION_ICONS["MID"]}
+          </div>
         </div>
-        <div className="text-[10px] text-slate-500 font-medium">{details}</div>
+        <div>
+          <div className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+            {name}
+            {isMvp && <span className="text-sm drop-shadow-sm" title="MVP Actual">👑</span>}
+          </div>
+          <div className="text-[10px] text-slate-500 font-medium">{details}</div>
+        </div>
       </div>
 
       {votes ? (

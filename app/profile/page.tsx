@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { enablePushNotifications } from "@/lib/push";
-import { updateUserPositions, updateUserName, updatePlayerAttributes, requestReEvaluation, deleteUser } from "@/lib/users";
-import { deleteUser as deleteAuthUser } from "firebase/auth";
+import { updateUserPositions, updateUserName, updatePlayerAttributes, requestReEvaluation, deleteUser, updateUserPhoto } from "@/lib/users";
+import { uploadAvatarBase64 } from "@/lib/storage";
+import { deleteUser as deleteAuthUser, updateProfile } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import type { Position } from "@/lib/domain/player";
 import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain/player";
@@ -16,6 +17,8 @@ import StatsCard from "@/components/StatsCard";
 import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { X, Share, PlusSquare } from "lucide-react";
+import Image from "next/image";
+import Cropper from "react-easy-crop";
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
 const SEX_LABELS: Record<string, string> = { male: "M", female: "F", other: "Otro" };
@@ -60,6 +63,15 @@ export default function ProfilePage() {
   const [editPrimaryPosition, setEditPrimaryPosition] = useState<string | null>(null);
   const [editFoot, setEditFoot] = useState<Foot | null>(null);
   const [editCourt, setEditCourt] = useState<CourtSize | null>(null);
+  const [editPhotoB64, setEditPhotoB64] = useState<string | null>(null);
+
+  // Cropper states
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<{ width: number, height: number, x: number, y: number } | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Push notifications
   const [enablingPush, setEnablingPush] = useState(false);
@@ -141,12 +153,75 @@ export default function ProfilePage() {
     setEditPrimaryPosition(primaryPosition);
     setEditFoot(dominantFoot);
     setEditCourt(preferredCourt);
+    setEditPhotoB64(null);
+    setImageSrc(null);
     setEditing(true);
   }
 
   function cancelEditing() {
+    setImageSrc(null);
     setEditing(false);
   }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("La imagen es demasiado grande. Máximo 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setImageSrc(event.target?.result as string);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    };
+    reader.readAsDataURL(file);
+
+    // Clear the input so same file can be selected again
+    e.target.value = '';
+  };
+
+  const onCropComplete = (croppedArea: { width: number, height: number, x: number, y: number }, croppedAreaPixels: { width: number, height: number, x: number, y: number }) => {
+    // Avoid using croppedArea directly to prevent unused var warning, we only need pixels for canvas
+    if (croppedArea) {
+      setCroppedAreaPixels(croppedAreaPixels);
+    }
+  };
+
+  const applyCrop = async () => {
+    if (!imageSrc || !croppedAreaPixels) return;
+
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      // Output 256x256
+      const MAX_SIZE = 256;
+      canvas.width = MAX_SIZE;
+      canvas.height = MAX_SIZE;
+      const ctx = canvas.getContext("2d");
+
+      if (ctx) {
+        ctx.drawImage(
+          img,
+          croppedAreaPixels.x,
+          croppedAreaPixels.y,
+          croppedAreaPixels.width,
+          croppedAreaPixels.height,
+          0,
+          0,
+          MAX_SIZE,
+          MAX_SIZE
+        );
+        const compressedBase64 = canvas.toDataURL("image/webp", 0.7);
+        setEditPhotoB64(compressedBase64);
+        setImageSrc(null);
+      }
+    };
+    img.src = imageSrc;
+  };
 
   async function saveAll() {
     if (!user) return;
@@ -180,6 +255,18 @@ export default function ProfilePage() {
         if (editFoot) setDominantFoot(editFoot);
         if (editCourt) setPreferredCourt(editCourt);
       }
+
+      if (editPhotoB64) {
+        // Enlazar la subida a Storage en lugar de tirarlo directo a la BD (Ahorra un montón de ancho de banda a largo plazo)
+        const publicUrl = await uploadAvatarBase64(user.uid, editPhotoB64);
+
+        // Guardamos solo el URL público súper corto en Firestore y Auth
+        await updateUserPhoto(user.uid, publicUrl);
+        await updateProfile(user, { photoURL: publicUrl });
+
+        // Reforzamos local el cambio visual inmediato de la foto de base64 ya que ya no vivirá ahí sino por red
+      }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       setEditing(false);
@@ -229,8 +316,8 @@ export default function ProfilePage() {
 
   const Chip = ({ active, isPrimary, children }: { active: boolean, isPrimary?: boolean, children: React.ReactNode }) => (
     <span className={`relative inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${active
-      ? isPrimary 
-        ? "bg-[#1f7a4f] text-white border-[#16603c] shadow-sm ring-1 ring-[#1f7a4f]" 
+      ? isPrimary
+        ? "bg-[#1f7a4f] text-white border-[#16603c] shadow-sm ring-1 ring-[#1f7a4f]"
         : "bg-emerald-100/50 text-emerald-700 border-emerald-200"
       : "bg-slate-100 text-slate-500 border-slate-200"
       }`}>
@@ -263,6 +350,59 @@ export default function ProfilePage() {
   return (
     <AuthGuard>
       <main className="min-h-screen bg-slate-50 pb-24 md:pb-8">
+        {/* CROPPER MODAL REDISEÑADO AL ESTILO NATIVO DE TIKTOK/INSTAGRAM */}
+        {imageSrc && (
+          <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-between pb-10 pt-safe font-sans animate-in fade-in duration-200">
+            {/* Header / Actions - Fondo semi-transparente para leer bien */}
+            <div className="w-full flex justify-between items-center p-4 z-10 bg-gradient-to-b from-black/60 to-transparent">
+              <button
+                onClick={() => setImageSrc(null)}
+                className="text-white font-semibold text-lg hover:opacity-80 transition py-2 px-2"
+              >
+                Cancelar
+              </button>
+              <h2 className="text-white font-bold text-sm">Ajustar foto</h2>
+              <button
+                onClick={applyCrop}
+                className="bg-white text-black font-bold text-sm px-5 py-2 rounded-full hover:bg-slate-200 shadow-xl transition-all active:scale-95"
+              >
+                Hecho
+              </button>
+            </div>
+
+            {/* CROP AREA MAIN */}
+            <div className="relative w-full flex-1 touch-none">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                style={{ containerStyle: { background: 'black' }, cropAreaStyle: { border: '2px solid rgba(255,255,255,0.7)', padding: 0 } }}
+              />
+            </div>
+
+            {/* SLIDER TIPO INSTAGRAM PARA ZOOM FINO */}
+            <div className="w-full px-8 pb-6 bg-gradient-to-t from-black/80 to-transparent z-10 pt-10 flex flex-col items-center">
+              <p className="text-white/60 text-xs mb-4 font-medium uppercase tracking-widest">Arrastra para mover</p>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full max-w-[250px] accent-white bg-white/20 h-1.5 rounded-full appearance-none outline-none cursor-pointer"
+              />
+              <p className="text-white/40 text-[10px] mt-3">ZOOM</p>
+            </div>
+          </div>
+        )}
+
         <div className="max-w-md mx-auto p-4">
 
           {/* Onboarding banner */}
@@ -305,7 +445,25 @@ export default function ProfilePage() {
               {/* =================== */}
               {!editing ? (
                 <div className="space-y-1">
-                  <InfoRow label="Nombre" value={displayName || "—"} />
+                  <div className="flex justify-center flex-col items-center mb-6 mt-2">
+                    <div className="relative w-32 h-32 rounded-full border-4 border-slate-100 shadow-sm overflow-hidden bg-slate-50 mb-3">
+                      <Image
+                        src={profile?.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                        alt={displayName || "Foto de perfil"}
+                        fill
+                        className="object-cover"
+                        sizes="128px"
+                        priority
+                      />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800">{displayName}</h3>
+                    <p className="text-[10px] text-slate-400 mt-2 bg-slate-100 px-3 py-1 rounded-full font-medium">
+                      📸 Tu foto ayuda a que tu equipo te reconozca fácil en la canchita
+                    </p>
+                  </div>
+
+                  {/* Ya no requerimos mostrar el row de nombre dado que lo pusimos grande abajo de la foto */}
+                  {/* <InfoRow label="Nombre" value={displayName || "—"} /> */}
                   {age != null && <InfoRow label="Edad" value={`${age} años`} />}
                   {sex && <InfoRow label="Sexo" value={SEX_LABELS[sex] || sex} />}
 
@@ -379,6 +537,33 @@ export default function ProfilePage() {
                 /*     EDIT MODE       */
                 /* =================== */
                 <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {/* Photo Edit */}
+                  <div className="flex flex-col items-center mb-2 mt-2">
+                    <div
+                      className="relative w-32 h-32 rounded-full border-4 border-slate-100 shadow-sm overflow-hidden bg-slate-50 mb-3 group cursor-pointer"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Image
+                        src={editPhotoB64 || profile?.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                        alt="Editar foto de perfil"
+                        fill
+                        className="object-cover transition-opacity group-hover:opacity-50"
+                        sizes="128px"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <span className="bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm">Editar Foto</span>
+                      </div>
+                    </div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/jpeg, image/png, image/webp"
+                      onChange={handleImageChange}
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium tracking-tight">Toca la imagen para cambiarla</p>
+                  </div>
+
                   {/* Name */}
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Nombre</label>
@@ -443,7 +628,7 @@ export default function ProfilePage() {
                       {ALLOWED_POSITIONS.map((pos: Position) => {
                         const sel = editPositions.includes(pos);
                         const isPrimary = editPrimaryPosition === pos;
-                        
+
                         return (
                           <button
                             key={pos}
@@ -478,9 +663,9 @@ export default function ProfilePage() {
                             className={`
                                        relative flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-bold transition-all border
                                        ${sel
-                                ? isPrimary 
-                                    ? "bg-[#1f7a4f] border-[#16603c] text-white shadow-md ring-2 ring-[#1f7a4f]" 
-                                    : "bg-emerald-100/50 border-emerald-800 text-emerald-800"
+                                ? isPrimary
+                                  ? "bg-[#1f7a4f] border-[#16603c] text-white shadow-md ring-2 ring-[#1f7a4f]"
+                                  : "bg-emerald-100/50 border-emerald-800 text-emerald-800"
                                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
                               }
                                     `}

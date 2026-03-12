@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { loginWithGoogle } from "@/lib/auth";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
@@ -108,6 +108,48 @@ export default function JoinMatchPage() {
     return () => unsubscribe();
   }, [loading, user, id, profile]);
 
+  // Sync player profile data (photo, positions) to match document reactively
+  useEffect(() => {
+    if (!user || !profile || !match || match.status === "closed" || !match.players) return;
+
+    const currentPlayer = match.players.find((p: Player) => p.uid === user.uid);
+    if (!currentPlayer) return;
+
+    // Detectar cambios en foto o posiciones
+    const profilePhoto = profile.photoURL || null;
+    const matchPhoto = currentPlayer.photoURL || null;
+
+    const profilePrimary = profile.primaryPosition || null;
+    const matchPrimary = currentPlayer.primaryPosition || null;
+
+    // ComparaciÃ³n bÃ¡sica de arrays para posiciones
+    const profilePositions = JSON.stringify(profile.positions || []);
+    const matchPositions = JSON.stringify(currentPlayer.positions || []);
+
+    const needsSync = profilePhoto !== matchPhoto ||
+      profilePrimary !== matchPrimary ||
+      profilePositions !== matchPositions;
+
+    if (needsSync) {
+      const syncPlayerData = async () => {
+        try {
+          const updatedPlayers = match.players.map((p: Player) =>
+            p.uid === user.uid ? {
+              ...p,
+              photoURL: profilePhoto,
+              primaryPosition: profile.primaryPosition || p.primaryPosition,
+              positions: profile.positions && profile.positions.length > 0 ? profile.positions : p.positions
+            } : p
+          );
+          await updateDoc(doc(db, "matches", id), { players: updatedPlayers });
+        } catch (err) {
+          console.error("Error syncing player data:", err);
+        }
+      };
+      syncPlayerData();
+    }
+  }, [user, profile, match, id]);
+
   useEffect(() => {
     if (!match?.locationId) return;
 
@@ -181,7 +223,6 @@ export default function JoinMatchPage() {
               width={120}
               height={100}
               style={{ height: "auto", width: "auto" }}
-              priority={true}
             />
           </div>
 
@@ -265,7 +306,6 @@ export default function JoinMatchPage() {
               width={120}
               height={100}
               style={{ height: "auto", width: "auto" }}
-              priority={true}
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Redirigiendo a tu perfil...</p>
@@ -291,7 +331,6 @@ export default function JoinMatchPage() {
               width={120}
               height={100}
               style={{ height: "auto", width: "auto" }}
-              priority={true}
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Necesitamos tu número de teléfono...</p>
@@ -337,9 +376,9 @@ export default function JoinMatchPage() {
 
   // MVP Logic
   const myVote = match.mvpVotes?.[user.uid] || null;
-  const eligiblePlayersAndGuests = [
+  const eligiblePlayersAndGuests: Player[] = [
     ...(match.players?.filter((p: Player) => p.confirmed) || []),
-    ...(match.guests || []).map((g: Guest) => ({ name: g.name, uid: `guest_${g.name}` })) // Fake UIDs for guests to handle votes
+    ...(match.guests?.filter((g: Guest) => !g.isWaitlist).map((g: Guest) => guestToPlayer(g, 2)) || [])
   ];
 
   const {
@@ -662,19 +701,6 @@ export default function JoinMatchPage() {
             />
           )}
 
-          {/* MENSAJE INVITADOS NO PERMITIDOS */}
-          {!isClosed && existingPlayer?.confirmed && match.allowGuests === false && (
-            <div className="bg-slate-100 rounded-2xl p-4 text-center text-sm font-medium text-slate-500 border border-slate-200">
-              🚫 Las invitaciones están deshabilitadas para este partido
-            </div>
-          )}
-
-
-
-
-
-
-
 
           {/* LISTA DE JUGADORES O REPORTE */}
           {isClosed && match.teams ? (() => {
@@ -763,8 +789,19 @@ export default function JoinMatchPage() {
                         return (
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-white text-red-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-red-100">
-                                {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
+                              <div className="relative shrink-0">
+                                {p.photoURL ? (
+                                  <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                                    <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
+                                  </div>
+                                ) : (
+                                  <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
+                                    {p.name.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-slate-50 z-10 font-bold">
+                                  {POSITION_ICONS[(p.primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                                </div>
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
                               {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
@@ -791,8 +828,19 @@ export default function JoinMatchPage() {
                         return (
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-white text-blue-700 flex items-center justify-center text-xs font-bold shadow-sm ring-1 ring-blue-100">
-                                {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
+                              <div className="relative shrink-0">
+                                {p.photoURL ? (
+                                  <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                                    <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
+                                  </div>
+                                ) : (
+                                  <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
+                                    {p.name.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-slate-50 z-10 font-bold">
+                                  {POSITION_ICONS[(p.primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                                </div>
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
                               {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
@@ -836,11 +884,11 @@ export default function JoinMatchPage() {
                           )}
                           {votingClosed && currentMVPs.length === 1 && (
                             <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4">
-                              <span>⭐</span> ¡Crack, la diste toda manito(a)!
+                              <span>⭐</span> ¡Crack, la diste toda!
                             </div>
                           )}
                           {sortedMVPLeaderboard.slice(0, 3).map(([targetId, votes]: [string, number], idx: number) => {
-                            const player = eligiblePlayersAndGuests.find(p => p.uid === targetId || p.name === targetId);
+                            const player = eligiblePlayersAndGuests.find(p => p.uid === targetId || p.name === targetId) as Player;
                             if (!player) return null;
                             const isMyVote = myVote === targetId;
                             const isWinner = currentMVPs.includes(targetId);
@@ -859,9 +907,23 @@ export default function JoinMatchPage() {
                                 )}
 
                                 <div className="flex items-center gap-4 relative z-10">
-                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-xl shadow-inner
-                                      ${isWinner ? 'bg-amber-100/50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}>
-                                    {isWinner ? <span className={`drop-shadow-sm mt-1 ${votingClosed ? "" : "animate-bounce"}`}>👑</span> : idx + 1}
+                                  <div className="relative z-10">
+                                    <div className="relative">
+                                      {player.photoURL ? (
+                                        <div className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}>
+                                          <Image src={player.photoURL} alt={player.name} fill className="object-cover" sizes="56px" />
+                                        </div>
+                                      ) : (
+                                        <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-inner
+                                            ${isWinner ? 'bg-amber-100/50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}>
+                                          {isWinner ? <span className={`drop-shadow-sm mt-1 ${votingClosed ? "" : "animate-bounce"}`}>👑</span> : idx + 1}
+                                        </div>
+                                      )}
+                                      <div className={`absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs shadow-md border font-bold z-10
+                                          ${isWinner ? 'border-amber-300' : 'border-slate-100'}`}>
+                                        {POSITION_ICONS[player.primaryPosition || (player.positions?.[0] as Position) || "MID"]}
+                                      </div>
+                                    </div>
                                   </div>
                                   <div className="flex flex-col">
                                     <span className={`font-black text-lg tracking-tight ${isWinner ? 'text-amber-900' : 'text-slate-800'}`}>
@@ -935,8 +997,19 @@ export default function JoinMatchPage() {
                                             : "bg-white border-amber-200 text-slate-700 hover:bg-amber-100 hover:scale-105 active:scale-95"
                                           }`}
                                       >
-                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? "bg-white text-amber-600" : "bg-slate-100 text-slate-500"}`}>
-                                          {p.name.charAt(0).toUpperCase()}
+                                        <div className="relative shrink-0">
+                                          {p.photoURL ? (
+                                            <div className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200">
+                                              <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="24px" />
+                                            </div>
+                                          ) : (
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? "bg-white text-amber-600" : "bg-slate-100 text-slate-500"}`}>
+                                              {p.name.charAt(0).toUpperCase()}
+                                            </div>
+                                          )}
+                                          <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center text-[7px] shadow-sm border border-amber-50 z-10 font-black">
+                                            {POSITION_ICONS[(p.primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                                          </div>
                                         </div>
                                         <span className="text-xs truncate">{p.name} {p.uid?.startsWith("guest_") && "(Inv)"}</span>
                                       </button>
@@ -1004,8 +1077,19 @@ export default function JoinMatchPage() {
                   {match.players?.filter((p: Player) => p.confirmed).map((p: Player, i: number) => (
                     <div key={`p-${i}`} className="py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm">
-                          {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
+                        <div className="relative shrink-0">
+                          {p.photoURL ? (
+                            <div className="w-9 h-9 rounded-full overflow-hidden relative border border-emerald-200 shadow-sm">
+                              <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="36px" />
+                            </div>
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-black shadow-sm ring-1 ring-emerald-200">
+                              {p.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px] shadow-sm border border-slate-100 font-bold z-10">
+                            {POSITION_ICONS[p.primaryPosition || (p.positions?.[0] as Position) || "MID"]}
+                          </div>
                         </div>
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-800 text-sm">{p.name}</span>
@@ -1030,8 +1114,11 @@ export default function JoinMatchPage() {
                     return (
                       <div key={`g-${i}`} className="py-3 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm">
-                            {POSITION_ICONS[g.primaryPosition || (g.positions?.[0] as Position) || "MID"]}
+                          <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] font-black shrink-0 relative shadow-sm">
+                            {g.name.charAt(0).toUpperCase()}
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-purple-50 z-10 font-bold">
+                              {POSITION_ICONS[g.primaryPosition || (g.positions?.[0] as Position) || "MID"]}
+                            </div>
                           </div>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-800 text-sm">{g.name}</span>
@@ -1106,8 +1193,19 @@ export default function JoinMatchPage() {
                     return (
                       <div key={`wl-${i}`} className="py-3 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200 shrink-0">
-                            #{i + 1}
+                          <div className="relative shrink-0">
+                            {p.photoURL ? (
+                              <div className="w-8 h-8 rounded-full overflow-hidden relative border border-amber-200 ring-1 ring-amber-100 shadow-sm">
+                                <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="32px" />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
+                                #{i + 1}
+                              </div>
+                            )}
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-amber-100 z-10 font-bold">
+                              {POSITION_ICONS[(p.primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                            </div>
                           </div>
                           <div className="flex flex-col">
                             <span className="font-bold text-slate-700 text-sm">

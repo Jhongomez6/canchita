@@ -18,7 +18,7 @@ interface UserProfile {
   uid: string;              // Firebase Auth UID
   name: string;             // Nombre del jugador (editable)
   email?: string;           // Correo vinculado a Google Auth
-  photoURL?: string;        // Foto de perfil de Google Auth
+  photoURL?: string;        // Foto de perfil (Google Auth o Firebase Storage)
   originalGoogleName?: string; // Trazabilidad de seguridad: Nombre original de la cuenta de Google
   roles: UserRole[];        // Roles del usuario (ej: ["player", "admin"])
   adminType?: AdminType;    // Nivel de admin: "super_admin", "location_admin", "team_admin"
@@ -46,6 +46,7 @@ interface UserProfile {
 | 9 | Cambio de nombre solo cada 30 días | `nameLastChanged` + cooldown en profile page |
 | 10 | Posiciones con iconos visuales | `POSITION_ICONS` en `lib/domain/player.ts` |
 | 11 | Feedback separado nombre/posiciones | `nameSaved` / `positionsSaved` estados independientes |
+| 12 | Carga de foto de perfil | `uploadAvatarBase64` en `lib/storage.ts` y crop con `react-easy-crop` |
 
 ---
 
@@ -117,6 +118,7 @@ export async function getAllUsers(): Promise<UserProfile[]>
 export async function updatePlayerAttributes(uid: string, data: { dominantFoot?: string; preferredCourt?: string })
 export async function updateUserPositions(uid: string, positions: Position[]): Promise<void>
 export async function updateUserName(uid: string, name: string): Promise<void>
+export async function updateUserPhoto(uid: string, photoURL: string): Promise<void>
 export async function deleteUser(uid: string): Promise<void>
 ```
 
@@ -243,10 +245,11 @@ export const POSITION_ICONS: Record<Position, string> = {
 | Dominio | `lib/domain/player.ts` | Position, ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS |
 | API | `lib/users.ts` | CRUD Firestore |
 | API | `lib/auth.ts` | Login Google |
+| API | `lib/storage.ts` | Subida de imágenes a Firebase Storage |
 | API | `lib/push.ts` | Push notifications |
 | UI | `lib/AuthContext.tsx` | Splash Screen centralizado |
 | UI | `components/AuthGuard.tsx` | Guard de rutas |
-| UI | `app/profile/page.tsx` | Ficha Técnica con modo vista/edición y re-evaluación |
+| UI | `app/profile/page.tsx` | Ficha Técnica con modo vista/edición, re-evaluación y carga de foto |
 | UI | `app/admin/users/page.tsx` | Panel admin |
 | UI | `components/skeletons/UserListSkeleton.tsx` | Skeleton exacto de usuarios |
 

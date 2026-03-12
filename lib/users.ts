@@ -119,6 +119,14 @@ export async function updateUserName(uid: string, name: string, originalGoogleNa
 }
 
 /* =========================
+   ACTUALIZAR FOTO DE PERFIL
+========================= */
+export async function updateUserPhoto(uid: string, photoURL: string) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { photoURL });
+}
+
+/* =========================
    GUARDAR ONBOARDING
 ========================= */
 export async function saveOnboardingResult(

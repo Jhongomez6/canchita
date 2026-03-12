@@ -199,6 +199,7 @@ export async function joinMatch(
           ...(primaryPosition ? { primaryPosition } : {}),
           sex: profile?.sex,
           ...(profile?.phone ? { phone: profile.phone } : {}),
+          ...(profile?.photoURL ? { photoURL: profile.photoURL } : {}),
         },
       ],
       playerUids: arrayUnion(user.uid),
@@ -253,6 +254,7 @@ export async function joinWaitlist(
           ...(primaryPosition ? { primaryPosition } : {}),
           sex: profile?.sex,
           ...(profile?.phone ? { phone: profile.phone } : {}),
+          ...(profile?.photoURL ? { photoURL: profile.photoURL } : {}),
         },
       ],
       playerUids: arrayUnion(user.uid),
@@ -446,9 +448,17 @@ export async function addPlayerToMatch(
   );
   if (exists) return;
 
+  // 🔥 Perfil del usuario (si tiene UID)
+  let photoURL: string | undefined;
+  if (player.uid) {
+    const profile = await getUserProfile(player.uid);
+    photoURL = profile?.photoURL;
+  }
+
   const newPlayer = {
     ...player,
     confirmed: false,
+    ...(photoURL ? { photoURL } : {}),
   };
 
   const updateData: Record<string, unknown> = {
