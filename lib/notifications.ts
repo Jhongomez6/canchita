@@ -22,7 +22,9 @@ import {
     limit,
     getCountFromServer,
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { db } from "./firebase";
+import { app } from "./firebase";
 import type { AppNotification } from "./domain/notification";
 
 const NOTIFICATIONS_LIMIT = 50;
@@ -77,4 +79,13 @@ export async function markAllAsRead(uid: string): Promise<void> {
     );
 
     await Promise.all(promises);
+}
+
+/* =========================
+   LIMPIAR BADGE iOS (APNs)
+========================= */
+export async function clearIOSBadge(): Promise<void> {
+    const functions = getFunctions(app);
+    const fn = httpsCallable(functions, "clearIOSBadge");
+    await fn();
 }

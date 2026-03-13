@@ -12,11 +12,13 @@ import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain
 import type { UserStats } from "@/lib/domain/user";
 import type { Sex, Foot, CourtSize } from "@/lib/domain/rating";
 import { handleError } from "@/lib/utils/error";
+import Link from "next/link";
+import { isSuperAdmin } from "@/lib/domain/user";
 import AuthGuard from "@/components/AuthGuard";
 import StatsCard from "@/components/StatsCard";
 import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
-import { X, Share, PlusSquare } from "lucide-react";
+import { X, Share, PlusSquare, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
 
@@ -1000,6 +1002,24 @@ export default function ProfilePage() {
               )}
 
               <div className="h-4"></div> {/* Bottom spacer */}
+            </div>
+          )}
+
+          {/* ========================= */}
+          {/*   HERRAMIENTAS ADMIN      */}
+          {/* ========================= */}
+          {!isOnboarding && profile && isSuperAdmin(profile) && (
+            <div className="mt-8 p-4 bg-slate-100 rounded-2xl border border-slate-200">
+              <h3 className="text-sm font-bold text-slate-600 mb-3 flex items-center gap-1.5">
+                <span>🛠</span> Herramientas Admin
+              </h3>
+              <Link
+                href="/admin/push-test"
+                className="flex items-center justify-between px-4 py-3 bg-white rounded-xl shadow-sm border border-slate-100 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <span>🧪 Push & Badge Diagnostics</span>
+                <ChevronRight size={16} className="text-slate-400" />
+              </Link>
             </div>
           )}
 

@@ -23,6 +23,9 @@ export default function PushTestPage() {
     // SW diagnostics
     const [swInfo, setSwInfo] = useState<string | null>(null);
 
+    // Badge diagnostics
+    const [badgeResult, setBadgeResult] = useState<string | null>(null);
+
     async function checkServiceWorker() {
         if (!("serviceWorker" in navigator)) {
             setSwInfo("❌ Service Workers not supported in this browser");
@@ -69,6 +72,49 @@ export default function PushTestPage() {
         }
     }
 
+    function checkBadgingAPI() {
+        const support = {
+            setAppBadge: "setAppBadge" in navigator,
+            clearAppBadge: "clearAppBadge" in navigator,
+            isStandalone: window.matchMedia("(display-mode: standalone)").matches,
+            platform: navigator.userAgent,
+        };
+        setBadgeResult(JSON.stringify(support, null, 2));
+    }
+
+    async function testSetBadge(count: number) {
+        if (!("setAppBadge" in navigator)) {
+            setBadgeResult("❌ Badging API not supported in this browser");
+            return;
+        }
+        await navigator.setAppBadge(count);
+        setBadgeResult(`✅ Badge set to ${count}`);
+    }
+
+    async function testClearBadge() {
+        if (!("clearAppBadge" in navigator)) {
+            setBadgeResult("❌ Badging API not supported in this browser");
+            return;
+        }
+        await navigator.clearAppBadge();
+        setBadgeResult("✅ Badge cleared (local)");
+    }
+
+    async function testClearIOSBadge() {
+        setLoading(true);
+        setBadgeResult(null);
+        try {
+            const functions = getFunctions(app);
+            const fn = httpsCallable(functions, "clearIOSBadge");
+            await fn();
+            setBadgeResult("✅ iOS badge clear push sent successfully");
+        } catch (err) {
+            setBadgeResult(`❌ Error: ${(err as Error).message}`);
+        } finally {
+            setLoading(false);
+        }
+    }
+
     return (
         <AuthGuard>
             <main className="min-h-screen bg-slate-50 p-6">
@@ -107,6 +153,27 @@ export default function PushTestPage() {
                                 {JSON.stringify(result, null, 2)}
                             </pre>
                         )}
+                    </div>
+
+                    {/* Step 4: Badge Diagnostics */}
+                    <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                        <h2 className="font-bold text-slate-700 mb-2">4. App Badge Diagnostics</h2>
+                        <p className="text-xs text-slate-500 mb-3">Prueba el badge en el ícono de la PWA (Badging API + APNs).</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            <button onClick={checkBadgingAPI} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold">
+                                Check API Support
+                            </button>
+                            <button onClick={() => testSetBadge(5)} disabled={loading} className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-bold disabled:opacity-50">
+                                Set Badge (5)
+                            </button>
+                            <button onClick={testClearBadge} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold disabled:opacity-50">
+                                Clear Badge (local)
+                            </button>
+                            <button onClick={testClearIOSBadge} disabled={loading} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold disabled:opacity-50">
+                                Clear iOS Badge (CF)
+                            </button>
+                        </div>
+                        {badgeResult && <pre className="text-xs bg-slate-50 p-3 rounded-lg overflow-auto whitespace-pre-wrap">{badgeResult}</pre>}
                     </div>
 
                     {/* Profile info */}

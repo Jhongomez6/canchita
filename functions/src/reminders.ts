@@ -167,6 +167,7 @@ async function sendReminderIfNeeded(
       tokens,
       notification: { title, body },
       data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
+      apns: { payload: { aps: { badge: 1, sound: "default" } } },
     });
 
     // 🧹 Limpieza de tokens PERMANENTEMENTE inválidos (no transitorios)
@@ -281,6 +282,7 @@ export const sendManualReminder = onCall(async (request) => {
       tokens,
       notification: { title, body },
       data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
+      apns: { payload: { aps: { badge: 1, sound: "default" } } },
     });
 
     sentTokensCount += response.successCount;
@@ -524,6 +526,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
         body: "Fuiste elegido como el MVP indiscutible del último partido.",
       },
       data: urlParams,
+      apns: { payload: { aps: { badge: 1, sound: "default" } } },
     });
     totalSent += res.successCount;
   }
@@ -537,6 +540,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
         body: "Tú y otros jugadores compartieron el título MVP del último partido. ¡Cracks!",
       },
       data: urlParams,
+      apns: { payload: { aps: { badge: 1, sound: "default" } } },
     });
     totalSent += res.successCount;
   }
@@ -550,6 +554,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
         body: `${namesString} la rompió y fue elegido como la figura de la cancha en tu último partido.`,
       },
       data: urlParams,
+      apns: { payload: { aps: { badge: 1, sound: "default" } } },
     });
     totalSent += res.successCount;
   }
@@ -694,6 +699,7 @@ export const testPushNotification = onCall(async (request) => {
       data: {
         url: "https://la-canchita.vercel.app/",
       },
+      apns: { payload: { aps: { badge: 1, sound: "default" } } },
     });
 
     const results = response.responses.map((res, idx) => ({
@@ -725,5 +731,34 @@ export const testPushNotification = onCall(async (request) => {
       error: `FCM exception: ${err.code || err.message || String(err)}`,
     };
   }
+});
+
+/**
+ * 📱 Clear iOS App Badge
+ * Sends a silent push with badge: 0 to clear the PWA icon badge on iOS.
+ * Called by the client when the user reads all notifications.
+ */
+export const clearIOSBadge = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Login required");
+
+  const userSnap = await db.collection("users").doc(uid).get();
+  const tokens: string[] = userSnap.data()?.fcmTokens ?? [];
+  if (tokens.length === 0) return { success: true };
+
+  await admin.messaging().sendEachForMulticast({
+    tokens,
+    data: { type: "badge_clear" },
+    apns: {
+      payload: {
+        aps: {
+          badge: 0,
+          "content-available": 1,
+        },
+      },
+    },
+  });
+
+  return { success: true };
 });
 

@@ -55,6 +55,17 @@ export default function Header() {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [user, pathname, isDrawerOpen]);
 
+  // Sync unread count → OS app badge (Badging API)
+  useEffect(() => {
+    if ("setAppBadge" in navigator) {
+      if (unreadCount > 0) {
+        navigator.setAppBadge(unreadCount).catch(() => {});
+      } else {
+        navigator.clearAppBadge().catch(() => {});
+      }
+    }
+  }, [unreadCount]);
+
   const handleLogout = async () => {
     await logout();
     router.push("/");
@@ -185,6 +196,17 @@ export default function Header() {
                 }}
               >
                 Feedback 💬
+              </Link>
+              <Link
+                href="/admin/push-test"
+                className="hidden md:block"
+                style={{
+                  color: "#e6f6ed",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
+                Push 🧪
               </Link>
             </>
           )}

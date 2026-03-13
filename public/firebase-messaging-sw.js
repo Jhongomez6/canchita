@@ -23,6 +23,11 @@ self.addEventListener("activate", function (event) {
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
 
+  // Clear app badge when user clicks a notification
+  if ("setAppBadge" in self.navigator) {
+    self.navigator.clearAppBadge().catch(() => {});
+  }
+
   const url = event.notification?.data?.url;
 
   if (!url) return;
@@ -61,5 +66,10 @@ messaging.onBackgroundMessage(function (payload) {
       icon: "/icons/icon-192x192.png",
       data: { url },
     });
+  }
+
+  // Set app badge to indicate unread notifications (flag badge, no number)
+  if ("setAppBadge" in self.navigator) {
+    self.navigator.setAppBadge().catch(() => {});
   }
 });

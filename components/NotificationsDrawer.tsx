@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { getMyNotifications, markAsRead, markAllAsRead } from "@/lib/notifications";
+import { getMyNotifications, markAsRead, markAllAsRead, clearIOSBadge } from "@/lib/notifications";
 import type { AppNotification } from "@/lib/domain/notification";
 import { useRouter } from "next/navigation";
 import { ReactNode } from "react";
@@ -38,6 +38,7 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
             const hasUnread = data.some(n => !n.read);
             if (hasUnread) {
                 markAllAsRead(user.uid).catch(console.error);
+                clearIOSBadge().catch(console.error);
             }
         } catch (err) {
             console.error("Error loading notifications:", err);
