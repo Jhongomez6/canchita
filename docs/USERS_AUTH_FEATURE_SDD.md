@@ -41,7 +41,7 @@ interface UserProfile {
 | 4 | Panel de gestión (Ranking/Admin) | `isSuperAdmin()` restringe áreas globales |
 | 5 | Perfil debe tener al menos 1 posición | Redirect en `AuthGuard.tsx` |
 | 6 | Máximo 3 posiciones por jugador (y una principal) | Validación en profile page y onboarding |
-| 7 | Super Admin puede eliminar usuarios| `deleteUser()` en `lib/users.ts` |
+| 7 | Eliminación de cuenta anonimiza datos personales (Habeas Data) | `deleteUser()` en `lib/users.ts` — reemplaza doc con traza anónima en lugar de borrar |
 | 8 | Jugador puede editar su nombre (mínimo 2 palabras) | `updateUserName()` en `lib/users.ts` y validación en `app/profile/page.tsx` |
 | 9 | Cambio de nombre solo cada 30 días | `nameLastChanged` + cooldown en profile page |
 | 10 | Posiciones con iconos visuales | `POSITION_ICONS` en `lib/domain/player.ts` |
@@ -87,6 +87,9 @@ export interface UserProfile {
   // Habeas Data / Legal Proof
   createdAt?: string;
   authAcceptedVersion?: string;
+  // Soft-anonymization (set on account deletion)
+  deleted?: boolean;
+  deletedAt?: string;
 }
 
 export function isAdmin(profile: UserProfile): boolean {
@@ -120,6 +123,10 @@ export async function updateUserPositions(uid: string, positions: Position[]): P
 export async function updateUserName(uid: string, name: string): Promise<void>
 export async function updateUserPhoto(uid: string, photoURL: string): Promise<void>
 export async function deleteUser(uid: string): Promise<void>
+// Anonimización: reemplaza el doc con traza no identificable.
+// Conserva: uid, deleted, deletedAt, createdAt, stats, level, rating, positions.
+// Elimina: name, email, photoURL, phone, fcmTokens, y todo dato personal.
+// El re-registro con la misma cuenta Google genera un nuevo uid → usuario nuevo limpio.
 ```
 
 **✅ Cumple especificación**: Reglas #4, #6, #7
@@ -233,7 +240,13 @@ export const POSITION_ICONS: Record<Position, string> = {
 ### ✅ Criterio 10 (Habeas Data)
 **Given** un usuario autenticado
 **When** escribe "ELIMINAR" en la zona de peligro de su perfil y confirma
-**Then** su documento en Firestore es borrado (con sus reglas que lo permiten) y su usuario de Auth es eliminado. Si lleva mucho logueado, se abre un popup para re-verificar identidad en el mismo flujo.
+**Then** su documento en Firestore es **anonimizado** (todos los datos personales eliminados, traza no identificable conservada) y su cuenta de Firebase Auth es eliminada. Si lleva mucho tiempo logueado, se abre un popup para re-verificar identidad. El re-registro con la misma cuenta Google crea un usuario nuevo desde cero.
+
+**Traza conservada** (no identificable, cumple Ley 1581):
+- `uid`, `deleted: true`, `deletedAt`, `createdAt`, `stats`, `level`, `rating`, `positions`
+
+**Eliminado permanentemente**:
+- `name`, `email`, `photoURL`, `phone`, `fcmTokens`, `notificationsEnabled`, y todos los demás datos personales
 
 ---
 

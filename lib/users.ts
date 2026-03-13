@@ -17,7 +17,6 @@ import {
   updateDoc,
   collection,
   getDocs,
-  deleteDoc,
 } from "firebase/firestore";
 import type { UserProfile, AdminType } from "./domain/user";
 import { APP_LEGAL_CONSTANTS } from "./constants";
@@ -213,10 +212,28 @@ export async function assignLocationsToAdmin(uid: string, locationIds: string[])
 }
 
 /* =========================
-   ELIMINAR USUARIO
+   ELIMINAR USUARIO (anonimización — Habeas Data)
+   Conserva una traza no identificable: uid, stats, nivel, fechas.
+   Elimina todos los datos personales: nombre, email, foto, teléfono, tokens.
 ========================= */
 export async function deleteUser(uid: string) {
   const ref = doc(db, "users", uid);
-  await deleteDoc(ref);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const data = snap.data() as UserProfile;
+
+  await setDoc(ref, {
+    uid,
+    deleted: true,
+    deletedAt: new Date().toISOString(),
+    createdAt: data.createdAt ?? null,
+    // Stats anónimas conservadas para integridad histórica
+    stats: data.stats ?? null,
+    level: data.level ?? null,
+    rating: data.rating ?? null,
+    positions: data.positions ?? [],
+    // Todo lo demás (nombre, email, foto, teléfono, tokens, etc.) se omite → borrado
+  });
 }
 

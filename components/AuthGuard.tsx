@@ -31,6 +31,7 @@ export default function AuthGuard({
   useEffect(() => {
     if (
       profile &&
+      !profile.deleted &&
       profile.roles.includes("player") &&
       !profile.initialRatingCalculated &&
       pathname !== "/onboarding"
@@ -43,6 +44,7 @@ export default function AuthGuard({
   useEffect(() => {
     if (
       profile &&
+      !profile.deleted &&
       profile.roles.includes("player") &&
       profile.initialRatingCalculated &&
       !profile.phone &&
@@ -118,6 +120,7 @@ export default function AuthGuard({
   // 🚨 FALTA ONBOARDING → Mostrar pantalla de redirección
   if (
     profile &&
+    !profile.deleted &&
     profile.roles.includes("player") &&
     !profile.initialRatingCalculated &&
     pathname !== "/onboarding"
@@ -144,6 +147,7 @@ export default function AuthGuard({
   // 🚨 FALTA CELULAR → Mostrar pantalla de redirección
   if (
     profile &&
+    !profile.deleted &&
     profile.roles.includes("player") &&
     profile.initialRatingCalculated &&
     !profile.phone &&

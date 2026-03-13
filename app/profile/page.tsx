@@ -287,7 +287,8 @@ export default function ProfilePage() {
       await deleteUser(user.uid);
       // 2. Borrar el usuario de Firebase Auth
       await deleteAuthUser(user);
-      // Redirige automáticamente porque el AuthContext detecta onAuthStateChanged
+      // 3. Redirigir a landing explícitamente (evita que AuthGuard redirija a onboarding)
+      router.replace("/");
     } catch (err: unknown) {
       if (err instanceof Error && "code" in err && err.code === "auth/requires-recent-login") {
         try {
@@ -299,6 +300,7 @@ export default function ProfilePage() {
           // Retry deletion after successful re-auth
           await deleteUser(user.uid);
           await deleteAuthUser(user);
+          router.replace("/");
         } catch (reauthErr: unknown) {
           handleError(reauthErr, "No se pudo re-autenticar para eliminar la cuenta. Por favor intente más tarde.");
           setDeletingAccount(false);

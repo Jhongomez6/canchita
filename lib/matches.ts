@@ -39,6 +39,20 @@ export type { Match };
 const matchesRef = collection(db, "matches");
 
 /* =========================
+   HELPER: ASIGNAR AL EQUIPO MÁS PEQUEÑO
+========================= */
+function assignToSmallestTeam(
+  teams: { A: Player[]; B: Player[] },
+  player: Player
+): { A: Player[]; B: Player[] } {
+  if (teams.A.length <= teams.B.length) {
+    return { A: [...teams.A, player], B: teams.B };
+  } else {
+    return { A: teams.A, B: [...teams.B, player] };
+  }
+}
+
+/* =========================
    CREAR PARTIDO
 ========================= */
 export async function createMatch(match: {
@@ -188,23 +202,28 @@ export async function joinMatch(
 
     const level = profile?.level ?? 2;
 
-    transaction.update(ref, {
-      players: [
-        ...players,
-        {
-          uid: user.uid,
-          name: user.name,
-          confirmed: true,
-          level,
-          positions,
-          ...(primaryPosition ? { primaryPosition } : {}),
-          sex: profile?.sex,
-          ...(profile?.phone ? { phone: profile.phone } : {}),
-          ...(profile?.photoURL ? { photoURL: profile.photoURL } : {}),
-        },
-      ],
+    const newPlayer = {
+      uid: user.uid,
+      name: user.name,
+      confirmed: true,
+      level,
+      positions,
+      ...(primaryPosition ? { primaryPosition } : {}),
+      sex: profile?.sex,
+      ...(profile?.phone ? { phone: profile.phone } : {}),
+      ...(profile?.photoURL ? { photoURL: profile.photoURL } : {}),
+    };
+
+    const updateData: Record<string, unknown> = {
+      players: [...players, newPlayer],
       playerUids: arrayUnion(user.uid),
-    });
+    };
+
+    if (data.teams?.A && data.teams?.B) {
+      updateData.teams = assignToSmallestTeam(data.teams as { A: Player[]; B: Player[] }, newPlayer as unknown as Player);
+    }
+
+    transaction.update(ref, updateData);
   });
 }
 
@@ -332,9 +351,15 @@ export async function approveFromWaitlist(
       isWaitlist: false,
     };
 
-    transaction.update(ref, {
-      players: updatedPlayers,
-    });
+    const approveUpdate: Record<string, unknown> = { players: updatedPlayers };
+    if (data.teams?.A && data.teams?.B) {
+      approveUpdate.teams = assignToSmallestTeam(
+        data.teams as { A: Player[]; B: Player[] },
+        updatedPlayers[playerIndex]
+      );
+    }
+
+    transaction.update(ref, approveUpdate);
   });
 }
 
@@ -372,9 +397,18 @@ export async function confirmAttendance(
       p.name === playerName ? { ...p, confirmed: true } : p
     );
 
-    transaction.update(ref, {
-      players: updatedPlayers,
-    });
+    const confirmUpdate: Record<string, unknown> = { players: updatedPlayers };
+    if (data.teams?.A && data.teams?.B) {
+      const confirmedPlayer = updatedPlayers.find((p) => p.name === playerName);
+      if (confirmedPlayer) {
+        confirmUpdate.teams = assignToSmallestTeam(
+          data.teams as { A: Player[]; B: Player[] },
+          confirmedPlayer
+        );
+      }
+    }
+
+    transaction.update(ref, confirmUpdate);
   });
 }
 
@@ -468,6 +502,13 @@ export async function addPlayerToMatch(
 
   if (player.uid) {
     updateData.playerUids = arrayUnion(player.uid);
+  }
+
+  if (match.teams?.A && match.teams?.B) {
+    updateData.teams = assignToSmallestTeam(
+      match.teams as { A: Player[]; B: Player[] },
+      newPlayer as unknown as Player
+    );
   }
 
   await updateDoc(ref, updateData);

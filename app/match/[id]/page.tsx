@@ -161,6 +161,8 @@ export default function MatchDetailPage() {
         name: p.name,
         level: p.level ?? 2,
         positions: p.positions ?? ["MID"],
+        primaryPosition: p.primaryPosition,
+        photoURL: p.photoURL,
         confirmed: p.confirmed,
       }));
 
