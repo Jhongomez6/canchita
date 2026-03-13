@@ -94,7 +94,7 @@ export async function addGuestToMatch(
       ...(guestData.primaryPosition ? { primaryPosition: guestData.primaryPosition } : {}),
       invitedBy: playerUid,
       isWaitlist: isFull,
-      waitlistJoinedAt: isFull ? new Date().toISOString() : undefined,
+      ...(isFull ? { waitlistJoinedAt: new Date().toISOString() } : {}),
       confirmed: !isFull,
     };
     validateGuest(guest); // Validate standard fields
