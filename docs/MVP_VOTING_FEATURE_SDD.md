@@ -48,7 +48,21 @@ Fomentar la camaradería y el compañerismo permitiendo a los participantes dest
     *   Calcula dinámicamente cuántos votos son inalcanzables. Si la diferencia entre el puesto 1 y 2 es mayor a los `remainingVotes` proyectados, aborta transacciones futuras y sella el resultado matemáticamente.
     *   Aplica Firebase Dot Notation (`mvpVotes.[voterUid]: targetId`) garantizando así que un usuario nunca pueda emitir votos dobles concurrentes.
 
-### 2.3 Componentes Mutados UI (`app/join/[id]/page.tsx` & `app/match/[id]/page.tsx`)
+### 2.3 Reglas de Visualización de Jugadores en Vista Cerrada
+
+Cuando el partido está cerrado, los jugadores en los bloques de Equipo A/B y en los botones de votación MVP se toman de `match.teams.A/B`. Estos objetos pueden no tener `photoURL` ni `primaryPosition` si el partido fue balanceado antes del fix de Regla #13 del SDD de Balanceo.
+
+**Patrón obligatorio** para cualquier listado de `match.teams.X` en la vista `/join/[id]`:
+
+```typescript
+const fullPlayer = match.players?.find((mp: Player) => mp.uid === p.uid);
+const photoURL = p.photoURL || fullPlayer?.photoURL;
+const primaryPosition = p.primaryPosition || fullPlayer?.primaryPosition;
+```
+
+Usar `photoURL` y `primaryPosition` (resueltos) en lugar de `p.photoURL` y `p.primaryPosition` directamente.
+
+### 2.4 Componentes Mutados UI (`app/join/[id]/page.tsx` & `app/match/[id]/page.tsx`)
 *   Se reubicó el _Widget_ (`MVP VOTING CARD`) justo debajo del bloque de Resultados del Partido para optimizar el flujo narrativo (marcador final -> y luego premio individual).
 *   Los botones de votación fueron refactorizados para mostrarse agrupados lógicamente por "🔴 Equipo A" y "🔵 Equipo B", facilitando la visualización y reconocimiento rápido por parte del usuario.
 *   La tarjeta de MVP implementa una estética "Soft-Amber" sutil en lugar de gradientes intensos, mejorando la armonía visual global.

@@ -37,6 +37,9 @@ interface BalanceResult {
 | 10 | Warning si la diferencia de nivel entre equipos es > 2 puntos | `scoreDiff > 2` en `balanceTeams()` |
 | 11 | Cada click en "Generar equipos" produce una distribución diferente | Fisher-Yates shuffle antes del sort por nivel en `balanceTeams()` |
 | 12 | Jugadores en las cards se muestran ordenados: posición (GK→DEF→MID→FWD) y luego nivel desc | `sortTeamForDisplay()` en `lib/domain/team.ts` |
+| 13 | Los objetos de jugador guardados en `match.teams.A/B` deben incluir `photoURL` y `primaryPosition` para que la vista cerrada del join pueda mostrar avatares e iconos de posición correctos | `handleBalance()` en `app/match/[id]/page.tsx` |
+| 14 | En la vista cerrada (`/join/[id]`), si un jugador en `match.teams` no tiene `photoURL` o `primaryPosition`, se hace fallback a `match.players` buscando por `uid` | Display lógic en `app/join/[id]/page.tsx` |
+| 15 | Al agregar o confirmar un jugador cuando los equipos ya están balanceados, se le asigna automáticamente al equipo con menos jugadores | `assignToSmallestTeam()` en `lib/matches.ts`, invocado desde `joinMatch`, `confirmAttendance`, `addPlayerToMatch`, `approveFromWaitlist` |
 
 ---
 
@@ -197,6 +200,11 @@ const summaryA = getTeamSummary(balanced.teamA.players);
 **When** se generan equipos
 **Then** aparece warning ⚠️ indicando la diferencia
 
+### ✅ Criterio 9
+**Given** equipos ya balanceados y guardados en Firestore
+**When** un jugador se une, confirma, es agregado por el admin o aprobado desde lista de espera
+**Then** el jugador queda asignado automáticamente al equipo con menos jugadores (sin necesidad de re-balancear)
+
 ---
 
 ## 5. ARCHIVOS INVOLUCRADOS
@@ -207,8 +215,9 @@ const summaryA = getTeamSummary(balanced.teamA.players);
 | Dominio | `lib/domain/player.ts` | Player, Position |
 | Dominio | `lib/domain/guest.ts` | Guest, guestToPlayer() |
 | API | `lib/balanceTeams.ts` | Re-export wrapper |
-| API | `lib/matches.ts` | saveTeams() |
-| UI | `app/match/[id]/page.tsx` | DnD + visual + guest integration |
+| API | `lib/matches.ts` | saveTeams(), assignToSmallestTeam() |
+| UI | `app/match/[id]/page.tsx` | DnD + visual + guest integration + handleBalance() |
+| UI | `app/join/[id]/page.tsx` | Vista cerrada con fallback de photoURL / primaryPosition |
 
 ---
 
@@ -224,4 +233,7 @@ const summaryA = getTeamSummary(balanced.teamA.players);
 ✅ **Warning de nivel** alerta si la diferencia de score es alta
 ✅ **Distribuciones variadas** cada click genera una distribución diferente igualmente balanceada
 ✅ **Display ordenado** jugadores se muestran por posición (GK→DEF→MID→FWD) y nivel
+✅ **`photoURL` y `primaryPosition` preservados** en `match.teams.A/B` desde `handleBalance()`
+✅ **Fallback en vista cerrada** — `/join/[id]` busca en `match.players` si el objeto del team no tiene estos campos (compatibilidad con partidos guardados antes del fix)
+✅ **Auto-asignación post-balanceo** — nuevos jugadores (join, confirm, addPlayer, approveFromWaitlist) se agregan al equipo más pequeño cuando `match.teams` ya existe
 

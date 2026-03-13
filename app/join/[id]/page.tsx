@@ -785,14 +785,17 @@ export default function JoinMatchPage() {
                         const targetId = p.uid || p.name;
                         const isMvp = currentMVPs.includes(targetId);
                         const votes = voteCounts[targetId] || 0;
+                        const fullPlayerA = match.players?.find((mp: Player) => mp.uid === p.uid);
+                        const photoURL = p.photoURL || fullPlayerA?.photoURL;
+                        const primaryPosition = p.primaryPosition || fullPlayerA?.primaryPosition;
 
                         return (
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
                             <div className="flex items-center gap-2">
                               <div className="relative shrink-0">
-                                {p.photoURL ? (
+                                {photoURL ? (
                                   <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                    <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
+                                    <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
                                   </div>
                                 ) : (
                                   <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
@@ -800,7 +803,7 @@ export default function JoinMatchPage() {
                                   </div>
                                 )}
                                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-slate-50 z-10 font-bold">
-                                  {POSITION_ICONS[(p.primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                                  {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                                 </div>
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
@@ -824,14 +827,17 @@ export default function JoinMatchPage() {
                         const targetId = p.uid || p.name;
                         const isMvp = currentMVPs.includes(targetId);
                         const votes = voteCounts[targetId] || 0;
+                        const fullPlayerB = match.players?.find((mp: Player) => mp.uid === p.uid);
+                        const photoURL = p.photoURL || fullPlayerB?.photoURL;
+                        const primaryPosition = p.primaryPosition || fullPlayerB?.primaryPosition;
 
                         return (
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
                             <div className="flex items-center gap-2">
                               <div className="relative shrink-0">
-                                {p.photoURL ? (
+                                {photoURL ? (
                                   <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                    <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
+                                    <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
                                   </div>
                                 ) : (
                                   <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
@@ -839,7 +845,7 @@ export default function JoinMatchPage() {
                                   </div>
                                 )}
                                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-slate-50 z-10 font-bold">
-                                  {POSITION_ICONS[(p.primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                                  {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                                 </div>
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
@@ -971,6 +977,9 @@ export default function JoinMatchPage() {
                                   {teamEligible.map(p => {
                                     const targetId = p.uid || p.name;
                                     const isSelected = myVote === targetId;
+                                    const fullPlayerMvp = match.players?.find((mp: Player) => mp.uid === p.uid);
+                                    const photoURL = p.photoURL || fullPlayerMvp?.photoURL;
+                                    const primaryPosition = p.primaryPosition || fullPlayerMvp?.primaryPosition;
 
                                     return (
                                       <button
@@ -998,9 +1007,9 @@ export default function JoinMatchPage() {
                                           }`}
                                       >
                                         <div className="relative shrink-0">
-                                          {p.photoURL ? (
+                                          {photoURL ? (
                                             <div className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200">
-                                              <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="24px" />
+                                              <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="24px" />
                                             </div>
                                           ) : (
                                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? "bg-white text-amber-600" : "bg-slate-100 text-slate-500"}`}>
@@ -1008,7 +1017,7 @@ export default function JoinMatchPage() {
                                             </div>
                                           )}
                                           <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center text-[7px] shadow-sm border border-amber-50 z-10 font-black">
-                                            {POSITION_ICONS[(p.primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                                            {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                                           </div>
                                         </div>
                                         <span className="text-xs truncate">{p.name} {p.uid?.startsWith("guest_") && "(Inv)"}</span>
