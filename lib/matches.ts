@@ -22,6 +22,7 @@ import {
   arrayUnion,
   arrayRemove,
   runTransaction,
+  deleteDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { getUserProfile } from "./users";
@@ -630,4 +631,9 @@ export async function voteForMVP(
       [updatePath]: targetId
     });
   });
+}
+
+export async function deleteMatch(matchId: string): Promise<void> {
+  const ref = doc(db, "matches", matchId);
+  await deleteDoc(ref);
 }

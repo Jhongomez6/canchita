@@ -15,6 +15,7 @@ import {
   deletePlayerFromMatch,
   markPlayerAttendance,
   approveFromWaitlist,
+  deleteMatch,
 } from "@/lib/matches";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -86,6 +87,20 @@ export default function MatchDetailPage() {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [copyingInvitation, setCopyingInvitation] = useState(false);
   const [copiedInvitation, setCopiedInvitation] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDeleteMatch() {
+    setDeleting(true);
+    try {
+      await deleteMatch(id);
+      router.push("/");
+    } catch (err: unknown) {
+      handleError(err, "Error al borrar el partido.");
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  }
 
   async function handleManualReminder() {
     if (!confirm("¿Seguro que quieres enviar una notificación Push a todos los jugadores registrados (confirmados y pendientes)?")) return;
@@ -1599,6 +1614,50 @@ export default function MatchDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Delete match — danger zone */}
+        {isOwner && (
+          <div className="mt-8 px-4 pb-8">
+            <div className="border border-red-200 rounded-2xl p-4 bg-red-50">
+              <p className="text-sm font-bold text-red-700 mb-1">Zona de peligro</p>
+              <p className="text-xs text-red-500 mb-3">Esta acción es permanente e irreversible.</p>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-white border border-red-300 text-red-600 hover:bg-red-100 transition-colors"
+              >
+                🗑️ Borrar partido
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Delete confirmation modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+              <h2 className="text-lg font-bold text-slate-800 mb-2">¿Borrar partido?</h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Esta acción es permanente. El partido y todos sus datos serán eliminados.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteMatch}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? "Borrando..." : "Sí, borrar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main >
     </AuthGuard >
   );
