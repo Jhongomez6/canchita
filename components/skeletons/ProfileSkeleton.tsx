@@ -14,35 +14,41 @@ export default function ProfileSkeleton() {
                         <div className="h-[20px] w-16 bg-slate-200 rounded"></div>
                     </div>
 
-                    <div className="p-5">
-                        <div className="space-y-1">
-                            {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className={`flex justify-between items-center py-3 border-b border-slate-100 ${i !== 4 ? 'h-[45px]' : ''}`}>
-                                    <div className="h-5 w-28 bg-slate-200 rounded"></div>
-                                    <div className="flex items-center gap-2">
-                                        {i === 4 ? (
-                                            <>
-                                                <div className="h-[26px] w-[80px] bg-slate-200 rounded-full"></div>
-                                                <div className="h-[26px] w-[85px] bg-slate-200 rounded-full"></div>
-                                            </>
-                                        ) : (
-                                            <div className="h-5 w-24 bg-slate-200 rounded"></div>
-                                        )}
-                                    </div>
+                    <div className="px-5 pt-2 pb-5">
+                        {/* FIFA Card Skeleton */}
+                        <div className="flex justify-center mb-4 mt-0">
+                            <div className="w-[185px] h-[380px] rounded-2xl bg-gradient-to-b from-slate-100 to-slate-200 relative overflow-hidden">
+                                {/* OVR + Position */}
+                                <div className="absolute top-3 left-3 flex flex-col items-center gap-1">
+                                    <div className="h-8 w-8 bg-slate-300/50 rounded"></div>
+                                    <div className="h-4 w-10 bg-slate-300/50 rounded"></div>
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* Level Card Skeleton */}
-                        <div className="mt-6 bg-[#1f7a4f]/10 rounded-2xl p-5 relative overflow-hidden flex items-center">
-                            <div className="flex items-center gap-4 relative z-10 w-full">
-                                <div className="h-[48px] w-[48px] bg-[#1f7a4f]/20 rounded-full shrink-0"></div>
-                                <div className="flex-1">
-                                    <div className="h-4 w-28 bg-[#1f7a4f]/20 rounded mb-1"></div>
-                                    <div className="h-6 w-24 bg-[#1f7a4f]/30 rounded"></div>
-                                    <div className="h-7 w-32 bg-[#1f7a4f]/20 rounded"></div>
+                                {/* Photo circle */}
+                                <div className="flex justify-center mt-12">
+                                    <div className="w-[140px] h-[140px] rounded-full bg-slate-300/40"></div>
+                                </div>
+                                {/* Name */}
+                                <div className="flex justify-center mt-3">
+                                    <div className="h-4 w-24 bg-slate-300/50 rounded"></div>
+                                </div>
+                                {/* Stats row */}
+                                <div className="flex justify-center gap-2 mt-4 px-3">
+                                    {[1, 2, 3, 4, 5, 6].map(i => (
+                                        <div key={i} className="flex flex-col items-center gap-1">
+                                            <div className="h-3 w-5 bg-slate-300/50 rounded"></div>
+                                            <div className="h-4 w-5 bg-slate-300/40 rounded"></div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Attribute pills skeleton */}
+                        <div className="flex flex-wrap justify-center gap-2 mb-2 mt-1">
+                            <div className="h-[30px] w-[100px] bg-slate-100 rounded-full border border-slate-200"></div>
+                            <div className="h-[30px] w-[90px] bg-slate-100 rounded-full border border-slate-200"></div>
+                            <div className="h-[30px] w-[110px] bg-slate-100 rounded-full border border-slate-200"></div>
+                            <div className="h-[30px] w-[130px] bg-emerald-50 rounded-full border border-emerald-200"></div>
                         </div>
 
                         {/* Reeval link skeleton */}
@@ -52,36 +58,32 @@ export default function ProfileSkeleton() {
                     </div>
                 </div>
 
-                {/* COMPROMISO SKELETON */}
+                {/* STATS CARD SKELETON */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="flex items-center gap-2">
-                            <div className="h-[28px] w-[26px] bg-slate-200 rounded-full"></div>
-                            <div className="h-[28px] w-[115px] bg-slate-200 rounded"></div>
-                        </div>
+                        <div className="h-[28px] w-[26px] bg-slate-200 rounded-full"></div>
+                        <div className="h-[28px] w-[115px] bg-slate-200 rounded"></div>
                         <div className="h-6 w-6 bg-slate-100 rounded-full"></div>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                        <div className="w-24 h-24 flex items-center justify-center shrink-0">
-                            <div className="w-full h-full border-[8px] border-slate-100 rounded-full flex items-center justify-center">
-                                <div className="h-8 w-12 bg-slate-200 rounded"></div>
+                    <div className="grid grid-cols-5 gap-3">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div key={i} className="flex flex-col items-center gap-1.5">
+                                <div className="h-4 w-6 bg-slate-200 rounded"></div>
+                                <div className="h-7 w-8 bg-slate-100 rounded"></div>
                             </div>
-                        </div>
+                        ))}
+                    </div>
+                </div>
 
-                        <div className="flex-1 pl-6">
-                            {/* Multiline Pill Skeleton */}
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1f7a4f]/10 mb-1 w-[205px]">
-                                <div className="h-4 w-4 bg-[#1f7a4f]/20 rounded-full shrink-0"></div>
-                                <div className="flex-1 space-y-1">
-                                    <div className="h-[14px] w-full bg-[#1f7a4f]/20 rounded"></div>
-                                    <div className="h-[14px] w-[65%] bg-[#1f7a4f]/20 rounded"></div>
-                                </div>
-                            </div>
-
-                            {/* Single Line Description */}
-                            <div className="h-[15px] w-[190px] bg-slate-200 rounded"></div>
+                {/* NOTIFICATIONS CARD SKELETON */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-200 rounded-full"></div>
+                        <div className="flex-1">
+                            <div className="h-4 w-28 bg-slate-200 rounded mb-1.5"></div>
+                            <div className="h-3 w-48 bg-slate-100 rounded"></div>
                         </div>
+                        <div className="h-8 w-16 bg-slate-200 rounded-xl"></div>
                     </div>
                 </div>
 
