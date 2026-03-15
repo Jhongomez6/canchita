@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { enablePushNotifications } from "@/lib/push";
 import { updateUserPositions, updateUserName, updatePlayerAttributes, requestReEvaluation, deleteUser, updateUserPhoto } from "@/lib/users";
@@ -16,6 +16,7 @@ import Link from "next/link";
 import { isSuperAdmin } from "@/lib/domain/user";
 import AuthGuard from "@/components/AuthGuard";
 import StatsCard from "@/components/StatsCard";
+import FifaPlayerCard from "@/components/FifaPlayerCard";
 import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { X, Share, PlusSquare, ChevronRight } from "lucide-react";
@@ -78,7 +79,6 @@ export default function ProfilePage() {
   // Push notifications
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [returnToMatch, setReturnToMatch] = useState<string | null>(null);
 
   // Derived
   const isOnboarding = positions.length === 0;
@@ -113,12 +113,6 @@ export default function ProfilePage() {
 
   }, [profile, user]);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const matchId = localStorage.getItem("returnToMatch");
-      if (matchId) setReturnToMatch(matchId);
-    }
-  }, []);
 
   // Name cooldown
   const COOLDOWN_DAYS = 30;
@@ -148,6 +142,20 @@ export default function ProfilePage() {
       reevalUnlockDate = d.toLocaleDateString("es-CO", { day: "numeric", month: "short" });
     }
   }
+
+  // Live preview profile for FIFA card during editing
+  const previewProfile = useMemo(() => {
+    if (!editing || !profile) return profile;
+    return {
+      ...profile,
+      name: editName || profile.name,
+      positions: editPositions as Position[],
+      primaryPosition: (editPrimaryPosition as Position) || profile.primaryPosition,
+      dominantFoot: editFoot ?? profile.dominantFoot,
+      preferredCourt: editCourt ?? profile.preferredCourt,
+      photoURL: editPhotoB64 || profile.photoURL,
+    };
+  }, [editing, profile, editName, editPositions, editPrimaryPosition, editFoot, editCourt, editPhotoB64]);
 
   function startEditing() {
     setEditName(displayName);
@@ -199,8 +207,8 @@ export default function ProfilePage() {
     const img = new window.Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      // Output 256x256
-      const MAX_SIZE = 256;
+      // Output 512x512 for sharp rendering on retina displays
+      const MAX_SIZE = 512;
       canvas.width = MAX_SIZE;
       canvas.height = MAX_SIZE;
       const ctx = canvas.getContext("2d");
@@ -217,7 +225,7 @@ export default function ProfilePage() {
           MAX_SIZE,
           MAX_SIZE
         );
-        const compressedBase64 = canvas.toDataURL("image/webp", 0.7);
+        const compressedBase64 = canvas.toDataURL("image/webp", 0.85);
         setEditPhotoB64(compressedBase64);
         setImageSrc(null);
       }
@@ -318,28 +326,6 @@ export default function ProfilePage() {
 
 
 
-  const Chip = ({ active, isPrimary, children }: { active: boolean, isPrimary?: boolean, children: React.ReactNode }) => (
-    <span className={`relative inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${active
-      ? isPrimary
-        ? "bg-[#1f7a4f] text-white border-[#16603c] shadow-sm ring-1 ring-[#1f7a4f]"
-        : "bg-emerald-100/50 text-emerald-700 border-emerald-200"
-      : "bg-slate-100 text-slate-500 border-slate-200"
-      }`}>
-      {isPrimary && (
-        <span className="absolute -top-1 -right-1 bg-white text-amber-500 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm border border-amber-300 text-[8px] z-10" title="Posición Principal">
-          👑
-        </span>
-      )}
-      {children}
-    </span>
-  );
-
-  const InfoRow = ({ label, value }: { label: string, value: React.ReactNode }) => (
-    <div className="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
-      <span className="text-sm text-slate-500 font-medium">{label}</span>
-      <div className="text-sm font-bold text-slate-700">{value}</div>
-    </div>
-  );
 
   // Si la sesión ya cargó y definitivamente no hay usuario, renderizamos AuthGuard 
   // para que gestione la redirección a la Landing Page.
@@ -437,10 +423,17 @@ export default function ProfilePage() {
               )}
             </div>
 
-            <div className="p-5">
+            <div className="px-5 pt-2 pb-5">
               {saved && (
-                <div className="mb-4 bg-emerald-50 text-[#1f7a4f] text-sm font-semibold px-3 py-2 rounded-lg text-center border border-emerald-100 animate-fade-in">
+                <div className="mb-3 bg-emerald-50 text-[#1f7a4f] text-sm font-semibold px-3 py-2 rounded-lg text-center border border-emerald-100 animate-fade-in">
                   ✅ Cambios guardados
+                </div>
+              )}
+
+              {/* FIFA Player Card — always visible */}
+              {profile && (
+                <div className="flex justify-center mb-4 mt-0">
+                  <FifaPlayerCard profile={editing ? previewProfile! : profile} />
                 </div>
               )}
 
@@ -449,64 +442,39 @@ export default function ProfilePage() {
               {/* =================== */}
               {!editing ? (
                 <div className="space-y-1">
-                  <div className="flex justify-center flex-col items-center mb-6 mt-2">
-                    <div className="relative w-32 h-32 rounded-full border-4 border-slate-100 shadow-sm overflow-hidden bg-slate-50 mb-3">
-                      <Image
-                        src={profile?.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
-                        alt={displayName || "Foto de perfil"}
-                        fill
-                        className="object-cover"
-                        sizes="128px"
-                        priority
-                      />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800">{displayName}</h3>
-                    <p className="text-[10px] text-slate-400 mt-2 bg-slate-100 px-3 py-1 rounded-full font-medium">
-                      📸 Tu foto ayuda a que tu equipo te reconozca fácil en la canchita
-                    </p>
-                  </div>
-
-                  {/* Ya no requerimos mostrar el row de nombre dado que lo pusimos grande abajo de la foto */}
-                  {/* <InfoRow label="Nombre" value={displayName || "—"} /> */}
-                  {age != null && <InfoRow label="Edad" value={`${age} años`} />}
-                  {sex && <InfoRow label="Sexo" value={SEX_LABELS[sex] || sex} />}
-
-                  <InfoRow label="Posiciones" value={
-                    positions.length > 0 ? (
-                      <div className="flex gap-2 flex-wrap justify-end">
-                        {positions.map(p => {
-                          const isPri = primaryPosition ? primaryPosition === p : positions[0] === p; // Fallback legacy a index 0
-                          return (
-                            <Chip key={p} active={true} isPrimary={isPri}>
-                              {POSITION_ICONS[p as Position]} {POSITION_LABELS[p as Position]}
-                            </Chip>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <span className="text-slate-400 italic text-xs">Sin seleccionar</span>
-                    )
-                  } />
-
-                  {dominantFoot && <InfoRow label="Pie dominante" value={FOOT_LABELS[dominantFoot] || dominantFoot} />}
-                  {preferredCourt && <InfoRow label="Cancha preferida" value={preferredCourt} />}
-
-                  {/* Level Classification Card */}
-                  {level != null && (
-                    <div className="mt-6 bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] rounded-2xl p-5 text-white shadow-lg relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
-
-                      <div className="flex items-center gap-4 relative z-10">
-                        <span className="text-5xl drop-shadow-md">{LEVEL_EMOJIS[level]}</span>
-                        <div>
-                          <div className="text-xs font-bold text-emerald-200 uppercase tracking-widest mb-1">Nivel Calculado</div>
-                          <div className="text-2xl font-black leading-none">Nivel {level}</div>
-                          <div className="text-lg font-bold opacity-90">{LEVEL_LABELS[level]}</div>
-                        </div>
-                      </div>
+                  {(age != null || sex || preferredCourt || level != null) && (
+                    <div className="flex flex-wrap justify-center gap-2 mb-2 mt-1">
+                      {age != null && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white border border-slate-200 shadow-sm">
+                          <span className="text-base leading-none">🎂</span>
+                          <span className="text-slate-400 font-medium">Edad</span>
+                          <span className="font-bold text-slate-700">{age} años</span>
+                        </span>
+                      )}
+                      {sex && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white border border-slate-200 shadow-sm">
+                          <span className="text-base leading-none">{sex === "male" ? "♂️" : sex === "female" ? "♀️" : "⚧️"}</span>
+                          <span className="text-slate-400 font-medium">Sexo</span>
+                          <span className="font-bold text-slate-700">{SEX_LABELS[sex] || sex}</span>
+                        </span>
+                      )}
+                      {preferredCourt && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white border border-slate-200 shadow-sm">
+                          <span className="text-base leading-none">⚽</span>
+                          <span className="text-slate-400 font-medium">Cancha</span>
+                          <span className="font-bold text-slate-700">{preferredCourt}</span>
+                        </span>
+                      )}
+                      {level != null && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-emerald-50 border border-emerald-200 shadow-sm">
+                          <span className="text-base leading-none">{LEVEL_EMOJIS[level]}</span>
+                          <span className="text-emerald-600 font-medium">Nivel</span>
+                          <span className="font-bold text-emerald-800">{level} — {LEVEL_LABELS[level]}</span>
+                        </span>
+                      )}
                     </div>
                   )}
-
+                  
                   {/* Re-evaluation Link */}
                   {level != null && (
                     <div className="mt-4 text-center">
@@ -524,9 +492,14 @@ export default function ProfilePage() {
                               setRequestingReeval(false);
                             }
                           }}
-                          className="text-xs font-bold text-amber-600 hover:text-amber-700 underline"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100 transition-colors disabled:opacity-50"
                         >
-                          {requestingReeval ? "Redirigiendo..." : "Solicitar nueva evaluación"}
+                          {requestingReeval ? (
+                            <span className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-600 rounded-full animate-spin" />
+                          ) : (
+                            <span>🔄</span>
+                          )}
+                          {requestingReeval ? "Redirigiendo..." : "Nueva autoevaluación"}
                         </button>
                       ) : (
                         <p className="text-[10px] text-slate-400">
@@ -540,22 +513,22 @@ export default function ProfilePage() {
                 /* =================== */
                 /*     EDIT MODE       */
                 /* =================== */
-                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  {/* Photo Edit */}
-                  <div className="flex flex-col items-center mb-2 mt-2">
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {/* Photo + Name row */}
+                  <div className="flex items-center gap-3">
                     <div
-                      className="relative w-32 h-32 rounded-full border-4 border-slate-100 shadow-sm overflow-hidden bg-slate-50 mb-3 group cursor-pointer"
+                      className="relative w-16 h-16 rounded-full border-2 border-slate-100 shadow-sm overflow-hidden bg-slate-50 flex-shrink-0 group cursor-pointer"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <Image
                         src={editPhotoB64 || profile?.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
-                        alt="Editar foto de perfil"
+                        alt="Editar foto"
                         fill
                         className="object-cover transition-opacity group-hover:opacity-50"
-                        sizes="128px"
+                        sizes="64px"
                       />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <span className="bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm">Editar Foto</span>
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+                        <span className="text-base drop-shadow-sm">📷</span>
                       </div>
                     </div>
                     <input
@@ -565,70 +538,36 @@ export default function ProfilePage() {
                       accept="image/jpeg, image/png, image/webp"
                       onChange={handleImageChange}
                     />
-                    <p className="text-[10px] text-slate-400 font-medium tracking-tight">Toca la imagen para cambiarla</p>
-                  </div>
-
-                  {/* Name */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Nombre</label>
-                    {canEditName ? (
-                      <div>
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                          placeholder="Nombre y Apellido (ej. Carlos Gomez)"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
-                        />
-                        {editName.trim().length > 0 &&
-                          (editName.trim().split(/\s+/).length < 2 || editName.trim().split(/\s+/).some(word => word.length < 2)) && (
-                            <p className="text-red-500 text-xs mt-1 font-medium">Ingresa al menos tu primer nombre y apellido</p>
-                          )}
-                      </div>
-                    ) : (
-                      <div className="px-4 py-3 bg-slate-100 rounded-xl text-slate-400 font-medium text-sm border border-slate-200">
-                        {displayName} <span className="text-xs ml-2 opacity-70">🔒 cambio el {nameUnlockDate}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Age & Sex (Locked in Edit Mode) */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="group relative" tabIndex={0}>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                        Edad <span className="text-[10px] opacity-40">🔒</span>
-                      </label>
-                      <div className="px-4 py-3 bg-slate-100 rounded-xl text-slate-400 font-medium text-sm border border-slate-200 cursor-help focus:outline-none">
-                        {age || "—"}
-                      </div>
-                      {/* Tooltip */}
-                      <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all pointer-events-none z-50 text-center leading-tight">
-                        Para rectificar este campo, contacta a un administrador.
-                        <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
-                      </div>
-                    </div>
-                    <div className="group relative" tabIndex={0}>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                        Sexo <span className="text-[10px] opacity-40">🔒</span>
-                      </label>
-                      <div className="px-4 py-3 bg-slate-100 rounded-xl text-slate-400 font-medium text-sm border border-slate-200 cursor-help focus:outline-none">
-                        {sex ? SEX_LABELS[sex] : "—"}
-                      </div>
-                      {/* Tooltip */}
-                      <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-48 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible transition-all pointer-events-none z-50 text-center leading-tight">
-                        Para rectificar este campo, contacta a un administrador.
-                        <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
-                      </div>
+                    <div className="flex-1 min-w-0">
+                      {canEditName ? (
+                        <div>
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            placeholder="Nombre y Apellido"
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
+                          />
+                          {editName.trim().length > 0 &&
+                            (editName.trim().split(/\s+/).length < 2 || editName.trim().split(/\s+/).some(word => word.length < 2)) && (
+                              <p className="text-red-500 text-[10px] mt-1 font-medium">Nombre y apellido requeridos</p>
+                            )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between px-3 py-2 bg-slate-100 rounded-xl border border-slate-200">
+                          <span className="text-sm font-medium text-slate-400 truncate">🔒 {displayName}</span>
+                          <span className="text-[10px] text-slate-400/70 flex-shrink-0 ml-2">Cambio disponible el {nameUnlockDate}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Positions */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex flex-col">
-                      Posiciones
-                      <span className="text-[10px] font-normal normal-case opacity-70 mt-1">Elige máx. 3. Toca de nuevo una seleccionada para hacerla principal (👑)</span>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                      Posiciones <span className="font-normal normal-case opacity-70">· máx. 3 · toca para hacer principal 👑</span>
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-4 gap-1.5">
                       {ALLOWED_POSITIONS.map((pos: Position) => {
                         const sel = editPositions.includes(pos);
                         const isPrimary = editPrimaryPosition === pos;
@@ -639,94 +578,82 @@ export default function ProfilePage() {
                             onClick={() => {
                               if (sel) {
                                 if (isPrimary) {
-                                  // Remover completa
                                   const newPos = editPositions.filter(p => p !== pos);
                                   setEditPositions(newPos);
                                   setEditPrimaryPosition(newPos.length > 0 ? newPos[0] : null);
                                 } else {
-                                  // Hacer primaria
                                   setEditPrimaryPosition(pos);
                                 }
                               } else {
                                 const newPos = [...editPositions];
                                 if (newPos.length >= 3) {
                                   const idxToRemove = newPos.findIndex(p => p !== editPrimaryPosition);
-                                  if (idxToRemove !== -1) {
-                                    newPos.splice(idxToRemove, 1);
-                                  } else {
-                                    newPos.shift();
-                                  }
+                                  if (idxToRemove !== -1) newPos.splice(idxToRemove, 1);
+                                  else newPos.shift();
                                 }
                                 newPos.push(pos);
                                 setEditPositions(newPos);
-                                if (newPos.length === 1 || !editPrimaryPosition) {
-                                  setEditPrimaryPosition(pos);
-                                }
+                                if (newPos.length === 1 || !editPrimaryPosition) setEditPrimaryPosition(pos);
                               }
                             }}
-                            className={`
-                                       relative flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-bold transition-all border
-                                       ${sel
+                            className={`relative flex flex-col items-center gap-0.5 py-2 rounded-xl text-xs font-bold transition-all border ${sel
                                 ? isPrimary
                                   ? "bg-[#1f7a4f] border-[#16603c] text-white shadow-md ring-2 ring-[#1f7a4f]"
                                   : "bg-emerald-100/50 border-emerald-800 text-emerald-800"
-                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
-                              }
-                                    `}
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                              }`}
                           >
                             {isPrimary && (
-                              <div className="absolute -top-1.5 -right-1.5 bg-white text-amber-500 rounded-full w-4 h-4 flex items-center justify-center shadow border border-amber-300 text-[8px] z-10 animate-in zoom-in-50 duration-200" title="Posición Principal">👑</div>
+                              <div className="absolute -top-1.5 -right-1.5 bg-white text-amber-500 rounded-full w-4 h-4 flex items-center justify-center shadow border border-amber-300 text-[8px] z-10 animate-in zoom-in-50 duration-200">👑</div>
                             )}
-                            <span className="text-lg">{POSITION_ICONS[pos]}</span>
-                            <span>{POSITION_LABELS[pos]}</span>
+                            <span className="text-base">{POSITION_ICONS[pos]}</span>
+                            <span className="text-[10px]">{POSITION_LABELS[pos]}</span>
                           </button>
                         );
                       })}
                     </div>
                   </div>
 
-                  {/* Foot */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Pie Dominante</label>
-                    <div className="flex bg-slate-100 p-1 rounded-xl">
-                      {(["left", "right", "ambidextrous"] as Foot[]).map(f => {
-                        const active = editFoot === f;
-                        return (
-                          <button
-                            key={f}
-                            onClick={() => setEditFoot(f)}
-                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${active ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500 hover:text-slate-700"
-                              }`}
-                          >
-                            {FOOT_LABELS[f]}
-                          </button>
-                        );
-                      })}
+                  {/* Foot + Court side by side */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Pie</label>
+                      <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                        {(["left", "right", "ambidextrous"] as Foot[]).map(f => {
+                          const active = editFoot === f;
+                          return (
+                            <button
+                              key={f}
+                              onClick={() => setEditFoot(f)}
+                              className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${active ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500"}`}
+                            >
+                              {FOOT_LABELS[f]}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Court */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Cancha Preferida</label>
-                    <div className="flex bg-slate-100 p-1 rounded-xl">
-                      {(["6v6", "9v9", "11v11"] as CourtSize[]).map(c => {
-                        const active = editCourt === c;
-                        return (
-                          <button
-                            key={c}
-                            onClick={() => setEditCourt(c)}
-                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${active ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500 hover:text-slate-700"
-                              }`}
-                          >
-                            {c}
-                          </button>
-                        );
-                      })}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Cancha</label>
+                      <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                        {(["6v6", "9v9", "11v11"] as CourtSize[]).map(c => {
+                          const active = editCourt === c;
+                          return (
+                            <button
+                              key={c}
+                              onClick={() => setEditCourt(c)}
+                              className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${active ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500"}`}
+                            >
+                              {c}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex gap-3 pt-1">
                     <button
                       onClick={cancelEditing}
                       className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
@@ -747,125 +674,32 @@ export default function ProfilePage() {
           </div>
 
           {/* ========================= */}
-          {/*    NIVEL DE COMPROMISO  */}
-          {/* ========================= */}
-          {!isOnboarding && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                  <span className="text-xl">🤝</span> Compromiso
-                </h2>
-                <div className="group relative flex items-center" tabIndex={0}>
-                  <span className="cursor-pointer w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
-                    ?
-                  </span>
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-56 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible focus-within:opacity-100 focus-within:visible transition-all pointer-events-none z-50 text-center">
-                    Inicias con 100 de puntuación.
-                    <br />• <span className="text-amber-300 font-bold">-5 pts</span> por Llegada Tarde
-                    <br />• <span className="text-red-400 font-bold">-20 pts</span> por No Asistir
-                    <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
-                  </div>
-                </div>
-              </div>
-
-              {(() => {
-                const { lateArrivals = 0, noShows = 0 } = stats;
-                const penalty = (noShows * 20) + (lateArrivals * 5);
-                const score = Math.max(0, 100 - penalty);
-
-                let level = { label: "Siempre en la cancha antes que el balón", color: "text-emerald-600", bg: "bg-emerald-100", icon: "🌟" };
-                if (score < 50) level = { label: "Con la roja por falta de compromiso", color: "text-red-600", bg: "bg-red-100", icon: "🚩" };
-                else if (score < 80) level = { label: "Llegando justo para el pitazo inicial", color: "text-amber-600", bg: "bg-amber-100", icon: "⚠️" };
-                else if (score < 100) level = { label: "Listo para el 11 titular", color: "text-lime-600", bg: "bg-lime-100", icon: "🛡️" };
-
-                return (
-                  <div className="flex items-center justify-between">
-                    <div className="relative w-24 h-24 flex items-center justify-center">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle
-                          cx="48"
-                          cy="48"
-                          r="40"
-                          stroke="currentColor"
-                          strokeWidth="8"
-                          fill="transparent"
-                          className="text-slate-100"
-                        />
-                        <circle
-                          cx="48"
-                          cy="48"
-                          r="40"
-                          stroke="currentColor"
-                          strokeWidth="8"
-                          fill="transparent"
-                          strokeDasharray={251.2}
-                          strokeDashoffset={251.2 - (251.2 * score) / 100}
-                          className={`${level.color} transition-all duration-1000 ease-out`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className={`text-2xl font-black ${level.color}`}>{score}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 pl-6">
-                      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-1 ${level.bg} ${level.color}`}>
-                        {level.icon} {level.label}
-                      </div>
-                      <div className="text-xs text-slate-500 leading-tight">
-                        Tu nivel de cumplimiento en partidos.
-                        {/* No mostramos No Shows explícitamente para no avergonzar, pero impactan el score */}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* ========================= */}
           {/*      ESTADÍSTICAS       */}
           {/* ========================= */}
-          {!isOnboarding && <StatsCard stats={stats} />}
+          {!isOnboarding && <StatsCard stats={stats} mvpAwards={profile.mvpAwards} />}
 
           {/* ========================= */}
           {/*     CTA + NOTIFICATIONS   */}
           {/* ========================= */}
           {!isOnboarding && positions.length > 0 && (
-            <div className="space-y-4">
-              <button
-                onClick={() => {
-                  if (returnToMatch) {
-                    localStorage.removeItem("returnToMatch");
-                    router.push(`/join/${returnToMatch}`);
-                  } else {
-                    router.push("/");
-                  }
-                }}
-                className="w-full py-4 bg-[#1f7a4f] text-white rounded-2xl font-bold text-lg hover:bg-[#16603c] transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
-              >
-                {returnToMatch ? "Volver al partido" : "Ver mis partidos"}
-              </button>
+            <div className="space-y-0">
+              {/* Notifications + Install — merged card */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 p-5 space-y-4">
 
-              {/* Notifications */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 p-5">
-                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-                  <span className="text-xl">🔔</span> Notificaciones
-                </h2>
-                {isPushOnDevice ? (
-                  <div className="flex items-center gap-3 text-emerald-700 bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                    <span className="text-2xl">✅</span>
-                    <div>
-                      <h3 className="font-bold text-sm">Notificaciones activas</h3>
-                      <p className="text-xs opacity-90">Recibirás alertas de cupos y recordatorios.</p>
-                    </div>
+                {/* — Notifications row — */}
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🔔</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-800">Notificaciones</p>
+                    {isPushOnDevice ? (
+                      <p className="text-xs text-emerald-600 font-medium">Activas — recibirás alertas de cupos</p>
+                    ) : (
+                      <p className="text-xs text-slate-500">Actívalas para no perderte ningún partido</p>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    <p className="text-sm text-slate-600">
-                      Activa las notificaciones para no perderte ningún partido.
-                    </p>
+                  {isPushOnDevice ? (
+                    <span className="flex-shrink-0 text-xl">✅</span>
+                  ) : (
                     <button
                       onClick={async () => {
                         if (!user) return;
@@ -883,35 +717,32 @@ export default function ProfilePage() {
                         }
                       }}
                       disabled={enablingPush}
-                      className="bg-[#1f7a4f] text-white font-bold py-3 px-4 rounded-xl hover:bg-[#16603c] transition-colors disabled:opacity-50 flex justify-center items-center"
+                      className="flex-shrink-0 bg-[#1f7a4f] text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-[#16603c] transition-colors disabled:opacity-50 flex items-center gap-1.5"
                     >
                       {enablingPush ? (
-                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                      ) : (
-                        "Activar notificaciones"
-                      )}
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : "Activar"}
                     </button>
-                    {pushEnabled && !isPushOnDevice && (
-                      <p className="mt-2 text-[10px] text-amber-600 text-center font-medium">
-                        Activas en otro dispositivo. Actívalas aquí también.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              {/* ========================= */}
-              {/*     APP INSTALLATION      */}
-              {/* ========================= */}
-              {canInstall && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 p-5">
-                  <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-                    <span className="text-xl">📱</span> Instalar App
-                  </h2>
-                  <div className="flex flex-col gap-3">
-                    <p className="text-sm text-slate-600">
-                      Instala La Canchita en tu pantalla de inicio para un acceso más rápido y experiencia a pantalla completa.
-                    </p>
+                {pushEnabled && !isPushOnDevice && (
+                  <p className="text-[10px] text-amber-600 font-medium -mt-2">
+                    Activas en otro dispositivo. Actívalas aquí también.
+                  </p>
+                )}
+
+                {/* — Divider — */}
+                {canInstall && <div className="border-t border-slate-100" />}
+
+                {/* — Install row — */}
+                {canInstall && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">📱</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-800">Instalar App</p>
+                      <p className="text-xs text-slate-500">Acceso rápido desde la pantalla de inicio</p>
+                    </div>
                     <button
                       onClick={async () => {
                         if (isIOS) {
@@ -923,87 +754,83 @@ export default function ProfilePage() {
                           }
                         }
                       }}
-                      className="bg-slate-900 border border-slate-800 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition-colors flex justify-center items-center shadow-lg"
+                      className="flex-shrink-0 bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-slate-800 transition-colors"
                     >
-                      Instalar en Pantalla de Inicio
+                      Instalar
                     </button>
                   </div>
+                )}
+              </div>
 
-                  {/* Manual Instructions Modal (iOS & Android Fallback) */}
-                  {showInstallModal && (isIOS || isAndroid) && (
-                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-                      <div className="bg-white text-slate-900 rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 relative animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 shadow-2xl text-left">
-                        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
-
-                        <button
-                          onClick={() => setShowInstallModal(false)}
-                          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full transition"
-                        >
-                          <X size={20} />
-                        </button>
-
-                        <h3 className="text-xl font-bold mb-2">Instalar en {isIOS ? "iOS" : "Android"}</h3>
-                        <p className="text-slate-500 mb-6 text-sm">Sigue estos rápidos pasos para añadir Canchita a tu pantalla de inicio:</p>
-
-                        <div className="space-y-3">
-                          {isIOS ? (
-                            <>
-                              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-blue-500 flex-shrink-0">
-                                  <Share size={24} />
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-sm">Paso 1</div>
-                                  <div className="text-slate-600 text-xs">Toca el botón <strong>Compartir</strong> en la barra inferior de Safari.</div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
-                                  <PlusSquare size={24} />
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-sm">Paso 2</div>
-                                  <div className="text-slate-600 text-xs">Desliza hacia abajo y selecciona <strong>Agregar a Inicio</strong>.</div>
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-sm">Paso 1</div>
-                                  <div className="text-slate-600 text-xs">Toca el botón de <strong>Menú (3 puntos)</strong> arriba a la derecha en Chrome.</div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
-                                  <PlusSquare size={24} />
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-sm">Paso 2</div>
-                                  <div className="text-slate-600 text-xs">Selecciona <strong>Agregar a la pantalla principal</strong>.</div>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={() => setShowInstallModal(false)}
-                          className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-xl transition shadow-lg"
-                        >
-                          Entendido
-                        </button>
-                      </div>
+              {/* Manual Instructions Modal (iOS & Android Fallback) */}
+              {showInstallModal && (isIOS || isAndroid) && (
+                <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+                  <div className="bg-white text-slate-900 rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 relative animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 shadow-2xl text-left">
+                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+                    <button
+                      onClick={() => setShowInstallModal(false)}
+                      className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full transition"
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 className="text-xl font-bold mb-2">Instalar en {isIOS ? "iOS" : "Android"}</h3>
+                    <p className="text-slate-500 mb-6 text-sm">Sigue estos rápidos pasos para añadir Canchita a tu pantalla de inicio:</p>
+                    <div className="space-y-3">
+                      {isIOS ? (
+                        <>
+                          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-blue-500 flex-shrink-0">
+                              <Share size={24} />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">Paso 1</div>
+                              <div className="text-slate-600 text-xs">Toca el botón <strong>Compartir</strong> en la barra inferior de Safari.</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
+                              <PlusSquare size={24} />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">Paso 2</div>
+                              <div className="text-slate-600 text-xs">Desliza hacia abajo y selecciona <strong>Agregar a Inicio</strong>.</div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">Paso 1</div>
+                              <div className="text-slate-600 text-xs">Toca el botón de <strong>Menú (3 puntos)</strong> arriba a la derecha en Chrome.</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-slate-700 flex-shrink-0">
+                              <PlusSquare size={24} />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm">Paso 2</div>
+                              <div className="text-slate-600 text-xs">Selecciona <strong>Agregar a la pantalla principal</strong>.</div>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
-                  )}
+                    <button
+                      onClick={() => setShowInstallModal(false)}
+                      className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-xl transition shadow-lg"
+                    >
+                      Entendido
+                    </button>
+                  </div>
                 </div>
               )}
 
-              <div className="h-4"></div> {/* Bottom spacer */}
+              <div className="h-4"></div>
             </div>
           )}
 
@@ -1094,6 +921,7 @@ export default function ProfilePage() {
 
         </div>
       </main>
+
     </AuthGuard>
   );
 }

@@ -2,6 +2,7 @@ import type { UserStats } from "@/lib/domain/user";
 
 interface StatsCardProps {
     stats: UserStats;
+    mvpAwards?: number;
 }
 
 const StatItem = ({ label, value, colorClass }: { label: string, value: number, colorClass: string }) => (
@@ -11,7 +12,7 @@ const StatItem = ({ label, value, colorClass }: { label: string, value: number, 
     </div>
 );
 
-export default function StatsCard({ stats }: StatsCardProps) {
+export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
             <div className="flex items-center gap-2 mb-4">
@@ -26,7 +27,8 @@ export default function StatsCard({ stats }: StatsCardProps) {
                         <div className="mb-1"><span className="font-bold text-slate-300">PJ:</span> Partidos Jugados</div>
                         <div className="mb-1"><span className="font-bold text-emerald-400">PG:</span> Partidos Ganados</div>
                         <div className="mb-1"><span className="font-bold text-amber-300">PE:</span> Partidos Empatados</div>
-                        <div><span className="font-bold text-red-400">PP:</span> Partidos Perdidos</div>
+                        <div className="mb-1"><span className="font-bold text-red-400">PP:</span> Partidos Perdidos</div>
+                        <div><span className="font-bold text-yellow-300">MVP:</span> Premios MVP</div>
                         <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
                     </div>
                 </div>
@@ -36,6 +38,7 @@ export default function StatsCard({ stats }: StatsCardProps) {
                 <StatItem label="PG" value={stats.won || 0} colorClass="text-emerald-600" />
                 <StatItem label="PE" value={stats.draw || 0} colorClass="text-amber-500" />
                 <StatItem label="PP" value={stats.lost || 0} colorClass="text-red-500" />
+                <StatItem label="🏆 MVP" value={mvpAwards || 0} colorClass="text-yellow-500" />
             </div>
         </div>
     );

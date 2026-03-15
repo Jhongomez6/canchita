@@ -433,6 +433,10 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       const isMVP = currentMVPs.includes(player.uid) || currentMVPs.includes(player.name);
 
       if (isMVP) {
+        // Incrementar mvpAwards en el perfil del ganador
+        transaction.update(db.collection("users").doc(player.uid), {
+          mvpAwards: admin.firestore.FieldValue.increment(1),
+        });
         if (currentMVPs.length > 1) {
           tieUids.push(player.uid);
           if (tokens.length > 0) tokensToTies.push(...tokens);
