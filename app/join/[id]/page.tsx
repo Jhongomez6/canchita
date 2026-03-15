@@ -801,7 +801,7 @@ export default function JoinMatchPage() {
                         return (
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
                             <div className="flex items-center gap-2">
-                              <div className="relative shrink-0">
+                              <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                                 {photoURL ? (
                                   <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
                                     <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
@@ -843,7 +843,7 @@ export default function JoinMatchPage() {
                         return (
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
                             <div className="flex items-center gap-2">
-                              <div className="relative shrink-0">
+                              <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                                 {photoURL ? (
                                   <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
                                     <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
@@ -922,7 +922,10 @@ export default function JoinMatchPage() {
                                 )}
 
                                 <div className="flex items-center gap-4 relative z-10">
-                                  <div className="relative z-10">
+                                  <div
+                                    className={`relative z-10 ${player.uid && !player.uid.startsWith("guest_") ? "cursor-pointer" : ""}`}
+                                    onClick={() => { if (player.uid && !player.uid.startsWith("guest_")) handlePlayerTap(player.uid); }}
+                                  >
                                     <div className="relative">
                                       {player.photoURL ? (
                                         <div className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}>
@@ -941,7 +944,10 @@ export default function JoinMatchPage() {
                                     </div>
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className={`font-black text-lg tracking-tight ${isWinner ? 'text-amber-900' : 'text-slate-800'}`}>
+                                    <span
+                                      className={`font-black text-lg tracking-tight ${isWinner ? 'text-amber-900' : 'text-slate-800'} ${player.uid && !player.uid.startsWith("guest_") ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`}
+                                      onClick={() => { if (player.uid && !player.uid.startsWith("guest_")) handlePlayerTap(player.uid); }}
+                                    >
                                       {player.name} {player.uid?.startsWith("guest_") && <span className="text-xs font-medium opacity-70">(Inv)</span>}
                                     </span>
                                     {isMyVote && (
@@ -1015,7 +1021,10 @@ export default function JoinMatchPage() {
                                             : "bg-white border-amber-200 text-slate-700 hover:bg-amber-100 hover:scale-105 active:scale-95"
                                           }`}
                                       >
-                                        <div className="relative shrink-0">
+                                        <div
+                                          className={`relative shrink-0 ${p.uid && !p.uid.startsWith("guest_") ? "cursor-pointer" : ""}`}
+                                          onClick={e => { e.stopPropagation(); if (p.uid && !p.uid.startsWith("guest_")) handlePlayerTap(p.uid); }}
+                                        >
                                           {photoURL ? (
                                             <div className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200">
                                               <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="24px" />
@@ -1095,7 +1104,7 @@ export default function JoinMatchPage() {
                   {match.players?.filter((p: Player) => p.confirmed).map((p: Player, i: number) => (
                     <div key={`p-${i}`} className="py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="relative shrink-0">
+                        <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                           {p.photoURL ? (
                             <div className="w-9 h-9 rounded-full overflow-hidden relative border border-emerald-200 shadow-sm">
                               <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="36px" />
@@ -1211,7 +1220,7 @@ export default function JoinMatchPage() {
                     return (
                       <div key={`wl-${i}`} className="py-3 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
-                          <div className="relative shrink-0">
+                          <div className={`relative shrink-0 ${!isGuest && p.uid ? "cursor-pointer" : ""}`} onClick={() => !isGuest && handlePlayerTap(p.uid)}>
                             {p.photoURL ? (
                               <div className="w-8 h-8 rounded-full overflow-hidden relative border border-amber-200 ring-1 ring-amber-100 shadow-sm">
                                 <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="32px" />

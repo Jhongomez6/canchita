@@ -24,12 +24,19 @@ import { APP_LEGAL_CONSTANTS } from "./constants";
 /* =========================
    CREAR / ASEGURAR PERFIL
 ========================= */
+function upgradeGooglePhotoURL(url?: string | null): string | null | undefined {
+  if (!url) return url;
+  // Google profile photos default to =s96-c (96px). Replace with larger size.
+  return url.replace(/=s\d+-c$/, "=s400-c");
+}
+
 export async function ensureUserProfile(
   uid: string,
   name: string,
   email?: string | null,
   photoURL?: string | null
 ) {
+  photoURL = upgradeGooglePhotoURL(photoURL);
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
 

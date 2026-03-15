@@ -339,7 +339,7 @@ export default function ProfilePage() {
 
   return (
     <AuthGuard>
-      <main className="min-h-screen bg-slate-50 pb-24 md:pb-8">
+      <main className="min-h-screen bg-slate-50 pb-24 md:pb-8 animate-in fade-in duration-150">
         {/* CROPPER MODAL REDISEÑADO AL ESTILO NATIVO DE TIKTOK/INSTAGRAM */}
         {imageSrc && (
           <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-between pb-10 pt-safe font-sans animate-in fade-in duration-200">
@@ -433,7 +433,7 @@ export default function ProfilePage() {
               {/* FIFA Player Card — always visible */}
               {profile && (
                 <div className="flex justify-center mb-4 mt-0">
-                  <FifaPlayerCard profile={editing ? previewProfile! : profile} />
+                  <FifaPlayerCard profile={editing ? previewProfile! : profile} animated={false} />
                 </div>
               )}
 

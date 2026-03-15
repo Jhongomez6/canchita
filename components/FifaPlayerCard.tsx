@@ -235,6 +235,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
                     className="object-cover"
                     sizes="210px"
                     quality={100}
+                    priority
                   />
                   {/* Vignette — difumina bordes de la foto */}
                   <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse at center, transparent 62%, rgba(7,30,18,1) 88%, rgba(4,18,10,1) 100%), linear-gradient(to bottom, rgba(4,18,10,0.75) 0%, transparent 32%), linear-gradient(to top, rgba(4,18,10,0.9) 0%, transparent 40%)" }} />
@@ -274,7 +275,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
             {/* ========================= */}
             {/*   STATS — 1x6 ROW         */}
             {/* ========================= */}
-            <div className="flex justify-center gap-x-3 px-2 pb-1 mb-1">
+            <div className="flex justify-center gap-x-3 px-2 pb-0 mb-0">
               {[
                 { label: "COM", value: com },
                 { label: "TEC", value: tec },
@@ -295,14 +296,18 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
           </div>
 
           {/* Logo centrado en el pico inferior */}
-          <div className="flex justify-center pb-2">
-            <Image
-              src="/logo/lacanchita-logo.png"
-              alt="La Canchita"
-              width={36}
-              height={36}
-              className="opacity-70 object-contain"
-            />
+          <div className="flex justify-center pb-1">
+            <div className="w-12 h-9 flex items-center justify-center">
+              <Image
+                src="/logo/lacanchita-logo.png"
+                alt="La Canchita"
+                width={36}
+                height={36}
+                className="opacity-70 object-contain"
+                style={{ width: "auto", height: "auto" }}
+                priority
+              />
+            </div>
           </div>
 
           {/* Bottom decorative edge */}

@@ -41,7 +41,7 @@ function FifaCardSkeleton() {
                     <div className="relative mx-2 mb-1">
                         <div className="h-[1px] bg-gradient-to-r from-transparent via-green-400/20 to-transparent mb-2" />
                         <div className="flex justify-center">
-                            <div className="h-[13px] w-[100px] bg-green-700/50 rounded" />
+                            <div className="h-[16px] w-[100px] bg-green-700/50 rounded" />
                         </div>
                     </div>
 
@@ -57,7 +57,7 @@ function FifaCardSkeleton() {
 
                     {/* Logo area */}
                     <div className="flex justify-center pb-2">
-                        <div className="w-9 h-9 bg-green-700/40 rounded-full opacity-70" />
+                        <div className="w-9 h-9 bg-green-700/40 rounded opacity-70" />
                     </div>
 
                     <div className="h-[2px] bg-gradient-to-r from-green-400/0 via-green-400/20 to-green-400/0" />
@@ -116,15 +116,14 @@ export default function ProfileSkeleton() {
                 {/* Stats Card Skeleton */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="h-[28px] w-[26px] bg-slate-200 rounded-full"></div>
-                        <div className="h-[28px] w-[115px] bg-slate-200 rounded"></div>
+                        <div className="h-[20px] w-[130px] bg-slate-200 rounded"></div>
                         <div className="h-6 w-6 bg-slate-100 rounded-full"></div>
                     </div>
-                    <div className="grid grid-cols-5 gap-3">
+                    <div className="flex divide-x divide-slate-100">
                         {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="flex flex-col items-center gap-1.5">
-                                <div className="h-4 w-6 bg-slate-200 rounded"></div>
-                                <div className="h-7 w-8 bg-slate-100 rounded"></div>
+                            <div key={i} className="flex flex-col items-center flex-1 gap-1.5 py-1">
+                                <div className="h-8 w-8 bg-slate-200 rounded"></div>
+                                <div className="h-[10px] w-6 bg-slate-100 rounded"></div>
                             </div>
                         ))}
                     </div>
