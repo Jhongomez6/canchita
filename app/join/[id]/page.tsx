@@ -35,6 +35,7 @@ import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 import JoinSkeleton from "@/components/skeletons/JoinSkeleton";
 import Link from "next/link";
+import PlayerCardDrawer from "@/components/PlayerCardDrawer";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +49,14 @@ export default function JoinMatchPage() {
   const [submittingVote, setSubmittingVote] = useState(false);
   const [inApp, setInApp] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [selectedPlayerUid, setSelectedPlayerUid] = useState<string | null>(null);
+  const [isPlayerCardOpen, setIsPlayerCardOpen] = useState(false);
+
+  const handlePlayerTap = (uid?: string) => {
+    if (!uid) return;
+    setSelectedPlayerUid(uid);
+    setIsPlayerCardOpen(true);
+  };
 
   useEffect(() => {
     const delay = setTimeout(() => {
@@ -806,7 +815,7 @@ export default function JoinMatchPage() {
                                   {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                                 </div>
                               </div>
-                              <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
+                              <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-red-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                               {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
                             </div>
                             {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
@@ -848,7 +857,7 @@ export default function JoinMatchPage() {
                                   {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                                 </div>
                               </div>
-                              <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"}`}>{p.name}</span>
+                              <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-blue-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                               {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
                             </div>
                             {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
@@ -1101,7 +1110,7 @@ export default function JoinMatchPage() {
                           </div>
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-800 text-sm">{p.name}</span>
+                          <span className={`font-bold text-slate-800 text-sm ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-emerald-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                           {profile && isAdmin(profile) && p.phone && (
                             <a href={`tel:+57${p.phone}`} className="text-xs font-medium text-emerald-600 hover:underline flex items-center gap-1 mt-0.5">
                               📞 +57 {p.phone}
@@ -1217,7 +1226,7 @@ export default function JoinMatchPage() {
                             </div>
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-bold text-slate-700 text-sm">
+                            <span className={`font-bold text-slate-700 text-sm ${!isGuest && p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-amber-700" : ""}`} onClick={() => !isGuest && handlePlayerTap(p.uid)}>
                               {isGuest ? rawGuestName : p.name} {p.uid === user.uid && "(Tú)"}
                             </span>
                             {isGuest && guestHostName && (
@@ -1276,6 +1285,11 @@ export default function JoinMatchPage() {
 
         </div>
       </div>
+      <PlayerCardDrawer
+        isOpen={isPlayerCardOpen}
+        onClose={() => { setIsPlayerCardOpen(false); setSelectedPlayerUid(null); }}
+        playerUid={selectedPlayerUid}
+      />
     </main >
   );
 }

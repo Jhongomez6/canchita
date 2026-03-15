@@ -40,11 +40,9 @@ service cloud.firestore {
        👤 USUARIOS - CORREGIDO
     ========================= */
     match /users/{userId} {
-      // ✅ Leer: el propio usuario SIEMPRE puede leer su perfil
-      allow read: if request.auth != null && request.auth.uid == userId;
-      
-      // ✅ Leer: admins pueden leer cualquier perfil
-      allow read: if request.auth != null && isAdmin();
+      // ✅ Leer: cualquier usuario autenticado puede leer cualquier perfil
+      // (la FIFA Card pública solo muestra datos de gameplay, nunca email/teléfono)
+      allow read: if request.auth != null;
  
       // Crear: solo el propio usuario
       allow create: if request.auth != null && request.auth.uid == userId;
