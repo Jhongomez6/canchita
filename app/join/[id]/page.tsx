@@ -49,6 +49,7 @@ export default function JoinMatchPage() {
   const [submittingVote, setSubmittingVote] = useState(false);
   const [inApp, setInApp] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isCodeCopied, setIsCodeCopied] = useState(false);
   const [selectedPlayerUid, setSelectedPlayerUid] = useState<string | null>(null);
   const [isPlayerCardOpen, setIsPlayerCardOpen] = useState(false);
 
@@ -517,6 +518,34 @@ export default function JoinMatchPage() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Código del partido */}
+              <div className="flex items-center gap-3 text-slate-600">
+                <span className="bg-slate-100 p-2 rounded-lg text-lg">🔑</span>
+                <div className="flex-1 flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-slate-400">Código del partido</span>
+                    <span className="font-mono font-bold text-slate-700 text-sm">{id}</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(id);
+                      setIsCodeCopied(true);
+                      setTimeout(() => setIsCodeCopied(false), 2500);
+                    }}
+                    className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center gap-1 shadow-sm font-bold flex-shrink-0 ${
+                      isCodeCopied
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span className="text-sm">{isCodeCopied ? "✅" : "📋"}</span>
+                    <span className="text-[10px] uppercase">
+                      {isCodeCopied ? "Copiado" : "Copiar"}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
