@@ -8,7 +8,7 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 
 | Campo | Uso en la carta |
 |-------|----------------|
-| `photoURL` | Foto circular del jugador (165px) |
+| `photoURL` | Foto circular del jugador (165px). Google photos se upgradan automáticamente de `=s96-c` a `=s400-c` |
 | `name` | Nombre del jugador (centrado con líneas decorativas) |
 | `primaryPosition` | Posición principal (debajo del OVR, arriba-izquierda) |
 | `positions[]` | Posiciones alternas (pills sobresaliendo del borde derecho superior) |
@@ -64,6 +64,7 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 7. **Pie dominante:** Pill sobresaliendo del borde derecho inferior (🦶 + IZQ/DER/AMB).
 8. **Posiciones alternas:** Solo posiciones distintas a `primaryPosition`, como pills en el borde derecho superior con emoji + abreviación.
 9. **Stats en fila 1x6:** COM, TEC, FIS, PJ, PG, MVP en una sola fila horizontal.
+10. **Google Photos upgrade:** `ensureUserProfile()` en `lib/users.ts` reemplaza `=s96-c` → `=s400-c` en login. Script one-time `scripts/upgrade-google-photos.js` migra usuarios existentes.
 
 ## Efectos Visuales
 
@@ -79,10 +80,15 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 | Archivo | Acción |
 |---------|--------|
 | `components/FifaPlayerCard.tsx` | Nuevo — componente de la carta |
-| `components/PlayerCardDrawer.tsx` | Nuevo — bottom sheet para ver la card de otros jugadores desde `/join/[id]` |
-| `app/profile/page.tsx` | Modificado — reemplaza avatar + tarjeta de nivel |
-| `app/join/[id]/page.tsx` | Modificado — nombres clickeables que abren el drawer con FIFA Card |
+| `components/PlayerCardDrawer.tsx` | Nuevo — bottom sheet "Emerald Vitrine" para ver la card de otros jugadores |
+| `components/skeletons/FifaCardSkeleton.tsx` | Nuevo — skeleton reutilizable con forma exacta de la FIFA Card |
+| `components/skeletons/ProfileSkeleton.tsx` | Modificado — usa `FifaCardSkeleton` y refleja layout actual del perfil |
+| `app/profile/page.tsx` | Modificado — reemplaza avatar + tarjeta de nivel por FIFA Card |
+| `app/join/[id]/page.tsx` | Modificado — fotos y nombres clickeables que abren el drawer con FIFA Card |
+| `lib/users.ts` | Modificado — `upgradeGooglePhotoURL()` convierte `=s96-c` → `=s400-c` en login |
+| `scripts/upgrade-google-photos.js` | Nuevo — script one-time para migrar fotos existentes a s400 |
 | `functions/src/reminders.ts` | Modificado — incrementa `mvpAwards` al cerrar votación MVP |
+| `next.config.ts` | Modificado — agrega `qualities` para optimización de imágenes |
 | `docs/FIFA_PLAYER_CARD_SDD.md` | Nuevo — esta documentación |
 | `docs/PUBLIC_PLAYER_CARD_SDD.md` | Nuevo — SDD del perfil público |
 
@@ -98,3 +104,6 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 - [x] Fallbacks para datos faltantes (sin foto, sin stats, sin techLevel)
 - [x] Responsive en móvil (375px+)
 - [x] Card visible como perfil público desde la página de join (ver `docs/PUBLIC_PLAYER_CARD_SDD.md`)
+- [x] Fotos y nombres de jugadores son tapeables en todas las secciones del join
+- [x] Google profile photos se upgradan a s400 en login y con script de migración
+- [x] ProfileSkeleton refleja layout actual con FifaCardSkeleton
