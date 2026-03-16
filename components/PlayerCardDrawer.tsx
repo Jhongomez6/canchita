@@ -78,7 +78,7 @@ export default function PlayerCardDrawer({ isOpen, onClose, playerUid }: PlayerC
                 onClose();
               }
             }}
-            className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center rounded-t-3xl h-[64vh] overflow-hidden"
+            className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center rounded-t-3xl h-[66vh] overflow-hidden"
             style={{
               background: "linear-gradient(to bottom, rgba(5,20,12,0.96), rgba(3,12,7,0.98))",
               backdropFilter: "blur(20px) saturate(1.2)",

@@ -425,8 +425,16 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
 
     const physicalPlayers = (match.players || []).filter((p: any) => p.uid && !p.uid.startsWith("guest_"));
 
+    // ALL reads must happen before ANY writes (firebase-admin v10+ requirement)
+    const playerSnapshots = new Map<string, FirebaseFirestore.DocumentSnapshot>();
     for (const player of physicalPlayers) {
       const pSnap = await transaction.get(db.collection("users").doc(player.uid));
+      playerSnapshots.set(player.uid, pSnap);
+    }
+
+    // Now process data and queue writes
+    for (const player of physicalPlayers) {
+      const pSnap = playerSnapshots.get(player.uid)!;
       const pData = pSnap.data();
       const tokens = Array.from(new Set<string>(pData?.fcmTokens ?? []));
 
