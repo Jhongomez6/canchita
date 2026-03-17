@@ -88,6 +88,7 @@ export async function createMatch(match: {
 
   await addDoc(matchesRef, {
     ...match,
+    creatorAdminType: profile.adminType || "super_admin",
     isPrivate: match.isPrivate || false,
     allowGuests: match.allowGuests ?? true,
     players: [],

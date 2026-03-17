@@ -19,6 +19,8 @@ import { ValidationError } from "./errors";
 import type { Player } from "./player";
 import type { Guest } from "./guest";
 import type { LocationSnapshot } from "./location";
+import type { AdminType, UserProfile } from "./user";
+import { isSuperAdmin, isLocationAdmin } from "./user";
 
 // ========================
 // TIPOS
@@ -46,6 +48,7 @@ export interface Match {
     mvpVotes?: Record<string, string>; // { voterId: votedPlayerId_or_GuestName }
     closedAt?: string; // ISO String to track 12-hour limit
     isPrivate?: boolean; // If true, hide from Explore
+    creatorAdminType?: AdminType; // Tier del admin al crear el partido
     remindersSent?: Record<string, boolean>; // Tracks sent notifications to avoid duplicate push dispatches
 }
 
@@ -58,6 +61,7 @@ export interface CreateMatchInput {
     maxPlayers: number;
     allowGuests?: boolean;
     isPrivate?: boolean;
+    creatorAdminType?: AdminType;
 }
 
 export type MatchResult = "win" | "loss" | "draw";
@@ -109,6 +113,44 @@ export function determineMatchResult(
     if (myScore > opponentScore) return "win";
     if (myScore < opponentScore) return "loss";
     return "draw";
+}
+
+/**
+ * Determina si un admin puede ver la página /match/[id].
+ *
+ * Reglas:
+ * - super_admin ve todo
+ * - Creador siempre ve su partido
+ * - team_admin: solo creador + super_admin
+ * - location_admin: creador + otros location_admin de la misma locationId + super_admin
+ * - super_admin (privado): solo el owner
+ * - super_admin (público): owner + location_admins de la misma locationId
+ * - Legacy (sin creatorAdminType): se trata como super_admin público
+ */
+export function canViewMatchAdmin(
+    viewerProfile: UserProfile,
+    match: { createdBy: string; locationId: string; isPrivate?: boolean; creatorAdminType?: AdminType }
+): boolean {
+    if (isSuperAdmin(viewerProfile)) return true;
+    if (viewerProfile.uid === match.createdBy) return true;
+
+    const creatorType = match.creatorAdminType;
+
+    if (creatorType === "team_admin") return false;
+
+    if (creatorType === "location_admin") {
+        return isLocationAdmin(viewerProfile)
+            && (viewerProfile.assignedLocationIds?.includes(match.locationId) ?? false);
+    }
+
+    // super_admin match o legacy (sin creatorAdminType)
+    if (creatorType === "super_admin" || !creatorType) {
+        if (match.isPrivate) return false;
+        return isLocationAdmin(viewerProfile)
+            && (viewerProfile.assignedLocationIds?.includes(match.locationId) ?? false);
+    }
+
+    return false;
 }
 
 // ========================

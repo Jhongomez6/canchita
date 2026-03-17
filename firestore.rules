@@ -17,6 +17,14 @@ service cloud.firestore {
       return userDoc != null && userDoc.data.get('adminType', '') == "super_admin";
     }
 
+    // Verifica si el usuario es location_admin asignado a una location específica
+    function isLocationAdminFor(locationId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null
+        && userDoc.data.get('adminType', '') == "location_admin"
+        && locationId in userDoc.data.get('assignedLocationIds', []);
+    }
+
     // 🏟️ CANCHAS
     match /locations/{locationId} {
 
@@ -77,8 +85,27 @@ service cloud.firestore {
     ========================= */
     match /matches/{matchId} {
 
-      // 👀 Leer
-      allow read: if request.auth != null;
+      // 👀 Leer: control de acceso granular por tier de admin
+      // Non-admins (jugadores) siempre pueden leer (necesario para /join/[id])
+      // Admins restringidos según tier del creador y locationId
+      allow read: if request.auth != null
+        && (
+          // Non-admins siempre pueden leer (para /join/[id])
+          !isAdmin()
+          // Jugador en el partido
+          || request.auth.uid in resource.data.playerUids
+          // super_admin ve todo
+          || isSuperAdmin()
+          // Creador siempre ve su partido
+          || resource.data.createdBy == request.auth.uid
+          // Match de location_admin: otros location_admin de la misma location
+          || (resource.data.get('creatorAdminType', '') == "location_admin"
+              && isLocationAdminFor(resource.data.locationId))
+          // Match público de super_admin (o legacy sin creatorAdminType): location_admin de la misma location
+          || (resource.data.get('creatorAdminType', 'super_admin') == "super_admin"
+              && resource.data.get('isPrivate', false) == false
+              && isLocationAdminFor(resource.data.locationId))
+        );
 
       // ✍️ Crear: solo admins
       allow create: if request.auth != null

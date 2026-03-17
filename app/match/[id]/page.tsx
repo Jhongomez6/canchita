@@ -46,6 +46,7 @@ import { updatePlayerStats } from "@/lib/playerStats";
 import type { Position, PlayerLevel } from "@/lib/domain/player";
 import { type Player, POSITION_ICONS } from "@/lib/domain/player";
 import type { Match } from "@/lib/domain/match";
+import { canViewMatchAdmin } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
 import { isSuperAdmin } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
@@ -89,6 +90,7 @@ export default function MatchDetailPage() {
   const [copiedInvitation, setCopiedInvitation] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   async function handleDeleteMatch() {
     setDeleting(true);
@@ -279,12 +281,13 @@ export default function MatchDetailPage() {
     getAllUsers().then(setUsers);
   }, [match, user]);
 
-  // Redirigir si no es admin
+  // Control de acceso granular por tier de admin
   useEffect(() => {
-    if (profile && !profile.roles.includes("admin")) {
-      router.push("/");
+    if (!profile || !match) return;
+    if (!profile.roles.includes("admin") || !canViewMatchAdmin(profile, match)) {
+      setAccessDenied(true);
     }
-  }, [profile, router]);
+  }, [profile, match]);
 
   if (!profile) {
     return (
@@ -296,11 +299,14 @@ export default function MatchDetailPage() {
     );
   }
 
-  if (!profile || !profile.roles.includes("admin")) {
+  if (accessDenied) {
     return (
       <AuthGuard>
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-slate-200 border-t-[#1f7a4f] rounded-full animate-spin"></div>
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-5 text-center">
+          <p className="text-6xl mb-4">⚽</p>
+          <h1 className="text-xl font-bold text-slate-800 mb-2">Partido no encontrado</h1>
+          <p className="text-slate-500 mb-6">El partido que buscas no existe o fue eliminado.</p>
+          <Link href="/" className="text-[#1f7a4f] font-semibold hover:underline">Volver al inicio</Link>
         </div>
       </AuthGuard>
     );
