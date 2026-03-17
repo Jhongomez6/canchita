@@ -435,9 +435,9 @@ export default function MatchDetailPage() {
       `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
       `⏰ *Hora:* ${formatTime12h(match.time)}\n` +
       `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+      `🔗 *Link de invitación:* ${shareUrl}\n\n` +
       `🔑 *Código de búsqueda:* ${id}.ai\n` +
-      `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n\n` +
-      `🔗 *Link de invitación:* ${shareUrl}\n`;
+      `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n`;
     await navigator.clipboard.writeText(text);
   }
 
