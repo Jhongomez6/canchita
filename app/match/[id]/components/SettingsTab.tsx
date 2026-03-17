@@ -231,9 +231,12 @@ export default function SettingsTab({
       {/* Notifications */}
       {isOwner && !isClosed && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
             🔔 Notificaciones
           </h3>
+          <p className="text-xs text-slate-500 mb-4">
+            Envía una notificación push a todos los jugadores confirmados y pendientes que tengan activadas las notificaciones en su dispositivo.
+          </p>
           <button
             onClick={handleSendReminder}
             disabled={sendingReminder}
