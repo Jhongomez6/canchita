@@ -66,6 +66,9 @@ interface Player {
 | 9 | Invitados visibles y balanceables desde match detail | Guest display + `guestToPlayer()` en match page |
 | 10 | Reporte WhatsApp usa equipos locales (incluye cambios DnD) | `balanced` state preferred over `match.teams` |
 | 11 | Los códigos de partido pueden ser IDs puros, con extensión `.ai`/`.app`, enlaces completos (`/join/ID`), con trailing slash o query params | `sanitizeMatchCode()` en `lib/matchCode.ts` |
+| 12 | Jugadores agregados desde la página admin quedan confirmados automáticamente | `addPlayerToMatch()` acepta param opcional `confirmed` (default: `false`) |
+| 13 | Al desconfirmar asistencia, el jugador se remueve también de los equipos balanceados | `unconfirmAttendance()` filtra `match.teams.A/B` además de `match.players` |
+| 14 | `getMyMatches()` retorna partidos donde el usuario es jugador O creador | Doble query en paralelo: `playerUids array-contains` + `createdBy ==`, merge y deduplicación |
 
 ---
 
@@ -118,26 +121,50 @@ export function isMatchFull(players: Player[], maxPlayers: number): boolean {
 ```typescript
 export async function addPlayerToMatch(
   matchId: string,
-  player: Omit<Player, "confirmed">
+  player: Omit<Player, "confirmed"> & { confirmed?: boolean }
 ): Promise<void> {
   const ref = doc(db, "matches", matchId);
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const data = snap.data();
     const players: Player[] = data?.players ?? [];
-    
+
     if (isMatchFull(players, data?.maxPlayers ?? Infinity)) {
       throw new MatchFullError("El partido está lleno");
     }
-    
+
     tx.update(ref, {
-      players: [...players, { ...player, confirmed: false }],
+      players: [...players, { ...player, confirmed: player.confirmed ?? false }],
+      playerUids: arrayUnion(player.uid),
     });
   });
 }
 ```
 
-**✅ Cumple especificación**: Reglas #2, #5
+**✅ Cumple especificación**: Reglas #2, #5, #12
+
+#### Obtención de partidos del usuario (`getMyMatches`)
+```typescript
+export async function getMyMatches(uid: string): Promise<Match[]> {
+  // Query 1: partidos donde el usuario es jugador
+  const playerQ = query(matchesRef, where("playerUids", "array-contains", uid), orderBy("createdAt", "desc"));
+  // Query 2: partidos creados por el usuario
+  const creatorQ = query(matchesRef, where("createdBy", "==", uid), orderBy("createdAt", "desc"));
+
+  const [playerSnap, creatorSnap] = await Promise.all([getDocs(playerQ), getDocs(creatorQ)]);
+
+  // Merge y deduplicar
+  const matchMap = new Map<string, Match>();
+  for (const snap of [playerSnap, creatorSnap]) {
+    for (const d of snap.docs) {
+      if (!matchMap.has(d.id)) matchMap.set(d.id, { id: d.id, ...(d.data() as Omit<Match, "id">) });
+    }
+  }
+  return Array.from(matchMap.values());
+}
+```
+
+**✅ Cumple especificación**: Regla #14 — Garantiza que admins siempre vean partidos que crearon
 
 ### Limitación por Tier (Creación de Partidos)
 ```typescript
@@ -157,43 +184,75 @@ export async function createMatch(data: CreateMatchInput, createdBy: UserProfile
 }
 ```
 
-#### **Capa 3: UI** (`app/match/[id]/page.tsx`, `app/join/[id]/page.tsx`)
-- **Responsabilidad**: Interfaz de usuario, feedback visual
-- **Depende de**: API, Dominio (tipos)
-- **Tipado estricto**: `useState<Match | null>`, `(p: Player)` en lugar de `any`
+#### **Capa 3: UI** — Arquitectura Tab-Based con Component Decomposition
 
-```typescript
-const [match, setMatch] = useState<Match | null>(null);
-const [users, setUsers] = useState<UserProfile[]>([]);
-const [location, setLocation] = useState<Location | null>(null);
+La página admin de partido (`app/match/[id]/page.tsx`) fue rediseñada de un monolito de ~1,700 líneas a un orquestador de ~480 líneas que delega a componentes especializados mediante 4 tabs.
 
-const guestCount = match.guests?.length ?? 0;
-const confirmedCount = (match.players?.filter((p: Player) => p.confirmed).length ?? 0) + guestCount;
-const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
+**Orquestador** (`page.tsx`): Owns `onSnapshot` listener, match state, balanced state, all API callbacks. Pasa datos y callbacks como props a tab components.
+
+```
+app/match/[id]/
+  page.tsx                    -- Orquestador (~480 líneas)
+  components/
+    MatchAdminTabs.tsx        -- Navegación por tabs sticky (WAI-ARIA)
+    DashboardTab.tsx          -- Resumen de estado + progress bar
+    MatchProgressBar.tsx      -- Stepper visual del ciclo de vida
+    PlayersTab.tsx            -- Lista jugadores + agregar jugador + waitlist
+    PlayerRow.tsx             -- Fila expandible de jugador
+    AttendanceMode.tsx        -- Modo batch de asistencia
+    TeamsTab.tsx              -- Balance + equipos side-by-side + marcador
+    TeamColumn.tsx            -- Columna DnD de equipo individual
+    ScoreInput.tsx            -- Entrada de marcador +/-
+    PlayerItem.tsx            -- Tarjeta drag-and-drop de jugador
+    SettingsTab.tsx           -- Compartir, config, ciclo de vida, zona peligrosa
+    MatchFAB.tsx              -- Floating action button contextual
 ```
 
-**✅ Cumple especificación**: Feedback visual de estado completo/abierto
+### Match Lifecycle Phase System
 
-### UI Components & Estados
+Función pura `getMatchPhase()` en `lib/domain/match.ts` que determina la fase actual:
 
-#### 1. Location View (Accordion)
-- **Estado**: `isMapOpen` (boolean)
-- **Comportamiento**: Header con nombre de cancha y chevron rotativo. Al expandir muestra mapa y botones (Waze/Maps).
-- **Estilo**: Card unificada en "Match Info", eliminando tarjeta separada.
+| Phase | Condición | Tab por defecto |
+|---|---|---|
+| `recruiting` | Abierto, hay cupo, sin equipos | Dashboard |
+| `full` | Abierto, lleno O equipos existen | Teams |
+| `gameday` | Abierto, equipos guardados, es hoy | Teams |
+| `postgame` | Abierto, equipos + marcador ingresado | Teams |
+| `closed` | status=closed | Dashboard |
 
-#### 2. Admin Actions (Collapsible & Controls)
-- **Estado**: `isAddPlayerOpen` (boolean)
-- **Comportamiento**: Botón "+ Agregar Jugador o Invitado" expande el formulario.
-- **Objetivo**: Reducir ruido visual en el dashboard.
-- **Max Jugadores**: Selector ergonómico con botones `-` y `+` (stepper) que autoguarda y redondea a números pares el cupo total del partido de forma ágil.
+### Tab Navigation (MatchAdminTabs)
+- 4 tabs: Dashboard, Jugadores (badge con count), Equipos (dot unsaved), Ajustes
+- `sticky top-0 z-40`, WAI-ARIA tab pattern (`role="tablist"`, `aria-selected`)
+- Auto-selecciona tab según `MatchPhase` al cargar
+- Deep linking via `?tab=players` URL params
 
-#### 3. Match Result View (Closed Matches)
-- **Condición**: `status === "closed" && teams !== undefined`
-- **Componentes**:
-  - **Scoreboard**: Marcador final (e.g., 3 - 2).
-  - **Personal Result**: Banner "Ganaste/Perdiste" basado en `user.uid` vs `teams`.
-  - **Team Rosters**: Listas de Equipo A vs Equipo B con iconos de posición.
-- **Reemplaza**: La lista plana de "Jugadores confirmados".
+### Context-Sensitive FAB (MatchFAB)
+Botón flotante `fixed bottom-24 right-4 z-40` que muestra la acción prioritaria por fase:
+
+| Phase | FAB | Icono |
+|---|---|---|
+| recruiting | Compartir | 📲 |
+| full | Balancear | ⚖️ |
+| gameday | Pasar lista | ✅ |
+| postgame | Cerrar | 🔒 |
+| closed | Reporte | 📋 |
+
+### Players Tab
+- **Summary bar**: Confirmados / Pendientes / Espera con conteos tappables
+- **Player rows expandibles**: Collapsed muestra foto + nombre + posición + badge. Expanded muestra level, posiciones, teléfono, controles de asistencia, eliminar
+- **Agregar jugador**: Tarjetas de usuario buscables (foto, nombre, posición, nivel) en vez de `<select>`
+- **Agregar invitado manual**: Requiere selección de posición antes de agregar
+- **Attendance mode**: Modo batch "Pasar Lista" con tap-to-cycle (presente → tarde → no_show)
+
+### Teams Tab
+- **Side-by-side siempre**: `grid grid-cols-2 gap-2` en todas las pantallas
+- **DnD**: `@dnd-kit/core` con `PointerSensor` + `TouchSensor` (delay: 200ms para distinguir de scroll)
+- **Marcador inline** con equipos (no sección separada)
+- **"Guardar todo"** unificado (equipos + marcador)
+- **Position grid colapsable**
+
+### Access Denied UX
+- Si un admin sin permisos accede a `/match/[id]`, ve pantalla "Sin permisos de administración" con botón para ir a `/join/[id]` como jugador (en vez de un 404 genérico)
 
 ---
 
@@ -371,18 +430,21 @@ describe("isMatchFull", () => {
 
 | Capa | Archivo | Responsabilidad |
 |------|---------|----------------|
-| Dominio | `lib/domain/match.ts` | Tipos, reglas puras |
+| Dominio | `lib/domain/match.ts` | Tipos, reglas puras, `getMatchPhase()`, `canViewMatchAdmin()` |
 | Dominio | `lib/domain/player.ts` | Player, Position |
+| Dominio | `lib/domain/team.ts` | `sortTeamForDisplay()` |
 | Dominio | `lib/domain/errors.ts` | MatchFullError |
-| API | `lib/matches.ts` | CRUD Firestore |
+| API | `lib/matches.ts` | CRUD Firestore, `getMyMatches()` (dual query) |
 | API | `lib/playerStats.ts` | Estadísticas |
 | API | `lib/matchReport.ts` | Reporte WhatsApp |
 | API | `lib/matchCode.ts` | Sanitización de códigos (.ai/.app trick, URLs, query params) |
 | Test | `lib/matchCode.test.ts` | 22 tests para sanitizeMatchCode |
-| UI | `app/match/[id]/page.tsx` | Admin view |
+| UI | `app/match/[id]/page.tsx` | Orquestador admin (onSnapshot, state, callbacks) |
+| UI | `app/match/[id]/components/*.tsx` | 12 componentes: Tabs, Dashboard, Players, Teams, Settings, FAB, etc. |
 | UI | `app/join/[id]/page.tsx` | Player view |
 | UI | `app/page.tsx` | Home / lista |
 | UI | `app/new-match/page.tsx` | Crear partido |
+| Seguridad | `firestore.rules` | `isTeamAdmin()` helper + regla de lectura granular |
 
 ---
 

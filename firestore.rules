@@ -17,6 +17,11 @@ service cloud.firestore {
       return userDoc != null && userDoc.data.get('adminType', '') == "super_admin";
     }
 
+    function isTeamAdmin() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data.get('adminType', '') == "team_admin";
+    }
+
     // Verifica si el usuario es location_admin asignado a una location específica
     function isLocationAdminFor(locationId) {
       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
@@ -88,10 +93,13 @@ service cloud.firestore {
       // 👀 Leer: control de acceso granular por tier de admin
       // Non-admins (jugadores) siempre pueden leer (necesario para /join/[id])
       // Admins restringidos según tier del creador y locationId
+      // team_admin siempre puede leer (necesita /join/[id] como jugador, y /match/[id] para mostrar access-denied)
       allow read: if request.auth != null
         && (
           // Non-admins siempre pueden leer (para /join/[id])
           !isAdmin()
+          // team_admin puede leer cualquier partido (su scope admin es solo sus propios partidos, validado client-side)
+          || isTeamAdmin()
           // Jugador en el partido
           || request.auth.uid in resource.data.playerUids
           // super_admin ve todo

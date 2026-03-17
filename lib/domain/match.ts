@@ -154,6 +154,42 @@ export function canViewMatchAdmin(
 }
 
 // ========================
+// MATCH LIFECYCLE PHASES
+// ========================
+
+export type MatchPhase = "recruiting" | "full" | "gameday" | "postgame" | "closed";
+
+/**
+ * Determina la fase actual del partido para controlar la UI.
+ * Usado por la página admin para progressive disclosure.
+ */
+export function getMatchPhase(
+    match: Pick<Match, "status" | "teams" | "score" | "date">,
+    confirmedCount: number,
+    maxPlayers: number,
+    today: string
+): MatchPhase {
+    if (match.status === "closed") return "closed";
+    if (match.score && match.teams) return "postgame";
+    if (match.date === today && match.teams) return "gameday";
+    if (confirmedCount >= maxPlayers || match.teams) return "full";
+    return "recruiting";
+}
+
+/**
+ * Devuelve la tab por defecto según la fase del partido.
+ */
+export function getDefaultTabForPhase(phase: MatchPhase): "dashboard" | "players" | "teams" | "settings" {
+    switch (phase) {
+        case "recruiting": return "dashboard";
+        case "full": return "teams";
+        case "gameday": return "teams";
+        case "postgame": return "teams";
+        case "closed": return "dashboard";
+    }
+}
+
+// ========================
 // VALIDACIONES
 // ========================
 

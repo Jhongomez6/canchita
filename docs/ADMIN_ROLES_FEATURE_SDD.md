@@ -42,6 +42,7 @@ export interface UserProfile {
 | 6 | Super Admin puede operar en **cualquier** location sin restricción | `canManageLocation()` retorna `true` siempre para super_admin |
 | 7 | Solo Super Admin puede asignar roles, tiers y locations a otros usuarios | Verificación en UI + Firestore Rules |
 | 8 | Un Team Admin puede también ser Player simultáneamente | `roles: ["admin", "player"]` con `adminType: "team_admin"` |
+| 13 | Team Admin puede LEER cualquier partido en Firestore | `isTeamAdmin()` helper en `firestore.rules` — necesario para `/join/[id]` como jugador y para mostrar access-denied elegante en `/match/[id]` |
 | 9 | Solo Super Admin puede crear nuevas canchas (locations) | `createLocation()` protegido por `isSuperAdmin()` |
 | 10 | Solo Super Admin puede acceder a Ranking y Feedback | Verificación en `admin/ranking` y `admin/feedback` |
 | 11 | Location/Team Admin solo puede editar partidos que él creó | `match.createdBy === profile.uid` en UI |
@@ -192,6 +193,16 @@ export function canManageLocation(profile: UserProfile, locationId: string): boo
 **When** accede al detalle de cualquier partido
 **Then** puede editarlo sin restricción de `createdBy`
 
+### Criterio 9
+**Given** un Team Admin que también es Player
+**When** accede a `/join/[id]` de un partido que NO creó
+**Then** puede ver la página y unirse como jugador sin error de permisos de Firestore
+
+### Criterio 10
+**Given** un Team Admin que también es Player
+**When** accede a `/match/[id]` de un partido que NO creó
+**Then** ve pantalla "Sin permisos de administración" con enlace a la vista de jugador (`/join/[id]`)
+
 ---
 
 ## 5. ARCHIVOS INVOLUCRADOS
@@ -202,7 +213,7 @@ export function canManageLocation(profile: UserProfile, locationId: string): boo
 | API | `lib/matches.ts` | createMatch() con validación de tier |
 | API | `lib/locations.ts` | getAdminLocations() scoped |
 | API | `lib/users.ts` | Asignación de admin type y locations |
-| Seguridad | `firestore.rules` | isSuperAdmin(), protección de campos sensibles |
+| Seguridad | `firestore.rules` | `isSuperAdmin()`, `isTeamAdmin()`, protección de campos sensibles, lectura granular de partidos |
 | UI | `app/new-match/page.tsx` | Creación de partido scoped por tier |
 | UI | `app/admin/users/page.tsx` | Panel de gestión de admins (super_admin only) |
 | UI | `app/match/[id]/page.tsx` | Edición scoped por createdBy/tier |

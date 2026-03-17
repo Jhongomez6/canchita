@@ -109,18 +109,36 @@ export async function createMatch(match: {
    (ADMIN + PLAYER)
 ========================= */
 export async function getMyMatches(uid: string): Promise<Match[]> {
-  const q = query(
+  // Query 1: partidos donde el usuario es jugador
+  const playerQ = query(
     matchesRef,
     where("playerUids", "array-contains", uid),
     orderBy("createdAt", "desc")
   );
 
-  const snapshot = await getDocs(q);
+  // Query 2: partidos creados por el usuario (cubre caso donde admin no está en playerUids)
+  const creatorQ = query(
+    matchesRef,
+    where("createdBy", "==", uid),
+    orderBy("createdAt", "desc")
+  );
 
-  return snapshot.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Match, "id">),
-  }));
+  const [playerSnap, creatorSnap] = await Promise.all([
+    getDocs(playerQ),
+    getDocs(creatorQ),
+  ]);
+
+  // Merge y deduplicar
+  const matchMap = new Map<string, Match>();
+  for (const snap of [playerSnap, creatorSnap]) {
+    for (const d of snap.docs) {
+      if (!matchMap.has(d.id)) {
+        matchMap.set(d.id, { id: d.id, ...(d.data() as Omit<Match, "id">) });
+      }
+    }
+  }
+
+  return Array.from(matchMap.values());
 }
 
 /* =========================
@@ -428,7 +446,16 @@ export async function unconfirmAttendance(
     p.name === playerName ? { ...p, confirmed: false } : p
   );
 
-  await updateDoc(ref, { players: updatedPlayers });
+  const updateData: Record<string, unknown> = { players: updatedPlayers };
+
+  // Remove player from balanced teams if they exist
+  if (data.teams?.A && data.teams?.B) {
+    const teamA = (data.teams.A as Player[]).filter((p) => p.name !== playerName);
+    const teamB = (data.teams.B as Player[]).filter((p) => p.name !== playerName);
+    updateData.teams = { A: teamA, B: teamB };
+  }
+
+  await updateDoc(ref, updateData);
 }
 
 /* =========================
@@ -468,6 +495,7 @@ export async function addPlayerToMatch(
     level: number;
     positions: string[];
     primaryPosition?: string;
+    confirmed?: boolean;
   }
 ) {
   const ref = doc(db, "matches", matchId);
@@ -493,7 +521,7 @@ export async function addPlayerToMatch(
 
   const newPlayer = {
     ...player,
-    confirmed: false,
+    confirmed: player.confirmed ?? false,
     ...(photoURL ? { photoURL } : {}),
   };
 

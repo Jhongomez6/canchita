@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { usePathname } from "next/navigation";
 import { submitFeedback } from "@/lib/feedback";
 import { handleError } from "@/lib/utils/error";
 import { toast } from "react-hot-toast";
 
 export default function BetaFeedbackWidget() {
     const { user, profile } = useAuth();
+    const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
     const [type, setType] = useState<'bug' | 'idea' | 'other'>('idea');
     const [message, setMessage] = useState('');
@@ -15,6 +17,9 @@ export default function BetaFeedbackWidget() {
 
     // Si no está autenticado, no mostramos el widget
     if (!user) return null;
+
+    // Ocultar en la página admin de partido (tiene su propio FAB)
+    if (pathname.startsWith("/match/")) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

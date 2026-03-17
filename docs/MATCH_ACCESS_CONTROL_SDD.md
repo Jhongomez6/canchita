@@ -38,7 +38,8 @@ creatorAdminType?: AdminType; // Tier del admin al crear el partido
 | 2 | El creador siempre puede ver su propio partido | Segunda condición en `canViewMatchAdmin()` |
 | 3 | Un `location_admin` que puede VER un partido NO puede editarlo (solo ver) | `isOwner` sigue siendo `createdBy === uid \|\| isSuperAdmin()` |
 | 4 | `/join/[id]` no tiene restricción de acceso | Sin cambios en la página de join |
-| 5 | Acceso denegado muestra 404 genérico | No revela la existencia del partido |
+| 5 | Acceso denegado muestra pantalla informativa con enlace a `/join/[id]` | Indica "Sin permisos de administración" y ofrece unirse como jugador |
+| 6 | `team_admin` puede LEER cualquier partido en Firestore | Necesario para `/join/[id]` (como jugador) y para que `/match/[id]` muestre acceso denegado de forma elegante en vez de error de Firebase |
 
 ---
 
@@ -64,8 +65,9 @@ Lógica pura sin dependencias de Firebase ni React. Evalúa las 5 reglas de acce
 
 ### Capa 2: Firestore Rules (`firestore.rules`)
 - Non-admins (jugadores) siempre pueden leer (necesario para `/join/[id]`)
+- `team_admin` siempre puede leer cualquier partido (helper `isTeamAdmin()`) — su scope de administración se restringe client-side por `canViewMatchAdmin()`
 - Admins restringidos con la misma lógica replicada en reglas de seguridad
-- Helper `isLocationAdminFor(locationId)` verifica `adminType` y `assignedLocationIds`
+- Helpers: `isLocationAdminFor(locationId)`, `isTeamAdmin()`, `isSuperAdmin()`
 
 ---
 
@@ -75,8 +77,9 @@ Lógica pura sin dependencias de Firebase ni React. Evalúa las 5 reglas de acce
 - [ ] Partido de `location_admin`: otro `location_admin` de la misma location lo ve, uno de otra location no
 - [ ] Partido público de `super_admin`: `location_admin` de la misma location lo ve
 - [ ] Partido privado de `super_admin`: solo el super_admin creador lo ve
-- [ ] Admin no autorizado ve 404 genérico (no revela existencia)
+- [ ] Admin no autorizado ve pantalla "Sin permisos de administración" con botón a `/join/[id]`
 - [ ] Jugador accede normalmente a `/join/[id]` sin cambios
+- [ ] `team_admin` puede leer documentos de partido en Firestore (no recibe permission-denied)
 - [ ] Partidos nuevos se crean con `creatorAdminType` del creador
 - [ ] Partidos legacy (sin campo) siguen visibles con fallback permisivo
 
@@ -89,5 +92,5 @@ Lógica pura sin dependencias de Firebase ni React. Evalúa las 5 reglas de acce
 | `lib/domain/match.ts` | `creatorAdminType` en `Match` + `CreateMatchInput` + `canViewMatchAdmin()` |
 | `lib/matches.ts` | Persistir `creatorAdminType` en `createMatch()` |
 | `app/match/[id]/page.tsx` | Access check con `canViewMatchAdmin()` + render 404 |
-| `firestore.rules` | Helper `isLocationAdminFor()` + regla granular de lectura |
+| `firestore.rules` | Helpers `isLocationAdminFor()`, `isTeamAdmin()` + regla granular de lectura |
 | `lib/domain/user.ts` | Referencia: helpers `isSuperAdmin()`, `isLocationAdmin()` existentes |
