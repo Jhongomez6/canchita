@@ -19,6 +19,7 @@ interface SettingsTabProps {
   onCloseMatch: () => Promise<void>;
   onReopenMatch: () => Promise<void>;
   onDeleteMatch: () => Promise<void>;
+  onToggleAllowGuests: (value: boolean) => Promise<void>;
 }
 
 export default function SettingsTab({
@@ -35,6 +36,7 @@ export default function SettingsTab({
   onCloseMatch,
   onReopenMatch,
   onDeleteMatch,
+  onToggleAllowGuests,
 }: SettingsTabProps) {
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -43,9 +45,12 @@ export default function SettingsTab({
   const [sendingReminder, setSendingReminder] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showGuestsConfirm, setShowGuestsConfirm] = useState(false);
+  const [togglingGuests, setTogglingGuests] = useState(false);
   const [localMaxPlayers, setLocalMaxPlayers] = useState(maxPlayersDraft);
 
   const currentMax = localMaxPlayers ?? match.maxPlayers ?? 14;
+  const guestCount = match.guests?.length ?? 0;
 
   async function handleCopyLink() {
     await onCopyLink();
@@ -217,6 +222,38 @@ export default function SettingsTab({
               </div>
             )}
 
+            {/* Allow guests toggle */}
+            {!isClosed && (
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">👥</span>
+                  <div>
+                    <span className="text-slate-600 font-medium text-sm">Permitir invitados</span>
+                    <p className="text-[10px] text-slate-500 leading-tight">
+                      {match.allowGuests !== false
+                        ? "Los jugadores pueden llevar hasta 2 invitados sin cuenta."
+                        : "Solo usuarios con cuenta pueden asistir."}
+                    </p>
+                  </div>
+                </div>
+                <div className="relative inline-flex items-center cursor-pointer ml-3 shrink-0">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={match.allowGuests !== false}
+                    onChange={(e) => {
+                      if (!e.target.checked && guestCount > 0) {
+                        setShowGuestsConfirm(true);
+                      } else {
+                        onToggleAllowGuests(e.target.checked);
+                      }
+                    }}
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1f7a4f]"></div>
+                </div>
+              </label>
+            )}
+
             {/* View as player */}
             <Link
               href={`/join/${match.id}`}
@@ -312,6 +349,44 @@ export default function SettingsTab({
           >
             🗑️ Borrar partido
           </button>
+        </div>
+      )}
+
+      {/* Disable guests confirmation modal */}
+      {showGuestsConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold text-slate-800 mb-2">¿Desactivar invitados?</h2>
+            <p className="text-sm text-slate-500 mb-6">
+              {guestCount === 1
+                ? "Hay 1 invitado en el partido. Será eliminado al desactivar esta opción."
+                : `Hay ${guestCount} invitados en el partido. Serán eliminados al desactivar esta opción.`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowGuestsConfirm(false)}
+                disabled={togglingGuests}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setTogglingGuests(true);
+                  try {
+                    await onToggleAllowGuests(false);
+                    setShowGuestsConfirm(false);
+                  } finally {
+                    setTogglingGuests(false);
+                  }
+                }}
+                disabled={togglingGuests}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {togglingGuests ? "Eliminando..." : "Sí, desactivar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

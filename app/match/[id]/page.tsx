@@ -733,6 +733,13 @@ export default function MatchDetailPage() {
               onCloseMatch={handleCloseMatch}
               onReopenMatch={async () => reopenMatch(id)}
               onDeleteMatch={handleDeleteMatchAction}
+              onToggleAllowGuests={async (value) => {
+                const update: Record<string, unknown> = { allowGuests: value };
+                if (!value) {
+                  update.guests = [];
+                }
+                await updateDoc(doc(db, "matches", id), update);
+              }}
             />
           )}
         </div>
