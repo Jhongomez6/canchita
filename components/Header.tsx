@@ -151,6 +151,18 @@ export default function Header() {
           </Link>
 
           <Link
+            href="/explore"
+            className="hidden md:block"
+            style={{
+              color: "#e6f6ed",
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
+          >
+            Explorar
+          </Link>
+
+          <Link
             href="/profile"
             className="hidden md:block"
             style={{

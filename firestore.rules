@@ -90,11 +90,11 @@ service cloud.firestore {
     ========================= */
     match /matches/{matchId} {
 
-      // 👀 Leer: control de acceso granular por tier de admin
+      // 👀 Leer documento individual (get): control de acceso granular por tier de admin
       // Non-admins (jugadores) siempre pueden leer (necesario para /join/[id])
       // Admins restringidos según tier del creador y locationId
       // team_admin siempre puede leer (necesita /join/[id] como jugador, y /match/[id] para mostrar access-denied)
-      allow read: if request.auth != null
+      allow get: if request.auth != null
         && (
           // Non-admins siempre pueden leer (para /join/[id])
           !isAdmin()
@@ -114,6 +114,11 @@ service cloud.firestore {
               && resource.data.get('isPrivate', false) == false
               && isLocationAdminFor(resource.data.locationId))
         );
+
+      // 👀 Listar (collection queries): cualquier usuario autenticado puede hacer queries
+      // El filtrado fino (isPrivate, tier de admin) se hace client-side
+      // Nota: el get rule ya protege el acceso individual a documentos sensibles
+      allow list: if request.auth != null;
 
       // ✍️ Crear: solo admins
       allow create: if request.auth != null

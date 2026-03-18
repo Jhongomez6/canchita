@@ -30,6 +30,7 @@ export default function ExplorePage() {
         if (authLoading || !profile) return;
 
         // 🔴 Real-time listener — updates when any match opens or closes
+        const isSuperAdmin = profile?.adminType === "super_admin";
         const q = query(
             collection(db, "matches"),
             where("status", "==", "open")
@@ -37,13 +38,13 @@ export default function ExplorePage() {
 
         const unsubscribe = onSnapshot(q, async (snapshot: QuerySnapshot) => {
             const allOpenMatches = snapshot.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() } as Match));
-            const publicMatches = allOpenMatches.filter(m => !m.isPrivate);
-            setMatches(publicMatches);
+            const visibleMatches = isSuperAdmin ? allOpenMatches : allOpenMatches.filter(m => !m.isPrivate);
+            setMatches(visibleMatches);
 
             // Fetch locations for these matches
             const locationIds: string[] = Array.from(
                 new Set(
-                    publicMatches
+                    visibleMatches
                         .map((m: Match) => m.locationId as string)
                         .filter(Boolean)
                 )
@@ -139,7 +140,7 @@ export default function ExplorePage() {
                         {/* OPEN MATCHES LIST */}
                         <div>
                             <h2 className="text-sm font-bold text-slate-800 mb-4 px-1 flex justify-between items-center min-h-[22px]">
-                                <span>Partidos Abiertos</span>
+                                <span>Partidos Abiertos{profile?.adminType === "super_admin" ? " (todos)" : ""}</span>
                                 {loading && (
                                     <div className="h-[20px] w-[85px] bg-slate-200 rounded-full animate-pulse"></div>
                                 )}
