@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+
 export type TabId = "dashboard" | "players" | "teams" | "settings";
 
 interface Tab {
@@ -25,6 +27,12 @@ export default function MatchAdminTabs({
   hasUnsavedBalance,
   hasTeams,
 }: MatchAdminTabsProps) {
+  const scrollToTab = useCallback((el: HTMLButtonElement | null) => {
+    if (el && el.getAttribute("aria-selected") === "true") {
+      el.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+    }
+  }, [activeTab]);
+
   const tabs: Tab[] = [
     { id: "dashboard", label: "Dashboard", icon: "📊" },
     { id: "players", label: "Jugadores", icon: "👥", badge: playerCount },
@@ -42,11 +50,12 @@ export default function MatchAdminTabs({
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            ref={scrollToTab}
             role="tab"
             aria-selected={activeTab === tab.id}
             aria-controls={`panel-${tab.id}`}
             onClick={() => onTabChange(tab.id)}
-            className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 ${
+            className={`relative flex flex-1 items-center justify-center gap-1 px-2 py-3 text-xs font-bold whitespace-nowrap transition-colors border-b-2 ${
               activeTab === tab.id
                 ? "text-[#1f7a4f] border-[#1f7a4f]"
                 : "text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300"

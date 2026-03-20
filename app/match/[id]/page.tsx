@@ -28,7 +28,7 @@ import { formatDateSpanish, formatTime12h } from "@/lib/date";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { updatePlayerStats } from "@/lib/playerStats";
 import type { PlayerLevel } from "@/lib/domain/player";
-import type { Player } from "@/lib/domain/player";
+import type { Player, Position } from "@/lib/domain/player";
 import type { Match } from "@/lib/domain/match";
 import { canViewMatchAdmin, getMatchPhase, getDefaultTabForPhase } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
@@ -36,7 +36,7 @@ import { isSuperAdmin } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
 import type { Guest } from "@/lib/domain/guest";
 import { guestToPlayer } from "@/lib/domain/guest";
-import { promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
+import { addGuestToMatch, promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
@@ -581,12 +581,9 @@ export default function MatchDetailPage() {
     level: number,
     positions: string[]
   ) {
-    await addPlayerToMatch(id, {
-      uid: `guest_${name.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}`,
+    await addGuestToMatch(id, user!.uid, {
       name,
-      level,
-      positions,
-      confirmed: true,
+      positions: positions as Position[],
     });
   }
 

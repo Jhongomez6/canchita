@@ -111,6 +111,11 @@ export default function PlayersTab({
             ⏳ {pendingPlayers.length} Pendientes
           </span>
         )}
+        {guests.length > 0 && (
+          <span className="flex-1 text-center bg-violet-50 text-violet-600 border border-violet-100 rounded-lg py-2">
+            🎟️ {guests.length} {guests.length === 1 ? "Invitado" : "Invitados"}
+          </span>
+        )}
         {waitlistPlayers.length > 0 && (
           <span className="flex-1 text-center bg-slate-50 text-slate-600 border border-slate-100 rounded-lg py-2">
             📋 {waitlistPlayers.length} Espera
@@ -395,7 +400,7 @@ export default function PlayersTab({
                       <div>
                         <div className="font-bold text-sm text-slate-800">{g.name}</div>
                         <div className="text-xs text-slate-500">
-                          por {inviter?.name ?? "Desconocido"}
+                          por {inviter?.name ?? "Admin"}
                         </div>
                       </div>
                     </div>
