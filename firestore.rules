@@ -90,30 +90,12 @@ service cloud.firestore {
     ========================= */
     match /matches/{matchId} {
 
-      // 👀 Leer documento individual (get): control de acceso granular por tier de admin
-      // Non-admins (jugadores) siempre pueden leer (necesario para /join/[id])
-      // Admins restringidos según tier del creador y locationId
-      // team_admin siempre puede leer (necesita /join/[id] como jugador, y /match/[id] para mostrar access-denied)
-      allow get: if request.auth != null
-        && (
-          // Non-admins siempre pueden leer (para /join/[id])
-          !isAdmin()
-          // team_admin puede leer cualquier partido (su scope admin es solo sus propios partidos, validado client-side)
-          || isTeamAdmin()
-          // Jugador en el partido
-          || request.auth.uid in resource.data.playerUids
-          // super_admin ve todo
-          || isSuperAdmin()
-          // Creador siempre ve su partido
-          || resource.data.createdBy == request.auth.uid
-          // Match de location_admin: otros location_admin de la misma location
-          || (resource.data.get('creatorAdminType', '') == "location_admin"
-              && isLocationAdminFor(resource.data.locationId))
-          // Match público de super_admin (o legacy sin creatorAdminType): location_admin de la misma location
-          || (resource.data.get('creatorAdminType', 'super_admin') == "super_admin"
-              && resource.data.get('isPrivate', false) == false
-              && isLocationAdminFor(resource.data.locationId))
-        );
+      // 👀 Leer documento individual (get): cualquier usuario autenticado
+      // El filtrado por tier de admin se hace client-side (igual que list).
+      // Nota: list ya permite queries a cualquier usuario autenticado, así que
+      // restringir get no aporta seguridad adicional y causaba "missing permissions"
+      // cuando isAdmin() evaluaba true por el campo legacy `role` en jugadores.
+      allow get: if request.auth != null;
 
       // 👀 Listar (collection queries): cualquier usuario autenticado puede hacer queries
       // El filtrado fino (isPrivate, tier de admin) se hace client-side
