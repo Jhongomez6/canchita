@@ -727,7 +727,7 @@ export default function JoinMatchPage() {
                 resultColor = "text-emerald-700";
                 resultBg = "bg-emerald-100";
               } else if (scoreA < scoreB) {
-                resultMessage = "Perdiste 😔";
+                resultMessage = "Partido difícil 😔";
                 resultColor = "text-red-700";
                 resultBg = "bg-red-100";
               } else {
@@ -741,7 +741,7 @@ export default function JoinMatchPage() {
                 resultColor = "text-emerald-700";
                 resultBg = "bg-emerald-100";
               } else if (scoreB < scoreA) {
-                resultMessage = "Perdiste 😔";
+                resultMessage = "Partido difícil 😔";
                 resultColor = "text-red-700";
                 resultBg = "bg-red-100";
               } else {
@@ -896,7 +896,7 @@ export default function JoinMatchPage() {
                           )}
                           {votingClosed && currentMVPs.length === 1 && (
                             <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4">
-                              <span>⭐</span> ¡Crack, la diste toda!
+                              <span>⭐</span> ¡Ya tenemos la figura de la canchita!
                             </div>
                           )}
                           {sortedMVPLeaderboard.slice(0, 3).map(([targetId, votes]: [string, number], idx: number) => {
