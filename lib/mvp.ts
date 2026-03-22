@@ -77,11 +77,11 @@ export function calculateMvpStatus(match: Match | null | undefined): MvpStatus {
     // regardless of ties.
     const allEligibleVoted = totalEligibleVoters > 0 && remainingVotes <= 0;
 
-    // 5h Voting Window Validation
+    // 3h Voting Window Validation
     const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
     const now = new Date().getTime();
     const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
-    const timeLimitClosed = hoursSinceClosed > 5;
+    const timeLimitClosed = hoursSinceClosed > 3;
 
     const earlyClosure = mathematicallyClosed || allEligibleVoted;
     const votingClosed = isClosed && (timeLimitClosed || earlyClosure);
