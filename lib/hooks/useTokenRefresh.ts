@@ -13,8 +13,9 @@ import type { UserProfile } from "../domain/user";
  * stored tokens become stale → Cloud Functions send to dead tokens → they get cleaned up
  * → user ends up with 0 tokens → push stops forever.
  *
- * This hook silently calls getToken() on every mount when the user has push enabled,
- * compares with the stored token prefix, and updates Firestore if it changed.
+ * This hook silently calls getToken() on every mount when the user has push enabled.
+ * It ALWAYS writes the fresh token to Firestore (arrayUnion is idempotent) and removes
+ * any stale tokens that don't match the new one exactly.
  */
 export function useTokenRefresh(user: User | null, profile: UserProfile | null) {
   const hasRefreshed = useRef(false);
@@ -47,40 +48,26 @@ export function useTokenRefresh(user: User | null, profile: UserProfile | null) 
 
         if (!newToken) return;
 
-        const newPrefix = newToken.substring(0, 30);
-        const storedPrefix = profile.lastTokenPrefix || "";
-
-        // Token hasn't changed — nothing to do
-        if (newPrefix === storedPrefix) return;
-
-        // Token changed — swap old for new in Firestore
+        // Always write the fresh token (arrayUnion is idempotent if token already exists)
         const userRef = doc(db, "users", user.uid);
-        const updates: Record<string, unknown> = {
+        await updateDoc(userRef, {
           fcmTokens: arrayUnion(newToken),
           lastTokenRefresh: new Date().toISOString(),
           lastTokenDevice: navigator.userAgent.substring(0, 100),
-          lastTokenPrefix: newPrefix,
-        };
+          lastTokenPrefix: newToken.substring(0, 30),
+        });
 
-        // Remove old token if we know it
+        // Remove any stale tokens that don't match the fresh one exactly
         const oldTokens = profile.fcmTokens || [];
-        if (oldTokens.length > 0) {
-          // Find stale tokens (any token that doesn't match the new one)
-          const staleTokens = oldTokens.filter(t => t.substring(0, 30) !== newPrefix);
-          if (staleTokens.length > 0) {
-            // We need two separate updates: arrayUnion + arrayRemove can't be combined atomically
-            // First add the new token, then remove stale ones
-            await updateDoc(userRef, updates);
-            await updateDoc(userRef, {
-              fcmTokens: arrayRemove(...staleTokens),
-            });
-            console.log("[TokenRefresh] Token rotated. Removed", staleTokens.length, "stale token(s).");
-            return;
-          }
+        const staleTokens = oldTokens.filter(t => t !== newToken);
+        if (staleTokens.length > 0) {
+          await updateDoc(userRef, {
+            fcmTokens: arrayRemove(...staleTokens),
+          });
+          console.log("[TokenRefresh] Removed", staleTokens.length, "stale token(s).");
         }
 
-        await updateDoc(userRef, updates);
-        console.log("[TokenRefresh] Token refreshed.");
+        console.log("[TokenRefresh] Token refreshed successfully.");
       } catch {
         // Graceful degradation — never break the app for a background refresh
         console.warn("[TokenRefresh] Failed to refresh token (non-fatal).");
