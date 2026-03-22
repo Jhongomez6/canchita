@@ -481,6 +481,10 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
 
   const { tokensToWinners, tokensToTies, tokensToOthers, winnerNames, winnerUids, tieUids, otherUids } = pushData as PushData;
   const namesString = winnerNames.join(", ");
+  const isTie = winnerNames.length > 1;
+  const othersBody = isTie
+    ? `${namesString} la rompieron y fueron elegidos como las figuras de la cancha en tu último partido.`
+    : `${namesString} la rompió y fue elegido como la figura de la cancha en tu último partido.`;
   const now = new Date().toISOString();
 
   let totalSent = 0;
@@ -516,7 +520,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
   for (const uid of otherUids) {
     inAppPromises.push(db.collection("notifications").doc(uid).collection("items").add({
       title: "🏆 ¡Habemus MVP!",
-      body: `${namesString} la rompió y fue elegido como la figura de la cancha en tu último partido.`,
+      body: othersBody,
       type: "mvp",
       url: `/join/${matchId}`,
       read: false,
@@ -563,7 +567,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       tokens: tokensToOthers,
       notification: {
         title: "🏆 ¡Habemus MVP!",
-        body: `${namesString} la rompió y fue elegido como la figura de la cancha en tu último partido.`,
+        body: othersBody,
       },
       data: urlParams,
       apns: { payload: { aps: { badge: 1, sound: "default" } } },
