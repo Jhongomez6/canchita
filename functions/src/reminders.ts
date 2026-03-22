@@ -153,7 +153,7 @@ async function sendReminderIfNeeded(
       url: `/join/${matchId}`,
       read: false,
       createdAt: new Date().toISOString(),
-      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
+      expireAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS)),
     });
 
     // 2. BEST-EFFORT push
@@ -268,7 +268,7 @@ export const sendManualReminder = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: new Date().toISOString(),
-      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
+      expireAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS)),
     });
 
     // 2. BEST-EFFORT push
@@ -497,7 +497,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
-      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
+      expireAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS)),
     }));
   }
 
@@ -509,7 +509,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
-      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
+      expireAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS)),
     }));
   }
 
@@ -521,7 +521,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
       url: `/join/${matchId}`,
       read: false,
       createdAt: now,
-      expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
+      expireAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS)),
     }));
   }
 
