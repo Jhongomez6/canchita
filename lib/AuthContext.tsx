@@ -7,6 +7,7 @@ import { db } from "./firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { ensureUserProfile } from "@/lib/users";
 import { listenToPushMessages } from "./firebase-messaging";
+import { useTokenRefresh } from "./hooks/useTokenRefresh";
 import type { UserProfile } from "@/lib/domain/user";
 import Image from "next/image";
 
@@ -37,6 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     listenToPushMessages();
   }, []);
+
+  // 🔄 Auto-refresh FCM token on every app load (prevents token death spiral)
+  useTokenRefresh(user, profile);
 
   useEffect(() => {
     let unsubscribeProfile: () => void;

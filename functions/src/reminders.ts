@@ -7,6 +7,72 @@ const db = admin.firestore();
 // 10 days in milliseconds for notification Time-To-Live
 const NOTIFICATION_TTL_MS = 10 * 24 * 60 * 60 * 1000;
 
+// Permanently invalid FCM error codes (token will never recover)
+const PERMANENT_ERROR_CODES = [
+  "messaging/registration-token-not-registered",
+  "messaging/invalid-registration-token",
+  "messaging/invalid-argument",
+];
+
+/**
+ * Resilient push sender: wraps sendEachForMulticast with try/catch,
+ * cleans up permanently invalid tokens, and returns structured results.
+ * Never throws — push is always best-effort.
+ */
+async function safeSendPush(
+  tokens: string[],
+  payload: { title: string; body: string },
+  url: string,
+  context: string
+): Promise<{ successCount: number; failureCount: number; invalidTokens: string[] }> {
+  if (tokens.length === 0) return { successCount: 0, failureCount: 0, invalidTokens: [] };
+
+  try {
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: { title: payload.title, body: payload.body },
+      data: { url },
+      webpush: {
+        notification: { icon: "/icons/icon-192x192.png" },
+        fcmOptions: { link: url },
+      },
+      apns: { payload: { aps: { badge: 1, sound: "default" } } },
+    });
+
+    const invalidTokens: string[] = [];
+    response.responses.forEach((res, idx) => {
+      if (!res.success) {
+        const code = res.error?.code || "";
+        console.error(`[Push][${context}] token[${idx}] error:`, code, res.error?.message);
+        if (PERMANENT_ERROR_CODES.includes(code)) {
+          invalidTokens.push(tokens[idx]);
+        }
+      }
+    });
+
+    console.log(`[Push][${context}] sent: ${response.successCount}, failed: ${response.failureCount}`);
+    return { successCount: response.successCount, failureCount: response.failureCount, invalidTokens };
+  } catch (err) {
+    console.error(`[Push][${context}] EXCEPTION (non-fatal):`, err);
+    return { successCount: 0, failureCount: tokens.length, invalidTokens: [] };
+  }
+}
+
+/**
+ * Cleans up invalid tokens from a user document.
+ */
+async function cleanupInvalidTokens(userRef: FirebaseFirestore.DocumentReference, invalidTokens: string[]) {
+  if (invalidTokens.length === 0) return;
+  try {
+    await userRef.update({
+      fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
+    });
+    console.log(`[TokenCleanup] Removed ${invalidTokens.length} stale token(s) from ${userRef.id}`);
+  } catch (err) {
+    console.error(`[TokenCleanup] Failed to clean tokens for ${userRef.id}:`, err);
+  }
+}
+
 /**
  * 🔔 Recordatorios automáticos de partidos
  * Corre cada 30 minutos via Cloud Scheduler.
@@ -132,6 +198,16 @@ async function sendReminderIfNeeded(
 
   if (players.length === 0) return;
 
+  // Batch-read all user documents (1 round-trip instead of N)
+  const userRefs = players.map(p => db.collection("users").doc(p.uid));
+  const userSnaps = await db.getAll(...userRefs);
+  const userDataMap = new Map<string, { data: FirebaseFirestore.DocumentData | undefined; ref: FirebaseFirestore.DocumentReference }>();
+  userSnaps.forEach((snap, idx) => {
+    userDataMap.set(players[idx].uid, { data: snap.data(), ref: snap.ref });
+  });
+
+  const url = `https://la-canchita.vercel.app/join/${matchId}`;
+
   for (const player of players) {
     // 🎯 MENSAJE DINÁMICO SEGÚN ESTADO
     let title = "⚽ El partido se acerca";
@@ -156,41 +232,13 @@ async function sendReminderIfNeeded(
       expireAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS)),
     });
 
-    // 2. BEST-EFFORT push
-    const userSnap = await db.collection("users").doc(player.uid).get();
-    const user = userSnap.data();
-    const tokens = user?.fcmTokens ?? [];
-
+    // 2. BEST-EFFORT push via safeSendPush
+    const userData = userDataMap.get(player.uid);
+    const tokens: string[] = userData?.data?.fcmTokens ?? [];
     if (tokens.length === 0) continue;
 
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: { title, body },
-      data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
-      apns: { payload: { aps: { badge: 1, sound: "default" } } },
-    });
-
-    // 🧹 Limpieza de tokens PERMANENTEMENTE inválidos (no transitorios)
-    const PERMANENT_ERROR_CODES = ["messaging/registration-token-not-registered", "messaging/invalid-registration-token", "messaging/invalid-argument"];
-    const invalidTokens: string[] = [];
-    response.responses.forEach((res, idx) => {
-      if (!res.success) {
-        const code = res.error?.code || "";
-        console.error(`❌ FCM Error [scheduled] token[${idx}]:`, code, res.error?.message);
-        if (PERMANENT_ERROR_CODES.includes(code)) {
-          invalidTokens.push(tokens[idx]);
-        }
-      }
-    });
-
-    console.log(`📨 Match ${matchId} reminder "${reminderKey}" — sent: ${response.successCount}, failed: ${response.failureCount}`);
-
-    if (invalidTokens.length > 0) {
-      await userSnap.ref.update({
-        fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
-      });
-      console.log("🧹 Tokens inválidos removidos:", invalidTokens.length);
-    }
+    const result = await safeSendPush(tokens, { title, body }, url, `scheduled-${reminderKey}`);
+    await cleanupInvalidTokens(userData!.ref, result.invalidTokens);
   }
 
   // ✅ Marcar reminder como enviado
@@ -246,7 +294,16 @@ export const sendManualReminder = onCall(async (request) => {
   }
   const uniquePlayers = Array.from(uniquePlayersMap.values());
 
+  // Batch-read all user documents (1 round-trip instead of N)
+  const userRefs = uniquePlayers.map((p: any) => db.collection("users").doc(p.uid));
+  const userSnaps = await db.getAll(...userRefs);
+  const userDataMap = new Map<string, { data: FirebaseFirestore.DocumentData | undefined; ref: FirebaseFirestore.DocumentReference }>();
+  userSnaps.forEach((snap, idx) => {
+    userDataMap.set(uniquePlayers[idx].uid, { data: snap.data(), ref: snap.ref });
+  });
+
   let sentTokensCount = 0;
+  const url = `https://la-canchita.vercel.app/join/${matchId}`;
 
   for (const player of uniquePlayers) {
     let title = "";
@@ -271,45 +328,17 @@ export const sendManualReminder = onCall(async (request) => {
       expireAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS)),
     });
 
-    // 2. BEST-EFFORT push
-    const pSnap = await db.collection("users").doc(player.uid).get();
-    const pData = pSnap.data();
-    const tokens = Array.from(new Set<string>(pData?.fcmTokens ?? []));
-
+    // 2. BEST-EFFORT push via safeSendPush
+    const userData = userDataMap.get(player.uid);
+    const tokens = Array.from(new Set<string>(userData?.data?.fcmTokens ?? []));
     if (tokens.length === 0) continue;
 
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: { title, body },
-      data: { url: `https://la-canchita.vercel.app/join/${matchId}` },
-      apns: { payload: { aps: { badge: 1, sound: "default" } } },
-    });
-
-    sentTokensCount += response.successCount;
-
-    // 🧹 Limpiar tokens PERMANENTEMENTE inválidos
-    const PERMANENT_ERROR_CODES_M = ["messaging/registration-token-not-registered", "messaging/invalid-registration-token", "messaging/invalid-argument"];
-    const invalidTokens: string[] = [];
-    response.responses.forEach((res: any, idx: number) => {
-      if (!res.success) {
-        const code = res.error?.code || "";
-        console.error(`❌ FCM Error [manual] token[${idx}]:`, code, res.error?.message);
-        if (PERMANENT_ERROR_CODES_M.includes(code)) {
-          invalidTokens.push(tokens[idx]);
-        }
-      }
-    });
-
-    console.log(`📨 Manual reminder match ${matchId} — sent: ${response.successCount}, failed: ${response.failureCount}`);
-
-    if (invalidTokens.length > 0) {
-      await pSnap.ref.update({
-        fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
-      });
-    }
+    const result = await safeSendPush(tokens, { title, body }, url, "manual");
+    sentTokensCount += result.successCount;
+    await cleanupInvalidTokens(userData!.ref, result.invalidTokens);
   }
 
-  console.log(`📣 Manual Reminder enviado para match ${matchId} a ${sentTokensCount} dispositivos`);
+  console.log(`[Push][manual] Match ${matchId} — total sent: ${sentTokensCount}`);
   return { success: true, sentTokens: sentTokensCount };
 });
 
@@ -531,51 +560,25 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
 
   await Promise.all(inAppPromises);
 
-  // === PUSH NOTIFICATIONS (BEST-EFFORT) ===
+  // === PUSH NOTIFICATIONS (BEST-EFFORT via safeSendPush) ===
+  const mvpUrl = urlParams.url;
 
-  // A) Mensajes a Ganador(es) únicos
-  if (tokensToWinners.length > 0) {
-    const res = await admin.messaging().sendEachForMulticast({
-      tokens: tokensToWinners,
-      notification: {
-        title: "⭐ ¡Felicidades crack!",
-        body: "Fuiste elegido como el MVP indiscutible del último partido.",
-      },
-      data: urlParams,
-      apns: { payload: { aps: { badge: 1, sound: "default" } } },
-    });
-    totalSent += res.successCount;
-  }
+  const resWinners = await safeSendPush(tokensToWinners,
+    { title: "⭐ ¡Felicidades crack!", body: "Fuiste elegido como el MVP indiscutible del último partido." },
+    mvpUrl, "mvp-winner");
+  totalSent += resWinners.successCount;
 
-  // B) Mensajes a Ganadores en Empate
-  if (tokensToTies.length > 0) {
-    const res = await admin.messaging().sendEachForMulticast({
-      tokens: tokensToTies,
-      notification: {
-        title: "🤝 ¡Empate!",
-        body: "Tú y otros jugadores compartieron el título MVP del último partido. ¡Cracks!",
-      },
-      data: urlParams,
-      apns: { payload: { aps: { badge: 1, sound: "default" } } },
-    });
-    totalSent += res.successCount;
-  }
+  const resTies = await safeSendPush(tokensToTies,
+    { title: "🤝 ¡Empate!", body: "Tú y otros jugadores compartieron el título MVP del último partido. ¡Cracks!" },
+    mvpUrl, "mvp-tie");
+  totalSent += resTies.successCount;
 
-  // C) Mensajes al Resto (Participantes)
-  if (tokensToOthers.length > 0) {
-    const res = await admin.messaging().sendEachForMulticast({
-      tokens: tokensToOthers,
-      notification: {
-        title: "🏆 ¡Habemus MVP!",
-        body: othersBody,
-      },
-      data: urlParams,
-      apns: { payload: { aps: { badge: 1, sound: "default" } } },
-    });
-    totalSent += res.successCount;
-  }
+  const resOthers = await safeSendPush(tokensToOthers,
+    { title: "🏆 ¡Habemus MVP!", body: othersBody },
+    mvpUrl, "mvp-others");
+  totalSent += resOthers.successCount;
 
-  console.log(`📣 Notificaciones de MVP enviadas exitosamente para match ${matchId}. Total: ${totalSent}`);
+  console.log(`[Push][mvp] Match ${matchId} — total sent: ${totalSent}`);
   return { success: true, message: "Notificaciones despachadas a los jugadores" };
 });
 
@@ -714,6 +717,10 @@ export const testPushNotification = onCall(async (request) => {
       },
       data: {
         url: "https://la-canchita.vercel.app/",
+      },
+      webpush: {
+        notification: { icon: "/icons/icon-192x192.png" },
+        fcmOptions: { link: "https://la-canchita.vercel.app/" },
       },
       apns: { payload: { aps: { badge: 1, sound: "default" } } },
     });

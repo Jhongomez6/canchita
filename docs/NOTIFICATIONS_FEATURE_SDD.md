@@ -67,10 +67,14 @@ Colección: `notifications/{userId}/items/{notifId}`
 | 3 | El usuario puede marcar como leída | `markAsRead()` en `lib/notifications.ts` |
 | 4 | In-app SIEMPRE se escribe, push es best-effort | Cloud Function: write primero, push después (feedback resolved es SOLO in-app) |
 | 5 | Máximo 50 notificaciones visibles | `NOTIFICATIONS_LIMIT` en `lib/notifications.ts` |
-| 6 | FCM usa campo `notification` + `data` (URL de click-through) | SW explícitamente muestra notificación en background para data-only msgs; `onMessage` muestra en foreground |
-| 7 | Service Worker SDK debe coincidir con versión del cliente | SW compat SDK v12.8.0, cliente firebase v12.8.0 |
+| 6 | FCM usa campo `notification` + `data` (URL de click-through) + `webpush` | SW explícitamente muestra notificación en background para data-only msgs; `onMessage` muestra en foreground |
+| 7 | Service Worker SDK debe coincidir con versión del cliente | SW compat SDK v12.8.0, cliente firebase v12.8.0. SW version = `?v=4` |
 | 8 | Registro de SW centralizado (singleton) | `getSwRegistration()` en `firebase-messaging.ts`, reusado por `push.ts` |
 | 9 | Token cleanup solo para errores permanentes | Solo `registration-token-not-registered`, `invalid-registration-token`, `invalid-argument` |
+| 10 | **Auto-refresh de tokens FCM** | `useTokenRefresh` hook en `lib/hooks/useTokenRefresh.ts` — se ejecuta en cada mount del `AuthContext` cuando el usuario tiene push habilitado. Compara token actual vs almacenado, actualiza si cambió |
+| 11 | **Push envío resiliente** | `safeSendPush()` helper en `functions/src/reminders.ts` — try/catch + token cleanup + logging estructurado. Push NUNCA crashea la Cloud Function |
+| 12 | **Manifest incluye `gcm_sender_id`** | `public/manifest.json` tiene `"gcm_sender_id": "103953800507"` (valor fijo requerido por FCM web) |
+| 13 | **Estado de push en perfil: 3 estados** | Activas (granted + enabled), Bloqueadas (denied + enabled), Inactivas (no enabled) |
 
 
 ---
@@ -80,14 +84,17 @@ Colección: `notifications/{userId}/items/{notifId}`
 | Capa | Archivo | Responsabilidad |
 |------|---------|----------------|
 | Dominio | `lib/domain/notification.ts` | Tipos |
+| Dominio | `lib/domain/user.ts` | `UserProfile` incluye `lastTokenPrefix`, `fcmTokens`, `notificationsEnabled` |
 | API | `lib/notifications.ts` | CRUD client |
 | UI | `components/NotificationsDrawer.tsx` | UI emergente (Drawer) para lista de notificaciones |
 | UI | `components/skeletons/NotificationsSkeleton.tsx` | Skeleton exacto de carga |
 | UI | `components/Header.tsx` | Campana + botón para abrir Drawer |
-| Backend | `functions/src/reminders.ts` | Cloud Functions |
-| Push | `lib/firebase-messaging.ts` | Foreground push display |
-| Push | `lib/push.ts` | Token registration, manual reminders |
+| Backend | `functions/src/reminders.ts` | Cloud Functions (`safeSendPush`, `cleanupInvalidTokens`, batch reads) |
+| Push | `lib/firebase-messaging.ts` | Foreground push display, SW registration singleton (v4) |
+| Push | `lib/push.ts` | Token registration (primera vez), manual reminders |
+| Push | `lib/hooks/useTokenRefresh.ts` | **Auto-refresh de tokens FCM** en cada carga de app |
 | Push | `public/firebase-messaging-sw.js` | Background push (Service Worker) |
+| Push | `public/manifest.json` | `gcm_sender_id` para FCM web |
 | Rules | `firestore.rules` | Seguridad subcollection |
 
 ---
@@ -106,3 +113,10 @@ Colección: `notifications/{userId}/items/{notifId}`
 - [x] Cloud Functions son la única fuente de creación
 - [x] Cloud Functions incluyen logging detallado de errores FCM para diagnóstico
 - [x] URLs de click-through actualizadas (sin apuntar a rutas eliminadas)
+- [x] Auto-refresh de tokens FCM previene death spiral por token rotation
+- [x] `safeSendPush` helper centraliza envío, try/catch, cleanup y logging
+- [x] Batch reads de Firestore en Cloud Functions (1 round-trip vs N)
+- [x] Payloads incluyen `webpush` config para Chrome/Edge/Firefox
+- [x] `manifest.json` incluye `gcm_sender_id` requerido por FCM
+- [x] Perfil muestra 3 estados de push (activas / bloqueadas / inactivas)
+- [x] Home page muestra toast de error cuando push falla

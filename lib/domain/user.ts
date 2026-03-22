@@ -38,6 +38,7 @@ export interface UserProfile {
     level?: number;
     notificationsEnabled?: boolean;
     fcmTokens?: string[];
+    lastTokenPrefix?: string;
     stats?: UserStats;
     phone?: string;
     // Admin Tier System

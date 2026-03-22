@@ -7,6 +7,7 @@ import AuthGuard from "@/components/AuthGuard";
 
 import Link from "next/link";
 import { enablePushNotifications } from "@/lib/push";
+import toast from "react-hot-toast";
 import { formatDateSpanish, formatTime12h } from "@/lib/date";
 import { sanitizeMatchCode } from "@/lib/matchCode";
 import { doc, getDoc } from "firebase/firestore";
@@ -234,8 +235,15 @@ export default function Home() {
                           if (!user) return;
                           setEnablingPush(true);
                           try {
-                            await enablePushNotifications(user.uid);
-                            setShowPushPrompt(false);
+                            const token = await enablePushNotifications(user.uid);
+                            if (token) {
+                              setShowPushPrompt(false);
+                            } else if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+                              toast.error("Permisos denegados. Reactívalos en la configuración del navegador.");
+                              setShowPushPrompt(false);
+                            } else {
+                              toast.error("No se pudieron activar. Intenta de nuevo más tarde.");
+                            }
                           } finally {
                             setEnablingPush(false);
                           }

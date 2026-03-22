@@ -4,7 +4,7 @@ import { app } from "./firebase";
 // Shared SW registration promise — reused by push.ts to avoid duplicate registrations
 let swRegistrationPromise: Promise<ServiceWorkerRegistration> | null = null;
 
-const CURRENT_SW_URL = "/firebase-messaging-sw.js?v=3";
+const CURRENT_SW_URL = "/firebase-messaging-sw.js?v=4";
 
 /**
  * Cleans up old/duplicate service worker registrations that may
@@ -17,7 +17,7 @@ async function cleanupOldServiceWorkers() {
   for (const reg of registrations) {
     const scriptURL = reg.active?.scriptURL || reg.installing?.scriptURL || "";
     // Keep only our current versioned SW
-    if (scriptURL && !scriptURL.includes("?v=3")) {
+    if (scriptURL && !scriptURL.includes("?v=4")) {
       console.log("[FCM] Unregistering old SW:", scriptURL);
       await reg.unregister();
     }

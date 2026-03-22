@@ -47,9 +47,6 @@ export async function enablePushNotifications(uid: string) {
       lastTokenPrefix: token.substring(0, 30),
     });
 
-    // 5️⃣ Guardar estado LOCAL por device
-    localStorage.setItem("push-enabled", "true");
-
     console.log("✅ Token FCM guardado:", token.substring(0, 20) + "...");
     return token;
   } catch (error: unknown) {

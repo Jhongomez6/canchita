@@ -79,10 +79,16 @@ export default function ProfilePage() {
   // Push notifications
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission | "unsupported">("default");
 
   // Derived
   const isOnboarding = positions.length === 0;
-  const isPushOnDevice = typeof window !== "undefined" && localStorage.getItem("push-enabled") === "true";
+  // Push state: "active" | "blocked" | "inactive"
+  const pushState = pushEnabled && browserPermission === "granted"
+    ? "active"
+    : pushEnabled && browserPermission === "denied"
+      ? "blocked"
+      : "inactive";
 
   useEffect(() => {
     if (!profile) return;
@@ -91,6 +97,12 @@ export default function ProfilePage() {
     if (profile.positions) setPositions(profile.positions);
     if (profile.primaryPosition) setPrimaryPosition(profile.primaryPosition);
     if (profile.notificationsEnabled) setPushEnabled(true);
+    // Sync browser permission state
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setBrowserPermission(Notification.permission);
+    } else {
+      setBrowserPermission("unsupported");
+    }
     setDisplayName(profile.name || user?.displayName || "");
     if (profile.nameLastChanged) setNameLastChanged(profile.nameLastChanged);
     if (profile.stats) {
@@ -691,15 +703,23 @@ export default function ProfilePage() {
                   <span className="text-2xl">🔔</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-slate-800">Notificaciones</p>
-                    {isPushOnDevice ? (
+                    {pushState === "active" && (
                       <p className="text-xs text-emerald-600 font-medium">Activas — recibirás alertas de cupos</p>
-                    ) : (
+                    )}
+                    {pushState === "blocked" && (
+                      <p className="text-xs text-amber-600 font-medium">Permisos bloqueados en tu navegador</p>
+                    )}
+                    {pushState === "inactive" && (
                       <p className="text-xs text-slate-500">Actívalas para no perderte ningún partido</p>
                     )}
                   </div>
-                  {isPushOnDevice ? (
+                  {pushState === "active" && (
                     <span className="flex-shrink-0 text-xl">✅</span>
-                  ) : (
+                  )}
+                  {pushState === "blocked" && (
+                    <span className="flex-shrink-0 text-xl">⚠️</span>
+                  )}
+                  {pushState === "inactive" && (
                     <button
                       onClick={async () => {
                         if (!user) return;
@@ -707,8 +727,10 @@ export default function ProfilePage() {
                         try {
                           const token = await enablePushNotifications(user.uid);
                           if (token) {
-                            localStorage.setItem("push-enabled", "true");
                             setPushEnabled(true);
+                            setBrowserPermission("granted");
+                          } else if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+                            setBrowserPermission("denied");
                           }
                         } catch (err) {
                           handleError(err, "No pudimos activar las notificaciones");
@@ -725,12 +747,6 @@ export default function ProfilePage() {
                     </button>
                   )}
                 </div>
-
-                {pushEnabled && !isPushOnDevice && (
-                  <p className="text-[10px] text-amber-600 font-medium -mt-2">
-                    Activas en otro dispositivo. Actívalas aquí también.
-                  </p>
-                )}
 
                 {/* — Divider — */}
                 {canInstall && <div className="border-t border-slate-100" />}
