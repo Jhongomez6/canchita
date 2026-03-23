@@ -107,6 +107,7 @@ export default function MatchDetailPage() {
     if (!match?.score) return;
     setScoreA(match.score.A ?? 0);
     setScoreB(match.score.B ?? 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.score?.A, match?.score?.B]);
 
   // Fetch location
@@ -125,6 +126,7 @@ export default function MatchDetailPage() {
     const isOwner = user?.uid === match.createdBy;
     if (!isOwner) return;
     getAllUsers().then(setUsers);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.id, user?.uid, match?.createdBy]);
 
   // Access control
@@ -640,7 +642,6 @@ export default function MatchDetailPage() {
             onTabChange={setActiveTab}
             playerCount={confirmedCount}
             hasUnsavedBalance={hasUnsavedBalance}
-            hasTeams={Boolean(match.teams)}
           />
 
           {/* Tab Panels */}
@@ -661,7 +662,6 @@ export default function MatchDetailPage() {
               isOwner={isOwner}
               isClosed={isClosed}
               isFull={isFull}
-              confirmedCount={confirmedCount}
               phase={phase}
               availableUsers={availableUsers}
               guestLevels={guestLevels}

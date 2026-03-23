@@ -30,7 +30,6 @@ export default function MatchProgressBar({ phase }: MatchProgressBarProps) {
       {STEPS.map((step, i) => {
         const isCompleted = i < currentIndex;
         const isCurrent = i === currentIndex;
-        const isFuture = i > currentIndex;
 
         return (
           <div key={step.key} className="flex items-center flex-1 last:flex-none">

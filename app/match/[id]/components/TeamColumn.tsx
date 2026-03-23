@@ -27,7 +27,6 @@ export default function TeamColumn({
   voteCounts,
 }: TeamColumnProps) {
   const isA = team === "A";
-  const color = isA ? "red" : "blue";
   const bgColor = isA ? "bg-red-50" : "bg-blue-50";
   const borderColor = isA ? "border-red-100" : "border-blue-100";
   const textColor = isA ? "text-red-800" : "text-blue-800";
@@ -40,7 +39,7 @@ export default function TeamColumn({
   const idMap = new Map<Player, string>();
   const seen = new Set<string>();
   for (const p of players) {
-    let base = p.id || p.uid || p.name;
+    const base = p.id || p.uid || p.name;
     let uniqueId = base;
     let suffix = 2;
     while (seen.has(uniqueId)) {

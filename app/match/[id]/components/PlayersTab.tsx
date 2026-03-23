@@ -16,7 +16,6 @@ interface PlayersTabProps {
   isOwner: boolean;
   isClosed: boolean;
   isFull: boolean;
-  confirmedCount: number;
   phase: MatchPhase;
   availableUsers: UserProfile[];
   guestLevels: Record<string, PlayerLevel>;
@@ -40,7 +39,6 @@ export default function PlayersTab({
   isOwner,
   isClosed,
   isFull,
-  confirmedCount,
   phase,
   availableUsers,
   guestLevels,

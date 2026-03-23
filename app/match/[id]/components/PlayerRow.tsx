@@ -91,7 +91,7 @@ export default function PlayerRow({
               disabled={!p.confirmed && isFull}
               onClick={(e) => {
                 e.stopPropagation();
-                p.confirmed ? onUnconfirm() : onConfirm();
+                if (p.confirmed) { onUnconfirm(); } else { onConfirm(); }
               }}
               className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
                 p.confirmed

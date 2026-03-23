@@ -17,7 +17,6 @@ interface MatchAdminTabsProps {
   onTabChange: (tab: TabId) => void;
   playerCount: number;
   hasUnsavedBalance: boolean;
-  hasTeams: boolean;
 }
 
 export default function MatchAdminTabs({
@@ -25,13 +24,12 @@ export default function MatchAdminTabs({
   onTabChange,
   playerCount,
   hasUnsavedBalance,
-  hasTeams,
 }: MatchAdminTabsProps) {
   const scrollToTab = useCallback((el: HTMLButtonElement | null) => {
     if (el && el.getAttribute("aria-selected") === "true") {
       el.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
     }
-  }, [activeTab]);
+  }, []);
 
   const tabs: Tab[] = [
     { id: "dashboard", label: "Dashboard", icon: "📊" },
