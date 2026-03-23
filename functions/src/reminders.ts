@@ -654,7 +654,7 @@ export const notifyFeedbackResolved = onCall(async (request) => {
     type: "feedback_resolved",
     read: false,
     createdAt: now,
-    expireAt: new Date(Date.now() + NOTIFICATION_TTL_MS).toISOString(),
+    expireAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS)),
   });
 
   // 2. Update feedback status

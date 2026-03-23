@@ -24,5 +24,5 @@ export interface AppNotification {
     url?: string;        // deeplink (e.g. "/join/matchId")
     read: boolean;
     createdAt: string;   // ISO string
-    expireAt?: any;      // Firestore Timestamp (TTL policy requires native Timestamp, not string)
+    expireAt?: { seconds: number; nanoseconds: number };  // Firestore Timestamp (TTL policy requires native Timestamp)
 }
