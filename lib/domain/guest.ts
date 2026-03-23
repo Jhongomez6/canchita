@@ -153,12 +153,14 @@ export function createGuest(
 
 /**
  * Verifica si un jugador ya alcanzó su límite de invitados
- * Regla: Un jugador puede agregar máximo 2 invitados por partido
+ * Regla: Un jugador puede agregar máximo 2 invitados por partido (el owner no tiene límite)
  */
 export function hasReachedGuestLimit(
   guests: Guest[],
-  playerUid: string
+  playerUid: string,
+  isOwner?: boolean
 ): boolean {
+  if (isOwner) return false;
   const userGuests = guests.filter((guest) => guest.invitedBy === playerUid);
   return userGuests.length >= 2;
 }
@@ -175,13 +177,14 @@ export function getPlayerGuests(
 
 /**
  * Valida que se pueda agregar un invitado
- * Regla: Un jugador puede agregar máximo 2 invitados por partido
+ * Regla: Un jugador puede agregar máximo 2 invitados por partido (el owner no tiene límite)
  */
 export function canAddGuest(
   guests: Guest[],
-  playerUid: string
+  playerUid: string,
+  isOwner?: boolean
 ): boolean {
-  return !hasReachedGuestLimit(guests, playerUid);
+  return !hasReachedGuestLimit(guests, playerUid, isOwner);
 }
 
 // ========================

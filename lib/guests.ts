@@ -72,8 +72,9 @@ export async function addGuestToMatch(
       );
     }
 
-    // REGLA: Un jugador puede agregar máximo 2 invitados por partido
-    if (!canAddGuest(guests, playerUid)) {
+    // REGLA: Un jugador puede agregar máximo 2 invitados por partido (el owner no tiene límite)
+    const isOwner = data.createdBy === playerUid;
+    if (!canAddGuest(guests, playerUid, isOwner)) {
       throw new GuestBusinessError(
         "Ya has alcanzado el límite de 2 invitados en este partido."
       );

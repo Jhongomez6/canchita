@@ -528,11 +528,6 @@ export default function JoinMatchPage() {
                   ⚠️ El partido está lleno. ¡Anotate en la lista de espera!
                 </div>
               )}
-              {isFull && existingPlayer?.isWaitlist && (
-                <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
-                  👀 Estás en la lista de espera. Revisa seguido por si se libera un cupo.
-                </div>
-              )}
               {isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
                 <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold border border-red-100 text-center">
                   ❌ El partido ya está completo y perdiste tu lugar reservado.
@@ -565,25 +560,6 @@ export default function JoinMatchPage() {
                 </button>
               )}
 
-              {/* Botón Salir de lista de espera */}
-              {existingPlayer?.isWaitlist && (
-                <button
-                  onClick={async () => {
-                    setSubmitting(true);
-                    try {
-                      await leaveWaitlist(id, playerName);
-                      toast.success("Has salido de la lista de espera");
-                    } catch (err: unknown) {
-                      handleError(err, "Hubo un error al salir de la lista de espera");
-                    } finally {
-                      setSubmitting(false);
-                    }
-                  }}
-                  className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors mt-2"
-                >
-                  Salir de la lista de espera
-                </button>
-              )}
 
               {/* Mógica Normal (No full, o no confirmado aún) */}
               {!isFull && !existingPlayer && (
@@ -637,29 +613,20 @@ export default function JoinMatchPage() {
                 </>
               )}
 
-              {!isFull && existingPlayer && !existingPlayer.confirmed && (
+              {!isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
                 <>
                   <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
-                    {existingPlayer.isWaitlist
-                      ? "¡SE LIBERÓ UN CUPO! Toma tu lugar rápido:"
-                      : "⏳ Aún no has confirmado tu asistencia"}
+                    ⏳ Aún no has confirmado tu asistencia
                   </div>
-
-                  {/* Toma el lugar (Ascenso Manual Free For All) */}
                   <button
                     disabled={submitting}
                     onClick={async () => {
                       setSubmitting(true);
                       try {
-                        // Si ya está como suplente, la función confirmAttendance no sabe limpiarle
-                        // isWaitlist. Así que preferimos llamar joinMatch que sobreescribe/arregla el estado confirmed
-                        // y luego si hace falta, limpiamos isWaitlist
                         await confirmAttendance(id, playerName);
-                        // Also clear waitlist flag just in case
-                        await leaveWaitlist(id, playerName);
                         toast.success("¡Asistencia confirmada!");
                       } catch (e: unknown) {
-                        handleError(e, "Error al tomar el cupo. Alguien pudo haberte ganado.");
+                        handleError(e, "Error al confirmar asistencia");
                       } finally {
                         setSubmitting(false);
                       }
@@ -669,27 +636,32 @@ export default function JoinMatchPage() {
                       : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
                       }`}
                   >
-                    {submitting ? "⏳ Confirmando..." : (existingPlayer.isWaitlist ? "🏃‍♂️ ¡Tomar Cupo y Confirmar!" : "✅ Confirmar asistencia")}
+                    {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
                   </button>
+                </>
+              )}
 
-                  {existingPlayer.isWaitlist && (
-                    <button
-                      onClick={async () => {
-                        setSubmitting(true);
-                        try {
-                          await leaveWaitlist(id, playerName);
-                          toast.success("Has salido de la lista de espera");
-                        } catch (err: unknown) {
-                          handleError(err, "Hubo un error al salir de la lista de espera");
-                        } finally {
-                          setSubmitting(false);
-                        }
-                      }}
-                      className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors mt-2"
-                    >
-                      Salir de la lista de espera
-                    </button>
-                  )}
+              {existingPlayer?.isWaitlist && !existingPlayer.confirmed && (
+                <>
+                  <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
+                    📋 Estás en la lista de espera. Revisa seguido por si se libera un cupo.
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setSubmitting(true);
+                      try {
+                        await leaveWaitlist(id, playerName);
+                        toast.success("Has salido de la lista de espera");
+                      } catch (err: unknown) {
+                        handleError(err, "Hubo un error al salir de la lista de espera");
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                    className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors mt-2"
+                  >
+                    Salir de la lista de espera
+                  </button>
                 </>
               )}
             </div>

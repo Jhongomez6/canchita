@@ -264,37 +264,41 @@ export async function joinWaitlist(
     const data = snap.data();
     const players: Player[] = data.players || [];
 
-    // 🔒 Evitar duplicados
-    const alreadyExists = players.some((p) => p.uid === user.uid);
-    if (alreadyExists) return;
+    // 🔒 Evitar duplicados reales (ya está en waitlist o confirmado)
+    const existingPlayer = players.find((p) => p.uid === user.uid);
+    if (existingPlayer?.isWaitlist || existingPlayer?.confirmed) return;
 
     const profile = await getUserProfile(user.uid);
     const positions: Position[] =
       profile?.positions && profile.positions.length > 0
         ? profile.positions
         : ["MID"];
-        
+
     const primaryPosition: Position | undefined = profile?.primaryPosition;
-    
+
     const level = profile?.level ?? 2;
 
+    const waitlistEntry = {
+      uid: user.uid,
+      name: user.name,
+      confirmed: false,
+      isWaitlist: true,
+      waitlistJoinedAt: new Date().toISOString(),
+      level,
+      positions,
+      ...(primaryPosition ? { primaryPosition } : {}),
+      sex: profile?.sex,
+      ...(profile?.phone ? { phone: profile.phone } : {}),
+      ...(profile?.photoURL ? { photoURL: profile.photoURL } : {}),
+    };
+
+    // Si el jugador ya existe pero canceló (confirmed: false, no waitlist), actualizar su registro
+    const updatedPlayers = existingPlayer
+      ? players.map((p) => (p.uid === user.uid ? { ...p, ...waitlistEntry } : p))
+      : [...players, waitlistEntry];
+
     transaction.update(ref, {
-      players: [
-        ...players,
-        {
-          uid: user.uid,
-          name: user.name,
-          confirmed: false,
-          isWaitlist: true,
-          waitlistJoinedAt: new Date().toISOString(),
-          level,
-          positions,
-          ...(primaryPosition ? { primaryPosition } : {}),
-          sex: profile?.sex,
-          ...(profile?.phone ? { phone: profile.phone } : {}),
-          ...(profile?.photoURL ? { photoURL: profile.photoURL } : {}),
-        },
-      ],
+      players: updatedPlayers,
       playerUids: arrayUnion(user.uid),
     });
   });
