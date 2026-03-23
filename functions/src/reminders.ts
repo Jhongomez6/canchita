@@ -280,6 +280,20 @@ export const sendManualReminder = onCall(async (request) => {
     throw new HttpsError("permission-denied", "No tienes permiso para enviar notificaciones masivas en este partido");
   }
 
+  // Idempotencia: debounce de 5 minutos para evitar envíos duplicados
+  const lastManual = match?.remindersSent?.manual;
+  if (lastManual) {
+    const elapsed = Date.now() - new Date(lastManual).getTime();
+    if (elapsed < 5 * 60 * 1000) {
+      throw new HttpsError("already-exists", "Ya se envió un recordatorio manual recientemente. Espera unos minutos.");
+    }
+  }
+
+  // Marcar como enviado ANTES de enviar (previene duplicados por re-invocación)
+  await db.collection("matches").doc(matchId).update({
+    "remindersSent.manual": new Date().toISOString(),
+  });
+
   const players = (match?.players || []).filter((p: any) => p.uid);
   if (players.length === 0) {
     return { success: true, sentTokens: 0, message: "No hay jugadores registrados" };

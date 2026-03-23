@@ -7,75 +7,102 @@
  *
  * Operaciones de Firestore para actualizar estadísticas de jugadores.
  * Usa tipos del dominio (`lib/domain/player.ts`, `lib/domain/user.ts`).
+ *
+ * Usa `writeBatch` para garantizar atomicidad (all-or-nothing):
+ * todas las stats de jugadores + el flag `statsProcessed` del match
+ * se commitean en un solo batch atómico.
  */
 
-import { doc, setDoc, increment } from "firebase/firestore";
+import { doc, increment, writeBatch, type DocumentReference } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Player } from "./domain/player";
 import type { MatchResult } from "./domain/match";
 
 /**
- * Actualiza las estadísticas de un grupo de jugadores.
+ * Actualiza las estadísticas de un grupo de jugadores atómicamente.
  *
- * Si hay un resultado previo, primero revierte esas estadísticas
- * y luego aplica las nuevas.
+ * Si hay un resultado previo, combina la reversión y las nuevas stats
+ * en un solo delta neto por jugador dentro del mismo batch.
+ *
+ * También incluye el update del match (score, statsProcessed, etc.)
+ * para garantizar consistencia total.
  */
 export async function updatePlayerStats(
   players: Player[],
   result: MatchResult,
   matchId: string,
-  previousResult?: MatchResult
+  previousResult?: MatchResult,
+  matchData?: {
+    matchRef: DocumentReference;
+    score: { A: number; B: number };
+    previousScore: { A: number; B: number };
+    finalReport: string;
+  }
 ) {
+  const batch = writeBatch(db);
+
+  // Include match document update in the same atomic batch
+  if (matchData) {
+    batch.update(matchData.matchRef, {
+      score: matchData.score,
+      previousScore: matchData.previousScore,
+      finalReport: matchData.finalReport,
+      statsProcessed: true,
+    });
+  }
+
   for (const player of players) {
     if (!player.uid || player.uid.startsWith("guest_")) continue;
 
-    // TODO: Handle previous result reversion correctly for attendance stats if needed
-    // For now, simplificado solo para W/L/D basic reversion
-    if (previousResult) {
-      // Revertir stats previos (simplificado - asume que 'played' fue incrementado)
-      // Nota: Si el usuario fue marcado como no-show después, esto podría desfasarse.
-      // Sería mejor reconstruir stats totales, pero para MVP:
-      await setDoc(
-        doc(db, "users", player.uid),
-        {
-          stats: {
-            played: increment(-1),
-            won: increment(previousResult === "win" ? -1 : 0),
-            lost: increment(previousResult === "loss" ? -1 : 0),
-            draw: increment(previousResult === "draw" ? -1 : 0),
-          },
-        },
-        { merge: true }
-      );
-    }
-
+    const userRef = doc(db, "users", player.uid);
     const { attendance = "present" } = player;
     const isNoShow = attendance === "no_show";
 
-    // Base stats update
+    // Compute net delta combining reversion + new stats in a single set
     const statsUpdate: Record<string, unknown> = {};
 
-    if (isNoShow) {
-      statsUpdate.noShows = increment(1);
-      // No incrementamos played/won/lost/draw
-    } else {
-      statsUpdate.played = increment(1);
-      statsUpdate.won = increment(result === "win" ? 1 : 0);
-      statsUpdate.lost = increment(result === "loss" ? 1 : 0);
-      statsUpdate.draw = increment(result === "draw" ? 1 : 0);
+    if (previousResult) {
+      // Revert previous stats
+      statsUpdate.played = increment(isNoShow ? -1 : 0); // -1 for revert, +1 for new if not no_show = net 0
+      statsUpdate.won = increment(
+        (previousResult === "win" ? -1 : 0) + (!isNoShow && result === "win" ? 1 : 0)
+      );
+      statsUpdate.lost = increment(
+        (previousResult === "loss" ? -1 : 0) + (!isNoShow && result === "loss" ? 1 : 0)
+      );
+      statsUpdate.draw = increment(
+        (previousResult === "draw" ? -1 : 0) + (!isNoShow && result === "draw" ? 1 : 0)
+      );
 
-      if (attendance === "late") {
-        statsUpdate.lateArrivals = increment(1);
+      if (isNoShow) {
+        statsUpdate.noShows = increment(1);
+        // Net played: -1 (revert) + 0 (no_show doesn't add) = -1
+        statsUpdate.played = increment(-1);
+      } else {
+        // Net played: -1 (revert) + 1 (new) = 0
+        statsUpdate.played = increment(0);
+        if (attendance === "late") {
+          statsUpdate.lateArrivals = increment(1);
+        }
+      }
+    } else {
+      // No reversion needed — fresh stats
+      if (isNoShow) {
+        statsUpdate.noShows = increment(1);
+      } else {
+        statsUpdate.played = increment(1);
+        statsUpdate.won = increment(result === "win" ? 1 : 0);
+        statsUpdate.lost = increment(result === "loss" ? 1 : 0);
+        statsUpdate.draw = increment(result === "draw" ? 1 : 0);
+
+        if (attendance === "late") {
+          statsUpdate.lateArrivals = increment(1);
+        }
       }
     }
 
-    // Aplicar las nuevas estadísticas
-    await setDoc(
-      doc(db, "users", player.uid),
-      {
-        stats: statsUpdate,
-      },
-      { merge: true }
-    );
+    batch.set(userRef, { stats: statsUpdate }, { merge: true });
   }
+
+  await batch.commit();
 }

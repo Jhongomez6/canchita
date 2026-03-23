@@ -13,7 +13,6 @@ import {
   collection,
   addDoc,
   getDocs,
-  getDoc,
   query,
   where,
   orderBy,
@@ -306,32 +305,34 @@ export async function leaveWaitlist(
   playerName: string
 ) {
   const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
 
-  const data = snap.data();
-  const players: Player[] = data.players || [];
+    const data = snap.data();
+    const players: Player[] = data.players || [];
 
-  // Encontrar el jugador
-  const removedPlayer = players.find(
-    (p) => p.name === playerName && p.isWaitlist
-  );
+    // Encontrar el jugador
+    const removedPlayer = players.find(
+      (p) => p.name === playerName && p.isWaitlist
+    );
 
-  if (!removedPlayer) return;
+    if (!removedPlayer) return;
 
-  const updatedPlayers = players.filter(
-    (p) => !(p.name === playerName && p.isWaitlist)
-  );
+    const updatedPlayers = players.filter(
+      (p) => !(p.name === playerName && p.isWaitlist)
+    );
 
-  const updateData: Record<string, unknown> = {
-    players: updatedPlayers,
-  };
+    const updateData: Record<string, unknown> = {
+      players: updatedPlayers,
+    };
 
-  if (removedPlayer?.uid) {
-    updateData.playerUids = arrayRemove(removedPlayer.uid);
-  }
+    if (removedPlayer?.uid) {
+      updateData.playerUids = arrayRemove(removedPlayer.uid);
+    }
 
-  await updateDoc(ref, updateData);
+    transaction.update(ref, updateData);
+  });
 }
 
 /* =========================
@@ -436,26 +437,28 @@ export async function unconfirmAttendance(
   playerName: string
 ) {
   const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
 
-  const data = snap.data();
-  const players: Player[] = data.players || [];
+    const data = snap.data();
+    const players: Player[] = data.players || [];
 
-  const updatedPlayers = players.map((p) =>
-    p.name === playerName ? { ...p, confirmed: false } : p
-  );
+    const updatedPlayers = players.map((p) =>
+      p.name === playerName ? { ...p, confirmed: false } : p
+    );
 
-  const updateData: Record<string, unknown> = { players: updatedPlayers };
+    const updateData: Record<string, unknown> = { players: updatedPlayers };
 
-  // Remove player from balanced teams if they exist
-  if (data.teams?.A && data.teams?.B) {
-    const teamA = (data.teams.A as Player[]).filter((p) => p.name !== playerName);
-    const teamB = (data.teams.B as Player[]).filter((p) => p.name !== playerName);
-    updateData.teams = { A: teamA, B: teamB };
-  }
+    // Remove player from balanced teams if they exist
+    if (data.teams?.A && data.teams?.B) {
+      const teamA = (data.teams.A as Player[]).filter((p) => p.name !== playerName);
+      const teamB = (data.teams.B as Player[]).filter((p) => p.name !== playerName);
+      updateData.teams = { A: teamA, B: teamB };
+    }
 
-  await updateDoc(ref, updateData);
+    transaction.update(ref, updateData);
+  });
 }
 
 /* =========================
@@ -471,17 +474,19 @@ export async function updatePlayerData(
   }
 ) {
   const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
 
-  const match = snap.data();
-  const players: Player[] = match.players || [];
+    const match = snap.data();
+    const players: Player[] = match.players || [];
 
-  const updatedPlayers = players.map((p) =>
-    p.name === playerName ? { ...p, ...data } : p
-  );
+    const updatedPlayers = players.map((p) =>
+      p.name === playerName ? { ...p, ...data } : p
+    );
 
-  await updateDoc(ref, { players: updatedPlayers });
+    transaction.update(ref, { players: updatedPlayers });
+  });
 }
 
 /* =========================
@@ -498,49 +503,51 @@ export async function addPlayerToMatch(
     confirmed?: boolean;
   }
 ) {
-  const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
-
-  const match = snap.data();
-  const players: Player[] = match.players || [];
-
-  const exists = players.some(
-    (p) =>
-      (player.uid && p.uid === player.uid) ||
-      p.name === player.name
-  );
-  if (exists) return;
-
-  // 🔥 Perfil del usuario (si tiene UID)
+  // Fetch profile BEFORE transaction (doesn't compete with match doc)
   let photoURL: string | undefined;
   if (player.uid) {
     const profile = await getUserProfile(player.uid);
     photoURL = profile?.photoURL;
   }
 
-  const newPlayer = {
-    ...player,
-    confirmed: player.confirmed ?? false,
-    ...(photoURL ? { photoURL } : {}),
-  };
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
 
-  const updateData: Record<string, unknown> = {
-    players: [...players, newPlayer],
-  };
+    const match = snap.data();
+    const players: Player[] = match.players || [];
 
-  if (player.uid) {
-    updateData.playerUids = arrayUnion(player.uid);
-  }
-
-  if (match.teams?.A && match.teams?.B) {
-    updateData.teams = assignToSmallestTeam(
-      match.teams as { A: Player[]; B: Player[] },
-      newPlayer as unknown as Player
+    const exists = players.some(
+      (p) =>
+        (player.uid && p.uid === player.uid) ||
+        p.name === player.name
     );
-  }
+    if (exists) return;
 
-  await updateDoc(ref, updateData);
+    const newPlayer = {
+      ...player,
+      confirmed: player.confirmed ?? false,
+      ...(photoURL ? { photoURL } : {}),
+    };
+
+    const updateData: Record<string, unknown> = {
+      players: [...players, newPlayer],
+    };
+
+    if (player.uid) {
+      updateData.playerUids = arrayUnion(player.uid);
+    }
+
+    if (match.teams?.A && match.teams?.B) {
+      updateData.teams = assignToSmallestTeam(
+        match.teams as { A: Player[]; B: Player[] },
+        newPlayer as unknown as Player
+      );
+    }
+
+    transaction.update(ref, updateData);
+  });
 }
 
 /* =========================
@@ -551,29 +558,31 @@ export async function deletePlayerFromMatch(
   playerName: string
 ) {
   const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
 
-  const match = snap.data();
-  const players: Player[] = match.players || [];
+    const match = snap.data();
+    const players: Player[] = match.players || [];
 
-  const removedPlayer = players.find(
-    (p) => p.name === playerName
-  );
+    const removedPlayer = players.find(
+      (p) => p.name === playerName
+    );
 
-  const updatedPlayers = players.filter(
-    (p) => p.name !== playerName
-  );
+    const updatedPlayers = players.filter(
+      (p) => p.name !== playerName
+    );
 
-  const updateData: Record<string, unknown> = {
-    players: updatedPlayers,
-  };
+    const updateData: Record<string, unknown> = {
+      players: updatedPlayers,
+    };
 
-  if (removedPlayer?.uid) {
-    updateData.playerUids = arrayRemove(removedPlayer.uid);
-  }
+    if (removedPlayer?.uid) {
+      updateData.playerUids = arrayRemove(removedPlayer.uid);
+    }
 
-  await updateDoc(ref, updateData);
+    transaction.update(ref, updateData);
+  });
 }
 
 /* =========================
@@ -585,18 +594,20 @@ export async function markPlayerAttendance(
   attendance: "present" | "late" | "no_show"
 ) {
   const ref = doc(db, "matches", matchId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
 
-  const data = snap.data();
-  const players: Player[] = data.players || [];
+    const data = snap.data();
+    const players: Player[] = data.players || [];
 
-  const updatedPlayers = players.map((p) =>
-    p.uid === uid ? { ...p, attendance } : p
-  );
+    const updatedPlayers = players.map((p) =>
+      p.uid === uid ? { ...p, attendance } : p
+    );
 
-  await updateDoc(ref, {
-    players: updatedPlayers,
+    transaction.update(ref, {
+      players: updatedPlayers,
+    });
   });
 }
 
@@ -661,8 +672,8 @@ export async function voteForMVP(
     const now = new Date().getTime();
     const hoursDifference = (now - closedTime) / (1000 * 60 * 60);
 
-    if (hoursDifference > 5) {
-      throw new Error("El periodo de votación (5 horas post-partido) ha terminado.");
+    if (hoursDifference > 3) {
+      throw new Error("El periodo de votación (3 horas post-partido) ha terminado.");
     }
 
     // 2.5 Validar cierre matemático (alguien ya ganó por mayoría inalcanzable)

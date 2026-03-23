@@ -75,6 +75,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 | 11 | **Push envío resiliente** | `safeSendPush()` helper en `functions/src/reminders.ts` — try/catch + token cleanup + logging estructurado. Push NUNCA crashea la Cloud Function |
 | 12 | **Manifest incluye `gcm_sender_id`** | `public/manifest.json` tiene `"gcm_sender_id": "103953800507"` (valor fijo requerido por FCM web) |
 | 13 | **Estado de push en perfil: 3 estados** | Activas (granted + enabled), Bloqueadas (denied + enabled), Inactivas (no enabled) |
+| 14 | **Idempotencia en recordatorio manual** | `sendManualReminder()` usa `remindersSent.manual` (timestamp ISO) como debounce de 5 minutos para prevenir envíos duplicados |
 
 
 ---

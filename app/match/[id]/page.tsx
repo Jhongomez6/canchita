@@ -478,6 +478,11 @@ export default function MatchDetailPage() {
       if (!snap.exists()) return;
       const freshMatch = snap.data() as Match;
 
+      if (freshMatch.statsProcessed) {
+        toast.error("Las estadísticas ya fueron procesadas para este partido.");
+        return;
+      }
+
       if (!freshMatch?.teams?.A || !freshMatch?.teams?.B) {
         toast.error("Primero debes balancear los equipos.");
         return;
@@ -526,21 +531,24 @@ export default function MatchDetailPage() {
         score: { A: scoreA, B: scoreB },
       });
 
-      await updateDoc(doc(db, "matches", id), {
+      const matchRef = doc(db, "matches", id);
+      const matchData = {
+        matchRef,
         score: { A: scoreA, B: scoreB },
         previousScore: freshMatch.score || { A: 0, B: 0 },
         finalReport: report,
-        statsProcessed: true,
-      });
+      };
 
+      // First batch: Team A stats + match document update (atomic)
+      // Second batch: Team B stats (atomic)
       if (scoreA > scoreB) {
-        await updatePlayerStats(teamAWithAttendance, "win", id, previousResultA);
+        await updatePlayerStats(teamAWithAttendance, "win", id, previousResultA, matchData);
         await updatePlayerStats(teamBWithAttendance, "loss", id, previousResultB);
       } else if (scoreB > scoreA) {
-        await updatePlayerStats(teamAWithAttendance, "loss", id, previousResultA);
+        await updatePlayerStats(teamAWithAttendance, "loss", id, previousResultA, matchData);
         await updatePlayerStats(teamBWithAttendance, "win", id, previousResultB);
       } else {
-        await updatePlayerStats(teamAWithAttendance, "draw", id, previousResultA);
+        await updatePlayerStats(teamAWithAttendance, "draw", id, previousResultA, matchData);
         await updatePlayerStats(teamBWithAttendance, "draw", id, previousResultB);
       }
 

@@ -35,7 +35,7 @@ type MatchResult = "win" | "loss" | "draw";
 | 1 | Solo jugadores con `uid` reciben stats | Filtro en `updatePlayerStats()` |
 | 2 | Stats se actualizan al cerrar partido | Llamada desde match detail page |
 | 3 | Si partido se reabre y re-cierra, stats previos se revierten | `previousResult` param |
-| 4 | Stats son atómicas — se usan `increment()` de Firestore | `import { increment } from "firebase/firestore"` |
+| 4 | Stats son atómicas — se usa `writeBatch` para all-or-nothing | `writeBatch` agrupa todos los `increment()` + flag `statsProcessed` en un solo commit atómico |
 | 5 | Resultado depende del score: A > B = win para A | Lógica en UI (match detail) |
 
 ---
@@ -176,7 +176,7 @@ if (scoreA > scoreB) {
 ## 6. CONCLUSIÓN
 
 ✅ **Tipos de resultado (`MatchResult`)** definidos en dominio
-✅ **Incrementos atómicos** con `increment()` de Firestore
+✅ **Batch atómico** con `writeBatch` + `increment()` de Firestore (all-or-nothing)
 ✅ **Reversión segura** de stats al reabrir partidos
 ✅ **Jugadores manuales ignorados** correctamente
 ✅ **Trazabilidad completa** de cada regla de negocio

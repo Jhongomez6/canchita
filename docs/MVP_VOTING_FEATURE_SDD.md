@@ -2,7 +2,7 @@
 
 ## 📋 Specification-Driven Development (SDD)
 
-Sistema que permite a los jugadores de un partido cerrado votar por el "MVP" (Jugador Más Valioso). El reconocimiento se procesa en tiempo real y, luego de 5 horas desde el cierre del partido, los votos se bloquean.
+Sistema que permite a los jugadores de un partido cerrado votar por el "MVP" (Jugador Más Valioso). El reconocimiento se procesa en tiempo real y, luego de 3 horas desde el cierre del partido, los votos se bloquean.
 
 ---
 
@@ -17,7 +17,7 @@ Fomentar la camaradería y el compañerismo permitiendo a los participantes dest
 |---|---|---|
 | 1 | Votación Libre | Cualquier jugador confirmado puede votar por cualquier otro jugador confirmado o invitado (Guest) presente en el partido (excepto por sí mismo). |
 | 2 | Periodo de Votación | La votación se habilita exclusivamente cuando el estado del partido es `closed` (`isClosed === true`). |
-| 3 | Tiempo Límite (5h) | Existe un candado de seguridad: la votación cuenta con una ventana máxima de 5 horas contadas a partir de la captura del timestamp `closedAt` (generado al mandar a cerrar el partido). Pasado el tiempo, los botones se inhabilitan en cliente y la mutación falla en Backend. |
+| 3 | Tiempo Límite (3h) | Existe un candado de seguridad: la votación cuenta con una ventana máxima de 3 horas contadas a partir de la captura del timestamp `closedAt` (generado al mandar a cerrar el partido). Pasado el tiempo, los botones se inhabilitan en cliente y la mutación falla en Backend. Ventana sincronizada entre cliente (`lib/matches.ts`) y Cloud Function (`functions/src/reminders.ts`). |
 | 4 | Anonimato Parcial | Al votar, la UI (que previamente solo decían "¡Reconoce a la figura de hoy!") oculta los detalles exhaustivos de quién vota a quién, pero muestra un conteo aglomerado en tiempo real. |
 | 5 | Actualizaciones en Vivo | La UI de `/join/[id]` y `/match/[id]` procesa el array de `mvpVotes` dinámicamente y expone los votos acumulados por jugador. |
 | 6 | Destacado Visual 👑 | Aquel jugador (o jugadores en caso de empate) con mayor cantidad de votos obtenidos será decorado en la lista de equipos final con una corona animada (`👑`) de forma inmediata. |
@@ -43,7 +43,7 @@ Fomentar la camaradería y el compañerismo permitiendo a los participantes dest
 *   `closeMatch(matchId)`: Mutada orgánicamente para incrustar `closedAt: new Date().toISOString()`.
 *   `reopenMatch(matchId)`: Remueve o limpia implícitamente `closedAt: null` al reaperturar el estado hacia `open`.
 *   `voteForMVP(matchId, voterUid, targetId)`: Envuelve el voto en un `runTransaction(db)` de Firebase para prevenir carreras asíncronas.
-    *   Lee la fecha actual `now()` contra la fecha `closedAt` registrada. Lanza un "Error: Periodo terminado" si la diferencia es mayor a 5 horas.
+    *   Lee la fecha actual `now()` contra la fecha `closedAt` registrada. Lanza un "Error: Periodo terminado" si la diferencia es mayor a 3 horas.
     *   Lee el estado actual de los votos e impide transacciones si el usuario ya emitió uno previamente (`mvpVotes[voterUid]` existente).
     *   Calcula dinámicamente cuántos votos son inalcanzables. Si la diferencia entre el puesto 1 y 2 es mayor a los `remainingVotes` proyectados, aborta transacciones futuras y sella el resultado matemáticamente.
     *   Aplica Firebase Dot Notation (`mvpVotes.[voterUid]: targetId`) garantizando así que un usuario nunca pueda emitir votos dobles concurrentes.
