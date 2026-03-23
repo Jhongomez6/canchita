@@ -42,6 +42,8 @@ export default function SettingsTab({
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedInvitation, setCopiedInvitation] = useState(false);
   const [copyingInvitation, setCopyingInvitation] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isReopening, setIsReopening] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -296,35 +298,50 @@ export default function SettingsTab({
 
           {!isClosed && (
             <button
-              disabled={!match.teams}
+              disabled={!match.teams || isClosing}
               onClick={async () => {
-                if (!match.teams) return;
+                if (!match.teams || isClosing) return;
                 if (!confirm("¿Cerrar partido y procesar estadísticas?")) return;
                 if (hasUnsavedBalance) {
                   return; // Parent will show toast
                 }
-                await onCloseMatch();
+                setIsClosing(true);
+                try {
+                  await onCloseMatch();
+                } finally {
+                  setIsClosing(false);
+                }
               }}
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${
-                !match.teams
-                  ? "bg-slate-400 cursor-not-allowed opacity-50"
+                !match.teams || isClosing
+                  ? "bg-slate-400 cursor-not-allowed opacity-50 shadow-none"
                   : "bg-red-600 hover:bg-red-700"
               }`}
             >
-              🔒 Cerrar partido final
+              {isClosing ? "⏳ Cerrando partido..." : "🔒 Cerrar partido final"}
             </button>
           )}
 
           {isClosed && (
             <button
+              disabled={isReopening}
               onClick={async () => {
-                if (confirm("¿Reabrir el partido?")) {
+                if (isReopening) return;
+                if (!confirm("¿Reabrir el partido?")) return;
+                setIsReopening(true);
+                try {
                   await onReopenMatch();
+                } finally {
+                  setIsReopening(false);
                 }
               }}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold bg-[#1f7a4f] text-white hover:bg-[#16603c] transition-all shadow-lg active:scale-[0.98]"
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${
+                isReopening
+                  ? "bg-slate-400 cursor-not-allowed opacity-50 shadow-none"
+                  : "bg-[#1f7a4f] hover:bg-[#16603c]"
+              }`}
             >
-              🔓 Reabrir partido
+              {isReopening ? "⏳ Reabriendo..." : "🔓 Reabrir partido"}
             </button>
           )}
 
