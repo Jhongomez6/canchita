@@ -8,6 +8,12 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { ensureUserProfile } from "@/lib/users";
 import { listenToPushMessages } from "./firebase-messaging";
 import { useTokenRefresh } from "./hooks/useTokenRefresh";
+import {
+  initAnalytics,
+  identifyUser,
+  setAnalyticsUserProperties,
+  logUserRegistered,
+} from "@/lib/analytics";
 import type { UserProfile } from "@/lib/domain/user";
 import Image from "next/image";
 
@@ -39,6 +45,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     listenToPushMessages();
   }, []);
 
+  // 📊 Inicializar Analytics y setear user properties de sesión
+  useEffect(() => {
+    initAnalytics().then(() => {
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      const ua = window.navigator.userAgent.toLowerCase();
+      const platform = /iphone|ipad|ipod/.test(ua)
+        ? "ios"
+        : /android/.test(ua)
+          ? "android"
+          : "desktop";
+      setAnalyticsUserProperties({
+        app_mode: isStandalone ? "standalone" : "browser",
+        platform,
+      });
+    });
+  }, []);
+
   // 🔄 Auto-refresh FCM token on every app load (prevents token death spiral)
   useTokenRefresh(user, profile);
 
@@ -49,13 +74,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentUser) {
         setUser(currentUser);
 
+        // 📊 Identificar usuario en Analytics
+        identifyUser(currentUser.uid);
+
         // 👤 Asegurar perfil (solo crea si no existe o actualiza email/foto faltante)
-        await ensureUserProfile(
+        const { isNewUser } = await ensureUserProfile(
           currentUser.uid,
           currentUser.displayName || "Jugador",
           currentUser.email,
           currentUser.photoURL
         );
+
+        // 📊 Log registro de usuario nuevo
+        if (isNewUser) {
+          logUserRegistered();
+        }
 
         // ✅ Marca login reciente (se consume en la UI)
         setJustLoggedIn(true);
@@ -67,7 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (docSnap.exists()) {
               const data = docSnap.data();
               const roles = data.roles ?? (data.role ? [data.role] : ["player"]);
-              setProfile({ uid: docSnap.id, ...data, roles } as UserProfile);
+              const userProfile = { uid: docSnap.id, ...data, roles } as UserProfile;
+              setProfile(userProfile);
+              // 📊 Set user role para segmentación en Analytics
+              setAnalyticsUserProperties({ user_role: roles[0] });
             } else {
               setProfile(null);
             }
@@ -86,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setJustLoggedIn(false);
         setLoading(false);
         setInitialLoad(false);
+        identifyUser("");
         if (unsubscribeProfile) unsubscribeProfile();
       }
     });

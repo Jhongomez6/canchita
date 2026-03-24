@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { logPWAInstall } from "@/lib/analytics";
 
 interface BeforeInstallPromptEvent extends Event {
     prompt: () => Promise<void>;
@@ -97,8 +98,10 @@ export function usePWAInstall(cooldownDays = 7): PWAInstallHook {
                 const choiceResult = await globalDeferredPrompt.userChoice;
                 if (choiceResult.outcome === "accepted") {
                     console.log("User accepted the install prompt");
+                    logPWAInstall("accepted");
                 } else {
                     console.log("User dismissed the install prompt");
+                    logPWAInstall("dismissed");
                 }
                 // We only clear it after it's been consumed
                 globalDeferredPrompt = null;

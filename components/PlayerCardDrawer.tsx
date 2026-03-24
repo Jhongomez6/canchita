@@ -6,6 +6,7 @@ import { getUserProfile } from "@/lib/users";
 import type { UserProfile } from "@/lib/domain/user";
 import FifaPlayerCard from "./FifaPlayerCard";
 import FifaCardSkeleton from "./skeletons/FifaCardSkeleton";
+import { logPlayerCardViewed } from "@/lib/analytics";
 
 interface PlayerCardDrawerProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export default function PlayerCardDrawer({ isOpen, onClose, playerUid }: PlayerC
         setError("Este jugador eliminó su cuenta");
       } else {
         setProfile(data);
+        logPlayerCardViewed();
       }
     } catch (err) {
       console.error("Error loading player profile:", err);

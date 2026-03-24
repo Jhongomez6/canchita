@@ -27,6 +27,7 @@ import {
 import { GuestBusinessError, MatchFullError } from "./domain/errors";
 import type { Player } from "./domain/player";
 import { getConfirmedCount } from "./domain/match";
+import { logGuestAdded } from "./analytics";
 
 // Re-export para backward compatibility
 export { GuestBusinessError };
@@ -105,6 +106,7 @@ export async function addGuestToMatch(
       guests: [...guests, guest],
     });
   });
+  logGuestAdded(matchId);
 }
 
 // ========================

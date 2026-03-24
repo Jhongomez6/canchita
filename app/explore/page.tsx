@@ -12,6 +12,7 @@ import type { Location } from "@/lib/domain/location";
 import MatchListSkeleton from "@/components/skeletons/MatchListSkeleton";
 import { handleError } from "@/lib/utils/error";
 import { sanitizeMatchCode } from "@/lib/matchCode";
+import { logMatchJoinedViaExplore } from "@/lib/analytics";
 
 export default function ExplorePage() {
     const { profile, loading: authLoading } = useAuth();
@@ -175,7 +176,7 @@ export default function ExplorePage() {
                                         const isFull = spotsLeft === 0;
 
                                         return (
-                                            <div key={m.id} className="relative group">
+                                            <div key={m.id} className="relative group" onClick={() => logMatchJoinedViaExplore(m.id)}>
                                                 <MatchCard
                                                     match={m}
                                                     location={locationsMap[m.locationId]}

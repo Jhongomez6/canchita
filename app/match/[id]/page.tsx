@@ -39,6 +39,7 @@ import { guestToPlayer } from "@/lib/domain/guest";
 import { addGuestToMatch, promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import { logMatchInvitationCopied } from "@/lib/analytics";
 import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
 
 // Tab components
@@ -441,6 +442,7 @@ export default function MatchDetailPage() {
       `🔑 *Código de búsqueda:* ${id}.ai\n` +
       `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n`;
     await navigator.clipboard.writeText(text);
+    logMatchInvitationCopied(id);
   }
 
   async function handleManualReminder() {

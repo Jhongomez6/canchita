@@ -18,6 +18,7 @@ import {
 } from "@/lib/domain/rating";
 import type { Position } from "@/lib/domain/player";
 import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain/player";
+import { logOnboardingCompleted } from "@/lib/analytics";
 
 // ========================
 // CONSTANTES DE COPY
@@ -173,6 +174,7 @@ export default function OnboardingPage() {
                     frequency: frequency as string,
                     phone,
                 });
+                logOnboardingCompleted();
 
                 const elapsed = Date.now() - startTime;
                 const remaining = Math.max(0, 3000 - elapsed);

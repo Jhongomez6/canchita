@@ -22,6 +22,7 @@ import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { X, Share, PlusSquare, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
+import { logStatsViewed } from "@/lib/analytics";
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
 const SEX_LABELS: Record<string, string> = { male: "M", female: "F", other: "Otro" };
@@ -114,6 +115,7 @@ export default function ProfilePage() {
         lateArrivals: profile.stats.lateArrivals ?? 0,
         noShows: profile.stats.noShows ?? 0,
       });
+      logStatsViewed();
     }
     if (profile.level != null) setLevel(profile.level);
     if (profile.onboardingCompletedAt) setOnboardingCompletedAt(profile.onboardingCompletedAt);

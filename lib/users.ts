@@ -35,7 +35,7 @@ export async function ensureUserProfile(
   name: string,
   email?: string | null,
   photoURL?: string | null
-) {
+): Promise<{ isNewUser: boolean }> {
   photoURL = upgradeGooglePhotoURL(photoURL);
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
@@ -52,6 +52,7 @@ export async function ensureUserProfile(
     if (email) data.email = email;
     if (photoURL) data.photoURL = photoURL;
     await setDoc(ref, data);
+    return { isNewUser: true };
   } else {
     // Si ya existe pero le faltan datos que ahora tenemos, los actualizamos
     const currentData = snap.data();
@@ -63,6 +64,7 @@ export async function ensureUserProfile(
     if (Object.keys(updates).length > 0) {
       await updateDoc(ref, updates);
     }
+    return { isNewUser: false };
   }
 }
 

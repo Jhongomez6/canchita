@@ -1,0 +1,193 @@
+/**
+ * ========================
+ * FIREBASE ANALYTICS MODULE
+ * ========================
+ *
+ * Specification-Driven Development (SDD)
+ * See: docs/ANALYTICS_FEATURE_SDD.md
+ *
+ * Módulo central de analytics con inicialización lazy y helpers tipados.
+ * Cada función maneja silenciosamente el caso donde analytics no está
+ * disponible (SSR, navegador sin soporte, measurementId faltante).
+ */
+
+import {
+  getAnalytics,
+  logEvent,
+  setUserId,
+  setUserProperties,
+  isSupported,
+  type Analytics,
+} from "firebase/analytics";
+import { app } from "./firebase";
+
+// Cached analytics instance
+let analyticsInstance: Analytics | null = null;
+let initPromise: Promise<Analytics | null> | null = null;
+
+/**
+ * Inicializa Firebase Analytics lazily.
+ * Solo funciona en browser y si el navegador soporta analytics.
+ * Cachea la instancia para reutilizar en llamadas posteriores.
+ */
+export async function initAnalytics(): Promise<Analytics | null> {
+  if (analyticsInstance) return analyticsInstance;
+  if (typeof window === "undefined") return null;
+  if (!process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) return null;
+
+  if (!initPromise) {
+    initPromise = isSupported()
+      .then((supported) => {
+        if (supported) {
+          analyticsInstance = getAnalytics(app);
+          return analyticsInstance;
+        }
+        return null;
+      })
+      .catch(() => null);
+  }
+
+  return initPromise;
+}
+
+async function getAnalyticsInstance(): Promise<Analytics | null> {
+  return analyticsInstance ?? initAnalytics();
+}
+
+/* =========================
+   IDENTITY & USER PROPERTIES
+========================= */
+
+export async function identifyUser(uid: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  setUserId(analytics, uid || null);
+}
+
+export async function setAnalyticsUserProperties(
+  properties: Record<string, string>
+) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  setUserProperties(analytics, properties);
+}
+
+/* =========================
+   P1: FUNNEL DE ACTIVACIÓN
+========================= */
+
+export async function logUserRegistered() {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "user_registered");
+}
+
+export async function logOnboardingCompleted() {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "onboarding_completed");
+}
+
+export async function logMatchJoined(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "match_joined", { match_id: matchId });
+}
+
+export async function logAttendanceConfirmed(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "attendance_confirmed", { match_id: matchId });
+}
+
+/* =========================
+   P2: CRECIMIENTO VIRAL
+========================= */
+
+export async function logMatchInvitationCopied(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "match_invitation_copied", { match_id: matchId });
+}
+
+export async function logMatchJoinedViaExplore(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "match_joined_via_explore", { match_id: matchId });
+}
+
+export async function logGuestAdded(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "guest_added", { match_id: matchId });
+}
+
+/* =========================
+   P3: CICLO DEL ADMIN
+========================= */
+
+export async function logMatchCreated(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "match_created", { match_id: matchId });
+}
+
+export async function logTeamsBalanced(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "teams_balanced", { match_id: matchId });
+}
+
+export async function logMatchClosed(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "match_closed", { match_id: matchId });
+}
+
+/* =========================
+   P4: VALOR DE LA PWA
+========================= */
+
+export async function logPWAInstall(outcome: "accepted" | "dismissed") {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, `pwa_install_${outcome}`);
+}
+
+/* =========================
+   P5: PUSH Y RETENCIÓN
+========================= */
+
+export async function logPushEnabled() {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "push_enabled");
+}
+
+export async function logPushPromptDismissed() {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "push_prompt_dismissed");
+}
+
+/* =========================
+   P6: ENGAGEMENT
+========================= */
+
+export async function logMvpVoted(matchId: string) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "mvp_voted", { match_id: matchId });
+}
+
+export async function logStatsViewed() {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "stats_viewed");
+}
+
+export async function logPlayerCardViewed() {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  logEvent(analytics, "player_card_viewed");
+}

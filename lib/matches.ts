@@ -31,6 +31,14 @@ import type { Match } from "./domain/match";
 import { getConfirmedCount } from "./domain/match";
 import { MatchFullError } from "./domain/errors";
 import { canManageLocation, canCreatePublicMatch } from "./domain/user";
+import {
+  logMatchCreated,
+  logMatchJoined,
+  logAttendanceConfirmed,
+  logTeamsBalanced,
+  logMatchClosed,
+  logMvpVoted,
+} from "./analytics";
 
 // Re-export para backward compatibility
 export type { Match };
@@ -85,7 +93,7 @@ export async function createMatch(match: {
 
   const startsAt = new Date(`${match.date}T${match.time}:00-05:00`);
 
-  await addDoc(matchesRef, {
+  const docRef = await addDoc(matchesRef, {
     ...match,
     creatorAdminType: profile.adminType || "super_admin",
     isPrivate: match.isPrivate || false,
@@ -101,6 +109,7 @@ export async function createMatch(match: {
     createdAt: new Date(),
     status: "open",
   });
+  logMatchCreated(docRef.id);
 }
 
 /* =========================
@@ -243,6 +252,7 @@ export async function joinMatch(
 
     transaction.update(ref, updateData);
   });
+  logMatchJoined(matchId);
 }
 
 /* =========================
@@ -434,6 +444,7 @@ export async function confirmAttendance(
 
     transaction.update(ref, confirmUpdate);
   });
+  logAttendanceConfirmed(matchId);
 }
 
 export async function unconfirmAttendance(
@@ -624,6 +635,7 @@ export async function saveTeams(
 ) {
   const ref = doc(db, "matches", matchId);
   await updateDoc(ref, { teams });
+  logTeamsBalanced(matchId);
 }
 
 /* =========================
@@ -635,6 +647,7 @@ export async function closeMatch(matchId: string) {
     status: "closed",
     closedAt: new Date().toISOString()
   });
+  logMatchClosed(matchId);
 }
 
 export async function reopenMatch(matchId: string) {
@@ -716,6 +729,7 @@ export async function voteForMVP(
       [updatePath]: targetId
     });
   });
+  logMvpVoted(matchId);
 }
 
 export async function deleteMatch(matchId: string): Promise<void> {

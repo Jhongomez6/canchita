@@ -18,6 +18,7 @@ import type { Match } from "@/lib/domain/match";
 
 import type { Location } from "@/lib/domain/location";
 import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
+import { logPushEnabled, logPushPromptDismissed } from "@/lib/analytics";
 
 export default function Home() {
   const router = useRouter();
@@ -237,6 +238,7 @@ export default function Home() {
                           try {
                             const token = await enablePushNotifications(user.uid);
                             if (token) {
+                              logPushEnabled();
                               setShowPushPrompt(false);
                             } else if (typeof Notification !== "undefined" && Notification.permission === "denied") {
                               toast.error("Permisos denegados. Reactívalos en la configuración del navegador.");
@@ -253,7 +255,7 @@ export default function Home() {
                         {enablingPush ? "Activando..." : "Activar"}
                       </button>
                       <button
-                        onClick={() => setShowPushPrompt(false)}
+                        onClick={() => { logPushPromptDismissed(); setShowPushPrompt(false); }}
                         className="px-3 py-2 text-slate-400 text-xs font-medium hover:text-slate-600"
                       >
                         Ahora no
