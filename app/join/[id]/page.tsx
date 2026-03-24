@@ -211,11 +211,40 @@ export default function JoinMatchPage() {
 
           {/* DESCRIPCIÓN */}
           {inApp ? (
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 mb-8 text-sm text-left shadow-sm">
-              <strong className="block mb-1 flex items-center gap-2">⚠️ Navegador no soportado</strong>
-              Estás usando un navegador integrado (como WhatsApp o Instagram) que bloquea el inicio de sesión con Google.
-              <br /><br />
-              Toca los <strong>tres puntos ⋮</strong> en la esquina y selecciona <strong>&quot;Abrir en el navegador&quot;</strong> (Safari o Chrome) para continuar.
+            <div className="bg-blue-50 border border-blue-200 text-blue-900 rounded-xl p-4 mb-8 text-sm text-left shadow-sm">
+              <strong className="block mb-2 flex items-center gap-2 text-blue-800">
+                <span className="text-lg">📋</span> Abre el link en tu navegador
+              </strong>
+              <p className="leading-relaxed mb-2">
+                Parece que abriste este link desde <strong>WhatsApp, Instagram u otra app</strong>. Estos navegadores internos no permiten iniciar sesión con Google.
+              </p>
+              <p className="leading-relaxed mb-3">
+                Para continuar, elige una de estas opciones:
+              </p>
+              <ol className="list-decimal list-inside space-y-1 mb-3 text-blue-800 font-medium">
+                <li>Tocá los <strong>tres puntos ⋮</strong> y selecciona <strong>&quot;Abrir en el navegador&quot;</strong></li>
+                <li>O copiá el link y pegalo en <strong>Chrome</strong> o <strong>Safari</strong></li>
+              </ol>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  setIsCopied(true);
+                  setTimeout(() => setIsCopied(false), 2000);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+              >
+                {isCopied ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    ¡Link copiado!
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                    Copiar link
+                  </>
+                )}
+              </button>
             </div>
           ) : (
             <p className="text-slate-500 mb-8 leading-relaxed">
