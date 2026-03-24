@@ -118,7 +118,7 @@ export default function ExplorePage() {
                             <form onSubmit={handleInviteCodeSubmit} className="flex gap-2">
                                 <input
                                     type="text"
-                                    placeholder="ABC123XYZ o https://canchita.app/join/ABC123XYZ"
+                                    placeholder="ABC123XYZ o https://lacanchita.app/join/ABC123XYZ"
                                     value={inviteCode}
                                     onChange={(e) => setInviteCode(e.target.value)}
                                     // Cambiado de text-sm a text-base para prevenir auto-zoom en iOS Safari

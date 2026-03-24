@@ -32,7 +32,7 @@ interface Guest {
 
 | # | Regla | Implementación |
 |---|-------|----------------|
-| 1 | Un jugador puede agregar máximo 2 invitados por partido | `canAddGuest()` en `lib/domain/guest.ts` |
+| 1 | Un jugador puede agregar máximo 2 invitados por partido. **El owner del partido no tiene límite.** | `canAddGuest()` / `hasReachedGuestLimit()` en `lib/domain/guest.ts` |
 | 2 | El partido debe tener habilitado el permiso de invitados | `allowGuests !== false` en `Match` |
 | 3 | El invitado NO tiene cuenta de usuario | No se crea documento en `users` collection |
 | 4 | El invitado NO puede editar el partido | Firestore Rules + No tiene `uid` |
@@ -196,26 +196,41 @@ const handleSubmit = async (e: React.FormEvent) => {
 
 ## 3. TRAZABILIDAD: ESPECIFICACIÓN → CÓDIGO
 
-### Regla #1: Máximo 2 invitados por jugador
+### Regla #1: Máximo 2 invitados por jugador (el owner no tiene límite)
 
 **Especificación**:
-> Un jugador puede agregar hasta 2 invitados por partido. Si el partido deshabilita invitados, el límite es 0.
+> Un jugador puede agregar hasta 2 invitados por partido. El owner del partido (createdBy) no tiene límite. Si el partido deshabilita invitados, el límite es 0.
 
 **Implementación**:
 
-1. **Dominio** (`lib/domain/guest.ts:145-148`):
+1. **Dominio** (`lib/domain/guest.ts`):
 ```typescript
-export function canAddGuest(guests: Guest[], playerUid: string): boolean {
-  const userGuests = guests.filter(g => g.invitedBy === playerUid);
-  return userGuests.length < 2;
+export function hasReachedGuestLimit(
+  guests: Guest[],
+  playerUid: string,
+  isOwner?: boolean
+): boolean {
+  if (isOwner) return false; // Owner no tiene límite
+  const userGuests = guests.filter((guest) => guest.invitedBy === playerUid);
+  return userGuests.length >= 2;
+}
+
+export function canAddGuest(
+  guests: Guest[],
+  playerUid: string,
+  isOwner?: boolean
+): boolean {
+  return !hasReachedGuestLimit(guests, playerUid, isOwner);
 }
 ```
 
-2. **API** (`lib/guests.ts:69-73`):
+2. **API** (`lib/guests.ts`):
 ```typescript
-if (!canAddGuest(guests, playerUid)) {
+// REGLA: Un jugador puede agregar máximo 2 invitados por partido (el owner no tiene límite)
+const isOwner = data.createdBy === playerUid;
+if (!canAddGuest(guests, playerUid, isOwner)) {
   throw new GuestBusinessError(
-    "Ya tienes un invitado en este partido. Elimínalo antes de agregar otro."
+    "Ya has alcanzado el límite de 2 invitados en este partido."
   );
 }
 ```

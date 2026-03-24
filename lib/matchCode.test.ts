@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { sanitizeMatchCode } from "./matchCode";
+import { APP_URL } from "./config";
+
+const BASE = APP_URL; // e.g. "https://lacanchita.app"
 
 describe("sanitizeMatchCode", () => {
     // ── Basic codes ──
@@ -34,37 +37,37 @@ describe("sanitizeMatchCode", () => {
 
     // ── Full join URLs ──
     it("extracts code from full https join URL", () => {
-        expect(sanitizeMatchCode("https://la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE}/join/bQZArdJKKtgr1nZnwEpD`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     it("extracts code from http join URL", () => {
-        expect(sanitizeMatchCode("http://la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE.replace("https://", "http://")}/join/bQZArdJKKtgr1nZnwEpD`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     it("extracts code from join URL WITH .ai suffix", () => {
-        expect(sanitizeMatchCode("https://la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD.ai")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE}/join/bQZArdJKKtgr1nZnwEpD.ai`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     it("extracts code from join URL WITH .app suffix", () => {
-        expect(sanitizeMatchCode("https://la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD.app")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE}/join/bQZArdJKKtgr1nZnwEpD.app`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     // ── Edge cases: trailing slash ──
     it("handles trailing slash after code", () => {
-        expect(sanitizeMatchCode("https://la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD/")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE}/join/bQZArdJKKtgr1nZnwEpD/`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     it("handles trailing slash after .ai code", () => {
-        expect(sanitizeMatchCode("https://la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD.ai/")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE}/join/bQZArdJKKtgr1nZnwEpD.ai/`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     // ── Edge cases: query params ──
     it("handles query params after code", () => {
-        expect(sanitizeMatchCode("https://la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD?ref=wa")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE}/join/bQZArdJKKtgr1nZnwEpD?ref=wa`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     it("handles query params after .ai code", () => {
-        expect(sanitizeMatchCode("https://la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD.ai?ref=wa")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE}/join/bQZArdJKKtgr1nZnwEpD.ai?ref=wa`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     // ── URL without /join/ ──
@@ -74,11 +77,11 @@ describe("sanitizeMatchCode", () => {
 
     // ── Bare domain/join link without protocol ──
     it("extracts code from join path without protocol", () => {
-        expect(sanitizeMatchCode("la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE.replace("https://", "")}/join/bQZArdJKKtgr1nZnwEpD`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     it("extracts code from join path without protocol, with .ai", () => {
-        expect(sanitizeMatchCode("la-canchita.vercel.app/join/bQZArdJKKtgr1nZnwEpD.ai")).toBe("bQZArdJKKtgr1nZnwEpD");
+        expect(sanitizeMatchCode(`${BASE.replace("https://", "")}/join/bQZArdJKKtgr1nZnwEpD.ai`)).toBe("bQZArdJKKtgr1nZnwEpD");
     });
 
     // ── Does NOT strip partial matches ──

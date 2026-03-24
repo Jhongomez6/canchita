@@ -5,7 +5,7 @@
  * Supported inputs:
  *  - Plain code: "ABC123"
  *  - WhatsApp trick: "ABC123.ai" / "ABC123.app"
- *  - Full URL: "https://la-canchita.vercel.app/join/ABC123"
+ *  - Full URL: "https://lacanchita.app/join/ABC123"
  *  - URL + suffix: "https://…/join/ABC123.ai?ref=wa"
  */
 export function sanitizeMatchCode(code: string): string {

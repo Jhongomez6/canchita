@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { APP_URL } from "./config";
 
 const db = admin.firestore();
 
@@ -206,7 +207,7 @@ async function sendReminderIfNeeded(
     userDataMap.set(players[idx].uid, { data: snap.data(), ref: snap.ref });
   });
 
-  const url = `https://la-canchita.vercel.app/join/${matchId}`;
+  const url = `${APP_URL}/join/${matchId}`;
 
   for (const player of players) {
     // 🎯 MENSAJE DINÁMICO SEGÚN ESTADO
@@ -317,7 +318,7 @@ export const sendManualReminder = onCall(async (request) => {
   });
 
   let sentTokensCount = 0;
-  const url = `https://la-canchita.vercel.app/join/${matchId}`;
+  const url = `${APP_URL}/join/${matchId}`;
 
   for (const player of uniquePlayers) {
     let title = "";
@@ -531,7 +532,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
   const now = new Date().toISOString();
 
   let totalSent = 0;
-  const urlParams = { url: `https://la-canchita.vercel.app/join/${matchId}` };
+  const urlParams = { url: `${APP_URL}/join/${matchId}` };
 
   // === IN-APP NOTIFICATIONS (ALWAYS) ===
   const inAppPromises: Promise<any>[] = [];
@@ -730,11 +731,11 @@ export const testPushNotification = onCall(async (request) => {
         body: `Diagnóstico exitoso. ${new Date().toISOString()}`,
       },
       data: {
-        url: "https://la-canchita.vercel.app/",
+        url: `${APP_URL}/`,
       },
       webpush: {
         notification: { icon: "/icons/icon-192x192.png" },
-        fcmOptions: { link: "https://la-canchita.vercel.app/" },
+        fcmOptions: { link: `${APP_URL}/` },
       },
       apns: { payload: { aps: { badge: 1, sound: "default" } } },
     });

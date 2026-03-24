@@ -16,12 +16,13 @@ Maximizar la asistencia garantizando que, si un titular cancela o es dado de baj
 | # | Regla | Impacto / UI |
 |---|---|---|
 | 1 | Habilitación de Lista | Cuando un partido alcanza `maxPlayers` reales (`confirmed == true` + `guests`), el botón de "Confirmar Asistencia" se reemplaza por el botón ámbar "📋 Ingresar como Suplente". |
-| 2 | Registro en Partidos | Los suplentes conviven en memoria en el mismo sub-documento JSON de `players`, pero almacenan el flag `isWaitlist: true`, un ISO `waitlistJoinedAt` estricto y un `confirmed: false`. |
-| 3 | Ascenso Válvula Libre | Si un Titular sale, los Suplentes mantienen su enumeración pero pierden la restricción de botón gris inhabilitado. El botón verde grande se habilita y pasa a llamarse "🏃‍♂️ ¡Tomar Cupo y Confirmar!". El que lo presione primero entra titular (Transacción FIFO `joinMatch` Firestore). |
-| 4 | Ocultamiento de Restricciones | Unirse a la lista de espera no cuenta las validaciones de límite de usuarios (al contrario de `joinMatch`) ya que la lista de suplentes, por definición técnica, no tiene frontera (`maxPlayers` virtual = Infinito). |
-| 5 | Visibilidad de Espera (UI) | En `/join/[id]`, debajo del contenedor de Titulares Confirmados, existe un contenedor de "📋 Lista de Espera (Suplentes)", ordenado temporalmente en UI usando el delta visual de `waitlistJoinedAt`. |
-| 6 | Preview en Explorer | En la pantalla `/explore`, los partidos que están "Llenos" pero tienen lista de espera reportan explícitamente ese subconjunto: ej. `<Badge> Lleno (+2 espera) </Badge>`. |
-| 7 | Visibilidad de Admin | En `/match/[id]`, la vista del administrador separa a los Suplentes de la cuadrícula general de *Jugadores* para evitar confundirlos con los titulares *Pendientes*, e incluye un botón especial de `Eliminar` por si el administrador decide expulsar a alguien de la zona de espera. |
+| 2 | Registro en Partidos | Los suplentes conviven en el mismo array `players`, con `isWaitlist: true`, `confirmed: false`, y un ISO `waitlistJoinedAt`. |
+| 3 | Estado de Espera Dedicado | El bloque UI del suplente es completamente independiente del flujo de confirmación normal. Cuando el jugador está en lista de espera (`isWaitlist: true && confirmed: false`), siempre ve el mensaje "📋 Estás en la lista de espera" y el botón "Salir de la lista de espera", independientemente de si el partido está lleno o no. **No hay botón de "Tomar Cupo"** — el suplente debe ser promovido por el admin o salir de la lista manualmente. |
+| 4 | Re-ingreso a Lista | Si un jugador previamente canceló (`confirmed: false`, sin `isWaitlist`) y vuelve a unirse a la waitlist, `joinWaitlist()` actualiza su registro existente en lugar de crear uno nuevo, evitando duplicados. |
+| 5 | Ocultamiento de Restricciones | Unirse a la lista de espera no cuenta las validaciones de límite de jugadores (la lista de suplentes no tiene frontera, `maxPlayers` virtual = Infinito). |
+| 6 | Visibilidad de Espera (UI) | En `/join/[id]`, debajo del contenedor de Titulares Confirmados, existe un contenedor de "📋 Lista de Espera (Suplentes)", ordenado temporalmente con `waitlistJoinedAt`. |
+| 7 | Preview en Explorer | En la pantalla `/explore`, los partidos "Llenos" con lista de espera reportan ese subconjunto: ej. `<Badge> Lleno (+2 espera) </Badge>`. |
+| 8 | Visibilidad de Admin | En `/match/[id]`, la vista del administrador separa a los Suplentes de los titulares *Pendientes*, con botón de `Eliminar` para expulsar de la zona de espera. |
 
 ---
 
@@ -47,14 +48,27 @@ export interface Player {
 ```
 
 ### 2.2 Capa de API - Firebase Transactions (`lib/matches.ts`)
-*   `joinWaitlist(matchId, user)`: Utiliza localmente un `runTransaction(db)` idéntico al proceso de unirse. Agrega la data cruda del suplente y le impone el flag `isWaitlist` con fecha generada allí mismo y previene duplicidad.
-*   `addGuestToMatch(matchId, playerUid, guestData)`: Permite ahora ingresar a la lista de espera con lógica idéntica si el partido ya está lleno (`isWaitlist: true`).
-*   `leaveWaitlist(matchId, playerName)`: Operación CRUD destructiva (no transaccional extrema) usando `updateDoc` que ejecuta un `.filter()` quitando del Array local el objeto con ese nombre & Flag de validación Waitlist (por seguridad frente a clones).
-*   `confirmAttendance(id, user)`: Fue reutilizada semánticamente para que cuando un Waitlist tome la vacante, repise sus propios datos transmutando automáticamente `confirmed: true`.
+*   `joinWaitlist(matchId, user)`: Usa `runTransaction(db)`. Previene duplicados reales: si el jugador ya tiene `isWaitlist: true` o `confirmed: true`, no hace nada. Si el jugador existe pero canceló (`confirmed: false`, sin `isWaitlist`), **actualiza** su registro existente en lugar de crear uno nuevo. Esto permite el re-ingreso correcto a la lista de espera tras una cancelación previa.
+*   `addGuestToMatch(matchId, playerUid, guestData)`: Permite ingresar a la lista de espera si el partido está lleno (`isWaitlist: true`).
+*   `leaveWaitlist(matchId, playerName)`: Operación `updateDoc` con `.filter()` que elimina al suplente por nombre y flag `isWaitlist`.
+*   `confirmAttendance(id, user)`: Transforma `confirmed: true` para jugadores regulares no confirmados.
 
-### 2.3 Componentes Mutados UI (`app/join/[id]/page.tsx`, `app/match/[id]/page.tsx` & `explore/page.tsx`)
-*   Se re-factorizó iterativamente la lógica booleana del render de los botones basados en variables `isFull`, `isClosed`, y `existingPlayer`.
-*   Añadida la inyección visual extra post-array map en `explore` calculando la longitud del flag `p.isWaitlist && !p.confirmed`.
-*   En la vista particular de administrador (`MatchDetailPage`), el render del array `match.players` principal recibió el `.filter((p: Player) => !p.isWaitlist)` con exclusión estricta y se iteró su clon ordenado cronológicamente debajo, sumando la directiva de mutación de base de datos (`deletePlayerFromMatch`).
-*   Se unificó la generación de los reportes para compartir en WhatsApp dentro de `lib/matchReport.ts` (función `buildRosterReport`) la cual incluye ahora automáticamente a los titulares y a los suplentes (identificando a los "Invitados de" correctamente).
-*   En las listas de suplentes de la UI pública y admin, se muestra explícitamente el nombre del usuario anfitrión `(Invitado de {hostName})` alineado a la derecha en su layout para mayor claridad visual.
+### 2.3 Componentes UI (`app/join/[id]/page.tsx`, `app/match/[id]/page.tsx` & `explore/page.tsx`)
+
+#### Lógica de botones en `/join/[id]` (actualizada)
+
+Los estados del jugador se manejan en **bloques independientes y mutuamente excluyentes**:
+
+| Condición | Bloque mostrado |
+|---|---|
+| `!isFull && !existingPlayer` | Formulario de unirse |
+| `existingPlayer?.confirmed` | "Ya estás confirmado" |
+| `!isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist` | "⏳ Aún no confirmaste" + botón "✅ Confirmar asistencia" |
+| `existingPlayer?.isWaitlist && !existingPlayer.confirmed` | "📋 Estás en la lista de espera" + botón "Salir de la lista de espera" |
+| `isFull && !existingPlayer` | Banner "partido lleno" + botón para unirse a lista |
+
+> **Nota**: El bloque de waitlist aplica independientemente de si el partido está lleno o no. Si el jugador tiene `isWaitlist: true`, siempre ve el estado de espera en lugar del flujo de confirmación normal.
+
+*   En la vista de administrador (`MatchDetailPage`), el array `match.players` se filtra con `.filter((p) => !p.isWaitlist)` para separar titulares de suplentes.
+*   En `explore`, la badge de capacidad calcula `p.isWaitlist && !p.confirmed` para mostrar la cantidad en espera.
+*   El reporte de WhatsApp (`buildRosterReport` en `lib/matchReport.ts`) incluye titulares y suplentes con identificación de invitados.

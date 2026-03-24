@@ -152,7 +152,7 @@ export default function AdminFeedbackPage() {
                                         </div>
                                         {f.urlContext && (
                                             <div className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded truncate max-w-[120px]" title={f.urlContext}>
-                                                {f.urlContext.replace('https://la-canchita.vercel.app', '')}
+                                                {f.urlContext.replace('https://lacanchita.app', '')}
                                             </div>
                                         )}
                                     </div>
