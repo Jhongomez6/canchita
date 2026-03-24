@@ -102,8 +102,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const roles = data.roles ?? (data.role ? [data.role] : ["player"]);
               const userProfile = { uid: docSnap.id, ...data, roles } as UserProfile;
               setProfile(userProfile);
-              // 📊 Set user role para segmentación en Analytics
-              setAnalyticsUserProperties({ user_role: roles[0] });
+              // 📊 Set user properties para segmentación en Analytics
+              setAnalyticsUserProperties({
+                user_role: roles.join(","),
+                ...(data.age && { user_age: String(data.age) }),
+                ...(data.sex && { user_sex: data.sex }),
+              });
             } else {
               setProfile(null);
             }
