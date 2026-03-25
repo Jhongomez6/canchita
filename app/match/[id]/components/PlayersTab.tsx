@@ -34,6 +34,7 @@ interface PlayersTabProps {
   onPromoteGuest: (name: string, invitedBy: string) => Promise<void>;
   onCopyRoster: () => Promise<void>;
   onShareRoster: () => string;
+  onShareTelegram: () => string;
 }
 
 export default function PlayersTab({
@@ -58,6 +59,7 @@ export default function PlayersTab({
   onPromoteGuest,
   onCopyRoster,
   onShareRoster,
+  onShareTelegram,
 }: PlayersTabProps) {
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
@@ -346,7 +348,7 @@ export default function PlayersTab({
 
       {/* Players List */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             👥 Jugadores
             <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">
@@ -381,6 +383,17 @@ export default function PlayersTab({
               >
                 <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
                 <span className="text-[10px] hidden sm:inline uppercase">WhatsApp</span>
+              </button>
+              <button
+                onClick={() => {
+                  const text = onShareTelegram();
+                  window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
+                }}
+                className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100"
+                title="Compartir por Telegram"
+              >
+                <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
+                <span className="text-[10px] hidden sm:inline uppercase">Telegram</span>
               </button>
             </div>
           )}

@@ -121,3 +121,14 @@ export function buildRosterReport(
 
   return text;
 }
+
+/**
+ * Builds the roster report formatted for Telegram (no *bold* markers).
+ */
+export function buildRosterReportTelegram(
+  match: Match,
+  locationName: string,
+  confirmedCount: number
+): string {
+  return buildRosterReport(match, locationName, confirmedCount).replace(/\*/g, "");
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { buildWhatsAppReport, buildRosterReport } from "@/lib/matchReport";
+import { buildWhatsAppReport, buildRosterReport, buildRosterReportTelegram } from "@/lib/matchReport";
 import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import {
@@ -699,6 +699,10 @@ export default function MatchDetailPage() {
                 const locName = location?.name || match.locationSnapshot?.name || "Cancha por definir";
                 return buildRosterReport(match, locName, confirmedCount);
               }}
+              onShareTelegram={() => {
+                const locName = location?.name || match.locationSnapshot?.name || "Cancha por definir";
+                return buildRosterReportTelegram(match, locName, confirmedCount);
+              }}
             />
           )}
 
@@ -747,6 +751,30 @@ export default function MatchDetailPage() {
                 await navigator.clipboard.writeText(id);
               }}
               onCopyInvitation={generateMatchInvitation}
+              getInvitationText={() => {
+                const shareUrl = `${window.location.origin}/join/${id}`;
+                return (
+                  `⚽ *¡NUEVO PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
+                  `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
+                  `⏰ *Hora:* ${formatTime12h(match.time)}\n` +
+                  `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+                  `🔗 *Link de invitación:* ${shareUrl}\n\n` +
+                  `🔑 *Código de búsqueda:* ${id}.ai\n` +
+                  `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n`
+                );
+              }}
+              getInvitationTextTelegram={() => {
+                const shareUrl = `${window.location.origin}/join/${id}`;
+                return (
+                  `⚽ ¡NUEVO PARTIDO EN LA CANCHITA! 🏟️\n\n` +
+                  `📅 Día: ${formatDateSpanish(match.date)}\n` +
+                  `⏰ Hora: ${formatTime12h(match.time)}\n` +
+                  `📍 Lugar: ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+                  `🔗 Link de invitación: ${shareUrl}\n\n` +
+                  `🔑 Código de búsqueda: ${id}.ai\n` +
+                  `(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)\n`
+                );
+              }}
               onCloseMatch={handleCloseMatch}
               onReopenMatch={async () => reopenMatch(id)}
               onDeleteMatch={handleDeleteMatchAction}

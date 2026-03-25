@@ -27,7 +27,7 @@ import {
   leaveWaitlist,
   voteForMVP,
 } from "@/lib/matches";
-import { buildRosterReport } from "@/lib/matchReport";
+import { buildRosterReport, buildRosterReportTelegram } from "@/lib/matchReport";
 import { promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { calculateMvpStatus } from "@/lib/mvp";
 import { triggerMvpNotification } from "@/lib/push";
@@ -1054,8 +1054,8 @@ export default function JoinMatchPage() {
             );
           })() : (
             <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     👥 Jugadores
                     <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">{confirmedCount} / {match.maxPlayers || "?"}</span>
@@ -1102,6 +1102,17 @@ export default function JoinMatchPage() {
                     >
                       <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
                       <span className="text-[10px] hidden sm:inline uppercase">WhatsApp</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const text = buildRosterReportTelegram(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
+                        window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
+                      }}
+                      className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100"
+                      title="Compartir por Telegram"
+                    >
+                      <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
+                      <span className="text-[10px] hidden sm:inline uppercase">Telegram</span>
                     </button>
                   </div>
                 )}
