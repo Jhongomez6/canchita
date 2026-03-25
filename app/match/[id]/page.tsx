@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { buildWhatsAppReport } from "@/lib/matchReport";
+import { buildWhatsAppReport, buildRosterReport } from "@/lib/matchReport";
 import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import {
@@ -689,6 +689,16 @@ export default function MatchDetailPage() {
               onApproveFromWaitlist={async (name) => { await approveFromWaitlist(id, name); toast.success("Suplente aceptado y confirmado"); }}
               onRemoveGuest={(invitedBy, name) => removeGuestFromMatch(id, invitedBy, name)}
               onPromoteGuest={async (name, invitedBy) => { await promoteGuestToMatch(id, name, invitedBy); toast.success("Suplente aceptado y confirmado"); }}
+              onCopyRoster={async () => {
+                const locName = location?.name || match.locationSnapshot?.name || "Cancha por definir";
+                const text = buildRosterReport(match, locName, confirmedCount);
+                await navigator.clipboard.writeText(text);
+                toast.success("Lista copiada");
+              }}
+              onShareRoster={() => {
+                const locName = location?.name || match.locationSnapshot?.name || "Cancha por definir";
+                return buildRosterReport(match, locName, confirmedCount);
+              }}
             />
           )}
 

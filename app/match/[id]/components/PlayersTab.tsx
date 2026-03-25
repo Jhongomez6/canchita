@@ -32,6 +32,8 @@ interface PlayersTabProps {
   onApproveFromWaitlist: (name: string) => Promise<void>;
   onRemoveGuest: (invitedBy: string, name: string) => Promise<void>;
   onPromoteGuest: (name: string, invitedBy: string) => Promise<void>;
+  onCopyRoster: () => Promise<void>;
+  onShareRoster: () => string;
 }
 
 export default function PlayersTab({
@@ -54,10 +56,13 @@ export default function PlayersTab({
   onApproveFromWaitlist,
   onRemoveGuest,
   onPromoteGuest,
+  onCopyRoster,
+  onShareRoster,
 }: PlayersTabProps) {
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
   const [attendanceMode, setAttendanceMode] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [addingUid, setAddingUid] = useState<string | null>(null);
   const [manualName, setManualName] = useState("");
@@ -341,12 +346,44 @@ export default function PlayersTab({
 
       {/* Players List */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-          👥 Jugadores
-          <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">
-            {players.length}
-          </span>
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2">
+            👥 Jugadores
+            <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">
+              {players.length}
+            </span>
+          </h3>
+          {confirmedPlayers.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={async () => {
+                  await onCopyRoster();
+                  setIsCopied(true);
+                  setTimeout(() => setIsCopied(false), 2500);
+                }}
+                className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${
+                  isCopied
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                }`}
+                title="Copiar lista"
+              >
+                <span className="text-sm">{isCopied ? "✅" : "📋"}</span>
+                <span className="text-[10px] hidden sm:inline uppercase">{isCopied ? "Copiado" : "Copiar"}</span>
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(onShareRoster())}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
+                title="Compartir por WhatsApp"
+              >
+                <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
+                <span className="text-[10px] hidden sm:inline uppercase">WhatsApp</span>
+              </a>
+            </div>
+          )}
+        </div>
 
         <div className="divide-y divide-slate-100">
           {players.map((p: Player, i: number) => (

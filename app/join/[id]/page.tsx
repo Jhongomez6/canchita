@@ -363,7 +363,7 @@ export default function JoinMatchPage() {
     return <JoinSkeleton />;
   }
 
-  const playerName = user.displayName || user.email || "Jugador";
+  const playerName = profile?.name || user.displayName || user.email || "Jugador";
   const isClosed = match.status === "closed";
   const guestCount = match.guests?.filter((g: Guest) => !g.isWaitlist).length ?? 0;
   const confirmedCount = match.players.filter((p: Player) => p.confirmed).length + guestCount;
@@ -1057,7 +1057,7 @@ export default function JoinMatchPage() {
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    👥 Jugadores confirmados
+                    👥 Jugadores
                     <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">{confirmedCount} / {match.maxPlayers || "?"}</span>
                   </h3>
                   <div className="group relative flex items-center" tabIndex={0}>
@@ -1075,22 +1075,34 @@ export default function JoinMatchPage() {
                   </div>
                 </div>
 
-                {profile?.roles?.includes("admin") && confirmedCount > 0 && (
-                  <button
-                    onClick={async () => {
-                      const locName = matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir";
-                      const text = buildRosterReport(match, locName, confirmedCount);
+                {confirmedCount > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={async () => {
+                        const locName = matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir";
+                        const text = buildRosterReport(match, locName, confirmedCount);
 
-                      await navigator.clipboard.writeText(text);
-                      setIsCopied(true);
-                      setTimeout(() => setIsCopied(false), 2500);
-                    }}
-                    className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${isCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-                    title="Copiar para WhatsApp"
-                  >
-                    <span className="text-sm">{isCopied ? "✅" : "📋"}</span>
-                    <span className="text-[10px] hidden sm:inline uppercase">{isCopied ? "Copiado" : "Copiar"}</span>
-                  </button>
+                        await navigator.clipboard.writeText(text);
+                        setIsCopied(true);
+                        setTimeout(() => setIsCopied(false), 2500);
+                      }}
+                      className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${isCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                      title="Copiar lista"
+                    >
+                      <span className="text-sm">{isCopied ? "✅" : "📋"}</span>
+                      <span className="text-[10px] hidden sm:inline uppercase">{isCopied ? "Copiado" : "Copiar"}</span>
+                    </button>
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(buildRosterReport(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
+                      title="Compartir por WhatsApp"
+                    >
+                      <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
+                      <span className="text-[10px] hidden sm:inline uppercase">WhatsApp</span>
+                    </a>
+                  </div>
                 )}
               </div>
 
