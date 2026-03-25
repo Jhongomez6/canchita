@@ -1093,14 +1093,9 @@ export default function JoinMatchPage() {
                       <span className="text-[10px] hidden sm:inline uppercase">{isCopied ? "Copiado" : "Copiar"}</span>
                     </button>
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                         const text = buildRosterReport(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
-                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-                        if (isMobile && navigator.share) {
-                          await navigator.share({ text });
-                        } else {
-                          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-                        }
+                        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
                       }}
                       className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
                       title="Compartir por WhatsApp"
