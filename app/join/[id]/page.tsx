@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { loginWithGoogle } from "@/lib/auth";
-import { formatDateSpanish, formatTime12h } from "@/lib/date";
+import { formatDateSpanish, formatTime12h, formatEndTime } from "@/lib/date";
 import { googleMapsEmbedUrl, googleMapsLink, wazeLink } from "@/lib/maps";
 import Image from "next/image";
 
@@ -457,7 +457,10 @@ export default function JoinMatchPage() {
                 <span className="bg-slate-100 p-2 rounded-lg text-lg">🕒</span>
                 <div className="flex flex-col">
                   <span className="font-bold text-slate-800 text-sm">{formatDateSpanish(match.date)}</span>
-                  <span className="text-xs text-slate-400">{formatTime12h(match.time)}</span>
+                  <span className="text-xs text-slate-400">
+                    {formatTime12h(match.time)}
+                    {match.duration ? ` · hasta las ${formatEndTime(match.time, match.duration)}` : ""}
+                  </span>
                 </div>
               </div>
               <div className="flex flex-col gap-2">

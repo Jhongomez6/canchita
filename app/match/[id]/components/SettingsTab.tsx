@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Match } from "@/lib/domain/match";
+import type { Match, MatchDuration } from "@/lib/domain/match";
+import { formatDuration } from "@/lib/date";
 
 interface SettingsTabProps {
   match: Match;
@@ -12,6 +13,7 @@ interface SettingsTabProps {
   maxPlayersDraft: number | null;
   // Actions
   onUpdateMaxPlayers: (value: number) => Promise<void>;
+  onUpdateDuration: (value: MatchDuration) => Promise<void>;
   onSendReminder: () => Promise<void>;
   onCopyLink: () => Promise<void>;
   onCopyCode: () => Promise<void>;
@@ -31,6 +33,7 @@ export default function SettingsTab({
   hasUnsavedBalance,
   maxPlayersDraft,
   onUpdateMaxPlayers,
+  onUpdateDuration,
   onSendReminder,
   onCopyLink,
   onCopyCode,
@@ -251,6 +254,29 @@ export default function SettingsTab({
                     +
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Duration */}
+            {!isClosed && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⏱️</span>
+                  <span className="text-slate-600 font-medium text-sm">Duración</span>
+                </div>
+                <select
+                  value={match.duration ?? ""}
+                  onChange={async (e) => {
+                    const val = Number(e.target.value) as MatchDuration;
+                    await onUpdateDuration(val);
+                  }}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]"
+                >
+                  {!match.duration && <option value="">Sin definir</option>}
+                  {([30, 60, 90, 120, 150, 180] as MatchDuration[]).map((d) => (
+                    <option key={d} value={d}>{formatDuration(d)}</option>
+                  ))}
+                </select>
               </div>
             )}
 

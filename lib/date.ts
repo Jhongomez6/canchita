@@ -14,10 +14,34 @@ export function formatDateSpanish(dateStr: string) {
 
 
 
+export function formatDuration(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours === 0) return `${mins} min`;
+    if (mins === 0) return hours === 1 ? "1 hora" : `${hours} horas`;
+    return `${hours}h ${mins}m`;
+}
+
 export function formatTime12h(timeStr: string) {
     const [hour, minute] = timeStr.split(":").map(Number);
     const date = new Date();
     date.setHours(hour, minute);
+
+    return date.toLocaleTimeString("es-CO", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
+}
+
+/**
+ * Calcula la hora de fin y la formatea en 12h.
+ * Ej: formatEndTime("19:00", 90) → "8:30 p.m."
+ */
+export function formatEndTime(timeStr: string, durationMinutes: number): string {
+    const [hour, minute] = timeStr.split(":").map(Number);
+    const date = new Date();
+    date.setHours(hour, minute + durationMinutes);
 
     return date.toLocaleTimeString("es-CO", {
         hour: "numeric",

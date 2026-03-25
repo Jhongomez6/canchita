@@ -28,10 +28,13 @@ import { isSuperAdmin, isLocationAdmin } from "./user";
 
 export type MatchStatus = "open" | "closed";
 
+export type MatchDuration = 30 | 60 | 90 | 120 | 150 | 180;
+
 export interface Match {
     id: string;
     date: string;
     time: string;
+    duration?: MatchDuration; // Duración en minutos (30-180, tramos de 30)
     startsAt?: { seconds: number; nanoseconds: number; toDate?(): Date }; // Firestore Timestamp
     locationId: string;
     locationSnapshot: LocationSnapshot;
@@ -55,6 +58,7 @@ export interface Match {
 export interface CreateMatchInput {
     date: string;
     time: string;
+    duration: MatchDuration;
     locationId: string;
     locationSnapshot: LocationSnapshot;
     createdBy: string;
@@ -215,5 +219,10 @@ export function validateMatchCreation(data: CreateMatchInput): void {
 
     if (!data.maxPlayers || data.maxPlayers < 2) {
         throw new ValidationError("El partido debe tener al menos 2 jugadores");
+    }
+
+    const validDurations: MatchDuration[] = [30, 60, 90, 120, 150, 180];
+    if (!data.duration || !validDurations.includes(data.duration)) {
+        throw new ValidationError("La duración debe ser entre 30 y 180 minutos (en tramos de 30)");
     }
 }

@@ -24,6 +24,7 @@ interface Match {
   id: string;
   date: string;           // Fecha del partido (ISO string)
   time: string;           // Hora del partido
+  duration?: MatchDuration; // Duración en minutos (30|60|90|120|150|180)
   maxPlayers: number;     // Máximo de jugadores confirmados
   locationId: string;     // Referencia a la cancha
   status: "open" | "closed";
@@ -69,6 +70,7 @@ interface Player {
 | 12 | Jugadores agregados desde la página admin quedan confirmados automáticamente | `addPlayerToMatch()` acepta param opcional `confirmed` (default: `false`) |
 | 13 | Al desconfirmar asistencia, el jugador se remueve también de los equipos balanceados | `unconfirmAttendance()` filtra `match.teams.A/B` además de `match.players` |
 | 14 | `getMyMatches()` retorna partidos donde el usuario es jugador O creador | Doble query en paralelo: `playerUids array-contains` + `createdBy ==`, merge y deduplicación |
+| 15 | La duración del partido es obligatoria al crear y debe ser tramos de 30 min (30-180) | `MatchDuration` type + validación en `validateMatchCreation()` |
 
 ---
 

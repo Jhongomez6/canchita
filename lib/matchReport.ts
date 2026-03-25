@@ -13,7 +13,7 @@ import type { Player, Position } from "./domain/player";
 import type { Match } from "./domain/match";
 import type { Guest } from "./domain/guest";
 import { guestToPlayer } from "./domain/guest";
-import { formatDateSpanish, formatTime12h } from "./date";
+import { formatDateSpanish, formatTime12h, formatEndTime } from "./date";
 
 interface ReportMatchData {
   date?: string;
@@ -74,8 +74,9 @@ export function buildRosterReport(
   const dateStr = formatDateSpanish(match.date || "");
   const timeStr = formatTime12h(match.time || "");
   const locName = locationName || match.locationSnapshot?.name || "Cancha por definir";
+  const endTimeStr = match.duration ? ` — hasta las ${formatEndTime(match.time || "", match.duration)}` : "";
   let text = `⚽ *PARTIDO EN LA CANCHITA* 🏟️\n`;
-  text += `📅 *${dateStr}* ⏰ *${timeStr}*\n📍 *${locName}*\n\n`;
+  text += `📅 *${dateStr}*\n⏰ *${timeStr}${endTimeStr}*\n📍 *${locName}*\n\n`;
   text += `📋 *Confirmados (${confirmedCount}/${match.maxPlayers || "?"})*\n\n`;
 
   const confirmed = match.players?.filter((p: Player) => p.confirmed) || [];

@@ -65,6 +65,7 @@ function assignToSmallestTeam(
 export async function createMatch(match: {
   date: string;
   time: string;
+  duration: number;
   locationId: string;
   startsAt: Timestamp;
   createdBy: string;

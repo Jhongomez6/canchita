@@ -24,7 +24,7 @@ import Link from "next/link";
 import { balanceTeams } from "@/lib/balanceTeams";
 import { calculateMvpStatus } from "@/lib/mvp";
 import { getAllUsers, getUserProfile } from "@/lib/users";
-import { formatDateSpanish, formatTime12h } from "@/lib/date";
+import { formatDateSpanish, formatTime12h, formatEndTime } from "@/lib/date";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { updatePlayerStats } from "@/lib/playerStats";
 import type { PlayerLevel } from "@/lib/domain/player";
@@ -407,7 +407,8 @@ export default function MatchDetailPage() {
       ? `📋 *Resumen del partido de hoy:*\n`
       : `⚽ *La titular de hoy:*\n`;
 
-    text += `📅 ${formatDateSpanish(match?.date || "")}\n\n`;
+    text += `📅 ${formatDateSpanish(match?.date || "")}\n`;
+    text += `⏰ ${formatTime12h(match?.time || "")}${match?.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n\n`;
     text += `🔴 *Equipo A*\n`;
     teamA.forEach((p: Player) => { text += `• ${p.name} \n`; });
     text += `\n🔵 *Equipo B*\n`;
@@ -436,7 +437,7 @@ export default function MatchDetailPage() {
     const text =
       `⚽ *¡NUEVO PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
       `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
-      `⏰ *Hora:* ${formatTime12h(match.time)}\n` +
+      `⏰ *Hora:* ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
       `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
       `🔗 *Link de invitación:* ${shareUrl}\n\n` +
       `🔑 *Código de búsqueda:* ${id}.ai\n` +
@@ -741,6 +742,9 @@ export default function MatchDetailPage() {
                 setMaxPlayersDraft(value);
                 await updateDoc(doc(db, "matches", id), { maxPlayers: value });
               }}
+              onUpdateDuration={async (value) => {
+                await updateDoc(doc(db, "matches", id), { duration: value });
+              }}
               onSendReminder={handleManualReminder}
               onCopyLink={async () => {
                 await navigator.clipboard.writeText(
@@ -756,7 +760,7 @@ export default function MatchDetailPage() {
                 return (
                   `⚽ *¡NUEVO PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
                   `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
-                  `⏰ *Hora:* ${formatTime12h(match.time)}\n` +
+                  `⏰ *Hora:* ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
                   `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
                   `🔗 *Link de invitación:* ${shareUrl}\n\n` +
                   `🔑 *Código de búsqueda:* ${id}.ai\n` +
@@ -768,7 +772,7 @@ export default function MatchDetailPage() {
                 return (
                   `⚽ ¡NUEVO PARTIDO EN LA CANCHITA! 🏟️\n\n` +
                   `📅 Día: ${formatDateSpanish(match.date)}\n` +
-                  `⏰ Hora: ${formatTime12h(match.time)}\n` +
+                  `⏰ Hora: ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
                   `📍 Lugar: ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
                   `🔗 Link de invitación: ${shareUrl}\n\n` +
                   `🔑 Código de búsqueda: ${id}.ai\n` +

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Match, MatchPhase } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
-import { formatDateSpanish, formatTime12h } from "@/lib/date";
+import { formatDateSpanish, formatTime12h, formatEndTime } from "@/lib/date";
 import MatchProgressBar from "./MatchProgressBar";
 import type { TabId } from "./MatchAdminTabs";
 
@@ -108,7 +108,10 @@ export default function DashboardTab({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-lg">⏰</span>
-            <span className="text-slate-600 font-medium">{formatTime12h(match.time)}</span>
+            <span className="text-slate-600 font-medium">
+              {formatTime12h(match.time)}
+              {match.duration ? <span className="text-slate-400 font-normal"> · hasta las {formatEndTime(match.time, match.duration)}</span> : ""}
+            </span>
           </div>
 
           {isClosed && match.closedAt && (

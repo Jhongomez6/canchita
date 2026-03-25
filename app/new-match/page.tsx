@@ -9,6 +9,7 @@ import { getAdminLocations } from "@/lib/locations";
 import { canCreatePublicMatch, isSuperAdmin } from "@/lib/domain/user";
 import { Timestamp } from "firebase/firestore";
 import type { Location } from "@/lib/domain/location";
+import type { MatchDuration } from "@/lib/domain/match";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 
@@ -20,6 +21,7 @@ export default function NewMatchPage() {
   const [timeHour, setTimeHour] = useState("08");
   const [timeMinute, setTimeMinute] = useState("00");
   const [timePeriod, setTimePeriod] = useState("PM");
+  const [duration, setDuration] = useState<MatchDuration>(60);
   const [maxPlayers, setMaxPlayers] = useState(14);
   const [isPrivate, setIsPrivate] = useState(false);
   const [allowGuests, setAllowGuests] = useState(false);
@@ -73,6 +75,7 @@ export default function NewMatchPage() {
       await createMatch({
         date,
         time: finalTime24,
+        duration,
         startsAt,
         locationId,
         locationSnapshot: {
@@ -204,6 +207,21 @@ export default function NewMatchPage() {
                           <option value="PM">PM</option>
                         </select>
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Duración</label>
+                      <select
+                        value={duration}
+                        onChange={e => setDuration(Number(e.target.value) as MatchDuration)}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] transition-all font-medium"
+                      >
+                        <option value={30}>30 min</option>
+                        <option value={60}>1 hora</option>
+                        <option value={90}>1 hora 30 min</option>
+                        <option value={120}>2 horas</option>
+                        <option value={150}>2 horas 30 min</option>
+                        <option value={180}>3 horas</option>
+                      </select>
                     </div>
                   </div>
                 </div>
