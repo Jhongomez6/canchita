@@ -18,7 +18,9 @@ import type { Match } from "@/lib/domain/match";
 
 import type { Location } from "@/lib/domain/location";
 import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
+import PlayerAvatars from "@/components/PlayerAvatars";
 import { logPushEnabled, logPushPromptDismissed } from "@/lib/analytics";
+import { Clock, Users, LandPlot, MapPin } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
@@ -111,6 +113,23 @@ export default function Home() {
     : openMatches[0];
 
   const upcomingMatches = matches.filter(m => m.id !== nextMatch?.id);
+  const activeMatches = upcomingMatches.filter(m => m.status === 'open');
+  const closedMatches = upcomingMatches.filter(m => m.status === 'closed');
+
+  // Hero card computed values
+  const heroDate = nextMatch ? new Date(`${nextMatch.date}T12:00:00`) : null;
+  const heroWeekDay = heroDate ? heroDate.toLocaleDateString('es-CO', { weekday: 'long' }).toUpperCase() : '';
+  const heroDay = heroDate ? heroDate.getDate() : null;
+  const heroMonth = heroDate ? heroDate.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '').toUpperCase() : '';
+  const heroLocation = nextMatch ? locationsMap[nextMatch.locationId] : null;
+  const heroLocationName = heroLocation?.name
+    ? heroLocation.name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+    : "Ubicación por definir";
+  const heroConfirmed = nextMatch
+    ? (nextMatch.players?.filter((p: { confirmed?: boolean }) => p.confirmed).length ?? 0)
+      + (nextMatch.guests?.filter((g: { isWaitlist?: boolean }) => !g.isWaitlist).length ?? 0)
+    : 0;
+  const heroFormat = nextMatch ? `Fútbol ${Math.floor(nextMatch.maxPlayers / 2)}` : '';
 
   return (
     <AuthGuard>
@@ -133,37 +152,72 @@ export default function Home() {
 
             {/* NEXT MATCH HERO CARD */}
             {nextMatch ? (
-              <div className="bg-white text-slate-900 rounded-2xl p-5 shadow-xl">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-xs font-bold text-[#1f7a4f] uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-md">
-                    Próximo Partido
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500">
-                    {formatDateSpanish(nextMatch.date)}
-                  </span>
-                </div>
+              <div className="relative bg-white text-slate-900 rounded-3xl p-5 shadow-[0_8px_40px_-8px_rgba(31,122,79,0.15)] overflow-hidden">
+                  {/* Líneas de cancha sutiles de fondo */}
+                  <svg className="absolute inset-0 w-full h-full opacity-[0.08] pointer-events-none" viewBox="0 0 400 250" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+                    <rect x="10" y="10" width="380" height="230" rx="4" stroke="#1f7a4f" strokeWidth="3" />
+                    <line x1="200" y1="10" x2="200" y2="240" stroke="#1f7a4f" strokeWidth="3" />
+                    <circle cx="200" cy="125" r="40" stroke="#1f7a4f" strokeWidth="3" />
+                    <circle cx="200" cy="125" r="4" fill="#1f7a4f" />
+                    <rect x="10" y="75" width="60" height="100" rx="2" stroke="#1f7a4f" strokeWidth="3" />
+                    <rect x="330" y="75" width="60" height="100" rx="2" stroke="#1f7a4f" strokeWidth="3" />
+                    <path d="M 10 75 A 25 25 0 0 1 35 100" stroke="#1f7a4f" strokeWidth="3" fill="none" />
+                    <path d="M 10 175 A 25 25 0 0 0 35 150" stroke="#1f7a4f" strokeWidth="3" fill="none" />
+                    <path d="M 390 75 A 25 25 0 0 0 365 100" stroke="#1f7a4f" strokeWidth="3" fill="none" />
+                    <path d="M 390 175 A 25 25 0 0 1 365 150" stroke="#1f7a4f" strokeWidth="3" fill="none" />
+                  </svg>
 
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-11 h-11 bg-emerald-100 rounded-full flex items-center justify-center text-xl shadow-sm shrink-0">
-                    ⚽
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-base leading-tight">
-                      {locationsMap[nextMatch.locationId]?.name || "Ubicación por definir"}
-                    </h3>
-                    <p className="text-sm text-slate-500 font-medium mt-1">
-                      ⏰ {formatTime12h(nextMatch.time)} <span className="mx-1">•</span> ⚽ {Math.floor(nextMatch.maxPlayers / 2)}vs{Math.floor(nextMatch.maxPlayers / 2)}
-                    </p>
+                  <div className="relative">
+                    <div className="mb-4">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider bg-[#1f7a4f] px-2.5 py-1 rounded-md">
+                        Próximo Partido
+                      </span>
+                    </div>
+
+                    <div className="flex items-start gap-4 mb-4">
+                      {/* Date Box */}
+                      <div className="bg-slate-50 rounded-xl border border-slate-100 w-[5.5rem] h-[5.5rem] shrink-0 flex flex-col items-center justify-center">
+                        <span className="text-[10px] text-emerald-700 font-black uppercase tracking-widest">{heroWeekDay}</span>
+                        <span className="text-3xl font-black text-slate-800 leading-none mt-0.5">{heroDay}</span>
+                        <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">{heroMonth}</span>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 text-lg font-black text-slate-800">
+                          <Clock size={16} />
+                          {formatTime12h(nextMatch.time)}
+                        </div>
+                        <p className="flex items-center gap-1 text-sm text-slate-500 font-medium mt-1 truncate">
+                          <MapPin size={13} className="shrink-0" />
+                          {heroLocationName}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                          <span className={`flex items-center gap-1 ${heroConfirmed >= nextMatch.maxPlayers ? 'text-emerald-600 font-semibold' : ''}`}>
+                            <Users size={11} />
+                            {heroConfirmed}/{nextMatch.maxPlayers}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <LandPlot size={11} />
+                            {heroFormat}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Player avatars */}
+                    <PlayerAvatars
+                      players={nextMatch.players?.filter((p: { confirmed?: boolean }) => p.confirmed) ?? []}
+                      guestCount={nextMatch.guests?.filter((g: { isWaitlist?: boolean }) => !g.isWaitlist).length ?? 0}
+                    />
+
+                    <Link
+                      href={profile?.roles.includes("admin") ? `/match/${nextMatch.id}` : `/join/${nextMatch.id}`}
+                      className="block w-full py-3 bg-[#1f7a4f] text-white text-center rounded-xl font-bold shadow-md hover:bg-[#16603c] transition-all active:scale-[0.98]"
+                    >
+                      Ver detalles
+                    </Link>
                   </div>
                 </div>
-
-                <Link
-                  href={profile?.roles.includes("admin") ? `/match/${nextMatch.id}` : `/join/${nextMatch.id}`}
-                  className="block w-full py-3 bg-[#1f7a4f] text-white text-center rounded-xl font-bold shadow-md hover:bg-[#16603c] transition-all active:scale-[0.98]"
-                >
-                  Ver detalles
-                </Link>
-              </div>
             ) : (
               <div className="bg-white/10 rounded-3xl p-6 text-center shadow-inner border border-white/20">
                 <div className="mb-5">
@@ -293,51 +347,93 @@ export default function Home() {
               </div>
             )}
 
-            {/* UPCOMING MATCHES LIST */}
-            <div>
-              <h2 className="text-sm font-bold text-slate-800 mb-3 px-1 flex justify-between items-center">
-                <span>Tus Partidos</span>
-                {matches.length > 0 && <span className="text-xs font-normal text-slate-500">{matches.length} total</span>}
-              </h2>
-
-              <div className="space-y-3">
-                {loadingMatches ? (
-                  <>
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 animate-pulse">
-                        <div className="bg-slate-100 rounded-lg p-2 min-w-[3.5rem] mr-4 h-[50px]"></div>
-                        <div className="flex-1">
-                          <div className="h-4 bg-slate-200 rounded w-2/3 mb-2"></div>
-                          <div className="h-3 bg-slate-200 rounded w-1/2"></div>
-                        </div>
-                        <div className="h-6 w-12 bg-slate-200 rounded-md"></div>
+            {/* ACTIVE MATCHES */}
+            {loadingMatches ? (
+              <div>
+                <div className="flex justify-between items-center mb-3 px-1">
+                  <div className="h-5 bg-slate-200 rounded w-28 animate-pulse"></div>
+                  <div className="h-6 w-6 bg-slate-200 rounded-full animate-pulse"></div>
+                </div>
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 animate-pulse">
+                      <div className="bg-slate-50 rounded-lg w-[4.5rem] h-[4.5rem] shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center gap-1.5">
+                        <div className="h-[9px] bg-slate-200 rounded w-10"></div>
+                        <div className="h-[22px] bg-slate-200 rounded w-7"></div>
+                        <div className="h-[9px] bg-slate-200 rounded w-6"></div>
                       </div>
-                    ))}
-                  </>
-                ) : matches.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-dashed border-slate-300">
-                    <p className="text-slate-500 text-sm mb-1">Aún no tienes partidos</p>
-                    <p className="text-xs text-slate-400">Cuando te unas, aparecerán aquí.</p>
-                  </div>
-                ) : (
-                  upcomingMatches.map(m => {
-                    const href = profile?.roles.includes("admin") ? `/match/${m.id}` : `/join/${m.id}`;
-                    return (
-                      <MatchCard
-                        key={m.id}
-                        match={m}
-                        location={locationsMap[m.locationId]}
-                        href={href}
-                      />
-                    )
-                  })
-                )}
-                {/* Fallback if nextMatch was the only match */}
-                {!loadingMatches && matches.length === 1 && nextMatch && (
-                  <p className="text-center text-xs text-slate-400 py-4">No hay más partidos programados.</p>
-                )}
+                      <div className="flex-1 min-w-0">
+                        <div className="h-[14px] bg-slate-200 rounded w-28"></div>
+                        <div className="h-[12px] bg-slate-200 rounded w-4/5 mt-1.5"></div>
+                        <div className="flex gap-3 mt-1.5">
+                          <div className="h-[11px] bg-slate-200 rounded w-12"></div>
+                          <div className="h-[11px] bg-slate-200 rounded w-16"></div>
+                        </div>
+                      </div>
+                      <div className="h-4 w-4 bg-slate-200 rounded shrink-0 ml-2"></div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : matches.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-dashed border-slate-300">
+                <p className="text-slate-500 text-sm mb-1">Aún no tienes partidos</p>
+                <p className="text-xs text-slate-400">Cuando te unas, aparecerán aquí.</p>
+              </div>
+            ) : (
+              <>
+                {activeMatches.length > 0 && (
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800 mb-3 px-1 flex items-center gap-2">
+                      <span>Partidos Activos</span>
+                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-px rounded-full leading-4">{activeMatches.length}</span>
+                    </h2>
+                    <div className="space-y-3">
+                      {activeMatches.map(m => {
+                        const href = profile?.roles.includes("admin") ? `/match/${m.id}` : `/join/${m.id}`;
+                        return (
+                          <MatchCard
+                            key={m.id}
+                            match={m}
+                            location={locationsMap[m.locationId]}
+                            href={href}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {activeMatches.length === 0 && !nextMatch && (
+                  <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-dashed border-slate-300">
+                    <p className="text-slate-500 text-sm mb-1">No tienes partidos activos</p>
+                    <p className="text-xs text-slate-400">Únete a un partido para verlo aquí.</p>
+                  </div>
+                )}
+
+                {closedMatches.length > 0 && (
+                  <div className="mt-6">
+                    <h2 className="text-sm font-bold text-slate-800 mb-3 px-1 flex items-center gap-2">
+                      <span>Historial</span>
+                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-px rounded-full leading-4">{closedMatches.length}</span>
+                    </h2>
+                    <div className="space-y-3">
+                      {closedMatches.map(m => {
+                        const href = profile?.roles.includes("admin") ? `/match/${m.id}` : `/join/${m.id}`;
+                        return (
+                          <MatchCard
+                            key={m.id}
+                            match={m}
+                            location={locationsMap[m.locationId]}
+                            href={href}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
           </div>
         </div>

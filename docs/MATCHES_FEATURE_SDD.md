@@ -484,6 +484,42 @@ Para asegurar que los datos visuales sean consistentes, la página de Join imple
 - Los usuarios con rol `admin` verán un botón destacado "👁️ Ver como admin" en la parte superior del detalle del partido.
 - Este botón los redirige a la vista completa de administración (`/match/[id]`), facilitando el salto entre la vista pública y la gestión del partido.
 
+### Home Page: MatchCard y Secciones
+
+La Home (`app/page.tsx`) organiza los partidos del usuario en tres zonas:
+
+#### Hero Card (Próximo Partido)
+- Muestra el siguiente partido abierto más cercano en el tiempo.
+- **Date box** (5.5rem × 5.5rem): día de semana completo (ej: "JUEVES"), número del día (grande), mes abreviado.
+- **Jerarquía visual**: Hora (protagonista, `text-lg font-black`) > Ubicación (secundaria con icono `MapPin`) > Metadata (cupos + formato).
+- **Avatares**: Componente `PlayerAvatars` muestra los primeros 4 jugadores confirmados con carga coordinada (pulse skeleton hasta que todas las imágenes cargan, luego fade-in conjunto).
+- **Líneas de cancha**: SVG inline al 8% de opacidad como fondo decorativo.
+- **Conteo de jugadores**: Incluye jugadores confirmados + invitados activos (no waitlist). Se muestra en verde cuando el partido está lleno.
+
+#### MatchCard (`components/MatchCard.tsx`)
+- **Date box** (4.5rem × 4.5rem): día de semana completo en verde (`text-emerald-700 font-black`), día numérico, mes abreviado.
+- **Jerarquía**: Hora (`text-sm font-black`) > Ubicación (`text-xs text-slate-500`) > Metadata (`text-xs text-slate-400`).
+- **Metadata**: Icono `Clock` + hora (PM/AM en mayúsculas), icono `Users` + confirmados/máximo, icono `LandPlot` + formato (ej: "Fútbol 6").
+- **Conteo**: Jugadores confirmados + invitados activos (no waitlist).
+- **Cerrados**: `opacity-75` para señalización visual.
+- **Normalización de ubicación**: Title Case aplicado (`toLowerCase().replace(/\b\w/g, ...)`).
+- **Chevron** derecho para señal de navegación.
+- **Formato**: `formatTime12h()` normaliza `"p. m."` → `"PM"`.
+
+#### Separación Activos / Historial
+- **"Partidos Activos"**: Partidos con `status === 'open'` (excluye el hero). Badge pill verde con conteo.
+- **"Historial"**: Partidos con `status === 'closed'`. Badge pill gris con conteo. Cards en `opacity-75`.
+- Cada sección tiene su propio header y conteo independiente.
+
+#### Archivos involucrados
+| Archivo | Rol |
+|---------|-----|
+| `components/MatchCard.tsx` | Card reutilizable para listas de partidos |
+| `components/PlayerAvatars.tsx` | Avatares con carga coordinada |
+| `components/skeletons/HomeSkeleton.tsx` | Skeleton de la home (hero + dos secciones) |
+| `components/skeletons/MatchListSkeleton.tsx` | Skeleton para listas de partidos |
+| `lib/date.ts` → `formatTime12h()` | Normaliza AM/PM en mayúsculas |
+
 ### Estados de Carga (Skeletons)
 - Para evitar saltos de diseño (layout shifts) durante la carga de las páginas, la aplicación usa componentes `Skeleton` (ej. `HomeSkeleton`, `MatchListSkeleton`, `ProfileSkeleton`, `JoinSkeleton`, `MatchAdminSkeleton`).
 - Estos componentes reflejan exactamente la misma estructura de CSS, bordes, paddings y truncamientos de texto que la vista final para asegurar transiciones visualmente imperceptibles. En páginas con elementos estáticos (como el banner verde superior de `JoinMatchPage`), el skeleton los renderiza idénticamente y delega las clases de animación `animate-pulse` exclusiva e individualmente a los contenedores interiores dinámicos. Así mismo, la vista de administración usa su propio skeleton complejo (`MatchAdminSkeleton`) que emula perfectamente las tarjetas de acciones administrativas y listados.

@@ -40,7 +40,7 @@ Proveer un componente central para que los jugadores (incluso aquellos sin parti
 ### 2.3 UI Components (`app/explore/page.tsx` & `components/BottomNav.tsx`)
 *   **Explore Page**: Renderiza SSR y ejecuta `useEffect` para cargar `getOpenMatches()` y luego los respectivos detalles de la sede `Location` (db locations) requeridos para el `MatchCard`.
 *   **Gestión de Estados**: Utiliza un Skeleton Loader nativo mientras solicita datos a Firebase.
-*   **MatchCard Integration**: Re-utiliza el `<MatchCard/>`, inyectando sobre el mismo un div condicional absoluto indicando capacidad (Lleno/Disponibilidad).
+*   **MatchCard Integration**: Re-utiliza el `<MatchCard/>` (con date box de día de semana + día + mes, hora protagonista, metadata con iconos `Clock`/`Users`/`LandPlot`, chevron de navegación), inyectando sobre el mismo un div condicional absoluto indicando capacidad (Lleno/Disponibilidad).
 *   **BottomNav**: `<Link>` agregado entre "Inicio" y "Perfil" (o Ranking/Usuarios para admins).
 
 ---

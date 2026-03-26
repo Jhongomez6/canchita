@@ -31,7 +31,7 @@ export function formatTime12h(timeStr: string) {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-    });
+    }).replace(/\s*[ap]\.\s*m\./i, m => ' ' + m.replace(/[\s.]/g, '').toUpperCase());
 }
 
 /**

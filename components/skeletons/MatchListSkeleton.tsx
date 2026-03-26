@@ -5,23 +5,26 @@ export default function MatchListSkeleton() {
         <div className="space-y-3 w-full animate-pulse">
             {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="relative">
-                    <div className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 h-[87px]">
+                    <div className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                         {/* Date Box */}
-                        <div className="bg-slate-50 rounded-lg p-2 min-w-[3.5rem] mr-4 border border-slate-100 flex flex-col items-center justify-center min-h-[54px]">
-                            <div className="h-[10px] bg-slate-200 rounded w-8"></div>
-                            <div className="h-[18px] bg-slate-200 rounded w-6 mt-1.5"></div>
+                        <div className="bg-slate-50 rounded-lg w-[4.5rem] h-[4.5rem] shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center gap-1.5">
+                            <div className="h-[9px] bg-slate-200 rounded w-10"></div>
+                            <div className="h-[22px] bg-slate-200 rounded w-7"></div>
+                            <div className="h-[9px] bg-slate-200 rounded w-6"></div>
                         </div>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                            <div className="h-[20px] bg-slate-200 rounded w-3/4"></div>
-                            <div className="h-[18px] bg-slate-200 rounded w-11/12 mt-1"></div>
+                            <div className="h-[14px] bg-slate-200 rounded w-4/5"></div>
+                            <div className="h-[16px] bg-slate-200 rounded w-24 mt-2"></div>
+                            <div className="flex gap-3 mt-1.5">
+                                <div className="h-[11px] bg-slate-200 rounded w-12"></div>
+                                <div className="h-[11px] bg-slate-200 rounded w-16"></div>
+                            </div>
                         </div>
 
-                        {/* Status Pill */}
-                        <div>
-                            <div className="h-[24px] w-[54px] bg-slate-200 rounded-md"></div>
-                        </div>
+                        {/* Chevron */}
+                        <div className="h-4 w-4 bg-slate-200 rounded shrink-0 ml-2"></div>
                     </div>
 
                     {/* Floating Capacity Pill (Full / Spots) */}
