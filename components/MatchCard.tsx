@@ -18,8 +18,6 @@ export default function MatchCard({ match, location, href }: MatchCardProps) {
     // Día de semana completo para la caja (ej: "MIÉRCOLES")
     const weekDay = dateObj.toLocaleDateString('es-CO', { weekday: 'long' }).toUpperCase();
 
-    const isClosed = match.status === 'closed';
-
     const locationName = location?.name
         ? location.name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
         : "Ubicación por definir";
@@ -32,7 +30,7 @@ export default function MatchCard({ match, location, href }: MatchCardProps) {
     return (
         <Link
             href={href}
-            className={`flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 active:scale-[0.99] transition-transform hover:border-emerald-200 hover:shadow-md${isClosed ? ' opacity-75' : ''}`}
+            className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 active:scale-[0.99] transition-transform hover:border-emerald-200 hover:shadow-md"
         >
             {/* DATE BOX */}
             <div className="bg-slate-50 rounded-lg p-2 text-center w-[4.5rem] h-[4.5rem] shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center">
