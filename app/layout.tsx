@@ -6,6 +6,7 @@ import BottomNav from "@/components/BottomNav";
 import { Toaster } from "react-hot-toast";
 import BetaFeedbackWidget from "@/components/BetaFeedbackWidget";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 
 
@@ -57,6 +58,7 @@ export default function RootLayout({
             />
             <BetaFeedbackWidget />
             <PWAInstallPrompt />
+            <SpeedInsights />
           </div>
 
           <BottomNav />
