@@ -561,30 +561,30 @@ export default function JoinMatchPage() {
 
           {/* CARD ASISTENCIA - Solo si partido abierto y equipos no definidos */}
           {!isClosed && !match.teamsConfirmed && (
-            <div className="bg-white rounded-2xl p-5 shadow-md border border-slate-100">
-              <h3 className="font-bold text-slate-800 mb-4">Tu asistencia</h3>
+            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
 
+              {/* ── Estado: Partido lleno, usuario no registrado ── */}
               {isFull && !existingPlayer && (
-                <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
-                  ⚠️ El partido está lleno. ¡Anotate en la lista de espera!
+                <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 text-amber-700 text-sm font-semibold text-center">
+                  ⚠️ Partido lleno — anotate como suplente
                 </div>
               )}
+
+              {/* ── Estado: Perdiste tu lugar ── */}
               {isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
-                <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold border border-red-100 text-center">
-                  ❌ El partido ya está completo y perdiste tu lugar reservado.
+                <div className="px-4 py-3 bg-red-50 border-b border-red-100 text-red-600 text-sm font-semibold text-center">
+                  ❌ Perdiste tu lugar reservado
                 </div>
               )}
-              {/* If match is full and user isn't confirmed and isn't waitlisted */}
+
+              {/* ── CTA: Ingresar como Suplente ── */}
               {isFull && (!existingPlayer || (!existingPlayer.confirmed && !existingPlayer.isWaitlist)) && (
                 <button
                   disabled={submitting}
                   onClick={async () => {
                     setSubmitting(true);
                     try {
-                      await joinWaitlist(id, {
-                        uid: user.uid,
-                        name: playerName,
-                      });
+                      await joinWaitlist(id, { uid: user.uid, name: playerName });
                       toast.success("Te has unido a la lista de espera");
                     } catch (e: unknown) {
                       handleError(e, "Hubo un error uniéndose a la lista de espera");
@@ -592,72 +592,44 @@ export default function JoinMatchPage() {
                       setSubmitting(false);
                     }
                   }}
-                  className={`w-full py-4 rounded-xl font-bold text-lg shadow-md transition-all active:scale-[0.98] ${submitting
-                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                    : "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300"
+                  className={`w-full py-3 font-bold text-sm transition-all active:scale-[0.98] ${submitting
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    : "bg-amber-50 text-amber-800 hover:bg-amber-100"
                     }`}
                 >
                   {submitting ? "⏳ Uniendo..." : "📋 Ingresar como Suplente"}
                 </button>
               )}
 
-
-              {/* Mógica Normal (No full, o no confirmado aún) */}
+              {/* ── CTA: Confirmar asistencia (primera vez) ── */}
               {!isFull && !existingPlayer && (
                 <button
                   disabled={submitting}
                   onClick={async () => {
                     setSubmitting(true);
                     try {
-                      await joinMatch(id, {
-                        uid: user.uid,
-                        name: playerName,
-                      });
-                      toast.success("Asistencia confirmada!");
+                      await joinMatch(id, { uid: user.uid, name: playerName });
+                      toast.success("¡Asistencia confirmada!");
                     } catch (e: unknown) {
                       handleError(e, "Hubo un error al confirmar tu asistencia");
                     } finally {
                       setSubmitting(false);
                     }
                   }}
-                  className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting
-                    ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
-                    : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
+                  className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] ${submitting
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
                     }`}
                 >
                   {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
                 </button>
               )}
 
-              {existingPlayer?.confirmed && (
-                <>
-                  <div className="mb-4 bg-emerald-50 text-[#1f7a4f] px-4 py-3 rounded-xl text-sm font-bold border border-emerald-100 flex items-center justify-center gap-2">
-                    ✅ Estás confirmado
-                  </div>
-
-                  <button
-                    onClick={async () => {
-                      setSubmitting(true);
-                      try {
-                        await unconfirmAttendance(id, playerName);
-                        toast.success("Has liberado tu cupo");
-                      } catch (err: unknown) {
-                        handleError(err, "Hubo un error al liberar tu cupo");
-                      } finally {
-                        setSubmitting(false);
-                      }
-                    }}
-                    className="w-full py-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
-                  >
-                    No puedo ir (Liberar Cupo)
-                  </button>
-                </>
-              )}
-
+              {/* ── CTA: Confirmar asistencia (ya en lista, no confirmado) ── */}
               {!isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
                 <>
-                  <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
-                    ⏳ Aún no has confirmado tu asistencia
+                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-amber-700 text-xs font-semibold text-center">
+                    ⏳ Aún no confirmaste
                   </div>
                   <button
                     disabled={submitting}
@@ -672,9 +644,9 @@ export default function JoinMatchPage() {
                         setSubmitting(false);
                       }
                     }}
-                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting
-                      ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
-                      : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
+                    className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] ${submitting
+                      ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
                       }`}
                   >
                     {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
@@ -682,10 +654,11 @@ export default function JoinMatchPage() {
                 </>
               )}
 
+              {/* ── CTA: En lista de espera ── */}
               {existingPlayer?.isWaitlist && !existingPlayer.confirmed && (
                 <>
-                  <div className="mb-4 bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-sm font-bold border border-amber-100 text-center">
-                    📋 Estás en la lista de espera. Revisa seguido por si se libera un cupo.
+                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-amber-700 text-xs font-semibold text-center">
+                    📋 Estás en lista de espera
                   </div>
                   <button
                     onClick={async () => {
@@ -699,26 +672,58 @@ export default function JoinMatchPage() {
                         setSubmitting(false);
                       }
                     }}
-                    className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors mt-2"
+                    className="w-full py-2.5 text-slate-500 text-sm font-semibold hover:bg-slate-50 transition-colors"
                   >
                     Salir de la lista de espera
                   </button>
                 </>
               )}
+
+              {/* ── Estado: CONFIRMADO — fila compacta ── */}
+              {existingPlayer?.confirmed && (
+                <>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="flex items-center gap-1.5 text-emerald-700 font-bold text-sm">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[11px]">✅</span>
+                      Estás confirmado
+                    </span>
+                    <button
+                      onClick={async () => {
+                        setSubmitting(true);
+                        try {
+                          await unconfirmAttendance(id, playerName);
+                          toast.success("Has liberado tu cupo");
+                        } catch (err: unknown) {
+                          handleError(err, "Hubo un error al liberar tu cupo");
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      disabled={submitting}
+                      className="text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-100 font-semibold transition-colors flex items-center gap-1 disabled:opacity-40"
+                    >
+                      Cancelar asistencia ⛔
+                    </button>
+                  </div>
+
+                  {/* ── Fila Agregar Invitado (inline, dentro del mismo card) ── */}
+                  {match.allowGuests !== false && (
+                    <div className="border-t border-slate-100">
+                      <AddGuestForm
+                        matchId={id}
+                        playerUid={user.uid}
+                        existingGuests={match.guests?.filter((g: Guest) => g.invitedBy === user.uid) || []}
+                        onSuccess={() => { /* snapshot auto-refreshes */ }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
             </div>
           )}
 
-          {/* AGREGAR INVITADO - Solo para jugadores confirmados, si el partido lo permite y equipos no definidos */}
-          {!isClosed && !match.teamsConfirmed && existingPlayer?.confirmed && match.allowGuests !== false && (
-            <AddGuestForm
-              matchId={id}
-              playerUid={user.uid}
-              existingGuests={
-                match.guests?.filter((g: Guest) => g.invitedBy === user.uid) || []
-              }
-              onSuccess={() => { /* snapshot auto-refreshes */ }}
-            />
-          )}
+
 
 
           {/* LISTA DE JUGADORES, EQUIPOS CONFIRMADOS O REPORTE */}

@@ -129,14 +129,14 @@ export default function AddGuestForm({
   // ========================
   if (!isOpen) {
     return (
-      <div className="mb-6">
+      <div>
         {hasGuests && (
           <div className="space-y-4 mb-4">
             {existingGuests.map((guest, idx) => (
-              <div key={`${guest.name}-${idx}`} className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 relative overflow-hidden">
+              <div key={`${guest.name}-${idx}`} className="bg-slate-50 border-b border-slate-100 relative overflow-hidden px-4 py-3">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-8 -mt-8" />
 
-                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2 relative z-10">
+                <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2 relative z-10 text-sm">
                   👤 Tu invitado {existingGuests.length > 1 ? `#${idx + 1}` : ""}
                 </h3>
 
@@ -155,7 +155,7 @@ export default function AddGuestForm({
                 <button
                   onClick={() => handleRemoveGuest(guest.name)}
                   disabled={isSubmitting}
-                  className="w-full py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors text-sm"
+                  className="w-full py-2 bg-red-50 text-red-600 font-semibold rounded-lg hover:bg-red-100 transition-colors text-xs"
                 >
                   {isSubmitting ? "Eliminando..." : "Eliminar invitado"}
                 </button>
@@ -168,9 +168,9 @@ export default function AddGuestForm({
         {!reachedLimit && (
           <button
             onClick={() => setIsOpen(true)}
-            className="w-full py-3 bg-white border border-dashed border-slate-300 rounded-xl text-slate-500 font-bold hover:bg-slate-50 hover:border-slate-400 transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 bg-slate-50 text-slate-600 font-semibold hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-sm"
           >
-            <span className="text-xl">➕</span>
+            <span className="text-base text-purple-600 font-bold">+</span>
             <span>Agregar un invitado {hasGuests && "(1 cupo restante)"}</span>
           </button>
         )}
@@ -182,9 +182,9 @@ export default function AddGuestForm({
   // RENDER: FORMULARIO
   // ========================
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-bold text-slate-800">👤 Agregar invitado</h3>
+    <div className="bg-slate-50 px-4 py-4 animate-in fade-in slide-in-from-top-2 duration-300">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-bold text-slate-800 text-sm">👤 Agregar invitado</h3>
         <button
           onClick={() => setIsOpen(false)}
           className="text-slate-400 hover:text-slate-600"
