@@ -120,6 +120,8 @@ export function buildRosterReport(
     });
   }
 
+  text += `\n🔑 *Código del partido:* ${match.id}.ai\n`;
+
   return text;
 }
 
