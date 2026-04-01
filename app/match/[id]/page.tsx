@@ -16,6 +16,7 @@ import {
   markPlayerAttendance,
   approveFromWaitlist,
   deleteMatch,
+  confirmTeams,
 } from "@/lib/matches";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -720,11 +721,20 @@ export default function MatchDetailPage() {
               scoreA={scoreA}
               scoreB={scoreB}
               hasTeamsSaved={Boolean(match.teams)}
+              teamsConfirmed={match.teamsConfirmed ?? false}
               onBalance={handleBalance}
               onDragEnd={handleDragEnd}
               onSaveAll={handleSaveAll}
               onDiscardChanges={handleDiscardChanges}
               onCopyReport={generateWhatsAppReport}
+              onConfirmTeams={async () => {
+                try {
+                  await confirmTeams(id);
+                  toast.success("Equipos confirmados y publicados");
+                } catch (err) {
+                  handleError(err, "Error al confirmar equipos");
+                }
+              }}
               onScoreAChange={setScoreA}
               onScoreBChange={setScoreB}
               balancing={balancing}

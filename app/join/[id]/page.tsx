@@ -36,6 +36,7 @@ import { handleError } from "@/lib/utils/error";
 import JoinSkeleton from "@/components/skeletons/JoinSkeleton";
 import Link from "next/link";
 import PlayerCardDrawer from "@/components/PlayerCardDrawer";
+import MatchTimeline from "@/components/MatchTimeline";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
@@ -520,6 +521,17 @@ export default function JoinMatchPage() {
                 )}
               </div>
 
+              {/* Organizador */}
+              {match.creatorSnapshot?.name && (
+                <div className="flex items-center gap-3 text-slate-600">
+                  <span className="bg-slate-100 p-2 rounded-lg text-lg">👤</span>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-slate-400">Organiza</span>
+                    <span className="font-bold text-slate-700 text-sm">{match.creatorSnapshot.name}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Código del partido */}
               <div className="flex items-center gap-3 text-slate-600">
                 <span className="bg-slate-100 p-2 rounded-lg text-lg">🔑</span>
@@ -547,8 +559,12 @@ export default function JoinMatchPage() {
                   </button>
                 </div>
               </div>
+
             </div>
           </div>
+
+          {/* TIMELINE DEL PARTIDO */}
+          <MatchTimeline match={match} confirmedCount={confirmedCount} />
 
           {/* CARD ASISTENCIA - Solo si partido abierto */}
           {!isClosed && (
@@ -712,7 +728,7 @@ export default function JoinMatchPage() {
           )}
 
 
-          {/* LISTA DE JUGADORES O REPORTE */}
+          {/* LISTA DE JUGADORES, EQUIPOS CONFIRMADOS O REPORTE */}
           {isClosed && match.teams ? (() => {
             // LOGICA RESULTADO PERSONAL
             const userInTeamA = match.teams.A?.some((p: Player) => p.uid === user.uid);
@@ -1053,6 +1069,93 @@ export default function JoinMatchPage() {
                   </div>
                 )}
 
+              </div>
+            );
+          })() : match.teamsConfirmed && match.teams ? (() => {
+            const userInTeamA = match.teams!.A?.some((p: Player) => p.uid === user.uid);
+            const userInTeamB = match.teams!.B?.some((p: Player) => p.uid === user.uid);
+
+            return (
+              <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6">
+                <h3 className="font-bold text-slate-800 mb-4 text-center text-lg">
+                  Equipos definidos
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* EQUIPO A */}
+                  <div className={`rounded-xl p-4 border ${userInTeamA ? "bg-red-100 border-red-300 ring-2 ring-red-200" : "bg-red-50 border-red-100"}`}>
+                    <h4 className="font-bold text-red-800 mb-3 text-sm uppercase tracking-wide border-b border-red-200 pb-2 flex justify-between">
+                      <span>Equipo A {userInTeamA && "(Tú)"}</span>
+                      <span className="text-red-500 opacity-60 text-xs">{match.teams!.A.length} jug.</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {match.teams!.A.map((p: Player, i: number) => {
+                        const fullPlayerA = match.players?.find((mp: Player) => mp.uid === p.uid);
+                        const photoURL = p.photoURL || fullPlayerA?.photoURL;
+                        const primaryPosition = p.primaryPosition || fullPlayerA?.primaryPosition;
+
+                        return (
+                          <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg">
+                            <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
+                              {photoURL ? (
+                                <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                                  <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
+                                </div>
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
+                                  {p.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-slate-50 z-10 font-bold">
+                                {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                              </div>
+                            </div>
+                            <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-red-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
+                              {p.name}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* EQUIPO B */}
+                  <div className={`rounded-xl p-4 border ${userInTeamB ? "bg-blue-100 border-blue-300 ring-2 ring-blue-200" : "bg-blue-50 border-blue-100"}`}>
+                    <h4 className="font-bold text-blue-800 mb-3 text-sm uppercase tracking-wide border-b border-blue-200 pb-2 flex justify-between">
+                      <span>Equipo B {userInTeamB && "(Tú)"}</span>
+                      <span className="text-blue-500 opacity-60 text-xs">{match.teams!.B.length} jug.</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {match.teams!.B.map((p: Player, i: number) => {
+                        const fullPlayerB = match.players?.find((mp: Player) => mp.uid === p.uid);
+                        const photoURL = p.photoURL || fullPlayerB?.photoURL;
+                        const primaryPosition = p.primaryPosition || fullPlayerB?.primaryPosition;
+
+                        return (
+                          <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg">
+                            <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
+                              {photoURL ? (
+                                <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                                  <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
+                                </div>
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
+                                  {p.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-slate-50 z-10 font-bold">
+                                {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
+                              </div>
+                            </div>
+                            <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-blue-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
+                              {p.name}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           })() : (

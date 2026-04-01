@@ -27,12 +27,14 @@ interface TeamsTabProps {
   scoreA: number;
   scoreB: number;
   hasTeamsSaved: boolean;
+  teamsConfirmed: boolean;
   // Actions
   onBalance: () => void;
   onDragEnd: (event: DragEndEvent) => void;
   onSaveAll: (scoreA: number, scoreB: number) => Promise<void>;
   onDiscardChanges: () => void;
   onCopyReport: () => Promise<void>;
+  onConfirmTeams: () => Promise<void>;
   onScoreAChange: (score: number) => void;
   onScoreBChange: (score: number) => void;
   balancing: boolean;
@@ -50,11 +52,13 @@ export default function TeamsTab({
   scoreA,
   scoreB,
   hasTeamsSaved,
+  teamsConfirmed,
   onBalance,
   onDragEnd,
   onSaveAll,
   onDiscardChanges,
   onCopyReport,
+  onConfirmTeams,
   onScoreAChange,
   onScoreBChange,
   balancing,
@@ -64,6 +68,7 @@ export default function TeamsTab({
   const [copyingReport, setCopyingReport] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
   const [showPositionGrid, setShowPositionGrid] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -298,6 +303,36 @@ export default function TeamsTab({
               ↩️
             </button>
           )}
+        </div>
+      )}
+
+      {/* Confirm teams (publish to players) */}
+      {isOwner && !isClosed && balanced && !hasUnsavedBalance && !teamsConfirmed && (
+        <button
+          disabled={confirming}
+          onClick={async () => {
+            if (!confirm("Al confirmar, los jugadores podrán ver los equipos en la página del partido. ¿Deseas publicar los equipos?")) return;
+            setConfirming(true);
+            try {
+              await onConfirmTeams();
+            } finally {
+              setConfirming(false);
+            }
+          }}
+          className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${
+            confirming
+              ? "bg-slate-400 cursor-not-allowed shadow-none"
+              : "bg-emerald-600 hover:bg-emerald-700"
+          }`}
+        >
+          {confirming ? "⏳ Publicando..." : "✅ Confirmar y publicar equipos"}
+        </button>
+      )}
+
+      {/* Teams published badge */}
+      {teamsConfirmed && !isClosed && (
+        <div className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-xs font-bold border border-emerald-200 text-center">
+          ✅ Equipos publicados — los jugadores ya pueden ver los equipos
         </div>
       )}
 

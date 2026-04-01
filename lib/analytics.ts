@@ -128,6 +128,10 @@ export async function logTeamsBalanced(matchId: string) {
   await trackEvent("teams_balanced", { match_id: matchId });
 }
 
+export async function logTeamsConfirmed(matchId: string) {
+  await trackEvent("teams_confirmed", { match_id: matchId });
+}
+
 export async function logMatchClosed(matchId: string) {
   await trackEvent("match_closed", { match_id: matchId });
 }

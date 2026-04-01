@@ -45,6 +45,8 @@ export interface Match {
     players: Player[];
     guests?: Guest[];
     teams?: { A: Player[]; B: Player[] };
+    teamsConfirmed?: boolean; // true cuando el admin publica los equipos
+    teamsConfirmedAt?: string; // ISO string del momento de confirmación
     score?: { A: number; B: number };
     statsProcessed?: boolean;
     previousScore?: { A: number; B: number };
@@ -52,6 +54,7 @@ export interface Match {
     closedAt?: string; // ISO String to track 12-hour limit
     isPrivate?: boolean; // If true, hide from Explore
     creatorAdminType?: AdminType; // Tier del admin al crear el partido
+    creatorSnapshot?: { name: string; photoURL?: string }; // Snapshot del creador al crear
     remindersSent?: Record<string, boolean>; // Tracks sent notifications to avoid duplicate push dispatches
 }
 
@@ -66,6 +69,7 @@ export interface CreateMatchInput {
     allowGuests?: boolean;
     isPrivate?: boolean;
     creatorAdminType?: AdminType;
+    creatorSnapshot?: { name: string; photoURL?: string };
 }
 
 export type MatchResult = "win" | "loss" | "draw";
@@ -191,6 +195,49 @@ export function getDefaultTabForPhase(phase: MatchPhase): "dashboard" | "players
         case "postgame": return "teams";
         case "closed": return "dashboard";
     }
+}
+
+// ========================
+// MATCH TIMELINE
+// ========================
+
+export type TimelineStep = "joining" | "teams_confirmed" | "mvp_voting" | "closed";
+
+export interface TimelineState {
+    currentStep: TimelineStep;
+    completedSteps: TimelineStep[];
+    stepIndex: number;
+    totalSteps: number;
+}
+
+const TIMELINE_STEPS: TimelineStep[] = ["joining", "teams_confirmed", "mvp_voting", "closed"];
+
+/**
+ * Calcula el estado del timeline del partido para la vista de jugadores.
+ * Lógica pura, sin dependencias externas.
+ */
+export function getMatchTimelineState(
+    match: Pick<Match, "status" | "teams" | "teamsConfirmed">,
+): TimelineState {
+    let stepIndex: number;
+
+    if (match.status === "closed") {
+        stepIndex = 3; // closed
+    } else if (match.teamsConfirmed && match.teams) {
+        stepIndex = 1; // teams_confirmed
+    } else {
+        stepIndex = 0; // joining
+    }
+
+    const completedSteps = TIMELINE_STEPS.slice(0, stepIndex + 1);
+    const currentStep = TIMELINE_STEPS[stepIndex];
+
+    return {
+        currentStep,
+        completedSteps,
+        stepIndex,
+        totalSteps: TIMELINE_STEPS.length,
+    };
 }
 
 // ========================

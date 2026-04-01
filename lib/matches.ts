@@ -29,7 +29,7 @@ import { Timestamp } from "firebase/firestore";
 import type { Player, Position } from "./domain/player";
 import type { Match } from "./domain/match";
 import { getConfirmedCount } from "./domain/match";
-import { MatchFullError } from "./domain/errors";
+import { MatchFullError, BusinessError } from "./domain/errors";
 import { canManageLocation, canCreatePublicMatch } from "./domain/user";
 import {
   logMatchCreated,
@@ -38,6 +38,7 @@ import {
   logTeamsBalanced,
   logMatchClosed,
   logMvpVoted,
+  logTeamsConfirmed,
 } from "./analytics";
 
 // Re-export para backward compatibility
@@ -97,6 +98,10 @@ export async function createMatch(match: {
   const docRef = await addDoc(matchesRef, {
     ...match,
     creatorAdminType: profile.adminType || "super_admin",
+    creatorSnapshot: {
+      name: profile.name,
+      photoURL: profile.photoURL || null,
+    },
     isPrivate: match.isPrivate || false,
     allowGuests: match.allowGuests ?? true,
     players: [],
@@ -635,8 +640,27 @@ export async function saveTeams(
   teams: { A: Player[]; B: Player[] }
 ) {
   const ref = doc(db, "matches", matchId);
-  await updateDoc(ref, { teams });
+  await updateDoc(ref, { teams, teamsConfirmed: false });
   logTeamsBalanced(matchId);
+}
+
+/* =========================
+   CONFIRMAR EQUIPOS (PUBLICAR)
+========================= */
+export async function confirmTeams(matchId: string) {
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    if (!data.teams) throw new BusinessError("No hay equipos balanceados para confirmar");
+    if (data.status !== "open") throw new BusinessError("El partido no está abierto");
+    transaction.update(ref, {
+      teamsConfirmed: true,
+      teamsConfirmedAt: new Date().toISOString(),
+    });
+  });
+  logTeamsConfirmed(matchId);
 }
 
 /* =========================
