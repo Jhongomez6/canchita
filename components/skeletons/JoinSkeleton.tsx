@@ -9,18 +9,12 @@ export default function JoinSkeleton({ isClosedTemplate = false }: JoinSkeletonP
         <main className="min-h-screen bg-slate-50 pb-24">
             <div className="max-w-md mx-auto">
                 {/* HEADER VERDE (Estático, sin parpadeo) */}
-                <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] text-white p-6 pb-8 rounded-b-3xl shadow-lg mb-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-                    <h2 className="text-2xl font-bold relative z-10 flex items-center gap-2">
-                        ⚽ <span className="text-emerald-50">Partido</span>
-                    </h2>
-                    <p className="relative z-10 text-emerald-100 text-sm mt-1">
-                        Detalles del partido
-                    </p>
+                <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] text-white p-3 pb-5 rounded-b-2xl shadow-md mb-4 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
                 </div>
 
                 {/* CONTAINER ANIMADO (Contenido Dinámico) */}
-                <div className="px-4 -mt-10 relative z-20 space-y-4 animate-pulse">
+                <div className="px-4 -mt-6 relative z-20 space-y-4 animate-pulse">
 
                     {/* CARD PARTIDO (Match Info) */}
                     <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100">
