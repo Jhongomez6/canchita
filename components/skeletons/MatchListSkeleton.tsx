@@ -7,19 +7,19 @@ export default function MatchListSkeleton() {
                 <div key={i} className="relative">
                     <div className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                         {/* Date Box */}
-                        <div className="bg-slate-50 rounded-lg w-[4.5rem] h-[4.5rem] shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center gap-1.5">
-                            <div className="h-[9px] bg-slate-200 rounded w-10"></div>
-                            <div className="h-[22px] bg-slate-200 rounded w-7"></div>
-                            <div className="h-[9px] bg-slate-200 rounded w-6"></div>
+                        <div className="bg-slate-50 rounded-lg w-20 h-20 shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center gap-1.5">
+                            <div className="h-[11px] bg-slate-200 rounded w-11"></div>
+                            <div className="h-[30px] bg-slate-200 rounded w-8"></div>
+                            <div className="h-[11px] bg-slate-200 rounded w-7"></div>
                         </div>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                            <div className="h-[14px] bg-slate-200 rounded w-4/5"></div>
-                            <div className="h-[16px] bg-slate-200 rounded w-24 mt-2"></div>
+                            <div className="h-[16px] bg-slate-200 rounded w-4/5"></div>
+                            <div className="h-[18px] bg-slate-200 rounded w-24 mt-2"></div>
                             <div className="flex gap-3 mt-1.5">
-                                <div className="h-[11px] bg-slate-200 rounded w-12"></div>
-                                <div className="h-[11px] bg-slate-200 rounded w-16"></div>
+                                <div className="h-[14px] bg-slate-200 rounded w-14"></div>
+                                <div className="h-[14px] bg-slate-200 rounded w-18"></div>
                             </div>
                         </div>
 

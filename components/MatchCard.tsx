@@ -34,10 +34,10 @@ export default function MatchCard({ match, location, href }: MatchCardProps) {
         >
             {/* DATE BOX */}
             <div className="bg-slate-50 rounded-lg p-2 text-center w-20 h-20 shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center">
-                <span className="block text-[11px] text-emerald-700 font-black uppercase tracking-widest">
+                <span className="block text-xs text-emerald-700 font-black uppercase tracking-widest">
                     {weekDay}
                 </span>
-                <span className="block text-3xl font-black text-slate-800 leading-none mt-0.5">
+                <span className="block text-2xl font-black text-slate-800 leading-none mt-0.5">
                     {day}
                 </span>
                 <span className="block text-[11px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">

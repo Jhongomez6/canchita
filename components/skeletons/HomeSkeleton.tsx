@@ -23,21 +23,21 @@ export default function HomeSkeleton() {
                         {/* Date box + info */}
                         <div className="flex items-start gap-4 mb-4">
                             {/* Date Box */}
-                            <div className="bg-slate-50 rounded-xl border border-slate-100 w-[5.5rem] h-[5.5rem] shrink-0 flex flex-col items-center justify-center gap-1.5">
-                                <div className="h-[10px] bg-slate-200 rounded w-12"></div>
-                                <div className="h-[28px] bg-slate-200 rounded w-8"></div>
-                                <div className="h-[10px] bg-slate-200 rounded w-7"></div>
+                            <div className="bg-slate-50 rounded-xl border border-slate-100 w-24 h-24 shrink-0 flex flex-col items-center justify-center gap-1.5">
+                                <div className="h-[12px] bg-slate-200 rounded w-12"></div>
+                                <div className="h-[36px] bg-slate-200 rounded w-9"></div>
+                                <div className="h-[12px] bg-slate-200 rounded w-7"></div>
                             </div>
 
                             <div className="flex-1 min-w-0">
                                 {/* Time */}
-                                <div className="h-[20px] bg-slate-200 rounded w-28"></div>
+                                <div className="h-[24px] bg-slate-200 rounded w-28"></div>
                                 {/* Location */}
-                                <div className="h-[16px] bg-slate-200 rounded w-4/5 mt-2"></div>
+                                <div className="h-[18px] bg-slate-200 rounded w-4/5 mt-2"></div>
                                 {/* Metadata */}
                                 <div className="flex gap-3 mt-2">
-                                    <div className="h-[12px] bg-slate-200 rounded w-12"></div>
-                                    <div className="h-[12px] bg-slate-200 rounded w-16"></div>
+                                    <div className="h-[14px] bg-slate-200 rounded w-14"></div>
+                                    <div className="h-[14px] bg-slate-200 rounded w-18"></div>
                                 </div>
                             </div>
                         </div>
@@ -66,17 +66,17 @@ export default function HomeSkeleton() {
                 <div className="px-5 space-y-3">
                     {[1, 2].map((i) => (
                         <div key={i} className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                            <div className="bg-slate-50 rounded-lg w-[4.5rem] h-[4.5rem] shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center gap-1.5">
-                                <div className="h-[9px] bg-slate-200 rounded w-10"></div>
-                                <div className="h-[22px] bg-slate-200 rounded w-7"></div>
-                                <div className="h-[9px] bg-slate-200 rounded w-6"></div>
+                            <div className="bg-slate-50 rounded-lg w-20 h-20 shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center gap-1.5">
+                                <div className="h-[11px] bg-slate-200 rounded w-11"></div>
+                                <div className="h-[30px] bg-slate-200 rounded w-8"></div>
+                                <div className="h-[11px] bg-slate-200 rounded w-7"></div>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="h-[14px] bg-slate-200 rounded w-28"></div>
-                                <div className="h-[12px] bg-slate-200 rounded w-4/5 mt-1.5"></div>
+                                <div className="h-[16px] bg-slate-200 rounded w-28"></div>
+                                <div className="h-[14px] bg-slate-200 rounded w-4/5 mt-1.5"></div>
                                 <div className="flex gap-3 mt-1.5">
-                                    <div className="h-[11px] bg-slate-200 rounded w-12"></div>
-                                    <div className="h-[11px] bg-slate-200 rounded w-16"></div>
+                                    <div className="h-[14px] bg-slate-200 rounded w-14"></div>
+                                    <div className="h-[14px] bg-slate-200 rounded w-18"></div>
                                 </div>
                             </div>
                             <div className="h-4 w-4 bg-slate-200 rounded shrink-0 ml-2"></div>
@@ -93,17 +93,17 @@ export default function HomeSkeleton() {
                 <div className="px-5 space-y-3">
                     {[1, 2].map((i) => (
                         <div key={i} className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 opacity-75">
-                            <div className="bg-slate-50 rounded-lg w-[4.5rem] h-[4.5rem] shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center gap-1.5">
-                                <div className="h-[9px] bg-slate-200 rounded w-10"></div>
-                                <div className="h-[22px] bg-slate-200 rounded w-7"></div>
-                                <div className="h-[9px] bg-slate-200 rounded w-6"></div>
+                            <div className="bg-slate-50 rounded-lg w-20 h-20 shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center gap-1.5">
+                                <div className="h-[11px] bg-slate-200 rounded w-11"></div>
+                                <div className="h-[30px] bg-slate-200 rounded w-8"></div>
+                                <div className="h-[11px] bg-slate-200 rounded w-7"></div>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="h-[14px] bg-slate-200 rounded w-28"></div>
-                                <div className="h-[12px] bg-slate-200 rounded w-4/5 mt-1.5"></div>
+                                <div className="h-[16px] bg-slate-200 rounded w-28"></div>
+                                <div className="h-[14px] bg-slate-200 rounded w-4/5 mt-1.5"></div>
                                 <div className="flex gap-3 mt-1.5">
-                                    <div className="h-[11px] bg-slate-200 rounded w-12"></div>
-                                    <div className="h-[11px] bg-slate-200 rounded w-16"></div>
+                                    <div className="h-[14px] bg-slate-200 rounded w-14"></div>
+                                    <div className="h-[14px] bg-slate-200 rounded w-18"></div>
                                 </div>
                             </div>
                             <div className="h-4 w-4 bg-slate-200 rounded shrink-0 ml-2"></div>

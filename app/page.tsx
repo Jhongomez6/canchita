@@ -172,28 +172,28 @@ export default function Home() {
 
                     <div className="flex items-start gap-4 mb-4">
                       {/* Date Box */}
-                      <div className="bg-slate-50 rounded-xl border border-slate-100 w-[5.5rem] h-[5.5rem] shrink-0 flex flex-col items-center justify-center">
-                        <span className="text-[10px] text-emerald-700 font-black uppercase tracking-widest">{heroWeekDay}</span>
-                        <span className="text-3xl font-black text-slate-800 leading-none mt-0.5">{heroDay}</span>
-                        <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">{heroMonth}</span>
+                      <div className="bg-slate-50 rounded-xl border border-slate-100 w-24 h-24 shrink-0 flex flex-col items-center justify-center">
+                        <span className="text-xs text-emerald-700 font-black uppercase tracking-widest">{heroWeekDay}</span>
+                        <span className="text-4xl font-black text-slate-800 leading-none mt-0.5">{heroDay}</span>
+                        <span className="text-xs text-slate-400 font-semibold uppercase tracking-widest mt-0.5">{heroMonth}</span>
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 text-lg font-black text-slate-800">
-                          <Clock size={16} />
+                        <div className="flex items-center gap-1.5 text-xl font-black text-slate-800">
+                          <Clock size={18} />
                           {formatTime12h(nextMatch.time)}
                         </div>
-                        <p className="flex items-center gap-1 text-sm text-slate-500 font-medium mt-1 truncate">
-                          <MapPin size={13} className="shrink-0" />
+                        <p className="flex items-center gap-1 text-base text-slate-500 font-medium mt-1 truncate">
+                          <MapPin size={15} className="shrink-0" />
                           {heroLocationName}
                         </p>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                        <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
                           <span className={`flex items-center gap-1 ${heroConfirmed >= nextMatch.maxPlayers ? 'text-emerald-600 font-semibold' : ''}`}>
-                            <Users size={11} />
+                            <Users size={14} />
                             {heroConfirmed}/{nextMatch.maxPlayers}
                           </span>
                           <span className="flex items-center gap-1">
-                            <LandPlot size={11} />
+                            <LandPlot size={14} />
                             {heroFormat}
                           </span>
                         </div>
