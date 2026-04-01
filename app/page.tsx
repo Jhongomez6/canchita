@@ -8,9 +8,9 @@ import AuthGuard from "@/components/AuthGuard";
 import Link from "next/link";
 import { enablePushNotifications } from "@/lib/push";
 import toast from "react-hot-toast";
-import { formatDateSpanish, formatTime12h } from "@/lib/date";
+import {formatTime12h } from "@/lib/date";
 import { sanitizeMatchCode } from "@/lib/matchCode";
-import { doc, getDoc } from "firebase/firestore";
+import { documentId, getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import MatchCard from "@/components/MatchCard";
 import { useRouter } from "next/navigation";
@@ -67,21 +67,17 @@ export default function Home() {
             )
           );
 
-          const entries: [string, Location][] = (
-            await Promise.all(
-              locationIds.map(async id => {
-                const snap = await getDoc(doc(db, "locations", id));
-                if (!snap.exists()) return null;
-
-                return [snap.id, { id: snap.id, ...snap.data() }] as [string, Location];
-              })
-            )
-          ).filter(Boolean) as [string, Location][];
-
+          // Batch fetch locations (Firestore 'in' supports up to 30 items per query)
           const map: Record<string, Location> = {};
-          entries.forEach(([id, data]) => {
-            map[id] = data;
-          });
+          for (let i = 0; i < locationIds.length; i += 30) {
+            const batch = locationIds.slice(i, i + 30);
+            const snap = await getDocs(
+              query(collection(db, "locations"), where(documentId(), "in", batch))
+            );
+            snap.docs.forEach(d => {
+              map[d.id] = { id: d.id, ...d.data() } as Location;
+            });
+          }
 
           setLocationsMap(map);
         } catch (error) {

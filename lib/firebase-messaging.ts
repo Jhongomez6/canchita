@@ -1,4 +1,3 @@
-import { getMessaging, onMessage, isSupported } from "firebase/messaging";
 import { app } from "./firebase";
 
 // Shared SW registration promise — reused by push.ts to avoid duplicate registrations
@@ -43,6 +42,8 @@ export function getSwRegistration(): Promise<ServiceWorkerRegistration> | null {
 
 export async function listenToPushMessages() {
   if (typeof window === "undefined") return;
+
+  const { getMessaging, onMessage, isSupported } = await import("firebase/messaging");
 
   const supported = await isSupported();
   if (!supported) return;

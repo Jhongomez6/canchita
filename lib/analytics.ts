@@ -11,19 +11,17 @@
  * disponible (SSR, navegador sin soporte, measurementId faltante).
  */
 
-import {
-  getAnalytics,
-  logEvent,
-  setUserId,
-  setUserProperties,
-  isSupported,
-  type Analytics,
-} from "firebase/analytics";
 import { app } from "./firebase";
+import type { Analytics } from "firebase/analytics";
 
 // Cached analytics instance
 let analyticsInstance: Analytics | null = null;
 let initPromise: Promise<Analytics | null> | null = null;
+
+// Lazy-loaded firebase/analytics module (keeps it out of the main bundle)
+async function loadAnalyticsSDK() {
+  return import("firebase/analytics");
+}
 
 /**
  * Inicializa Firebase Analytics lazily.
@@ -36,8 +34,9 @@ export async function initAnalytics(): Promise<Analytics | null> {
   if (!process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) return null;
 
   if (!initPromise) {
-    initPromise = isSupported()
-      .then((supported) => {
+    initPromise = loadAnalyticsSDK()
+      .then(async ({ getAnalytics, isSupported }) => {
+        const supported = await isSupported();
         if (supported) {
           analyticsInstance = getAnalytics(app);
           return analyticsInstance;
@@ -54,6 +53,13 @@ async function getAnalyticsInstance(): Promise<Analytics | null> {
   return analyticsInstance ?? initAnalytics();
 }
 
+async function trackEvent(eventName: string, params?: Record<string, string>) {
+  const analytics = await getAnalyticsInstance();
+  if (!analytics) return;
+  const { logEvent } = await loadAnalyticsSDK();
+  logEvent(analytics, eventName, params);
+}
+
 /* =========================
    IDENTITY & USER PROPERTIES
 ========================= */
@@ -61,6 +67,7 @@ async function getAnalyticsInstance(): Promise<Analytics | null> {
 export async function identifyUser(uid: string) {
   const analytics = await getAnalyticsInstance();
   if (!analytics) return;
+  const { setUserId } = await loadAnalyticsSDK();
   setUserId(analytics, uid || null);
 }
 
@@ -69,6 +76,7 @@ export async function setAnalyticsUserProperties(
 ) {
   const analytics = await getAnalyticsInstance();
   if (!analytics) return;
+  const { setUserProperties } = await loadAnalyticsSDK();
   setUserProperties(analytics, properties);
 }
 
@@ -77,27 +85,19 @@ export async function setAnalyticsUserProperties(
 ========================= */
 
 export async function logUserRegistered() {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "user_registered");
+  await trackEvent("user_registered");
 }
 
 export async function logOnboardingCompleted() {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "onboarding_completed");
+  await trackEvent("onboarding_completed");
 }
 
 export async function logMatchJoined(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "match_joined", { match_id: matchId });
+  await trackEvent("match_joined", { match_id: matchId });
 }
 
 export async function logAttendanceConfirmed(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "attendance_confirmed", { match_id: matchId });
+  await trackEvent("attendance_confirmed", { match_id: matchId });
 }
 
 /* =========================
@@ -105,21 +105,15 @@ export async function logAttendanceConfirmed(matchId: string) {
 ========================= */
 
 export async function logMatchInvitationCopied(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "match_invitation_copied", { match_id: matchId });
+  await trackEvent("match_invitation_copied", { match_id: matchId });
 }
 
 export async function logMatchJoinedViaExplore(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "match_joined_via_explore", { match_id: matchId });
+  await trackEvent("match_joined_via_explore", { match_id: matchId });
 }
 
 export async function logGuestAdded(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "guest_added", { match_id: matchId });
+  await trackEvent("guest_added", { match_id: matchId });
 }
 
 /* =========================
@@ -127,21 +121,15 @@ export async function logGuestAdded(matchId: string) {
 ========================= */
 
 export async function logMatchCreated(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "match_created", { match_id: matchId });
+  await trackEvent("match_created", { match_id: matchId });
 }
 
 export async function logTeamsBalanced(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "teams_balanced", { match_id: matchId });
+  await trackEvent("teams_balanced", { match_id: matchId });
 }
 
 export async function logMatchClosed(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "match_closed", { match_id: matchId });
+  await trackEvent("match_closed", { match_id: matchId });
 }
 
 /* =========================
@@ -149,9 +137,7 @@ export async function logMatchClosed(matchId: string) {
 ========================= */
 
 export async function logPWAInstall(outcome: "accepted" | "dismissed") {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, `pwa_install_${outcome}`);
+  await trackEvent(`pwa_install_${outcome}`);
 }
 
 /* =========================
@@ -159,15 +145,11 @@ export async function logPWAInstall(outcome: "accepted" | "dismissed") {
 ========================= */
 
 export async function logPushEnabled() {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "push_enabled");
+  await trackEvent("push_enabled");
 }
 
 export async function logPushPromptDismissed() {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "push_prompt_dismissed");
+  await trackEvent("push_prompt_dismissed");
 }
 
 /* =========================
@@ -175,19 +157,13 @@ export async function logPushPromptDismissed() {
 ========================= */
 
 export async function logMvpVoted(matchId: string) {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "mvp_voted", { match_id: matchId });
+  await trackEvent("mvp_voted", { match_id: matchId });
 }
 
 export async function logStatsViewed() {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "stats_viewed");
+  await trackEvent("stats_viewed");
 }
 
 export async function logPlayerCardViewed() {
-  const analytics = await getAnalyticsInstance();
-  if (!analytics) return;
-  logEvent(analytics, "player_card_viewed");
+  await trackEvent("player_card_viewed");
 }

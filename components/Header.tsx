@@ -8,7 +8,8 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
 import { isSuperAdmin } from "@/lib/domain/user";
-import NotificationsDrawer from "./NotificationsDrawer";
+import dynamic from "next/dynamic";
+const NotificationsDrawer = dynamic(() => import("./NotificationsDrawer"), { ssr: false });
 
 export default function Header() {
   const { user, profile } = useAuth();

@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/AuthContext";
 import { loginWithGoogle } from "@/lib/auth";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -10,6 +10,18 @@ import { isInAppBrowser } from "@/lib/browser";
 import LandingPage from "./LandingPage";
 
 export default function AuthGuard({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense>
+      <AuthGuardInner>{children}</AuthGuardInner>
+    </Suspense>
+  );
+}
+
+function AuthGuardInner({
   children,
 }: {
   children: React.ReactNode;
