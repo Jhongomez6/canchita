@@ -33,33 +33,33 @@ export default function MatchCard({ match, location, href }: MatchCardProps) {
             className="flex items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 active:scale-[0.99] transition-transform hover:border-emerald-200 hover:shadow-md"
         >
             {/* DATE BOX */}
-            <div className="bg-slate-50 rounded-lg p-2 text-center w-[4.5rem] h-[4.5rem] shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center">
-                <span className="block text-[9px] text-emerald-700 font-black uppercase tracking-widest">
+            <div className="bg-slate-50 rounded-lg p-2 text-center w-20 h-20 shrink-0 mr-4 border border-slate-100 flex flex-col items-center justify-center">
+                <span className="block text-[11px] text-emerald-700 font-black uppercase tracking-widest">
                     {weekDay}
                 </span>
-                <span className="block text-xl font-black text-slate-800 leading-none mt-0.5">
+                <span className="block text-3xl font-black text-slate-800 leading-none mt-0.5">
                     {day}
                 </span>
-                <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">
+                <span className="block text-[11px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">
                     {month}
                 </span>
             </div>
 
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1 text-sm font-black text-slate-800">
-                    <Clock size={13} />
+                <div className="flex items-center gap-1 text-base font-black text-slate-800">
+                    <Clock size={14} />
                     {formatTime12h(match.time)}
                 </div>
-                <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                <p className="text-sm text-slate-500 font-medium mt-0.5 truncate">
                     {locationName}
                 </p>
-                <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
                     <span className="flex items-center gap-1">
-                        <Users size={11} />
+                        <Users size={13} />
                         {confirmedCount}/{match.maxPlayers}
                     </span>
                     <span className="flex items-center gap-1">
-                        <LandPlot size={11} />
+                        <LandPlot size={13} />
                         {matchFormat}
                     </span>
 
