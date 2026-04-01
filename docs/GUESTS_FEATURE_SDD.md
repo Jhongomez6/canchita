@@ -43,6 +43,7 @@ interface Guest {
 | 9 | El invitado participa en el balanceo de equipos | `guestToPlayer()` en `lib/domain/guest.ts` |
 | 10 | Si el partido está lleno, el invitado entra a Lista de Espera | Se almacena con `isWaitlist: true` y `confirmed: false` |
 | 11 | El jugador que invitó (o el admin) debe confirmar al invitado suplente para subirlo a la lista principal si se abre un cupo | Función `promoteGuestToMatch()` en `lib/guests.ts` |
+| 12 | El formulario de agregar invitado se **oculta** si `match.teamsConfirmed === true` | Guard `!match.teamsConfirmed` en `app/join/[id]/page.tsx` |
 
 ---
 

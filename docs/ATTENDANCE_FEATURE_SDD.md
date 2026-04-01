@@ -58,6 +58,7 @@ interface UserStats {
 | 5 | El registro se guarda en el documento del partido (`matches/{id}`) | `updateDoc` en `players` array |
 | 6 | Al cerrar el partido, se agregan estos contadores al perfil del usuario | `updatePlayerStats` en `lib/playerStats.ts` |
 | 7 | Un "No Show" NO cuenta como partido jugado para stats de W/L/D | Lógica en `updatePlayerStats` |
+| 8 | La card "Tu asistencia" se **oculta** en la vista del jugador si `match.teamsConfirmed === true` (equipos ya definidos) | Guard `!match.teamsConfirmed` en `app/join/[id]/page.tsx` |
 
 ---
 

@@ -566,8 +566,8 @@ export default function JoinMatchPage() {
           {/* TIMELINE DEL PARTIDO */}
           <MatchTimeline match={match} confirmedCount={confirmedCount} />
 
-          {/* CARD ASISTENCIA - Solo si partido abierto */}
-          {!isClosed && (
+          {/* CARD ASISTENCIA - Solo si partido abierto y equipos no definidos */}
+          {!isClosed && !match.teamsConfirmed && (
             <div className="bg-white rounded-2xl p-5 shadow-md border border-slate-100">
               <h3 className="font-bold text-slate-800 mb-4">Tu asistencia</h3>
 
@@ -715,8 +715,8 @@ export default function JoinMatchPage() {
             </div>
           )}
 
-          {/* AGREGAR INVITADO - Solo para jugadores confirmados Y si el partido lo permite */}
-          {!isClosed && existingPlayer?.confirmed && match.allowGuests !== false && (
+          {/* AGREGAR INVITADO - Solo para jugadores confirmados, si el partido lo permite y equipos no definidos */}
+          {!isClosed && !match.teamsConfirmed && existingPlayer?.confirmed && match.allowGuests !== false && (
             <AddGuestForm
               matchId={id}
               playerUid={user.uid}
@@ -807,7 +807,12 @@ export default function JoinMatchPage() {
                       <span className="text-red-500 opacity-60 text-xs">{match.teams.A.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
-                      {match.teams.A.map((p: Player, i: number) => {
+                      {[...match.teams.A].sort((a: Player, b: Player) => {
+                        const ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+                        const posA = ORDER[a.primaryPosition ?? a.positions?.[0] ?? "MID"] ?? 2;
+                        const posB = ORDER[b.primaryPosition ?? b.positions?.[0] ?? "MID"] ?? 2;
+                        return posA - posB;
+                      }).map((p: Player, i: number) => {
                         const targetId = p.uid || p.name;
                         const isMvp = currentMVPs.includes(targetId);
                         const votes = voteCounts[targetId] || 0;
@@ -849,7 +854,12 @@ export default function JoinMatchPage() {
                       <span className="text-blue-500 opacity-60 text-xs">{match.teams.B.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
-                      {match.teams.B.map((p: Player, i: number) => {
+                      {[...match.teams.B].sort((a: Player, b: Player) => {
+                        const ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+                        const posA = ORDER[a.primaryPosition ?? a.positions?.[0] ?? "MID"] ?? 2;
+                        const posB = ORDER[b.primaryPosition ?? b.positions?.[0] ?? "MID"] ?? 2;
+                        return posA - posB;
+                      }).map((p: Player, i: number) => {
                         const targetId = p.uid || p.name;
                         const isMvp = currentMVPs.includes(targetId);
                         const votes = voteCounts[targetId] || 0;
@@ -1089,7 +1099,12 @@ export default function JoinMatchPage() {
                       <span className="text-red-500 opacity-60 text-xs">{match.teams!.A.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
-                      {match.teams!.A.map((p: Player, i: number) => {
+                      {[...match.teams!.A].sort((a: Player, b: Player) => {
+                        const ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+                        const posA = ORDER[a.primaryPosition ?? a.positions?.[0] ?? "MID"] ?? 2;
+                        const posB = ORDER[b.primaryPosition ?? b.positions?.[0] ?? "MID"] ?? 2;
+                        return posA - posB;
+                      }).map((p: Player, i: number) => {
                         const fullPlayerA = match.players?.find((mp: Player) => mp.uid === p.uid);
                         const photoURL = p.photoURL || fullPlayerA?.photoURL;
                         const primaryPosition = p.primaryPosition || fullPlayerA?.primaryPosition;
@@ -1126,7 +1141,12 @@ export default function JoinMatchPage() {
                       <span className="text-blue-500 opacity-60 text-xs">{match.teams!.B.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
-                      {match.teams!.B.map((p: Player, i: number) => {
+                      {[...match.teams!.B].sort((a: Player, b: Player) => {
+                        const ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+                        const posA = ORDER[a.primaryPosition ?? a.positions?.[0] ?? "MID"] ?? 2;
+                        const posB = ORDER[b.primaryPosition ?? b.positions?.[0] ?? "MID"] ?? 2;
+                        return posA - posB;
+                      }).map((p: Player, i: number) => {
                         const fullPlayerB = match.players?.find((mp: Player) => mp.uid === p.uid);
                         const photoURL = p.photoURL || fullPlayerB?.photoURL;
                         const primaryPosition = p.primaryPosition || fullPlayerB?.primaryPosition;
