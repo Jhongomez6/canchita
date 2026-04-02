@@ -20,6 +20,8 @@ interface SettingsTabProps {
   onCopyInvitation: () => Promise<void>;
   getInvitationText: () => string;
   getInvitationTextTelegram: () => string;
+  onCopyReport: () => Promise<void>;
+  getReportText: () => string;
   onCloseMatch: () => Promise<void>;
   onReopenMatch: () => Promise<void>;
   onDeleteMatch: () => Promise<void>;
@@ -40,6 +42,8 @@ export default function SettingsTab({
   onCopyInvitation,
   getInvitationText,
   getInvitationTextTelegram,
+  onCopyReport,
+  getReportText,
   onCloseMatch,
   onReopenMatch,
   onDeleteMatch,
@@ -49,6 +53,8 @@ export default function SettingsTab({
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedInvitation, setCopiedInvitation] = useState(false);
   const [copyingInvitation, setCopyingInvitation] = useState(false);
+  const [copyingReport, setCopyingReport] = useState(false);
+  const [copiedReport, setCopiedReport] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isReopening, setIsReopening] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -153,45 +159,96 @@ export default function SettingsTab({
             </button>
           </div>
 
-          {/* Invitation sharing */}
+          {/* Invitation sharing / Report sharing */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
               <span className="text-lg">📲</span>
-              <p className="text-sm font-bold text-slate-700">Invitar jugadores</p>
+              <p className="text-sm font-bold text-slate-700">
+                {isClosed ? "Compartir reporte final" : "Invitar jugadores"}
+              </p>
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={handleCopyInvitation}
-                disabled={copyingInvitation}
-                className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${
-                  copiedInvitation
-                    ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
-                }`}
-              >
-                <span className="text-lg">{copiedInvitation ? "✅" : "📋"}</span>
-                {copiedInvitation ? "Copiado" : "Copiar"}
-              </button>
-              <button
-                onClick={() => {
-                  const text = getInvitationText();
-                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-                }}
-                className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
-              >
-                <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
-                WhatsApp
-              </button>
-              <button
-                onClick={() => {
-                  const text = getInvitationTextTelegram();
-                  window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
-                }}
-                className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
-              >
-                <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
-                Telegram
-              </button>
+              {isClosed ? (
+                <>
+                  <button
+                    disabled={copyingReport}
+                    onClick={async () => {
+                      setCopyingReport(true);
+                      setCopiedReport(false);
+                      try {
+                        await onCopyReport();
+                        setCopiedReport(true);
+                        setTimeout(() => setCopiedReport(false), 2000);
+                      } finally {
+                        setCopyingReport(false);
+                      }
+                    }}
+                    className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 disabled:opacity-50 ${
+                      copiedReport
+                        ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
+                    }`}
+                  >
+                    <span className="text-lg">{copyingReport ? "⏳" : copiedReport ? "✅" : "📋"}</span>
+                    {copiedReport ? "Copiado" : "Copiar"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const text = getReportText();
+                      if (text) window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
+                  >
+                    <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
+                    WhatsApp
+                  </button>
+                  <button
+                    onClick={() => {
+                      const text = getReportText();
+                      if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
+                  >
+                    <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
+                    Telegram
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleCopyInvitation}
+                    disabled={copyingInvitation}
+                    className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${
+                      copiedInvitation
+                        ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
+                    }`}
+                  >
+                    <span className="text-lg">{copiedInvitation ? "✅" : "📋"}</span>
+                    {copiedInvitation ? "Copiado" : "Copiar"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const text = getInvitationText();
+                      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
+                  >
+                    <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
+                    WhatsApp
+                  </button>
+                  <button
+                    onClick={() => {
+                      const text = getInvitationTextTelegram();
+                      window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
+                  >
+                    <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
+                    Telegram
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

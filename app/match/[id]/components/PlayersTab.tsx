@@ -277,7 +277,7 @@ export default function PlayersTab({
               </div>
 
               {/* Manual guest */}
-              <div className="border-t border-slate-100 pt-4">
+              {match.allowGuests !== false && <div className="border-t border-slate-100 pt-4">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">
                   Invitado Manual
                 </h4>
@@ -340,7 +340,7 @@ export default function PlayersTab({
                     Agregar Invitado Manual
                   </button>
                 </div>
-              </div>
+              </div>}
             </div>
           )}
         </div>

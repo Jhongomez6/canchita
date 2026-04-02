@@ -396,10 +396,10 @@ export default function MatchDetailPage() {
     toast("Cambios descartados", { icon: "↩️" });
   }
 
-  async function generateWhatsAppReport() {
+  function buildReportText(): string {
     const teamA = balanced?.teamA.players ?? match?.teams?.A ?? [];
     const teamB = balanced?.teamB.players ?? match?.teams?.B ?? [];
-    if (teamA.length === 0 && teamB.length === 0) return;
+    if (teamA.length === 0 && teamB.length === 0) return "";
 
     const sA = match?.score?.A ?? 0;
     const sB = match?.score?.B ?? 0;
@@ -429,6 +429,12 @@ export default function MatchDetailPage() {
       }
     }
 
+    return text;
+  }
+
+  async function generateWhatsAppReport() {
+    const text = buildReportText();
+    if (!text) return;
     await navigator.clipboard.writeText(text);
   }
 
@@ -592,7 +598,7 @@ export default function MatchDetailPage() {
 
   async function handleAddManualPlayer(
     name: string,
-    level: number,
+    _level: number,
     positions: string[]
   ) {
     await addGuestToMatch(id, user!.uid, {
@@ -721,12 +727,18 @@ export default function MatchDetailPage() {
               scoreA={scoreA}
               scoreB={scoreB}
               hasTeamsSaved={Boolean(match.teams)}
+              hasUnsavedScore={scoreA !== (match.score?.A ?? 0) || scoreB !== (match.score?.B ?? 0)}
               teamsConfirmed={match.teamsConfirmed ?? false}
               onBalance={handleBalance}
               onDragEnd={handleDragEnd}
               onSaveAll={handleSaveAll}
               onDiscardChanges={handleDiscardChanges}
+              onDiscardScore={() => {
+                setScoreA(match.score?.A ?? 0);
+                setScoreB(match.score?.B ?? 0);
+              }}
               onCopyReport={generateWhatsAppReport}
+              onGetReportText={buildReportText}
               onConfirmTeams={async () => {
                 try {
                   await confirmTeams(id);
@@ -789,6 +801,8 @@ export default function MatchDetailPage() {
                   `(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)\n`
                 );
               }}
+              onCopyReport={generateWhatsAppReport}
+              getReportText={buildReportText}
               onCloseMatch={handleCloseMatch}
               onReopenMatch={async () => reopenMatch(id)}
               onDeleteMatch={handleDeleteMatchAction}

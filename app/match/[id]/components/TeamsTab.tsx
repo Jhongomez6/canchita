@@ -27,13 +27,16 @@ interface TeamsTabProps {
   scoreA: number;
   scoreB: number;
   hasTeamsSaved: boolean;
+  hasUnsavedScore: boolean;
   teamsConfirmed: boolean;
   // Actions
   onBalance: () => void;
   onDragEnd: (event: DragEndEvent) => void;
   onSaveAll: (scoreA: number, scoreB: number) => Promise<void>;
   onDiscardChanges: () => void;
+  onDiscardScore: () => void;
   onCopyReport: () => Promise<void>;
+  onGetReportText: () => string;
   onConfirmTeams: () => Promise<void>;
   onScoreAChange: (score: number) => void;
   onScoreBChange: (score: number) => void;
@@ -52,12 +55,15 @@ export default function TeamsTab({
   scoreA,
   scoreB,
   hasTeamsSaved,
+  hasUnsavedScore,
   teamsConfirmed,
   onBalance,
   onDragEnd,
   onSaveAll,
   onDiscardChanges,
+  onDiscardScore,
   onCopyReport,
+  onGetReportText,
   onConfirmTeams,
   onScoreAChange,
   onScoreBChange,
@@ -154,38 +160,77 @@ export default function TeamsTab({
 
   return (
     <div role="tabpanel" id="panel-teams" className="space-y-4 animate-in fade-in duration-200">
-      {/* Balance summary header */}
-      <button
-        onClick={() => setShowPositionGrid(!showPositionGrid)}
-        className="w-full bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex items-center justify-between"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-lg">⚖️</span>
-          <div className="text-left">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Diferencia de nivel
+      {/* Balance summary header + share buttons */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3">
+        <button
+          onClick={() => setShowPositionGrid(!showPositionGrid)}
+          className="w-full flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg">⚖️</span>
+            <div className="text-left">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Diferencia de nivel
+              </div>
+              <div className="text-xl font-black text-slate-800">{diffLevel} pts</div>
             </div>
-            <div className="text-xl font-black text-slate-800">{diffLevel} pts</div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {isOwner && !isClosed && (
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onBalance();
-              }}
-              className="text-xs font-bold px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
-            >
-              Re-balancear
+          <div className="flex items-center gap-2">
+            {isOwner && !isClosed && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBalance();
+                }}
+                className="text-xs font-bold px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
+              >
+                Re-balancear
+              </span>
+            )}
+            <span className={`text-slate-400 text-xs transition-transform ${showPositionGrid ? "rotate-180" : ""}`}>
+              ▾
             </span>
-          )}
-          <span className={`text-slate-400 text-xs transition-transform ${showPositionGrid ? "rotate-180" : ""}`}>
-            ▾
-          </span>
-        </div>
-      </button>
+          </div>
+        </button>
+
+        {hasTeamsSaved && (
+          <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100">
+            <button
+              disabled={copyingReport}
+              onClick={handleCopyReport}
+              className={`py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border transition-colors disabled:opacity-50 ${
+                copiedReport
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <span>{copyingReport ? "⏳" : copiedReport ? "✅" : "📋"}</span>
+              <span>{copiedReport ? "Copiado" : "Copiar"}</span>
+            </button>
+            <button
+              onClick={() => {
+                const text = onGetReportText();
+                if (text) window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+              }}
+              className="py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border bg-green-50 border-green-200 text-green-600 hover:bg-green-100 transition-colors"
+            >
+              <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
+              <span>WhatsApp</span>
+            </button>
+            <button
+              onClick={() => {
+                const text = onGetReportText();
+                if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
+              }}
+              className="py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors"
+            >
+              <img src="/icons/telegram.svg" alt="Telegram" className="w-4 h-4" />
+              <span>Telegram</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Collapsible position grid */}
       {showPositionGrid && (
@@ -219,6 +264,13 @@ export default function TeamsTab({
         </div>
       )}
 
+      {/* Drag hint */}
+      {isOwner && !isClosed && !hasUnsavedBalance && (
+        <p className="text-center text-[11px] text-slate-400 font-medium">
+          ✋ Mantén presionado y arrastra un jugador para moverlo entre equipos
+        </p>
+      )}
+
       {/* Teams — side by side */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="grid grid-cols-2 gap-2">
@@ -245,13 +297,6 @@ export default function TeamsTab({
         </div>
       </DndContext>
 
-      {/* Unsaved changes warning */}
-      {hasUnsavedBalance && (
-        <div className="text-center text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 p-2 rounded-lg animate-in fade-in slide-in-from-top-1">
-          ⚠️ Has movido jugadores y no has guardado.
-        </div>
-      )}
-
       {/* Score input (inline) */}
       {isOwner && (
         <ScoreInput
@@ -269,44 +314,35 @@ export default function TeamsTab({
         </div>
       )}
 
-      {/* Action buttons */}
-      {isOwner && !isClosed && (
-        <div className="flex gap-2">
+      {/* Unsaved warning + save actions */}
+      {isOwner && !isClosed && (hasUnsavedBalance || hasUnsavedScore || !hasTeamsSaved) && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg animate-in fade-in slide-in-from-top-1">
+          <span className="text-xs font-bold text-amber-600 flex-1">
+            {saved ? "✅ Guardado" : "⚠️ Tienes cambios sin guardar"}
+          </span>
+          {(hasUnsavedBalance || hasUnsavedScore) && (
+            <button
+              onClick={() => {
+                if (hasUnsavedBalance) onDiscardChanges();
+                if (hasUnsavedScore) onDiscardScore();
+              }}
+              className="text-xs font-bold px-2.5 py-1.5 bg-white border border-slate-200 text-slate-500 hover:text-red-500 hover:border-red-200 hover:bg-red-50 rounded-lg transition-colors"
+              title="Descartar cambios"
+            >
+              ↩️ Deshacer
+            </button>
+          )}
           <button
             disabled={saving}
             onClick={handleSaveAll}
-            className={`flex-1 py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${
-              saved
-                ? "bg-[#16a34a]"
-                : saving
-                  ? "bg-slate-400 cursor-not-allowed shadow-none"
-                  : hasUnsavedBalance
-                    ? "bg-amber-500 hover:bg-amber-600 animate-pulse border-2 border-amber-600 shadow-amber-500/30"
-                    : "bg-[#1f7a4f] hover:bg-[#16603c]"
-            }`}
+            className="text-xs font-bold px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50"
           >
-            {saving
-              ? "⏳ Guardando..."
-              : saved
-                ? "✅ Guardado"
-                : hasUnsavedBalance
-                  ? "⚠️ Guardar cambios"
-                  : "💾 Guardar todo"}
+            {saving ? "⏳ Guardando..." : "💾 Guardar"}
           </button>
-
-          {hasUnsavedBalance && (
-            <button
-              onClick={onDiscardChanges}
-              className="px-4 py-3 bg-slate-100 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl font-bold transition-colors shadow-sm"
-              title="Descartar cambios"
-            >
-              ↩️
-            </button>
-          )}
         </div>
       )}
 
-      {/* Confirm teams (publish to players) */}
+      {/* Confirm teams (publish to players) — above score */}
       {isOwner && !isClosed && balanced && !hasUnsavedBalance && !teamsConfirmed && (
         <button
           disabled={confirming}
@@ -336,28 +372,7 @@ export default function TeamsTab({
         </div>
       )}
 
-      {/* WhatsApp report */}
-      {hasTeamsSaved && (
-        <button
-          disabled={copyingReport}
-          onClick={handleCopyReport}
-          className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${
-            copiedReport
-              ? "bg-[#16a34a]"
-              : copyingReport
-                ? "bg-slate-400 cursor-not-allowed"
-                : "bg-[#25D366] hover:bg-[#20bd5a]"
-          }`}
-        >
-          {copyingReport
-            ? "⏳ Copiando reporte..."
-            : copiedReport
-              ? "✅ Reporte copiado"
-              : isClosed
-                ? "📲 Copiar reporte final"
-                : "📲 Copiar equipos balanceados"}
-        </button>
-      )}
+
     </div>
   );
 }
