@@ -482,8 +482,8 @@ export default function MatchDetailPage() {
       if (!snap.exists()) return;
       const freshMatch = snap.data() as Match;
 
-      if (freshMatch.statsProcessed) {
-        toast.error("Las estadísticas ya fueron procesadas para este partido.");
+      if (freshMatch.status === "closed") {
+        toast.error("Este partido ya está cerrado.");
         return;
       }
 
