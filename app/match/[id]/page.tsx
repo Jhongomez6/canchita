@@ -411,9 +411,9 @@ export default function MatchDetailPage() {
     text += `📅 ${formatDateSpanish(match?.date || "")}\n`;
     text += `⏰ ${formatTime12h(match?.time || "")}${match?.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n\n`;
     text += `🔴 *Equipo A*\n`;
-    teamA.forEach((p: Player) => { text += `• ${p.name} \n`; });
+    teamA.forEach((p: Player, i: number) => { text += `${i + 1}. ${p.name} \n`; });
     text += `\n🔵 *Equipo B*\n`;
-    teamB.forEach((p: Player) => { text += `• ${p.name} \n`; });
+    teamB.forEach((p: Player, i: number) => { text += `${i + 1}. ${p.name} \n`; });
 
     if (match?.status === "closed") {
       text += `\n🏆 *Resultado Final*\n`;

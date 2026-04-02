@@ -71,6 +71,7 @@ interface Player {
 | 13 | Al desconfirmar asistencia, el jugador se remueve también de los equipos balanceados | `unconfirmAttendance()` filtra `match.teams.A/B` además de `match.players` |
 | 14 | `getMyMatches()` retorna partidos donde el usuario es jugador O creador | Doble query en paralelo: `playerUids array-contains` + `createdBy ==`, merge y deduplicación |
 | 15 | La duración del partido es obligatoria al crear y debe ser tramos de 30 min (30-180) | `MatchDuration` type + validación en `validateMatchCreation()` |
+| 16 | Los reportes de equipos usan numeración (1, 2, 3...) en lugar de viñetas para facilitar el conteo visual | `buildReportText()` en `page.tsx` y `buildWhatsAppReport()` en `matchReport.ts` |
 
 ---
 

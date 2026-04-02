@@ -33,8 +33,8 @@ export function buildWhatsAppReport(match: ReportMatchData): string {
   const scoreA = match.score?.A ?? 0;
   const scoreB = match.score?.B ?? 0;
 
-  const teamAList = A.map((p: Player) => `• ${p.name}`).join("\n");
-  const teamBList = B.map((p: Player) => `• ${p.name}`).join("\n");
+  const teamAList = A.map((p: Player, i: number) => `${i + 1}. ${p.name}`).join("\n");
+  const teamBList = B.map((p: Player, i: number) => `${i + 1}. ${p.name}`).join("\n");
 
   return `
 ⚽ *RESULTADO DEL PARTIDO*
