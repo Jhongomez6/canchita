@@ -83,6 +83,7 @@ export default function TeamColumn({
                   .join("/")}`}
                 isMvp={isMvp}
                 votes={votes}
+                disabled={isClosed}
               />
             );
           })}

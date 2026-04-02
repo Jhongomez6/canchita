@@ -205,7 +205,7 @@ export default function SettingsTab({
                   <button
                     onClick={() => {
                       const text = getReportText();
-                      if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
+                      if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text.replace(/\*/g, ""))}`, "_blank");
                     }}
                     className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
                   >

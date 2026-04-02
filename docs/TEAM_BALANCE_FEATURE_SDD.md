@@ -40,6 +40,7 @@ interface BalanceResult {
 | 13 | Los objetos de jugador guardados en `match.teams.A/B` deben incluir `photoURL` y `primaryPosition` para que la vista cerrada del join pueda mostrar avatares e iconos de posición correctos | `handleBalance()` en `app/match/[id]/page.tsx` |
 | 14 | En la vista cerrada (`/join/[id]`), si un jugador en `match.teams` no tiene `photoURL` o `primaryPosition`, se hace fallback a `match.players` buscando por `uid` | Display lógic en `app/join/[id]/page.tsx` |
 | 15 | Al agregar o confirmar un jugador cuando los equipos ya están balanceados, se le asigna automáticamente al equipo con menos jugadores | `assignToSmallestTeam()` en `lib/matches.ts`, invocado desde `joinMatch`, `confirmAttendance`, `addPlayerToMatch`, `approveFromWaitlist` |
+| 16 | El drag-and-drop se deshabilita al cerrar el partido (`isClosed`) para prevenir ediciones después de cerrado | `disabled={isClosed}` en `PlayerItem.tsx` y `useSortable` |
 
 ---
 
@@ -205,6 +206,11 @@ const summaryA = getTeamSummary(balanced.teamA.players);
 **When** un jugador se une, confirma, es agregado por el admin o aprobado desde lista de espera
 **Then** el jugador queda asignado automáticamente al equipo con menos jugadores (sin necesidad de re-balancear)
 
+### ✅ Criterio 10 (NUEVO)
+**Given** un partido en estado cerrado (`isClosed = true`)
+**When** un administrador visualiza los equipos en la vista de control
+**Then** el drag-and-drop se encuentra deshabilitado para las cartas de jugadores y no se muestra el cursor de reordenamiento
+
 ---
 
 ## 5. ARCHIVOS INVOLUCRADOS
@@ -236,4 +242,5 @@ const summaryA = getTeamSummary(balanced.teamA.players);
 ✅ **`photoURL` y `primaryPosition` preservados** en `match.teams.A/B` desde `handleBalance()`
 ✅ **Fallback en vista cerrada** — `/join/[id]` busca en `match.players` si el objeto del team no tiene estos campos (compatibilidad con partidos guardados antes del fix)
 ✅ **Auto-asignación post-balanceo** — nuevos jugadores (join, confirm, addPlayer, approveFromWaitlist) se agregan al equipo más pequeño cuando `match.teams` ya existe
+✅ **Drag-and-drop deshabilitado post-cierre** — para prevenir desajustes después de que un partido sea declarado cerrado y estadísticas emitidas
 

@@ -12,9 +12,10 @@ interface PlayerItemProps {
   details: string;
   isMvp?: boolean;
   votes?: number;
+  disabled?: boolean;
 }
 
-export default function PlayerItem({ id, name, photoURL, details, isMvp, votes }: PlayerItemProps) {
+export default function PlayerItem({ id, name, photoURL, details, isMvp, votes, disabled }: PlayerItemProps) {
   const {
     attributes,
     listeners,
@@ -22,7 +23,7 @@ export default function PlayerItem({ id, name, photoURL, details, isMvp, votes }
     transform,
     transition,
     isDragging
-  } = useSortable({ id });
+  } = useSortable({ id, disabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -37,7 +38,7 @@ export default function PlayerItem({ id, name, photoURL, details, isMvp, votes }
       style={style}
       {...attributes}
       {...listeners}
-      className={`p-3 bg-white border rounded-lg shadow-sm flex justify-between items-center cursor-grab active:cursor-grabbing hover:border-slate-300 transition-colors ${isDragging ? "ring-2 ring-emerald-500 rotate-2" : "border-slate-200"} ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border-amber-200 ring-1 ring-amber-100" : ""}`}
+      className={`p-3 bg-white border rounded-lg shadow-sm flex justify-between items-center ${disabled ? "cursor-default" : "cursor-grab active:cursor-grabbing hover:border-slate-300 transition-colors"} ${isDragging ? "ring-2 ring-emerald-500 rotate-2" : "border-slate-200"} ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border-amber-200 ring-1 ring-amber-100" : ""}`}
     >
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">

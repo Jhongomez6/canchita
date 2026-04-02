@@ -126,11 +126,10 @@ export default function TeamsTab({
             <button
               disabled={confirmedCount < 4}
               onClick={onBalance}
-              className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${
-                confirmedCount < 4
+              className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${confirmedCount < 4
                   ? "bg-slate-300 cursor-not-allowed shadow-none"
                   : "bg-[#16a34a] hover:bg-[#15803d]"
-              }`}
+                }`}
             >
               {balancing ? "⏳ Balanceando..." : "⚖️ Generar equipos"}
             </button>
@@ -199,11 +198,10 @@ export default function TeamsTab({
             <button
               disabled={copyingReport}
               onClick={handleCopyReport}
-              className={`py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border transition-colors disabled:opacity-50 ${
-                copiedReport
+              className={`py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border transition-colors disabled:opacity-50 ${copiedReport
                   ? "bg-emerald-50 border-emerald-200 text-emerald-600"
                   : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-              }`}
+                }`}
             >
               <span>{copyingReport ? "⏳" : copiedReport ? "✅" : "📋"}</span>
               <span>{copiedReport ? "Copiado" : "Copiar"}</span>
@@ -221,7 +219,7 @@ export default function TeamsTab({
             <button
               onClick={() => {
                 const text = onGetReportText();
-                if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
+                if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text.replace(/\*/g, ""))}`, "_blank");
               }}
               className="py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors"
             >
@@ -355,11 +353,10 @@ export default function TeamsTab({
               setConfirming(false);
             }
           }}
-          className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${
-            confirming
+          className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${confirming
               ? "bg-slate-400 cursor-not-allowed shadow-none"
               : "bg-emerald-600 hover:bg-emerald-700"
-          }`}
+            }`}
         >
           {confirming ? "⏳ Publicando..." : "✅ Confirmar y publicar equipos"}
         </button>
