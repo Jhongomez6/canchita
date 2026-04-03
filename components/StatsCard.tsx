@@ -1,3 +1,4 @@
+import { calcCommitmentScore } from "@/lib/domain/user";
 import type { UserStats } from "@/lib/domain/user";
 
 interface StatsCardProps {
@@ -13,6 +14,8 @@ const StatItem = ({ label, value, colorClass }: { label: string, value: number, 
 );
 
 export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
+    const commitmentScore = calcCommitmentScore(stats);
+
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
             <div className="flex items-center gap-2 mb-4">
@@ -28,7 +31,8 @@ export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
                         <div className="mb-1"><span className="font-bold text-emerald-400">PG:</span> Partidos Ganados</div>
                         <div className="mb-1"><span className="font-bold text-amber-300">PE:</span> Partidos Empatados</div>
                         <div className="mb-1"><span className="font-bold text-red-400">PP:</span> Partidos Perdidos</div>
-                        <div><span className="font-bold text-yellow-300">MVP:</span> Premios MVP</div>
+                        <div className="mb-1"><span className="font-bold text-yellow-300">MVP:</span> Premios MVP</div>
+                        <div><span className="font-bold text-blue-400">COM:</span> Compromiso (0–99)</div>
                         <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
                     </div>
                 </div>
@@ -39,6 +43,7 @@ export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
                 <StatItem label="PE" value={stats.draw || 0} colorClass="text-amber-500" />
                 <StatItem label="PP" value={stats.lost || 0} colorClass="text-red-500" />
                 <StatItem label="🏆 MVP" value={mvpAwards || 0} colorClass="text-yellow-500" />
+                <StatItem label="COM" value={commitmentScore} colorClass="text-blue-600" />
             </div>
         </div>
     );

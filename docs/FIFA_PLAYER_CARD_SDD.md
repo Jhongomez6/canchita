@@ -59,7 +59,7 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
    **TEC recibe bonos adicionales por trayectoria (cap 99):**
    - `hasSchool = true` → +3
    - `hasTournaments = true` → +5
-5. **COM (Compromiso):** `Math.max(0, 99 - (noShows * 20) - (lateArrivals * 5))`. Misma fórmula que la página de perfil.
+5. **COM (Compromiso):** `Math.max(0, Math.min(99, 99 - noShows×20 - lateArrivals×6 + played))`. Computado en display — no se almacena en Firestore. El `+played` da recuperación (+1 por partido puntual). Los late arrivals no recuperan (neto 0). Los no-shows no incrementan `played`. Misma fórmula que `StatsCard`.
 6. **MVP:** Campo `mvpAwards` en la raíz del documento `users/{uid}`. Incrementado por la Cloud Function `sendMvpWinnerNotification` al cerrar la votación.
 7. **Pie dominante:** Pill sobresaliendo del borde derecho inferior (🦶 + IZQ/DER/AMB).
 8. **Posiciones alternas:** Solo posiciones distintas a `primaryPosition`, como pills en el borde derecho superior con emoji + abreviación.

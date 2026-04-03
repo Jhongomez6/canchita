@@ -82,6 +82,25 @@ export interface UserStats {
 // ========================
 
 /**
+ * Calcula el Commitment Score (COM) en display a partir de las stats del jugador.
+ *
+ * Fórmula: Math.max(0, Math.min(99, 99 - noShows×20 - lateArrivals×6 + played))
+ *
+ * - Base: 99 puntos
+ * - No-show: -20 (no recupera)
+ * - Late arrival: -6 netos (-5 penalización + no aporta el +1 de recuperación)
+ * - Presente a tiempo: +1 recuperación (played excluye no-shows)
+ *
+ * No se almacena en Firestore — siempre computado desde noShows, lateArrivals y played.
+ */
+export function calcCommitmentScore(stats: Pick<UserStats, "noShows" | "lateArrivals" | "played">): number {
+    const noShows = stats.noShows ?? 0;
+    const lateArrivals = stats.lateArrivals ?? 0;
+    const played = stats.played ?? 0;
+    return Math.max(0, Math.min(99, 99 - noShows * 20 - lateArrivals * 6 + played));
+}
+
+/**
  * Verifica si un perfil tiene rol de admin (cualquier tier).
  */
 export function isAdmin(profile: UserProfile): boolean {

@@ -549,16 +549,25 @@ export default function MatchDetailPage() {
         finalReport: report,
       };
 
-      // First batch: Team A stats + match document update (atomic)
+      // Jugadores que cancelaron (solo en match.players, sin equipo) marcados como no-show
+      const teamUids = new Set([
+        ...teamA.map((p: Player) => p.uid).filter(Boolean),
+        ...teamB.map((p: Player) => p.uid).filter(Boolean),
+      ]);
+      const pendingNoShows = (freshMatch.players || []).filter(
+        (p: Player) => p.uid && !teamUids.has(p.uid) && p.attendance === "no_show"
+      );
+
+      // First batch: Team A stats + pending no-shows + match document update (atomic)
       // Second batch: Team B stats (atomic)
       if (scoreA > scoreB) {
-        await updatePlayerStats(teamAWithAttendance, "win", id, previousResultA, matchData);
+        await updatePlayerStats(teamAWithAttendance, "win", id, previousResultA, matchData, pendingNoShows);
         await updatePlayerStats(teamBWithAttendance, "loss", id, previousResultB);
       } else if (scoreB > scoreA) {
-        await updatePlayerStats(teamAWithAttendance, "loss", id, previousResultA, matchData);
+        await updatePlayerStats(teamAWithAttendance, "loss", id, previousResultA, matchData, pendingNoShows);
         await updatePlayerStats(teamBWithAttendance, "win", id, previousResultB);
       } else {
-        await updatePlayerStats(teamAWithAttendance, "draw", id, previousResultA, matchData);
+        await updatePlayerStats(teamAWithAttendance, "draw", id, previousResultA, matchData, pendingNoShows);
         await updatePlayerStats(teamBWithAttendance, "draw", id, previousResultB);
       }
 

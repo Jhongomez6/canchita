@@ -1,5 +1,6 @@
 "use client";
 
+import { calcCommitmentScore } from "@/lib/domain/user";
 import type { UserProfile } from "@/lib/domain/user";
 import type { Position } from "@/lib/domain/player";
 import { POSITION_ICONS } from "@/lib/domain/player";
@@ -37,10 +38,7 @@ const SKILL_TO_FIFA: Record<number, number> = {
 // ========================
 
 function getCommitmentDisplay(profile: UserProfile): number {
-  const lateArrivals = profile.stats?.lateArrivals ?? 0;
-  const noShows = profile.stats?.noShows ?? 0;
-  const penalty = (noShows * 20) + (lateArrivals * 5);
-  return Math.max(0, 99 - penalty);
+  return calcCommitmentScore(profile.stats ?? { played: 0, won: 0, lost: 0, draw: 0 });
 }
 
 function getCommitmentTier(com: number): { label: string; icon: string; color: string } {

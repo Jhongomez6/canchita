@@ -39,12 +39,24 @@ interface UserStats {
   commitmentScore?: number; // Métrica calculada (0-100) - "Compromiso"
 }
 
-// Cálculo de Commitment Score
-// Base: 100 puntos
-// Penalización No-Show: -20 puntos
-// Penalización Late: -5 puntos
-// Mínimo: 0 puntos
-// Recuperación: +1 punto por partido "Presente" (TBD)
+// Cálculo de Commitment Score (computado en display, no almacenado)
+// Fórmula: Math.max(0, Math.min(99, 99 - noShows×20 - lateArrivals×6 + played))
+//
+// Desglose:
+//   Base:              99 puntos
+//   No-Show:          -20 puntos (no suma recuperación)
+//   Late Arrival:      -6 puntos netos (-5 penalización + no aporta +1 de recuperación)
+//   Presente a tiempo: +1 punto de recuperación (solo partidos donde attended = "present")
+//
+// Nota: `played` ya excluye no-shows (el código no incrementa `played` para no-shows).
+// El late arrival no aporta recuperación porque la fórmula usa `played` (que incluye
+// late) y le resta lateArrivals, resultando en +0 de recuperación para lates.
+//
+// Ejemplos:
+//   Nuevo jugador (0 partidos):           99
+//   1 no-show, sin jugar más:             79
+//   1 no-show + 20 presentes:             99 (recuperado)
+//   Veterano 50 partidos, 1 no-show:      99 (colchón natural)
 ```
 
 ### Reglas de Negocio

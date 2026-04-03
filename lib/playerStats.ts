@@ -18,15 +18,7 @@ import { db } from "./firebase";
 import type { Player } from "./domain/player";
 import type { MatchResult } from "./domain/match";
 
-/**
- * Actualiza las estadísticas de un grupo de jugadores atómicamente.
- *
- * Si hay un resultado previo, combina la reversión y las nuevas stats
- * en un solo delta neto por jugador dentro del mismo batch.
- *
- * También incluye el update del match (score, statsProcessed, etc.)
- * para garantizar consistencia total.
- */
+
 export async function updatePlayerStats(
   players: Player[],
   result: MatchResult,
@@ -37,7 +29,8 @@ export async function updatePlayerStats(
     score: { A: number; B: number };
     previousScore: { A: number; B: number };
     finalReport: string;
-  }
+  },
+  pendingNoShows?: Player[]
 ) {
   const batch = writeBatch(db);
 
@@ -85,6 +78,7 @@ export async function updatePlayerStats(
           statsUpdate.lateArrivals = increment(1);
         }
       }
+
     } else {
       // No reversion needed — fresh stats
       if (isNoShow) {
@@ -99,9 +93,26 @@ export async function updatePlayerStats(
           statsUpdate.lateArrivals = increment(1);
         }
       }
+
     }
 
     batch.set(userRef, { stats: statsUpdate }, { merge: true });
+  }
+
+  // Pending no-shows: jugadores sin equipo marcados manualmente como no-show.
+  // Se procesan en el mismo batch que statsProcessed: true para garantizar atomicidad.
+  if (matchData && pendingNoShows) {
+    for (const player of pendingNoShows) {
+      if (!player.uid || player.uid.startsWith("guest_")) continue;
+      if (player.attendance !== "no_show") continue;
+
+      const userRef = doc(db, "users", player.uid);
+      batch.set(
+        userRef,
+        { stats: { noShows: increment(1) } },
+        { merge: true }
+      );
+    }
   }
 
   await batch.commit();
