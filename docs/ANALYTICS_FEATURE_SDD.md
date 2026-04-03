@@ -43,6 +43,7 @@ Firebase Analytics trackea automáticamente:
 | `mvp_voted` | Jugador vota por MVP | `match_id` | P6: Engagement |
 | `stats_viewed` | Ve su card/stats de jugador | — | P6: Engagement |
 | `player_card_viewed` | Abre la card de otro jugador | — | P6: Engagement |
+| `organizer_contacted` | Jugador contacta organizador por WhatsApp | `match_id` | P6: Engagement |
 
 ### User Properties (Segmentación)
 
@@ -107,6 +108,7 @@ Llamadas de 1 línea en los puntos de acción:
 | `app/match/[id]/page.tsx` | `match_invitation_copied` |
 | `app/profile/page.tsx` | `stats_viewed` |
 | `components/PlayerCardDrawer.tsx` | `player_card_viewed` |
+| `app/join/[id]/page.tsx` | `organizer_contacted` |
 | `lib/firebase-messaging.ts` | `push_enabled` |
 | `app/page.tsx` | `push_prompt_dismissed` |
 

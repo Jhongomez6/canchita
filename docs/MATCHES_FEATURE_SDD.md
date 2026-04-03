@@ -72,6 +72,7 @@ interface Player {
 | 14 | `getMyMatches()` retorna partidos donde el usuario es jugador O creador | Doble query en paralelo: `playerUids array-contains` + `createdBy ==`, merge y deduplicación |
 | 15 | La duración del partido es obligatoria al crear y debe ser tramos de 30 min (30-180) | `MatchDuration` type + validación en `validateMatchCreation()` |
 | 16 | Los reportes de equipos usan numeración (1, 2, 3...) en lugar de viñetas para facilitar el conteo visual | `buildReportText()` en `page.tsx` y `buildWhatsAppReport()` en `matchReport.ts` |
+| 17 | En la página join, el organizador muestra botón WhatsApp si tiene teléfono registrado | Botón aparece solo si no es el propio usuario; enlace pre-llena mensaje con fecha, hora y código |
 
 ---
 
@@ -360,6 +361,13 @@ const isEnrolled = match.players.some(
   (p: Player) => p.uid === user.uid || p.name === playerName
 );
 ```
+
+#### Contacto con Organizador
+La página de join muestra:
+- Nombre del organizador (`match.creatorSnapshot.name`)
+- Botón "Escribir" (WhatsApp) si el organizador tiene teléfono registrado y el usuario no es el organizador
+- El botón pre-llena un mensaje con: *"Hola! Te escribo por el partido del [fecha] a las [hora], código [id]"*
+- Se registra evento `organizer_contacted` en analytics cuando se hace click
 
 ---
 

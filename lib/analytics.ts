@@ -171,3 +171,7 @@ export async function logStatsViewed() {
 export async function logPlayerCardViewed() {
   await trackEvent("player_card_viewed");
 }
+
+export async function logOrganizerContacted(matchId: string) {
+  await trackEvent("organizer_contacted", { match_id: matchId });
+}
