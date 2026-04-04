@@ -386,6 +386,9 @@ export default function JoinMatchPage() {
   const guestCount = match.guests?.filter((g: Guest) => !g.isWaitlist).length ?? 0;
   const confirmedCount = match.players.filter((p: Player) => p.confirmed).length + guestCount;
   const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
+  const hasWaitlist =
+    (match.players?.some((p: Player) => p.isWaitlist && !p.confirmed) || false) ||
+    (match.guests?.some((g: Guest) => g.isWaitlist && !g.confirmed) || false);
 
   const existingPlayer = match.players?.find(
     (p: Player) => p.uid === user.uid || p.name === playerName
@@ -601,6 +604,13 @@ export default function JoinMatchPage() {
                 </div>
               )}
 
+              {/* ── Estado: Hay lista de espera activa, usuario no registrado ── */}
+              {!isFull && hasWaitlist && !existingPlayer && (
+                <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 text-amber-700 text-sm font-semibold text-center">
+                  ⏳ Hay jugadores en lista de espera — anotate como suplente
+                </div>
+              )}
+
               {/* ── Estado: Perdiste tu lugar ── */}
               {isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
                 <div className="px-4 py-3 bg-red-50 border-b border-red-100 text-red-600 text-sm font-semibold text-center">
@@ -609,7 +619,7 @@ export default function JoinMatchPage() {
               )}
 
               {/* ── CTA: Ingresar como Suplente ── */}
-              {isFull && (!existingPlayer || (!existingPlayer.confirmed && !existingPlayer.isWaitlist)) && (
+              {(isFull || hasWaitlist) && (!existingPlayer || (!existingPlayer.confirmed && !existingPlayer.isWaitlist)) && (
                 <button
                   disabled={submitting}
                   onClick={() => {
@@ -629,7 +639,7 @@ export default function JoinMatchPage() {
               )}
 
               {/* ── CTA: Confirmar asistencia (primera vez) ── */}
-              {!isFull && !existingPlayer && (
+              {!isFull && !hasWaitlist && !existingPlayer && (
                 <button
                   disabled={submitting}
                   onClick={() => {
