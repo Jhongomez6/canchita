@@ -7,12 +7,13 @@ import type { AppNotification } from "@/lib/domain/notification";
 import { useRouter } from "next/navigation";
 import { ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, ChevronRight, Bell, Trophy, MessageSquare, CalendarClock } from "lucide-react";
+import { CheckCircle2, ChevronRight, Bell, Trophy, MessageSquare, CalendarClock, Users } from "lucide-react";
 
 const TYPE_ICONS: Record<string, ReactNode> = {
     feedback_resolved: <MessageSquare size={18} className="text-blue-500" />,
     match_reminder: <CalendarClock size={18} className="text-amber-500" />,
     mvp: <Trophy size={18} className="text-yellow-500" />,
+    teams_confirmed: <Users size={18} className="text-emerald-600" />,
     general: <Bell size={18} className="text-emerald-500" />,
 };
 

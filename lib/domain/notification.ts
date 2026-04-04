@@ -14,7 +14,7 @@
  * - Tipos: feedback_resolved, match_reminder, mvp, general
  */
 
-export type NotificationType = 'feedback_resolved' | 'match_reminder' | 'mvp' | 'general';
+export type NotificationType = 'feedback_resolved' | 'match_reminder' | 'mvp' | 'teams_confirmed' | 'general';
 
 export interface AppNotification {
     id?: string;

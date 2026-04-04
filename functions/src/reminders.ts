@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { APP_URL } from "./config";
 
 const db = admin.firestore();
@@ -770,6 +771,115 @@ export const testPushNotification = onCall(async (request) => {
     };
   }
 });
+
+/**
+ * ⚽ Notificación de equipos confirmados (Trigger reactivo por Firestore)
+ * Se dispara cuando el admin publica los equipos (teamsConfirmed: false → true).
+ * Notifica a todos los jugadores con uid del partido (in-app + push).
+ * Idempotente: usa remindersSent.teamsConfirmed como barrera.
+ */
+export const teamsConfirmedNotification = onDocumentUpdated(
+  { document: "matches/{matchId}", region: "us-central1" },
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+
+    // Solo actuar cuando teamsConfirmed cambia de falsy → true
+    if (!after?.teamsConfirmed || before?.teamsConfirmed === true) return;
+
+    // Idempotencia
+    if (after?.remindersSent?.teamsConfirmed) return;
+
+    const matchId = event.params.matchId;
+    const matchRef = db.collection("matches").doc(matchId);
+
+    // Sellar barrera anti-duplicados
+    await matchRef.update({ "remindersSent.teamsConfirmed": true });
+
+    type TeamPlayer = { uid?: string; name?: string; [key: string]: unknown };
+    const teamsA: TeamPlayer[] = after?.teams?.A ?? [];
+    const teamsB: TeamPlayer[] = after?.teams?.B ?? [];
+    const allTeamPlayers = [...teamsA, ...teamsB];
+
+    // Recopilar UIDs únicos (excluir guests)
+    const seen = new Set<string>();
+    const uids: string[] = [];
+    for (const p of allTeamPlayers) {
+      if (p.uid && typeof p.uid === "string" && !p.uid.startsWith("guest_") && !seen.has(p.uid)) {
+        seen.add(p.uid);
+        uids.push(p.uid);
+      }
+    }
+
+    if (uids.length === 0) {
+      console.log(`[TeamsConfirmed] Match ${matchId} — sin jugadores con uid, nada que notificar`);
+      return;
+    }
+
+    // Batch-read todos los usuarios
+    const userRefs = uids.map(uid => db.collection("users").doc(uid));
+    const userSnaps = await db.getAll(...userRefs);
+    const userDataMap = new Map<string, { data: FirebaseFirestore.DocumentData | undefined; ref: FirebaseFirestore.DocumentReference }>();
+    userSnaps.forEach((snap, idx) => {
+      userDataMap.set(uids[idx], { data: snap.data(), ref: snap.ref });
+    });
+
+    const url = `${APP_URL}/join/${matchId}`;
+    const title = "⚽ ¡Ya están los equipos!";
+    const body = "El organizador publicó los equipos para tu partido. ¡Mirá quién es tu compañero!";
+    const now = new Date().toISOString();
+    const expireAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS));
+
+    const inAppPromises: Promise<any>[] = [];
+    const allTokens: string[] = [];
+    const tokenToUserRef = new Map<string, FirebaseFirestore.DocumentReference>();
+
+    for (const uid of uids) {
+      // 1. In-app notification (siempre)
+      inAppPromises.push(
+        db.collection("notifications").doc(uid).collection("items").add({
+          title,
+          body,
+          type: "teams_confirmed",
+          url: `/join/${matchId}`,
+          read: false,
+          createdAt: now,
+          expireAt,
+        })
+      );
+
+      // 2. Recopilar tokens para push en batch
+      const userData = userDataMap.get(uid);
+      const tokens: string[] = Array.from(new Set<string>(userData?.data?.fcmTokens ?? []));
+      for (const token of tokens) {
+        allTokens.push(token);
+        tokenToUserRef.set(token, userData!.ref);
+      }
+    }
+
+    await Promise.all(inAppPromises);
+
+    if (allTokens.length > 0) {
+      const result = await safeSendPush(allTokens, { title, body }, url, "teams-confirmed");
+
+      // Limpiar tokens inválidos por usuario
+      const invalidByUser = new Map<string, string[]>();
+      for (const invalidToken of result.invalidTokens) {
+        const ref = tokenToUserRef.get(invalidToken);
+        if (!ref) continue;
+        const list = invalidByUser.get(ref.id) ?? [];
+        list.push(invalidToken);
+        invalidByUser.set(ref.id, list);
+      }
+      for (const [, ref] of [...tokenToUserRef.entries()].filter(([t]) => result.invalidTokens.includes(t))) {
+        const invalidTokens = invalidByUser.get(ref.id) ?? [];
+        await cleanupInvalidTokens(ref, invalidTokens);
+      }
+    }
+
+    console.log(`[TeamsConfirmed] Match ${matchId} — notificados ${uids.length} jugadores`);
+  }
+);
 
 /**
  * 📱 Clear iOS App Badge
