@@ -167,7 +167,7 @@ export default function SettingsTab({
                 {isClosed ? "Compartir reporte final" : "Invitar jugadores"}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               {isClosed ? (
                 <>
                   <button
@@ -183,7 +183,7 @@ export default function SettingsTab({
                         setCopyingReport(false);
                       }
                     }}
-                    className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 disabled:opacity-50 ${
+                    className={`w-full py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 disabled:opacity-50 ${
                       copiedReport
                         ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
@@ -192,33 +192,35 @@ export default function SettingsTab({
                     <span className="text-lg">{copyingReport ? "⏳" : copiedReport ? "✅" : "📋"}</span>
                     {copiedReport ? "Copiado" : "Copiar"}
                   </button>
-                  <button
-                    onClick={() => {
-                      const text = getReportText();
-                      if (text) window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-                    }}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
-                  >
-                    <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
-                    WhatsApp
-                  </button>
-                  <button
-                    onClick={() => {
-                      const text = getReportText();
-                      if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text.replace(/\*/g, ""))}`, "_blank");
-                    }}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
-                  >
-                    <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
-                    Telegram
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        const text = getReportText();
+                        if (text) window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                      }}
+                      className="py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
+                    >
+                      <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
+                      WhatsApp
+                    </button>
+                    <button
+                      onClick={() => {
+                        const text = getReportText();
+                        if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text.replace(/\*/g, ""))}`, "_blank");
+                      }}
+                      className="py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
+                    >
+                      <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
+                      Telegram
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
                   <button
                     onClick={handleCopyInvitation}
                     disabled={copyingInvitation}
-                    className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${
+                    className={`w-full py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${
                       copiedInvitation
                         ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
@@ -227,26 +229,28 @@ export default function SettingsTab({
                     <span className="text-lg">{copiedInvitation ? "✅" : "📋"}</span>
                     {copiedInvitation ? "Copiado" : "Copiar"}
                   </button>
-                  <button
-                    onClick={() => {
-                      const text = getInvitationText();
-                      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-                    }}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
-                  >
-                    <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
-                    WhatsApp
-                  </button>
-                  <button
-                    onClick={() => {
-                      const text = getInvitationTextTelegram();
-                      window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
-                    }}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
-                  >
-                    <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
-                    Telegram
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        const text = getInvitationText();
+                        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                      }}
+                      className="py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
+                    >
+                      <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
+                      WhatsApp
+                    </button>
+                    <button
+                      onClick={() => {
+                        const text = getInvitationTextTelegram();
+                        window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
+                      }}
+                      className="py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
+                    >
+                      <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
+                      Telegram
+                    </button>
+                  </div>
                 </>
               )}
             </div>
