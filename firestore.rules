@@ -110,13 +110,16 @@ service cloud.firestore {
       // ✏️ Update
       allow update: if request.auth != null
         && (
-          // 👑 Admin global
+          // 👑 Admin global (puede modificar cualquier campo, incluyendo payments)
           isAdmin()
           ||
-          // ⚽ Jugador (antes o después del update)
+          // ⚽ Jugador (antes o después del update) — NO puede tocar el mapa payments
           (
-            request.auth.uid in resource.data.playerUids
-            || request.auth.uid in request.resource.data.playerUids
+            (
+              request.auth.uid in resource.data.playerUids
+              || request.auth.uid in request.resource.data.playerUids
+            )
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['payments'])
           )
         );
 

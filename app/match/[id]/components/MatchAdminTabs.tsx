@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 
-export type TabId = "dashboard" | "players" | "teams" | "settings";
+export type TabId = "dashboard" | "players" | "teams" | "settings" | "payments";
 
 interface Tab {
   id: TabId;
@@ -17,6 +17,7 @@ interface MatchAdminTabsProps {
   onTabChange: (tab: TabId) => void;
   playerCount: number;
   hasUnsavedBalance: boolean;
+  isClosed: boolean;
 }
 
 export default function MatchAdminTabs({
@@ -24,6 +25,7 @@ export default function MatchAdminTabs({
   onTabChange,
   playerCount,
   hasUnsavedBalance,
+  isClosed,
 }: MatchAdminTabsProps) {
   const scrollToTab = useCallback((el: HTMLButtonElement | null) => {
     if (el && el.getAttribute("aria-selected") === "true") {
@@ -36,6 +38,7 @@ export default function MatchAdminTabs({
     { id: "players", label: "Jugadores", icon: "👥", badge: playerCount },
     { id: "teams", label: "Equipos", icon: "⚖️", showDot: hasUnsavedBalance },
     { id: "settings", label: "Ajustes", icon: "⚙️" },
+    ...(isClosed ? [{ id: "payments" as const, label: "Cobros", icon: "💰" }] : []),
   ];
 
   return (

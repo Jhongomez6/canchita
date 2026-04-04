@@ -57,6 +57,7 @@ export interface Match {
     creatorSnapshot?: { name: string; photoURL?: string; phone?: string }; // Snapshot del creador al crear
     remindersSent?: Record<string, boolean>; // Tracks sent notifications to avoid duplicate push dispatches
     instructions?: string; // Instrucciones libres del organizador para los jugadores (máx 500 chars)
+    payments?: Record<string, boolean>; // key → hasPaid; key = uid para jugadores, "guest_{invitedBy}_{name}" para invitados
 }
 
 export interface CreateMatchInput {

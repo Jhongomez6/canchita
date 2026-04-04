@@ -775,6 +775,18 @@ export async function voteForMVP(
   logMvpVoted(matchId);
 }
 
+/* =========================
+   COBROS — REGISTRAR PAGO
+========================= */
+export async function togglePayment(
+  matchId: string,
+  key: string,
+  hasPaid: boolean
+): Promise<void> {
+  const ref = doc(db, "matches", matchId);
+  await updateDoc(ref, { [`payments.${key}`]: hasPaid });
+}
+
 export async function deleteMatch(matchId: string): Promise<void> {
   const ref = doc(db, "matches", matchId);
   await deleteDoc(ref);

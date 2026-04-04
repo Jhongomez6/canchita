@@ -49,7 +49,9 @@ import DashboardTab from "./components/DashboardTab";
 import PlayersTab from "./components/PlayersTab";
 import TeamsTab from "./components/TeamsTab";
 import SettingsTab from "./components/SettingsTab";
+import PaymentsTab from "./components/PaymentsTab";
 import MatchFAB from "./components/MatchFAB";
+import { togglePayment } from "@/lib/matches";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -146,7 +148,7 @@ export default function MatchDetailPage() {
   useEffect(() => {
     if (!match || tabInitialized) return;
     const urlTab = searchParams.get("tab") as TabId | null;
-    if (urlTab && ["dashboard", "players", "teams", "settings"].includes(urlTab)) {
+    if (urlTab && ["dashboard", "players", "teams", "settings", "payments"].includes(urlTab)) {
       setActiveTab(urlTab);
     } else {
       const phase = getMatchPhase(
@@ -669,6 +671,7 @@ export default function MatchDetailPage() {
             onTabChange={setActiveTab}
             playerCount={confirmedCount}
             hasUnsavedBalance={hasUnsavedBalance}
+            isClosed={isClosed}
           />
 
           {/* Tab Panels */}
@@ -825,6 +828,19 @@ export default function MatchDetailPage() {
               onUpdateInstructions={async (value) => {
                 await updateDoc(doc(db, "matches", id), { instructions: value });
                 toast.success("Instrucciones guardadas");
+              }}
+            />
+          )}
+
+          {activeTab === "payments" && isClosed && (
+            <PaymentsTab
+              match={match}
+              onTogglePayment={async (key, hasPaid) => {
+                try {
+                  await togglePayment(id, key, hasPaid);
+                } catch (err: unknown) {
+                  handleError(err, "Error al registrar el pago.");
+                }
               }}
             />
           )}
