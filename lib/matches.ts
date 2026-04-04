@@ -158,6 +158,22 @@ export async function getMyMatches(uid: string): Promise<Match[]> {
 }
 
 /* =========================
+   OBTENER TODOS LOS PARTIDOS (SUPER ADMIN)
+========================= */
+export async function getAllMatches(): Promise<Match[]> {
+  const q = query(
+    matchesRef,
+    orderBy("createdAt", "desc")
+  );
+  
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(d => ({
+    id: d.id,
+    ...(d.data() as Omit<Match, "id">),
+  }));
+}
+
+/* =========================
    OBTENER PARTIDOS ABIERTOS (EXPLORE)
 ========================= */
 export async function getOpenMatches(): Promise<Match[]> {

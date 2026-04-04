@@ -2,7 +2,8 @@
 
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState } from "react";
-import { getMyMatches } from "@/lib/matches";
+import { getMyMatches, getAllMatches } from "@/lib/matches";
+import { isSuperAdmin } from "@/lib/domain/user";
 import AuthGuard from "@/components/AuthGuard";
 
 import Link from "next/link";
@@ -52,7 +53,12 @@ export default function Home() {
     }
 
     setLoadingMatches(true);
-    getMyMatches(user.uid)
+    
+    const fetchMatches = profile && isSuperAdmin(profile)
+      ? getAllMatches()
+      : getMyMatches(user.uid);
+
+    fetchMatches
       .then(async matchesData => {
         try {
           // Sort matches by date DESCENDING (most recent first)
