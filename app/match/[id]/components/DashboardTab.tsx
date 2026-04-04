@@ -72,11 +72,11 @@ export default function DashboardTab({
               <span
                 className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
                   isClosed
-                    ? "bg-red-100 text-red-600"
+                    ? "bg-slate-100 text-slate-500"
                     : "bg-emerald-100 text-emerald-600"
                 }`}
               >
-                {isClosed ? "Cerrado" : "Abierto"}
+                {isClosed ? "Completado" : "Abierto"}
               </span>
               {match.isPrivate && (
                 <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">

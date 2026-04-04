@@ -54,7 +54,7 @@ export interface Match {
     closedAt?: string; // ISO String to track 12-hour limit
     isPrivate?: boolean; // If true, hide from Explore
     creatorAdminType?: AdminType; // Tier del admin al crear el partido
-    creatorSnapshot?: { name: string; photoURL?: string }; // Snapshot del creador al crear
+    creatorSnapshot?: { name: string; photoURL?: string; phone?: string }; // Snapshot del creador al crear
     remindersSent?: Record<string, boolean>; // Tracks sent notifications to avoid duplicate push dispatches
     instructions?: string; // Instrucciones libres del organizador para los jugadores (máx 500 chars)
 }
@@ -70,7 +70,7 @@ export interface CreateMatchInput {
     allowGuests?: boolean;
     isPrivate?: boolean;
     creatorAdminType?: AdminType;
-    creatorSnapshot?: { name: string; photoURL?: string };
+    creatorSnapshot?: { name: string; photoURL?: string; phone?: string };
 }
 
 export type MatchResult = "win" | "loss" | "draw";

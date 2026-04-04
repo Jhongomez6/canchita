@@ -2,25 +2,34 @@
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  Clock, Scale, Shield, Star,
+  AlertTriangle, Bell, LogOut,
+  ClipboardList, Loader2, CheckCircle2, Pin,
+} from "lucide-react";
 
 const JOURNEY_STEPS = [
   {
-    icon: "⏰",
+    icon: Clock,
+    color: "text-blue-500 bg-blue-50",
     title: "Sé puntual",
     description: "Llega 10 minutos antes. Tu compromiso está en juego.",
   },
   {
-    icon: "⚽",
+    icon: Scale,
+    color: "text-violet-500 bg-violet-50",
     title: "Equipos balanceados automáticamente",
     description: "Revisa tu asignación en la app antes de llegar.",
   },
   {
-    icon: "🤝",
+    icon: Shield,
+    color: "text-emerald-500 bg-emerald-50",
     title: "Juego limpio",
     description: "Respeto en todo momento. El árbitro somos todos.",
   },
   {
-    icon: "⭐",
+    icon: Star,
+    color: "text-amber-500 bg-amber-50",
     title: "Vota por el MVP",
     description: "Al terminar, reconoce al jugador que marcó la diferencia.",
   },
@@ -28,17 +37,20 @@ const JOURNEY_STEPS = [
 
 const WAITLIST_CONDITIONS = [
   {
-    icon: "⚠️",
+    icon: AlertTriangle,
+    color: "text-amber-500 bg-amber-50",
     title: "El partido está lleno",
     description: "Entras a la lista de espera. Solo juegas si alguien cancela y el organizador te aprueba.",
   },
   {
-    icon: "🔔",
+    icon: Bell,
+    color: "text-blue-500 bg-blue-50",
     title: "Te notificamos si hay lugar",
     description: "Recibirás una notificación si un cupo queda disponible. Revisa la app antes del partido.",
   },
   {
-    icon: "🚪",
+    icon: LogOut,
+    color: "text-slate-500 bg-slate-100",
     title: "Puedes salir cuando quieras",
     description: "Si no puedes ir, sal de la lista antes del partido para liberar el lugar.",
   },
@@ -95,29 +107,37 @@ export default function JoinConfirmModal({
             </div>
 
             <div className="px-5 pt-2 pb-8">
-              <h2 className="text-lg font-bold text-slate-800 mb-4">
-                {isWaitlist ? "📋 Lista de espera - condiciones" : "📋 Antes de unirte"}
+              <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-slate-500" />
+                {isWaitlist ? "Lista de espera — condiciones" : "Antes de anotarte"}
               </h2>
 
               {/* Condiciones de suplencia */}
               {isWaitlist && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-4 space-y-3">
-                  {WAITLIST_CONDITIONS.map((c) => (
-                    <div key={c.title} className="flex gap-3 items-start">
-                      <span className="text-lg leading-none mt-0.5 shrink-0">{c.icon}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-700 leading-tight">{c.title}</p>
-                        <p className="text-xs text-slate-500 leading-snug mt-0.5">{c.description}</p>
+                  {WAITLIST_CONDITIONS.map((c) => {
+                    const Icon = c.icon;
+                    return (
+                      <div key={c.title} className="flex gap-3 items-start">
+                        <span className={`p-1.5 rounded-lg shrink-0 ${c.color}`}>
+                          <Icon className="w-4 h-4" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700 leading-tight">{c.title}</p>
+                          <p className="text-xs text-slate-500 leading-snug mt-0.5">{c.description}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
               {/* Nota del organizador */}
               {instructions?.trim() && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 mb-4">
-                  <p className="text-xs font-bold text-emerald-700 mb-1">📌 Nota del organizador</p>
+                  <p className="text-xs font-bold text-emerald-700 mb-1 flex items-center gap-1.5">
+                    <Pin className="w-3.5 h-3.5" /> Nota del organizador
+                  </p>
                   <p className="text-sm text-emerald-800 whitespace-pre-line leading-snug">
                     {instructions}
                   </p>
@@ -127,15 +147,20 @@ export default function JoinConfirmModal({
               {/* Journey steps — solo para confirmacion normal */}
               {!isWaitlist && (
                 <div className="space-y-3.5 mb-6">
-                  {JOURNEY_STEPS.map((step) => (
-                    <div key={step.title} className="flex gap-3 items-start">
-                      <span className="text-xl leading-none mt-0.5 shrink-0">{step.icon}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-700 leading-tight">{step.title}</p>
-                        <p className="text-xs text-slate-500 leading-snug mt-0.5">{step.description}</p>
+                  {JOURNEY_STEPS.map((step) => {
+                    const Icon = step.icon;
+                    return (
+                      <div key={step.title} className="flex gap-3 items-start">
+                        <span className={`p-1.5 rounded-lg shrink-0 ${step.color}`}>
+                          <Icon className="w-4 h-4" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700 leading-tight">{step.title}</p>
+                          <p className="text-xs text-slate-500 leading-snug mt-0.5">{step.description}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -144,7 +169,7 @@ export default function JoinConfirmModal({
                 <button
                   disabled={submitting}
                   onClick={onConfirm}
-                  className={`w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-[0.98] shadow-lg ${
+                  className={`w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-[0.98] shadow-lg flex items-center justify-center gap-2 ${
                     submitting
                       ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
                       : isWaitlist
@@ -152,11 +177,13 @@ export default function JoinConfirmModal({
                         : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
                   }`}
                 >
-                  {submitting
-                    ? "⏳ Uniéndome..."
-                    : isWaitlist
-                      ? "📋 Entendido, anotarme como suplente"
-                      : "✅ Entendido, me anoto!"}
+                  {submitting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Uniéndome...</>
+                  ) : isWaitlist ? (
+                    <><ClipboardList className="w-4 h-4" /> Entendido, anotarme como suplente</>
+                  ) : (
+                    <><CheckCircle2 className="w-4 h-4" /> Entendido, me anoto!</>
+                  )}
                 </button>
                 <button
                   disabled={submitting}

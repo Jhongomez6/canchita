@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { UserPlus, Crown, X } from "lucide-react";
 import { Guest, Position, ALLOWED_POSITIONS } from "@/lib/domain/guest";
 import { addGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { POSITION_LABELS } from "@/lib/domain/player";
@@ -134,19 +135,19 @@ export default function AddGuestForm({
           <div className="space-y-4 mb-4">
             {existingGuests.map((guest, idx) => (
               <div key={`${guest.name}-${idx}`} className="bg-slate-50 border-b border-slate-100 relative overflow-hidden px-4 py-3">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-8 -mt-8" />
+                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8" />
 
                 <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2 relative z-10 text-sm">
-                  👤 Tu invitado {existingGuests.length > 1 ? `#${idx + 1}` : ""}
+                  <UserPlus className="w-4 h-4 text-emerald-600" /> Tu invitado {existingGuests.length > 1 ? `#${idx + 1}` : ""}
                 </h3>
 
-                <div className="p-3 bg-purple-50 rounded-xl mb-4 border border-purple-100 relative z-10">
+                <div className="p-3 bg-emerald-50 rounded-xl mb-4 border border-emerald-100 relative z-10">
                   <p className="font-bold text-slate-800 mb-1">{guest.name}</p>
-                  <p className="text-sm text-purple-700">
+                  <p className="text-sm text-emerald-700">
                     {guest.positions
                       .map((pos) => {
                         const isPri = guest.primaryPosition ? guest.primaryPosition === pos : guest.positions[0] === pos;
-                        return isPri ? `👑 ${POSITION_LABELS[pos]}` : POSITION_LABELS[pos]
+                        return isPri ? `★ ${POSITION_LABELS[pos]}` : POSITION_LABELS[pos]
                       })
                       .join(", ")}
                   </p>
@@ -170,7 +171,7 @@ export default function AddGuestForm({
             onClick={() => setIsOpen(true)}
             className="w-full py-3 bg-slate-50 text-slate-600 font-semibold hover:bg-slate-100 transition-all flex items-center justify-center gap-2 text-sm"
           >
-            <span className="text-base text-purple-600 font-bold">+</span>
+            <UserPlus className="w-4 h-4 text-emerald-600" />
             <span>Agregar un invitado {hasGuests && "(1 cupo restante)"}</span>
           </button>
         )}
@@ -184,12 +185,12 @@ export default function AddGuestForm({
   return (
     <div className="bg-slate-50 px-4 py-4 animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="font-bold text-slate-800 text-sm">👤 Agregar invitado</h3>
+        <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2"><UserPlus className="w-4 h-4 text-emerald-600" /> Agregar invitado</h3>
         <button
           onClick={() => setIsOpen(false)}
           className="text-slate-400 hover:text-slate-600"
         >
-          ✕
+          <X className="w-4 h-4" />
         </button>
       </div>
 
@@ -239,7 +240,7 @@ export default function AddGuestForm({
                   `}
                 >
                   {isPrimary && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-white text-amber-500 w-4 h-4 flex items-center justify-center rounded-full shadow border border-amber-300 text-[8px] animate-in zoom-in-50 duration-200 z-10" title="Posición Principal">👑</span>
+                    <span className="absolute -top-1.5 -right-1.5 bg-white text-amber-500 w-4 h-4 flex items-center justify-center rounded-full shadow border border-amber-300 animate-in zoom-in-50 duration-200 z-10" title="Posición Principal"><Crown className="w-2.5 h-2.5" /></span>
                   )}
                   {POSITION_LABELS[pos]}
                 </button>

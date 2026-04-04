@@ -14,6 +14,17 @@ export function formatDateSpanish(dateStr: string) {
 
 
 
+export function formatDateShort(dateStr: string): string {
+    const date = new Date(dateStr + "T00:00:00");
+    const formatted = date.toLocaleDateString("es-CO", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
 export function formatDuration(minutes: number): string {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -47,5 +58,5 @@ export function formatEndTime(timeStr: string, durationMinutes: number): string 
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-    });
+    }).replace(/\s*[ap]\.\s*m\./i, m => ' ' + m.replace(/[\s.]/g, '').toUpperCase());
 }

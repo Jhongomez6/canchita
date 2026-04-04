@@ -165,10 +165,11 @@ export async function addGuestToMatch(
 **✅ Cumple especificación**: Reglas #1, #4, #7
 
 #### **Capa 3: UI** (`components/AddGuestForm.tsx`)
-- **Responsabilidad**: Interfaz de usuario, feedback
+- **Responsabilidad**: Interfaz de usuario premium, feedback visual interactivo
 - **Depende de**: API, Dominio (tipos)
-- **Estado UI**: Collapsible (botón "+ Agregar Invitado" expande el form)
-- **Estilo**: TailwindCSS + Emerald theme
+- **Estado UI**: Collapsible con micro-animaciones (Cards con bordes sutiles y gradients)
+- **Estilo**: Vanilla CSS (Premium gradients + Sleek typography)
+- **Feedback**: Sistema de Tooltips y validación en tiempo real con mensajes refinados
 - **Exporta**: Componente React
 
 ```typescript

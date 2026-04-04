@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
 import { AuthProvider } from "@/lib/AuthContext";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -28,7 +35,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased text-slate-900 bg-slate-50 min-h-screen" suppressHydrationWarning>
+      <body className={`${plusJakartaSans.variable} font-sans antialiased text-slate-900 bg-slate-50 min-h-screen`} suppressHydrationWarning>
         {/* Inline HTML splash — paints at TTFB, before JS hydration */}
         <div
           id="app-splash"

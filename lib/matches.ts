@@ -102,6 +102,7 @@ export async function createMatch(match: {
     creatorSnapshot: {
       name: profile.name,
       photoURL: profile.photoURL || null,
+      phone: profile.phone || null,
     },
     isPrivate: match.isPrivate || false,
     allowGuests: match.allowGuests ?? true,

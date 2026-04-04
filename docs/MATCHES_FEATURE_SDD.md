@@ -30,6 +30,7 @@ interface Match {
   status: "open" | "closed";
   createdBy: string;      // UID del administrador
   allowGuests?: boolean;  // Si el partido permite agregar invitados (por defecto true si no existe)
+  creatorSnapshot?: { name: string; photoURL?: string; phone?: string }; // Snapshot del creador
   players: Player[];      // Lista de jugadores
   guests?: Guest[];       // Invitados (ver GUESTS_FEATURE_SDD.md)
   teams?: { A: Player[]; B: Player[] };
@@ -71,8 +72,9 @@ interface Player {
 | 13 | Al desconfirmar asistencia, el jugador se remueve también de los equipos balanceados | `unconfirmAttendance()` filtra `match.teams.A/B` además de `match.players` |
 | 14 | `getMyMatches()` retorna partidos donde el usuario es jugador O creador | Doble query en paralelo: `playerUids array-contains` + `createdBy ==`, merge y deduplicación |
 | 15 | La duración del partido es obligatoria al crear y debe ser tramos de 30 min (30-180) | `MatchDuration` type + validación en `validateMatchCreation()` |
-| 16 | Los reportes de equipos usan numeración (1, 2, 3...) en lugar de viñetas para facilitar el conteo visual | `buildReportText()` en `page.tsx` y `buildWhatsAppReport()` en `matchReport.ts` |
+| 16 | Los reportes de equipos usan numeración (1, 2, 3...) en lugar de viñetas para facilitar el conteo visual | `buildReportText()` en `page.tsx` and `buildWhatsAppReport()` en `matchReport.ts` |
 | 17 | En la página join, el organizador muestra botón WhatsApp si tiene teléfono registrado | Botón aparece solo si no es el propio usuario; enlace pre-llena mensaje con fecha, hora y código |
+| 18 | El Match Timeline es visual, interactivo y muestra explicaciones mediante tooltips formativos | `MatchTimeline.tsx` con `AnimatePresence` + `activeTooltip` state |
 
 ---
 
@@ -199,8 +201,9 @@ app/match/[id]/
   page.tsx                    -- Orquestador (~480 líneas)
   components/
     MatchAdminTabs.tsx        -- Navegación por tabs sticky (WAI-ARIA)
-    DashboardTab.tsx          -- Resumen de estado + progress bar
-    MatchProgressBar.tsx      -- Stepper visual del ciclo de vida
+    DashboardTab.tsx          -- Resumen de estado + progress bar + Timeline visual
+    MatchTimeline.tsx         -- Stepper visual interactivo con iconos y tooltips
+    MatchProgressBar.tsx      -- Barra de progreso lineal simple
     PlayersTab.tsx            -- Lista jugadores + agregar jugador + waitlist
     PlayerRow.tsx             -- Fila expandible de jugador
     AttendanceMode.tsx        -- Modo batch de asistencia

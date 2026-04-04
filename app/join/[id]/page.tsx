@@ -6,10 +6,12 @@ import { useAuth } from "@/lib/AuthContext";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { loginWithGoogle } from "@/lib/auth";
-import { formatDateSpanish, formatTime12h, formatEndTime } from "@/lib/date";
+import { formatDateSpanish, formatDateShort, formatTime12h, formatEndTime } from "@/lib/date";
 import { googleMapsEmbedUrl, googleMapsLink, wazeLink } from "@/lib/maps";
 import Image from "next/image";
+import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCircle, CheckCircle2, ClipboardList, Trophy, Crown, Star, CalendarX, Lock } from "lucide-react";
 
+import { AnimatePresence, motion } from "framer-motion";
 import AddGuestForm from "@/components/AddGuestForm";
 import { isInAppBrowser } from "@/lib/browser";
 import { Guest, guestToPlayer } from "@/lib/domain/guest";
@@ -53,6 +55,8 @@ export default function JoinMatchPage() {
   const [inApp, setInApp] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isCodeCopied, setIsCodeCopied] = useState(false);
+  const [showOrganizerTooltip, setShowOrganizerTooltip] = useState(false);
+  const [showCodeTooltip, setShowCodeTooltip] = useState(false);
   const [selectedPlayerUid, setSelectedPlayerUid] = useState<string | null>(null);
   const [isPlayerCardOpen, setIsPlayerCardOpen] = useState(false);
   const [organizerPhone, setOrganizerPhone] = useState<string | null>(null);
@@ -179,15 +183,9 @@ export default function JoinMatchPage() {
   }, [match]);
 
   useEffect(() => {
-    if (!match?.createdBy) return;
-
-    getDoc(doc(db, "users", match.createdBy))
-      .then(snap => {
-        if (snap.exists()) {
-          setOrganizerPhone(snap.data().phone || null);
-        }
-      });
-  }, [match?.createdBy]);
+    if (!match) return;
+    setOrganizerPhone(match.creatorSnapshot?.phone || null);
+  }, [match]);
 
 
   // 🔥 Reactive Push Trigger
@@ -433,12 +431,25 @@ export default function JoinMatchPage() {
     <main className="min-h-screen bg-slate-50 pb-24">
       <div className="max-w-md mx-auto">
         {/* HEADER VERDE */}
-        <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] text-white p-3 pb-5 rounded-b-2xl shadow-md mb-4 relative overflow-hidden">
+        <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] text-white px-4 pt-4 pb-8 rounded-b-2xl shadow-md relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-10 -mr-10 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+          <div className="relative flex justify-between items-center">
+            <h2 className="font-bold text-lg text-white flex items-center gap-2">
+              {matchLabel}
+              {match.isPrivate && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white/70 flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Privado
+                </span>
+              )}
+            </h2>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${isClosed ? "bg-slate-500/60 text-white" : "bg-white text-emerald-700"}`}>
+              {isClosed ? "Completado" : "Abierto"}
+            </span>
+          </div>
         </div>
 
         {/* CONTAINER CON MARGIN NEGATIVO PARA QUE MONTE EL HEADER */}
-        <div className="px-4 -mt-6 relative z-20 space-y-4">
+        <div className="px-4 -mt-5 relative z-20 space-y-4">
 
           {/* BOTÓN VER COMO ADMIN */}
           {profile && isAdmin(profile) && (
@@ -451,66 +462,45 @@ export default function JoinMatchPage() {
           )}
 
           {/* CARD PARTIDO */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                {matchLabel}
-                {match.isPrivate && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                    🔒 Privado
-                  </span>
-                )}
-              </h3>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${isClosed ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
-                }`}>
-                {isClosed ? "Cerrado" : "Abierto"}
-              </span>
-            </div>
-
-            <div className="space-y-3">
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden" onClick={() => { setShowOrganizerTooltip(false); setShowCodeTooltip(false); }}>
+            <div className="space-y-3 px-4 py-3">
+              {/* Fecha y hora en una sola línea */}
               <div className="flex items-center gap-3 text-slate-600">
-                <span className="bg-slate-100 p-2 rounded-lg text-lg">🕒</span>
-                <div className="flex flex-col">
-                  <span className="font-bold text-slate-800 text-sm">{formatDateSpanish(match.date)}</span>
-                  <span className="text-xs text-slate-400">
-                    {formatTime12h(match.time)}
-                    {match.duration ? ` · hasta las ${formatEndTime(match.time, match.duration)}` : ""}
-                  </span>
-                </div>
+                <span className="bg-slate-100 p-1.5 rounded-lg shrink-0"><Clock className="w-4 h-4 text-slate-400" /></span>
+                <span className="text-sm text-slate-700">
+                  {formatDateShort(match.date)}
+                  {" · "}
+                  <span className="font-bold">{formatTime12h(match.time)}</span>
+                  {match.duration ? ` – ${formatEndTime(match.time, match.duration)}` : ""}
+                </span>
               </div>
+
+              {/* Ubicación */}
               <div className="flex flex-col gap-2">
                 <button
                   onClick={() => setIsMapOpen(!isMapOpen)}
                   className="flex items-center gap-3 text-slate-600 w-full text-left group"
                 >
-                  <span className="bg-slate-100 p-2 rounded-lg text-lg group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">📍</span>
-                  <div className="flex-1">
-                    <span className="font-medium text-sm block">{matchLocation?.name || match.locationSnapshot?.name || "Cancha no disponible"}</span>
-                    <span className={`
-                      text-xs font-bold px-2.5 py-1 rounded-lg transition-colors mt-1.5 inline-flex items-center gap-1.5
-                      ${isMapOpen
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-slate-100 text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-700"}
-                    `}>
-                      {isMapOpen ? "Ocultar mapa" : "Ver ubicación en mapa"}
-                    </span>
-                  </div>
+                  <span className="bg-slate-100 p-1.5 rounded-lg group-hover:bg-slate-200 transition-colors shrink-0"><MapPin className="w-4 h-4 text-slate-400 transition-colors" /></span>
+                  <span className="text-slate-700 text-sm flex-1 text-left">{matchLocation?.name || match.locationSnapshot?.name || "Cancha no disponible"}</span>
+                  <span className={`w-28 justify-center flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-medium transition-colors shrink-0 ${isMapOpen ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-600 group-hover:bg-slate-100"}`}>
+                    <Map className="w-3 h-3" />
+                    {isMapOpen ? "Ocultar" : "Ver mapa"}
+                  </span>
                 </button>
 
                 {/* MAPA EXPANDIBLE */}
                 {isMapOpen && matchLocation && (
-                  <div className="mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <p className="text-xs text-slate-500 mb-3 ml-11">{matchLocation.address}</p>
-
+                  <div className="mt-1 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <p className="text-xs text-slate-500 mb-2 ml-10">{matchLocation.address}</p>
                     <iframe
                       src={googleMapsEmbedUrl(matchLocation.lat, matchLocation.lng)}
                       width="100%"
                       height="200"
-                      className="rounded-xl border-0 bg-slate-100 mb-3"
+                      className="rounded-xl border-0 bg-slate-100 mb-2"
                       loading="lazy"
                       referrerPolicy="no-referrer-when-downgrade"
                     />
-
                     <div className="flex gap-2">
                       <a
                         href={googleMapsLink(matchLocation.lat, matchLocation.lng)}
@@ -538,18 +528,37 @@ export default function JoinMatchPage() {
               {/* Organizador */}
               {match.creatorSnapshot?.name && (
                 <div className="flex items-center gap-3 text-slate-600">
-                  <span className="bg-slate-100 p-2 rounded-lg text-lg">👤</span>
-                  <div className="flex flex-col flex-1">
-                    <span className="text-xs text-slate-400">Organiza</span>
-                    <span className="font-bold text-slate-700 text-sm">{match.creatorSnapshot.name}</span>
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowOrganizerTooltip(p => !p); setShowCodeTooltip(false); }}
+                      className="bg-slate-100 p-1.5 rounded-lg block"
+                    >
+                      <User className="w-4 h-4 text-slate-400" />
+                    </button>
+                    <AnimatePresence>
+                      {showOrganizerTooltip && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute bottom-full mb-3 left-0 w-52 bg-slate-800 text-white text-[11px] rounded-xl px-3 py-2.5 shadow-xl z-50 leading-relaxed pointer-events-none"
+                        >
+                          <p className="font-bold text-emerald-400 mb-1">Organizador</p>
+                          <p className="text-slate-300">Quien creó el partido. Puedes contactarlo por WhatsApp si tienes dudas.</p>
+                          <div className="absolute top-full left-4 border-4 border-transparent border-t-slate-800" />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
+                  <button onClick={(e) => { e.stopPropagation(); setShowOrganizerTooltip(p => !p); setShowCodeTooltip(false); }} className="text-slate-700 text-sm flex-1 text-left">{match.creatorSnapshot.name}</button>
                   {organizerPhone && match.createdBy !== user.uid && (
                     <a
                       href={`https://wa.me/${organizerPhone.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola! Te escribo por el partido del ${formatDateSpanish(match.date)} a las ${formatTime12h(match.time)}, código ${id}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => logOrganizerContacted(id)}
-                      className="flex items-center gap-1.5 py-1.5 px-3 bg-[#25D366] text-white text-xs font-bold rounded-lg hover:bg-[#1ebe5d] transition-colors flex-shrink-0"
+                      className="w-28 justify-center flex items-center gap-1.5 py-1 px-2.5 rounded-lg border border-transparent bg-[#25D366] text-white text-xs font-medium hover:bg-[#1ebe5d] transition-colors shrink-0"
                     >
                       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current">
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
@@ -560,31 +569,48 @@ export default function JoinMatchPage() {
                 </div>
               )}
 
-              {/* Código del partido */}
+              {/* Código del partido — truncado, sin etiqueta */}
               <div className="flex items-center gap-3 text-slate-600">
-                <span className="bg-slate-100 p-2 rounded-lg text-lg">🔑</span>
-                <div className="flex-1 flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-slate-400">Código del partido</span>
-                    <span className="font-mono font-bold text-slate-700 text-sm">{id}</span>
-                  </div>
+                <div className="relative shrink-0">
                   <button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(id);
-                      setIsCodeCopied(true);
-                      setTimeout(() => setIsCodeCopied(false), 2500);
-                    }}
-                    className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center gap-1 shadow-sm font-bold flex-shrink-0 ${isCodeCopied
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                      }`}
+                    onClick={(e) => { e.stopPropagation(); setShowCodeTooltip(p => !p); setShowOrganizerTooltip(false); }}
+                    className="bg-slate-100 p-1.5 rounded-lg block"
                   >
-                    <span className="text-sm">{isCodeCopied ? "✅" : "📋"}</span>
-                    <span className="text-[10px] uppercase">
-                      {isCodeCopied ? "Copiado" : "Copiar"}
-                    </span>
+                    <Key className="w-4 h-4 text-slate-400" />
                   </button>
+                  <AnimatePresence>
+                    {showCodeTooltip && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute bottom-full mb-3 left-0 w-52 bg-slate-800 text-white text-[11px] rounded-xl px-3 py-2.5 shadow-xl z-50 leading-relaxed pointer-events-none"
+                      >
+                        <p className="font-bold text-emerald-400 mb-1">Código del partido</p>
+                        <p className="text-slate-300">Identificador único del partido. Compártelo para que otros jugadores puedan unirse.</p>
+                        <div className="absolute top-full left-4 border-4 border-transparent border-t-slate-800" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
+                <button onClick={(e) => { e.stopPropagation(); setShowCodeTooltip(p => !p); setShowOrganizerTooltip(false); }} className="font-mono text-slate-600 text-sm flex-1 text-left truncate">{id}</button>
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(id);
+                    setIsCodeCopied(true);
+                    setTimeout(() => setIsCodeCopied(false), 2500);
+                  }}
+                  className={`w-28 justify-center flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-medium transition-colors shrink-0 ${isCodeCopied
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                >
+                  {isCodeCopied
+                    ? <><Check className="w-3 h-3" /> Copiado</>
+                    : <><Copy className="w-3 h-3" /> Copiar</>
+                  }
+                </button>
               </div>
 
             </div>
@@ -599,22 +625,22 @@ export default function JoinMatchPage() {
 
               {/* ── Estado: Partido lleno, usuario no registrado ── */}
               {isFull && !existingPlayer && (
-                <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 text-amber-700 text-sm font-semibold text-center">
-                  ⚠️ Partido lleno — anotate como suplente
+                <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 text-amber-700 text-sm font-semibold flex items-center justify-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> Partido lleno — anotate como suplente
                 </div>
               )}
 
               {/* ── Estado: Hay lista de espera activa, usuario no registrado ── */}
               {!isFull && hasWaitlist && !existingPlayer && (
-                <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 text-amber-700 text-sm font-semibold text-center">
-                  ⏳ Hay jugadores en lista de espera — anotate como suplente
+                <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 text-amber-700 text-sm font-semibold flex items-center justify-center gap-2">
+                  <Clock className="w-4 h-4 shrink-0" /> Hay jugadores en lista de espera — anotate como suplente
                 </div>
               )}
 
               {/* ── Estado: Perdiste tu lugar ── */}
               {isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
-                <div className="px-4 py-3 bg-red-50 border-b border-red-100 text-red-600 text-sm font-semibold text-center">
-                  ❌ Perdiste tu lugar reservado
+                <div className="px-4 py-3 bg-red-50 border-b border-red-100 text-red-600 text-sm font-semibold flex items-center justify-center gap-2">
+                  <XCircle className="w-4 h-4 shrink-0" /> Perdiste tu lugar reservado
                 </div>
               )}
 
@@ -629,12 +655,12 @@ export default function JoinMatchPage() {
                     setIsWaitlistModal(true);
                     setShowJoinModal(true);
                   }}
-                  className={`w-full py-3 font-bold text-sm transition-all active:scale-[0.98] ${submitting
+                  className={`w-full py-3 font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${submitting
                     ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                     : "bg-amber-50 text-amber-800 hover:bg-amber-100"
                     }`}
                 >
-                  📋 Ingresar como Suplente
+                  <ClipboardList className="w-4 h-4" /> Ingresar como Suplente
                 </button>
               )}
 
@@ -648,20 +674,20 @@ export default function JoinMatchPage() {
                     });
                     setShowJoinModal(true);
                   }}
-                  className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] ${submitting
+                  className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${submitting
                     ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                     : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
                     }`}
                 >
-                  ✅ Confirmar asistencia
+                  <CheckCircle2 className="w-4 h-4" /> Anotarme al partido
                 </button>
               )}
 
               {/* ── CTA: Confirmar asistencia (ya en lista, no confirmado) ── */}
               {!isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
                 <>
-                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-amber-700 text-xs font-semibold text-center">
-                    ⏳ Aún no confirmaste
+                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-amber-700 text-xs font-semibold flex items-center justify-center gap-2">
+                    <Clock className="w-3.5 h-3.5 shrink-0" /> Aún no confirmaste
                   </div>
                   <button
                     disabled={submitting}
@@ -676,7 +702,7 @@ export default function JoinMatchPage() {
                       : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
                       }`}
                   >
-                    ✅ Confirmar asistencia
+                    <CheckCircle2 className="w-4 h-4" /> Anotarme al partido
                   </button>
                 </>
               )}
@@ -684,8 +710,8 @@ export default function JoinMatchPage() {
               {/* ── CTA: En lista de espera ── */}
               {existingPlayer?.isWaitlist && !existingPlayer.confirmed && (
                 <>
-                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-amber-700 text-xs font-semibold text-center">
-                    📋 Estás en lista de espera
+                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-amber-700 text-xs font-semibold flex items-center justify-center gap-2">
+                    <ClipboardList className="w-3.5 h-3.5 shrink-0" /> Estás en lista de espera
                   </div>
                   <button
                     onClick={async () => {
@@ -711,7 +737,7 @@ export default function JoinMatchPage() {
                 <>
                   <div className="flex items-center justify-between px-4 py-3">
                     <span className="flex items-center gap-1.5 text-emerald-700 font-bold text-sm">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[11px]">✅</span>
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                       Estás confirmado
                     </span>
                     <button
@@ -727,9 +753,9 @@ export default function JoinMatchPage() {
                         }
                       }}
                       disabled={submitting}
-                      className="text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-100 font-semibold transition-colors flex items-center gap-1 disabled:opacity-40"
+                      className="text-xs text-red-500 px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 font-semibold transition-colors flex items-center gap-1 disabled:opacity-40"
                     >
-                      Cancelar asistencia ⛔
+                      Cancelar asistencia <CalendarX className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
@@ -801,7 +827,7 @@ export default function JoinMatchPage() {
 
 
                 <h3 className="font-bold text-slate-800 mb-6 text-center text-lg flex flex-col items-center justify-center gap-2">
-                  <span>🏆 Resultado del Partido</span>
+                  <Trophy className="w-5 h-5 text-amber-500" /><span>Resultado del Partido</span>
                   {resultMessage && (
                     <span className={`text-sm px-3 py-1 rounded-full ${resultBg} ${resultColor} border border-current opacity-80`}>
                       {resultMessage}
@@ -828,7 +854,7 @@ export default function JoinMatchPage() {
                   {/* EQUIPO A */}
                   <div className={`rounded-xl p-4 border ${userInTeamA ? "bg-red-100 border-red-300 ring-2 ring-red-200" : "bg-red-50 border-red-100"}`}>
                     <h4 className="font-bold text-red-800 mb-3 text-sm uppercase tracking-wide border-b border-red-200 pb-2 flex justify-between">
-                      <span>🔴 Equipo A {userInTeamA && "(Tú)"}</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Equipo A {userInTeamA && "(Tú)"}</span>
                       <span className="text-red-500 opacity-60 text-xs">{match.teams.A.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
@@ -863,7 +889,7 @@ export default function JoinMatchPage() {
                                 </div>
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-red-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
-                              {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
+                              {isMvp && <Crown className={`w-4 h-4 text-amber-500 ${votingClosed ? "" : "animate-pulse"}`} aria-label={`MVP Actual con ${votes} votos`} />}
                             </div>
                             {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
                           </div>
@@ -875,7 +901,7 @@ export default function JoinMatchPage() {
                   {/* EQUIPO B */}
                   <div className={`rounded-xl p-4 border ${userInTeamB ? "bg-blue-100 border-blue-300 ring-2 ring-blue-200" : "bg-blue-50 border-blue-100"}`}>
                     <h4 className="font-bold text-blue-800 mb-3 text-sm uppercase tracking-wide border-b border-blue-200 pb-2 flex justify-between">
-                      <span>🔵 Equipo B {userInTeamB && "(Tú)"}</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" /> Equipo B {userInTeamB && "(Tú)"}</span>
                       <span className="text-blue-500 opacity-60 text-xs">{match.teams.B.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
@@ -910,7 +936,7 @@ export default function JoinMatchPage() {
                                 </div>
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-blue-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
-                              {isMvp && <span className={`text-lg ${votingClosed ? "" : "animate-pulse"}`} title={`MVP Actual con ${votes} votos`}>👑</span>}
+                              {isMvp && <Crown className={`w-4 h-4 text-amber-500 ${votingClosed ? "" : "animate-pulse"}`} aria-label={`MVP Actual con ${votes} votos`} />}
                             </div>
                             {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
                           </div>
@@ -924,14 +950,14 @@ export default function JoinMatchPage() {
                 {/* MVP VOTING CARD - DENTRO DEL BLOQUE DE RESULTADOS */}
                 {isClosed && (existingPlayer?.confirmed || match.createdBy === user.uid) && (
                   <div className="mt-8 p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute -top-6 -right-6 text-6xl opacity-10">👑</div>
+                    <div className="absolute -top-6 -right-6 opacity-10"><Crown className="w-16 h-16 text-amber-500" /></div>
                     <h4 className="font-bold text-amber-900 mb-4 flex items-center gap-2 relative z-10">
-                      {votingClosed ? "👑 MVP del Partido" : "🏅 Elige al MVP del Partido"}
+                      {votingClosed ? <><Crown className="w-4 h-4 text-amber-500" /> MVP del Partido</> : <><Trophy className="w-4 h-4 text-amber-500" /> Elige al MVP del Partido</>}
                     </h4>
 
                     {myVote && !votingClosed && (
-                      <p className="text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded mb-4 relative z-10 border border-emerald-100">
-                        ✅ Tu voto ha sido registrado.
+                      <p className="text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded mb-4 relative z-10 border border-emerald-100 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Tu voto ha sido registrado.
                       </p>
                     )}
 
@@ -946,12 +972,12 @@ export default function JoinMatchPage() {
                         <div className="space-y-3">
                           {votingClosed && currentMVPs.length > 1 && (
                             <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4">
-                              <span>🤝</span> ¡Empate! Hoy se comparte el podio.
+                              <Star className="w-3.5 h-3.5 shrink-0" /> ¡Empate! Hoy se comparte el podio.
                             </div>
                           )}
                           {votingClosed && currentMVPs.length === 1 && (
                             <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4">
-                              <span>⭐</span> ¡Ya tenemos la figura de la canchita!
+                              <Crown className="w-3.5 h-3.5 shrink-0" /> ¡Ya tenemos la figura de la canchita!
                             </div>
                           )}
                           {sortedMVPLeaderboard.slice(0, 3).map(([targetId, votes]: [string, number], idx: number) => {
@@ -986,7 +1012,7 @@ export default function JoinMatchPage() {
                                       ) : (
                                         <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-inner
                                             ${isWinner ? 'bg-amber-100/50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}>
-                                          {isWinner ? <span className={`drop-shadow-sm mt-1 ${votingClosed ? "" : "animate-bounce"}`}>👑</span> : idx + 1}
+                                          {isWinner ? <Crown className={`w-6 h-6 text-amber-500 ${votingClosed ? "" : "animate-bounce"}`} /> : idx + 1}
                                         </div>
                                       )}
                                       <div className={`absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs shadow-md border font-bold z-10
@@ -1028,17 +1054,17 @@ export default function JoinMatchPage() {
                       ) : (
                         <div className="space-y-4">
                           {[
-                            { key: "A", title: "🔴 Equipo A", players: match.teams?.A || [] },
-                            { key: "B", title: "🔵 Equipo B", players: match.teams?.B || [] }
-                          ].map(({ key, title, players }) => {
+                            { key: "A", title: "Equipo A", color: "bg-red-500", players: match.teams?.A || [] },
+                            { key: "B", title: "Equipo B", color: "bg-blue-500", players: match.teams?.B || [] }
+                          ].map(({ key, title, color, players }) => {
                             // Convert back to MVP-eligible subset
                             const teamEligible = (players as Player[]).filter(p => p.uid !== user.uid && eligiblePlayersAndGuests.some(e => e.uid === p.uid || e.name === p.name));
                             if (teamEligible.length === 0) return null;
 
                             return (
                               <div key={key} className="space-y-2">
-                                <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">
-                                  {title}
+                                <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1 flex items-center gap-1.5">
+                                  <span className={`w-2 h-2 rounded-full ${color}`} />{title}
                                 </h5>
                                 <div className="grid grid-cols-2 gap-2">
                                   {teamEligible.map(p => {
@@ -1208,7 +1234,7 @@ export default function JoinMatchPage() {
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    👥 Jugadores
+                    <Users className="w-4 h-4 text-slate-500" /> Jugadores
                     <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">{confirmedCount} / {match.maxPlayers || "?"}</span>
                   </h3>
                   <div className="group relative flex items-center" tabIndex={0}>
@@ -1237,10 +1263,10 @@ export default function JoinMatchPage() {
                         setIsCopied(true);
                         setTimeout(() => setIsCopied(false), 2500);
                       }}
-                      className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${isCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                      className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${isCopied ? 'border-emerald-200 text-emerald-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                       title="Copiar lista"
                     >
-                      <span className="text-sm">{isCopied ? "✅" : "📋"}</span>
+                      {isCopied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                       <span className="text-[10px] hidden sm:inline uppercase">{isCopied ? "Copiado" : "Copiar"}</span>
                     </button>
                     <button
@@ -1248,7 +1274,7 @@ export default function JoinMatchPage() {
                         const text = buildRosterReport(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
                         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
                       }}
-                      className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
+                      className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                       title="Compartir por WhatsApp"
                     >
                       <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
@@ -1259,7 +1285,7 @@ export default function JoinMatchPage() {
                         const text = buildRosterReportTelegram(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
                         window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
                       }}
-                      className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100"
+                      className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                       title="Compartir por Telegram"
                     >
                       <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
@@ -1374,7 +1400,7 @@ export default function JoinMatchPage() {
             return (
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6 mt-4 opacity-90">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  📋 Lista de espera
+                  <ClipboardList className="w-4 h-4 text-amber-500" /> Lista de espera
                   <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-black">{waitlistPlayers.length}</span>
                 </h3>
                 <div className="divide-y divide-slate-100">
