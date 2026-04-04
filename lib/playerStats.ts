@@ -96,7 +96,20 @@ export async function updatePlayerStats(
 
     }
 
-    batch.set(userRef, { stats: statsUpdate }, { merge: true });
+    // Racha de Compromiso (commitmentStreak): increment ONLY if perfectly punctual (no late, no no_show).
+    // reset to 0 on ANY infraction (late OR no_show).
+    // Re-close does not modify streak (ambiguous intent — skip on previousResult).
+    const topLevelUpdate: Record<string, unknown> = { stats: statsUpdate };
+    if (!previousResult) {
+      if (isNoShow || attendance === "late") {
+        topLevelUpdate.commitmentStreak = 0;
+      } else {
+        // Only perfect punctuality (default "present") increments the streak
+        topLevelUpdate.commitmentStreak = increment(1);
+      }
+    }
+
+    batch.set(userRef, topLevelUpdate, { merge: true });
   }
 
   // Pending no-shows: jugadores sin equipo marcados manualmente como no-show.
@@ -107,9 +120,10 @@ export async function updatePlayerStats(
       if (player.attendance !== "no_show") continue;
 
       const userRef = doc(db, "users", player.uid);
+      // Pending no-shows: increment noShows and reset commitmentStreak
       batch.set(
         userRef,
-        { stats: { noShows: increment(1) } },
+        { stats: { noShows: increment(1) }, commitmentStreak: 0 },
         { merge: true }
       );
     }

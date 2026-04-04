@@ -14,11 +14,18 @@ Registrar y mantener estadísticas individuales de jugadores (victorias, derrota
 ### Datos de Stats (dentro de `users/{uid}`)
 
 ```typescript
-// Campos adicionales en el documento de usuario
+// Campos en el documento de usuario
 {
-  wins: number;     // Partidos ganados
-  losses: number;   // Partidos perdidos
-  draws: number;    // Empates
+  stats: {
+    played: number;       // Total de partidos jugados
+    won: number;          // Partidos ganados
+    lost: number;         // Partidos perdidos
+    draw: number;         // Empates
+    noShows: number;      // No-shows registrados
+    lateArrivals: number; // Llegadas tarde registradas
+  };
+  commitmentStreak: number; // Partidos consecutivos puntual — se gestiona junto a stats
+                             // Ver PLAYER_STREAKS_SDD.md para el resto de rachas
 }
 ```
 
@@ -37,6 +44,8 @@ type MatchResult = "win" | "loss" | "draw";
 | 3 | Si partido se reabre y re-cierra, stats previos se revierten | `previousResult` param |
 | 4 | Stats son atómicas — se usa `writeBatch` para all-or-nothing | `writeBatch` agrupa todos los `increment()` + flag `statsProcessed` en un solo commit atómico |
 | 5 | Resultado depende del score: A > B = win para A | Lógica en UI (match detail) |
+| 6 | `commitmentStreak` se actualiza junto a stats en el mismo batch | Increment si `attendance === "present"`, reset a 0 si `late` o `no_show` |
+| 7 | Re-cierre de partido no modifica `commitmentStreak` | `previousResult` presente = skip |
 
 ---
 
@@ -168,8 +177,11 @@ if (scoreA > scoreB) {
 | Capa | Archivo | Responsabilidad |
 |------|---------|----------------|
 | Dominio | `lib/domain/player.ts` | Player, MatchResult |
-| API | `lib/playerStats.ts` | updatePlayerStats() |
+| Dominio | `lib/domain/user.ts` | UserProfile con campos de stats y streaks |
+| API | `lib/playerStats.ts` | updatePlayerStats() — stats + commitmentStreak en mismo batch |
 | UI | `app/match/[id]/page.tsx` | Determina resultado, invoca stats |
+
+> Para `weeklyStreak`, `winStreak`, `unbeatenStreak` y `mvpStreak` ver [PLAYER_STREAKS_SDD.md](./PLAYER_STREAKS_SDD.md).
 
 ---
 

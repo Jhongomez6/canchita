@@ -59,6 +59,11 @@ export interface UserProfile {
     hasTournaments?: boolean;
     frequency?: Frequency;
     mvpAwards?: number;
+    commitmentStreak?: number;      // Racha de Compromiso: partidos consecutivos siendo puntual (sin late, sin no_show). Se resetea con cualquier falta
+    weeklyStreak?: number;          // Racha Semanal: semanas consecutivas con al menos 1 partido jugado
+    unbeatenStreak?: number;        // Racha Invicto: partidos consecutivos sin perder (ganados + empatados)
+    winStreak?: number;             // Racha de Victorias: partidos ganados consecutivos
+    mvpStreak?: number;             // Racha MVP: premios MVP consecutivos
     // Habeas Data / Legal
     createdAt?: string;                // ISO date of profile creation (first login)
     authAcceptedVersion?: string;      // Version of Terms/Privacy accepted at first login
@@ -98,6 +103,122 @@ export function calcCommitmentScore(stats: Pick<UserStats, "noShows" | "lateArri
     const lateArrivals = stats.lateArrivals ?? 0;
     const played = stats.played ?? 0;
     return Math.max(0, Math.min(99, 99 - noShows * 20 - lateArrivals * 6 + played));
+}
+
+/**
+ * Calcula racha semanal desde un array de matches cerrados.
+ * Racha semanal = cantidad de semanas calendario consecutivas (hacia atrás desde hoy)
+ * en las que el usuario jugó al menos 1 partido.
+ *
+ * @param matches - Array de matches cerrados del usuario, ordenados descendente por fecha
+ * @returns Número de semanas consecutivas con al menos 1 partido
+ */
+export function calcWeeklyStreak(matches: Array<{ date: string }>): number {
+    if (matches.length === 0) return 0;
+
+    // Agrupar matches por semana calendario (lun-dom)
+    const weekMap = new Map<string, boolean>();
+
+    matches.forEach(match => {
+        const date = new Date(match.date);
+        // Calcular el lunes de esa semana
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Ajustar a lunes
+        const monday = new Date(date.setDate(diff));
+        const weekKey = monday.toISOString().split('T')[0]; // YYYY-MM-DD del lunes
+        weekMap.set(weekKey, true);
+    });
+
+    // Obtener semanas únicas ordenadas descendente
+    const weeks = Array.from(weekMap.keys()).sort().reverse();
+
+    if (weeks.length === 0) return 0;
+
+    // Contar desde la semana más reciente hacia atrás hasta encontrar un hueco
+    let streak = 0;
+    const today = new Date();
+    const todayMonday = new Date(today);
+    const todayDay = todayMonday.getDay();
+    const todayDiff = todayMonday.getDate() - todayDay + (todayDay === 0 ? -6 : 1);
+    todayMonday.setDate(todayDiff);
+    // Empezar desde esta semana y contar hacia atrás
+    const currentWeekDate = new Date(todayMonday);
+
+    for (let i = 0; i < 1000; i++) { // Límite de seguridad
+        const weekKey = currentWeekDate.toISOString().split('T')[0];
+        if (weekMap.has(weekKey)) {
+            streak++;
+            currentWeekDate.setDate(currentWeekDate.getDate() - 7);
+        } else {
+            break;
+        }
+    }
+
+    return streak;
+}
+
+/**
+ * Calcula racha invicto (sin perder): partidos ganados + empatados consecutivos.
+ * Cuenta desde el partido más reciente hacia atrás hasta encontrar la primera derrota.
+ *
+ * @param matches - Array de matches cerrados del usuario con resultado (won, draw, lost), ordenados descendente por fecha
+ * @returns Número de partidos consecutivos sin perder (ganados + empatados)
+ */
+export function calcUnbeatableStreak(matches: Array<{ won?: boolean; draw?: boolean; lost?: boolean }>): number {
+    if (matches.length === 0) return 0;
+
+    let streak = 0;
+    for (const match of matches) {
+        if (match.lost) {
+            break;
+        }
+        if (match.won || match.draw) {
+            streak++;
+        }
+    }
+    return streak;
+}
+
+/**
+ * Calcula racha de victorias: partidos ganados consecutivos.
+ * Cuenta desde el partido más reciente hacia atrás hasta encontrar un no-win.
+ *
+ * @param matches - Array de matches cerrados del usuario con resultado (won), ordenados descendente por fecha
+ * @returns Número de partidos ganados consecutivos
+ */
+export function calcWinStreak(matches: Array<{ won?: boolean }>): number {
+    if (matches.length === 0) return 0;
+
+    let streak = 0;
+    for (const match of matches) {
+        if (match.won) {
+            streak++;
+        } else {
+            break;
+        }
+    }
+    return streak;
+}
+
+/**
+ * Calcula racha MVP: premios MVP consecutivos desde el más reciente.
+ * Requiere info de qué partidos tuvo MVP (se calcula al cerrar match).
+ *
+ * @param matches - Array de matches cerrados del usuario con flag mvp, ordenados descendente por fecha
+ * @returns Número de partidos consecutivos con MVP
+ */
+export function calcMvpStreak(matches: Array<{ mvp?: boolean }>): number {
+    if (matches.length === 0) return 0;
+
+    let streak = 0;
+    for (const match of matches) {
+        if (match.mvp) {
+            streak++;
+        } else {
+            break;
+        }
+    }
+    return streak;
 }
 
 /**

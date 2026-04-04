@@ -1,3 +1,4 @@
+import { Heart } from "lucide-react";
 import { calcCommitmentScore } from "@/lib/domain/user";
 import type { UserStats } from "@/lib/domain/user";
 
@@ -13,11 +14,17 @@ const StatItem = ({ label, value, colorClass }: { label: string, value: number, 
     </div>
 );
 
+function getComHeartColor(score: number): string {
+    if (score >= 80) return "text-emerald-400 fill-emerald-400";
+    if (score >= 50) return "text-amber-400 fill-amber-400";
+    return "text-red-500 fill-red-500";
+}
+
 export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
     const commitmentScore = calcCommitmentScore(stats);
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+        <div id="statistics" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
             <div className="flex items-center gap-2 mb-4">
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     📊 Estadísticas
@@ -43,7 +50,13 @@ export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
                 <StatItem label="PE" value={stats.draw || 0} colorClass="text-amber-500" />
                 <StatItem label="PP" value={stats.lost || 0} colorClass="text-red-500" />
                 <StatItem label="🏆 MVP" value={mvpAwards || 0} colorClass="text-yellow-500" />
-                <StatItem label="COM" value={commitmentScore} colorClass="text-blue-600" />
+                <div className="flex flex-col items-center flex-1">
+                    <span className="text-2xl font-black text-blue-600">{commitmentScore}</span>
+                    <div className="flex items-center gap-1">
+                        <Heart size={14} className={`${getComHeartColor(commitmentScore)} transition-colors`} />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">COM</span>
+                    </div>
+                </div>
             </div>
         </div>
     );
