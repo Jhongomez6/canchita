@@ -136,45 +136,99 @@ export default function DashboardTab({
       </div>
 
       {/* Stat Mini-Cards */}
-      <div className="grid grid-cols-3 gap-3">
-        {/* Players card */}
-        <button
-          onClick={() => onNavigateTab("players")}
-          className={`${playersBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
-        >
-          <div className="text-2xl mb-1">👥</div>
-          <div className={`text-lg font-black ${playersColor}`}>
-            {confirmedCount}/{match.maxPlayers}
-          </div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            Jugadores
-          </div>
-        </button>
+      {isClosed ? (
+        <div className="grid grid-cols-2 gap-3">
+          {/* Players card */}
+          <button
+            onClick={() => onNavigateTab("players")}
+            className={`${playersBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
+          >
+            <div className="text-2xl mb-1">👥</div>
+            <div className={`text-lg font-black ${playersColor}`}>
+              {confirmedCount}/{match.maxPlayers}
+            </div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Jugadores
+            </div>
+          </button>
 
-        {/* Teams card */}
-        <button
-          onClick={() => onNavigateTab("teams")}
-          className={`${teamsBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
-        >
-          <div className="text-2xl mb-1">⚖️</div>
-          <div className={`text-sm font-black ${teamsColor}`}>{teamsLabel}</div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            Equipos
-          </div>
-        </button>
+          {/* Teams card */}
+          <button
+            onClick={() => onNavigateTab("teams")}
+            className={`${teamsBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
+          >
+            <div className="text-2xl mb-1">⚖️</div>
+            <div className={`text-sm font-black ${teamsColor}`}>{teamsLabel}</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Equipos
+            </div>
+          </button>
 
-        {/* Score card */}
-        <button
-          onClick={() => onNavigateTab("teams")}
-          className={`${scoreBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
-        >
-          <div className="text-2xl mb-1">🏆</div>
-          <div className={`text-lg font-black ${scoreColor}`}>{scoreLabel}</div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            Marcador
-          </div>
-        </button>
-      </div>
+          {/* Score card */}
+          <button
+            onClick={() => onNavigateTab("teams")}
+            className={`${scoreBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
+          >
+            <div className="text-2xl mb-1">🏆</div>
+            <div className={`text-lg font-black ${scoreColor}`}>{scoreLabel}</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Marcador
+            </div>
+          </button>
+
+          {/* Payments card */}
+          <button
+            onClick={() => onNavigateTab("payments")}
+            className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]"
+          >
+            <div className="text-2xl mb-1">💰</div>
+            <div className="text-sm font-black text-emerald-600">Cobros</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Pagos
+            </div>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {/* Players card */}
+          <button
+            onClick={() => onNavigateTab("players")}
+            className={`${playersBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
+          >
+            <div className="text-2xl mb-1">👥</div>
+            <div className={`text-lg font-black ${playersColor}`}>
+              {confirmedCount}/{match.maxPlayers}
+            </div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Jugadores
+            </div>
+          </button>
+
+          {/* Teams card */}
+          <button
+            onClick={() => onNavigateTab("teams")}
+            className={`${teamsBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
+          >
+            <div className="text-2xl mb-1">⚖️</div>
+            <div className={`text-sm font-black ${teamsColor}`}>{teamsLabel}</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Equipos
+            </div>
+          </button>
+
+          {/* Score card */}
+          <button
+            onClick={() => onNavigateTab("teams")}
+            className={`${scoreBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
+          >
+            <div className="text-2xl mb-1">🏆</div>
+            <div className={`text-lg font-black ${scoreColor}`}>{scoreLabel}</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Marcador
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Full match warning */}
       {isFull && !isClosed && (

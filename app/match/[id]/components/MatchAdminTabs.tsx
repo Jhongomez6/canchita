@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export type TabId = "dashboard" | "players" | "teams" | "settings" | "payments";
 
@@ -27,11 +27,17 @@ export default function MatchAdminTabs({
   hasUnsavedBalance,
   isClosed,
 }: MatchAdminTabsProps) {
-  const scrollToTab = useCallback((el: HTMLButtonElement | null) => {
-    if (el && el.getAttribute("aria-selected") === "true") {
-      el.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
     }
-  }, []);
+  }, [activeTab]);
 
   const tabs: Tab[] = [
     { id: "dashboard", label: "Dashboard", icon: "📊" },
@@ -51,7 +57,7 @@ export default function MatchAdminTabs({
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            ref={scrollToTab}
+            ref={activeTab === tab.id ? activeTabRef : null}
             role="tab"
             aria-selected={activeTab === tab.id}
             aria-controls={`panel-${tab.id}`}

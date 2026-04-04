@@ -778,13 +778,22 @@ export async function voteForMVP(
 /* =========================
    COBROS — REGISTRAR PAGO
 ========================= */
-export async function togglePayment(
+/**
+ * Guarda todo el mapa de pagos en una sola operación
+ */
+export async function savePaymentsInBatch(
   matchId: string,
-  key: string,
-  hasPaid: boolean
+  payments: Record<string, boolean>
 ): Promise<void> {
   const ref = doc(db, "matches", matchId);
-  await updateDoc(ref, { [`payments.${key}`]: hasPaid });
+  const updateData: Record<string, boolean> = {};
+
+  // Convertir Record a dot-notation updates
+  Object.entries(payments).forEach(([key, value]) => {
+    updateData[`payments.${key}`] = value;
+  });
+
+  await updateDoc(ref, updateData);
 }
 
 export async function deleteMatch(matchId: string): Promise<void> {

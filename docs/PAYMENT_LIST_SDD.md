@@ -18,9 +18,11 @@ Permitir al administrador registrar qué jugadores e invitados han pagado despu�
 1. El admin cierra el partido → aparece el tab "💰 Cobros"
 2. El admin navega al tab y ve la lista de participantes
 3. Cada fila muestra nombre, badge de asistencia (o "Invitado") y un botón toggle
-4. El admin toca "Pendiente" para marcarlo como pagado → botón cambia a "Pagó ✓"
-5. El admin toca "Pagó ✓" para revertir → botón vuelve a "Pendiente"
-6. El resumen superior se actualiza en tiempo real vía Firestore `onSnapshot`
+4. El admin toca los toggles para marcar jugadores como pagados/pendientes (cambios locales en el draft)
+5. El resumen superior se actualiza localmente mientras edita
+6. Cuando hay cambios, aparece un botón "Guardar Cobros" en la base
+7. El admin toca "Guardar Cobros" → se envía **un bloque único** con todos los cambios a Firestore
+8. El tab se actualiza vía Firestore `onSnapshot` en tiempo real
 
 ---
 
@@ -45,9 +47,11 @@ payments?: Record<string, boolean>; // key → hasPaid (true = pagó)
 ## 3. FILTRO DE PARTICIPANTES
 
 ### Jugadores (players)
-**Regla primaria:** jugadores con `attendance === "present" | "late" | "no_show"` y `uid` válido.
+**Regla:** mostrar jugadores que cumplan **cualquiera** de estas condiciones:
+- Tengan `attendance` registrado (`"present"`, `"late"`, `"no_show"`) Y `uid` válido, O
+- Tengan `confirmed === true` Y `uid` válido
 
-**Fallback:** si ningún jugador tiene `attendance` registrado, mostrar todos con `confirmed === true` y `uid` válido.
+Esto garantiza que se muestren todos los participantes, incluso si no completaron la asistencia.
 
 ### Invitados (guests)
 Todos los guests con `isWaitlist !== true` (activos en el partido, no en lista de espera).
@@ -75,16 +79,16 @@ Todos los guests con `isWaitlist !== true` (activos en el partido, no en lista d
 
 ## 5. API
 
-### `togglePayment` (`lib/matches.ts`)
+### `savePaymentsInBatch` (`lib/matches.ts`)
 ```typescript
-export async function togglePayment(
+export async function savePaymentsInBatch(
   matchId: string,
-  key: string,
-  hasPaid: boolean
+  payments: Record<string, boolean>
 ): Promise<void>
 ```
-- Escribe `payments.${key}` = `hasPaid` via `updateDoc` con dot-notation
-- No requiere transacción: cada toggle es una escritura independiente y atómica
+- Escribe el mapa completo de pagos en **una sola operación** via `updateDoc` con dot-notation
+- Optimiza costo: N cambios = 1 escritura en lugar de N escrituras
+- No requiere transacción: updateDoc es atómico a nivel de documento
 
 ---
 
@@ -94,18 +98,24 @@ export async function togglePayment(
 ```typescript
 interface PaymentsTabProps {
   match: Match;
-  onTogglePayment: (key: string, hasPaid: boolean) => Promise<void>;
+  onSavePayments: (payments: Record<string, boolean>) => Promise<void>;
 }
 ```
 
+### Estado interno
+- `draftPayments`: Record<string, boolean> — copia local editable de `match.payments`
+- `isSaving`: boolean — indica si hay una operación en progreso
+- `hasChanges`: boolean — detecta si el draft difiere de `match.payments`
+
 ### Funciones puras internas
-- `getPayablePlayers(match)` — filtra jugadores con attendance o fallback confirmed
+- `getPayablePlayers(match)` — filtra jugadores con attendance O confirmed
 - `getPayableGuests(match)` — filtra guests activos (no waitlist)
 
 ### UI
-- **Summary bar**: "X pagaron" (emerald) + "X pendientes" (amber)
+- **Summary bar**: "X pagaron" (emerald) + "X pendientes" (amber) — actualiza en tiempo real con cambios del draft
 - **Lista**: avatar + nombre + badge de asistencia/invitado + botón toggle
-- Estado visual reactivo: llega via `onSnapshot` del match en el padre
+- **Botón guardar**: Aparece solo si `hasChanges === true`, deshabilitado mientras `isSaving === true`
+- Toggles siempre activos (no requieren estado de carga por fila)
 
 ---
 

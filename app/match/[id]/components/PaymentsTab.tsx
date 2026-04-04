@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import type { Match } from "@/lib/domain/match";
 import type { Player } from "@/lib/domain/player";
@@ -7,7 +8,8 @@ import type { Guest } from "@/lib/domain/guest";
 
 interface PaymentsTabProps {
   match: Match;
-  onTogglePayment: (key: string, hasPaid: boolean) => Promise<void>;
+  onSavePayments: (payments: Record<string, boolean>) => Promise<void>;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 interface PayableEntry {
@@ -25,33 +27,28 @@ function guestKey(guest: Guest): string {
 function getPayablePlayers(match: Match): PayableEntry[] {
   const all = match.players ?? [];
 
-  const withAttendance = all.filter(
-    (p) =>
-      p.uid &&
+  // Mostrar jugadores que tengan attendance registrado O que estén confirmed
+  return all
+    .filter((p) => p.uid && (
       (p.attendance === "present" ||
         p.attendance === "late" ||
-        p.attendance === "no_show")
-  );
-
-  const source =
-    withAttendance.length > 0
-      ? withAttendance
-      : all.filter((p) => p.uid && p.confirmed === true);
-
-  return source.map((p: Player) => ({
-    key: p.uid!,
-    name: p.name,
-    photoURL: p.photoURL,
-    attendanceLabel:
-      p.attendance === "present"
-        ? "✅ Presente"
-        : p.attendance === "late"
-        ? "⏰ Tarde"
-        : p.attendance === "no_show"
-        ? "🚫 No show"
-        : undefined,
-    isGuest: false,
-  }));
+        p.attendance === "no_show") ||
+      p.confirmed === true
+    ))
+    .map((p: Player) => ({
+      key: p.uid!,
+      name: p.name,
+      photoURL: p.photoURL,
+      attendanceLabel:
+        p.attendance === "present"
+          ? "✅ Presente"
+          : p.attendance === "late"
+          ? "⏰ Tarde"
+          : p.attendance === "no_show"
+          ? "🚫 No show"
+          : undefined,
+      isGuest: false,
+    }));
 }
 
 function getPayableGuests(match: Match): PayableEntry[] {
@@ -64,18 +61,41 @@ function getPayableGuests(match: Match): PayableEntry[] {
     }));
 }
 
-export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps) {
+export default function PaymentsTab({ match, onSavePayments, onDirtyChange }: PaymentsTabProps) {
+  const [draftPayments, setDraftPayments] = useState<Record<string, boolean>>(
+    match.payments ?? {}
+  );
+  const [isSaving, setIsSaving] = useState(false);
+
   const players = getPayablePlayers(match);
   const guests = getPayableGuests(match);
   const entries = [...players, ...guests];
-  const payments = match.payments ?? {};
 
-  const paidCount = entries.filter((e) => payments[e.key] === true).length;
+  const paidCount = entries.filter((e) => draftPayments[e.key] === true).length;
   const pendingCount = entries.length - paidCount;
 
-  async function handleToggle(entry: PayableEntry) {
-    const current = payments[entry.key] ?? false;
-    await onTogglePayment(entry.key, !current);
+  // Detectar si hay cambios sin guardar
+  const hasChanges = JSON.stringify(draftPayments) !== JSON.stringify(match.payments ?? {});
+
+  // Notificar al padre cuando el estado dirty cambia
+  useEffect(() => {
+    onDirtyChange?.(hasChanges);
+  }, [hasChanges, onDirtyChange]);
+
+  function handleToggle(entry: PayableEntry) {
+    setDraftPayments((prev) => ({
+      ...prev,
+      [entry.key]: !prev[entry.key],
+    }));
+  }
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      await onSavePayments(draftPayments);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -104,7 +124,7 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
         )}
 
         {entries.map((entry) => {
-          const hasPaid = payments[entry.key] ?? false;
+          const hasPaid = draftPayments[entry.key] ?? false;
 
           return (
             <div key={entry.key} className="flex items-center gap-3 p-3">
@@ -140,6 +160,7 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
               {/* Toggle button */}
               <button
                 onClick={() => handleToggle(entry)}
+                disabled={isSaving}
                 className={`shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
                   hasPaid
                     ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
@@ -152,6 +173,21 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
           );
         })}
       </div>
+
+      {/* Save button */}
+      {hasChanges && (
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className={`w-full font-bold py-3 rounded-xl transition-colors ${
+            isSaving
+              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+              : "bg-emerald-600 text-white hover:bg-emerald-700"
+          }`}
+        >
+          {isSaving ? "Guardando..." : "Guardar Cobros"}
+        </button>
+      )}
     </div>
   );
 }

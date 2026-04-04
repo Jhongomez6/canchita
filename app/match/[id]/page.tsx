@@ -17,6 +17,7 @@ import {
   approveFromWaitlist,
   deleteMatch,
   confirmTeams,
+  savePaymentsInBatch,
 } from "@/lib/matches";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -40,7 +41,7 @@ import { guestToPlayer } from "@/lib/domain/guest";
 import { addGuestToMatch, promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
-import { logMatchInvitationCopied } from "@/lib/analytics";
+import { logMatchInvitationCopied, logPaymentsSaved } from "@/lib/analytics";
 import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
 
 // Tab components
@@ -51,7 +52,6 @@ import TeamsTab from "./components/TeamsTab";
 import SettingsTab from "./components/SettingsTab";
 import PaymentsTab from "./components/PaymentsTab";
 import MatchFAB from "./components/MatchFAB";
-import { togglePayment } from "@/lib/matches";
 
 export default function MatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -80,6 +80,26 @@ export default function MatchDetailPage() {
     (searchParams.get("tab") as TabId) || "dashboard"
   );
   const [tabInitialized, setTabInitialized] = useState(false);
+  const [paymentsAreDirty, setPaymentsAreDirty] = useState(false);
+
+  // Interceptar cambio de tab si hay cobros sin guardar
+  function handleTabChange(tab: TabId) {
+    if (paymentsAreDirty && activeTab === "payments" && tab !== "payments") {
+      if (!window.confirm("Tienes cobros sin guardar. ¿Salir sin guardar?")) return;
+    }
+    setActiveTab(tab);
+  }
+
+  // Advertir si navega fuera de la página con cobros sin guardar
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (paymentsAreDirty) {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [paymentsAreDirty]);
 
   // ========================
   // REAL-TIME LISTENER
@@ -668,7 +688,7 @@ export default function MatchDetailPage() {
           {/* Tab Navigation */}
           <MatchAdminTabs
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
             playerCount={confirmedCount}
             hasUnsavedBalance={hasUnsavedBalance}
             isClosed={isClosed}
@@ -835,11 +855,15 @@ export default function MatchDetailPage() {
           {activeTab === "payments" && isClosed && (
             <PaymentsTab
               match={match}
-              onTogglePayment={async (key, hasPaid) => {
+              onDirtyChange={setPaymentsAreDirty}
+              onSavePayments={async (payments) => {
                 try {
-                  await togglePayment(id, key, hasPaid);
+                  await savePaymentsInBatch(id, payments);
+                  const paidCount = Object.values(payments).filter(Boolean).length;
+                  await logPaymentsSaved(id, paidCount);
+                  toast.success("Cobros guardados");
                 } catch (err: unknown) {
-                  handleError(err, "Error al registrar el pago.");
+                  handleError(err, "Error al guardar los cobros.");
                 }
               }}
             />
