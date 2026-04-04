@@ -26,6 +26,7 @@ interface SettingsTabProps {
   onReopenMatch: () => Promise<void>;
   onDeleteMatch: () => Promise<void>;
   onToggleAllowGuests: (value: boolean) => Promise<void>;
+  onUpdateInstructions?: (value: string) => Promise<void>;
 }
 
 export default function SettingsTab({
@@ -48,6 +49,7 @@ export default function SettingsTab({
   onReopenMatch,
   onDeleteMatch,
   onToggleAllowGuests,
+  onUpdateInstructions,
 }: SettingsTabProps) {
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -63,6 +65,8 @@ export default function SettingsTab({
   const [showGuestsConfirm, setShowGuestsConfirm] = useState(false);
   const [togglingGuests, setTogglingGuests] = useState(false);
   const [localMaxPlayers, setLocalMaxPlayers] = useState(maxPlayersDraft);
+  const [localInstructions, setLocalInstructions] = useState(match.instructions || "");
+  const [savingInstructions, setSavingInstructions] = useState(false);
 
   const currentMax = localMaxPlayers ?? match.maxPlayers ?? 14;
   const guestCount = match.guests?.length ?? 0;
@@ -131,9 +135,8 @@ export default function SettingsTab({
             </div>
             <button
               onClick={handleCopyLink}
-              className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${
-                copied ? "bg-[#16a34a]" : "bg-blue-600 hover:bg-blue-700"
-              }`}
+              className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${copied ? "bg-[#16a34a]" : "bg-blue-600 hover:bg-blue-700"
+                }`}
             >
               {copied ? "Copiado" : "Copiar"}
             </button>
@@ -151,9 +154,8 @@ export default function SettingsTab({
             </div>
             <button
               onClick={handleCopyCode}
-              className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${
-                copiedCode ? "bg-[#16a34a]" : "bg-slate-700 hover:bg-slate-800"
-              }`}
+              className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${copiedCode ? "bg-[#16a34a]" : "bg-slate-700 hover:bg-slate-800"
+                }`}
             >
               {copiedCode ? "Copiado" : "Copiar"}
             </button>
@@ -183,11 +185,10 @@ export default function SettingsTab({
                         setCopyingReport(false);
                       }
                     }}
-                    className={`w-full py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 disabled:opacity-50 ${
-                      copiedReport
+                    className={`w-full py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 disabled:opacity-50 ${copiedReport
                         ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
-                    }`}
+                      }`}
                   >
                     <span className="text-lg">{copyingReport ? "⏳" : copiedReport ? "✅" : "📋"}</span>
                     {copiedReport ? "Copiado" : "Copiar"}
@@ -220,11 +221,10 @@ export default function SettingsTab({
                   <button
                     onClick={handleCopyInvitation}
                     disabled={copyingInvitation}
-                    className={`w-full py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${
-                      copiedInvitation
+                    className={`w-full py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${copiedInvitation
                         ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
-                    }`}
+                      }`}
                   >
                     <span className="text-lg">{copiedInvitation ? "✅" : "📋"}</span>
                     {copiedInvitation ? "Copiado" : "Copiar"}
@@ -384,6 +384,52 @@ export default function SettingsTab({
         </div>
       )}
 
+      {/* Match Instructions */}
+      {isOwner && onUpdateInstructions && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+            <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg text-sm">📋</span>
+            Instrucciones para jugadores
+            <span className="text-xs font-normal text-slate-400">(opcional)</span>
+          </h3>
+          <p className="text-[10px] text-slate-400 mb-3">
+            Visible para todos en la página del partido. Pago, puntualidad u otras condiciones.
+          </p>
+          <div className="relative mb-3">
+            <textarea
+              value={localInstructions}
+              maxLength={500}
+              rows={3}
+              placeholder="Ej: Pago $5000 en efectivo al llegar. Lleguen 10 minutos antes."
+              className="w-full px-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent"
+              onChange={(e) => setLocalInstructions(e.target.value)}
+            />
+            <span className={`absolute bottom-2 right-3 text-[10px] ${localInstructions.length >= 500 ? "text-red-500" : "text-slate-400"}`}>
+              {localInstructions.length}/500
+            </span>
+          </div>
+          <button
+            onClick={async () => {
+              if (localInstructions === match.instructions) return;
+              setSavingInstructions(true);
+              try {
+                await onUpdateInstructions(localInstructions.trim());
+              } finally {
+                setSavingInstructions(false);
+              }
+            }}
+            disabled={savingInstructions || localInstructions === (match.instructions || "")}
+            className={`w-full py-3 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-[0.98] ${
+              savingInstructions || localInstructions === (match.instructions || "")
+                ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200"
+                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+            }`}
+          >
+            {savingInstructions ? "⏳ Guardando..." : "Guardar instrucciones"}
+          </button>
+        </div>
+      )}
+
       {/* Notifications */}
       {isOwner && !isClosed && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
@@ -429,11 +475,10 @@ export default function SettingsTab({
                   setIsClosing(false);
                 }
               }}
-              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${
-                !match.teams || isClosing
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${!match.teams || isClosing
                   ? "bg-slate-400 cursor-not-allowed opacity-50 shadow-none"
                   : "bg-red-600 hover:bg-red-700"
-              }`}
+                }`}
             >
               {isClosing ? "⏳ Cerrando partido..." : "🔒 Cerrar partido final"}
             </button>
@@ -452,11 +497,10 @@ export default function SettingsTab({
                   setIsReopening(false);
                 }
               }}
-              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${
-                isReopening
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${isReopening
                   ? "bg-slate-400 cursor-not-allowed opacity-50 shadow-none"
                   : "bg-[#1f7a4f] hover:bg-[#16603c]"
-              }`}
+                }`}
             >
               {isReopening ? "⏳ Reabriendo..." : "🔓 Reabrir partido"}
             </button>
