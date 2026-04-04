@@ -38,6 +38,7 @@ import JoinSkeleton from "@/components/skeletons/JoinSkeleton";
 import Link from "next/link";
 import PlayerCardDrawer from "@/components/PlayerCardDrawer";
 import MatchTimeline from "@/components/MatchTimeline";
+import JoinConfirmModal from "@/components/JoinConfirmModal";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +56,9 @@ export default function JoinMatchPage() {
   const [selectedPlayerUid, setSelectedPlayerUid] = useState<string | null>(null);
   const [isPlayerCardOpen, setIsPlayerCardOpen] = useState(false);
   const [organizerPhone, setOrganizerPhone] = useState<string | null>(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [isWaitlistModal, setIsWaitlistModal] = useState(false);
+  const [pendingJoinAction, setPendingJoinAction] = useState<(() => Promise<void>) | null>(null);
 
   const handlePlayerTap = (uid?: string) => {
     if (!uid) return;
@@ -608,23 +612,19 @@ export default function JoinMatchPage() {
               {isFull && (!existingPlayer || (!existingPlayer.confirmed && !existingPlayer.isWaitlist)) && (
                 <button
                   disabled={submitting}
-                  onClick={async () => {
-                    setSubmitting(true);
-                    try {
+                  onClick={() => {
+                    setPendingJoinAction(() => async () => {
                       await joinWaitlist(id, { uid: user.uid, name: playerName });
-                      toast.success("Te has unido a la lista de espera");
-                    } catch (e: unknown) {
-                      handleError(e, "Hubo un error uniéndose a la lista de espera");
-                    } finally {
-                      setSubmitting(false);
-                    }
+                    });
+                    setIsWaitlistModal(true);
+                    setShowJoinModal(true);
                   }}
                   className={`w-full py-3 font-bold text-sm transition-all active:scale-[0.98] ${submitting
                     ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                     : "bg-amber-50 text-amber-800 hover:bg-amber-100"
                     }`}
                 >
-                  {submitting ? "⏳ Uniendo..." : "📋 Ingresar como Suplente"}
+                  📋 Ingresar como Suplente
                 </button>
               )}
 
@@ -632,23 +632,18 @@ export default function JoinMatchPage() {
               {!isFull && !existingPlayer && (
                 <button
                   disabled={submitting}
-                  onClick={async () => {
-                    setSubmitting(true);
-                    try {
+                  onClick={() => {
+                    setPendingJoinAction(() => async () => {
                       await joinMatch(id, { uid: user.uid, name: playerName });
-                      toast.success("¡Asistencia confirmada!");
-                    } catch (e: unknown) {
-                      handleError(e, "Hubo un error al confirmar tu asistencia");
-                    } finally {
-                      setSubmitting(false);
-                    }
+                    });
+                    setShowJoinModal(true);
                   }}
                   className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] ${submitting
                     ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                     : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
                     }`}
                 >
-                  {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
+                  ✅ Confirmar asistencia
                 </button>
               )}
 
@@ -660,23 +655,18 @@ export default function JoinMatchPage() {
                   </div>
                   <button
                     disabled={submitting}
-                    onClick={async () => {
-                      setSubmitting(true);
-                      try {
+                    onClick={() => {
+                      setPendingJoinAction(() => async () => {
                         await confirmAttendance(id, playerName);
-                        toast.success("¡Asistencia confirmada!");
-                      } catch (e: unknown) {
-                        handleError(e, "Error al confirmar asistencia");
-                      } finally {
-                        setSubmitting(false);
-                      }
+                      });
+                      setShowJoinModal(true);
                     }}
                     className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] ${submitting
                       ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                       : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
                       }`}
                   >
-                    {submitting ? "⏳ Confirmando..." : "✅ Confirmar asistencia"}
+                    ✅ Confirmar asistencia
                   </button>
                 </>
               )}
@@ -1374,7 +1364,7 @@ export default function JoinMatchPage() {
             return (
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6 mt-4 opacity-90">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  📋 Lista de espera (Suplentes)
+                  📋 Lista de espera
                   <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-black">{waitlistPlayers.length}</span>
                 </h3>
                 <div className="divide-y divide-slate-100">
@@ -1471,6 +1461,29 @@ export default function JoinMatchPage() {
         isOpen={isPlayerCardOpen}
         onClose={() => { setIsPlayerCardOpen(false); setSelectedPlayerUid(null); }}
         playerUid={selectedPlayerUid}
+      />
+
+      <JoinConfirmModal
+        isOpen={showJoinModal}
+        instructions={match?.instructions}
+        isWaitlist={isWaitlistModal}
+        submitting={submitting}
+        onClose={() => { setShowJoinModal(false); setIsWaitlistModal(false); setPendingJoinAction(null); }}
+        onConfirm={async () => {
+          if (!pendingJoinAction) return;
+          setSubmitting(true);
+          try {
+            await pendingJoinAction();
+            toast.success(isWaitlistModal ? "Te has unido a la lista de espera" : "¡Asistencia confirmada!");
+            setShowJoinModal(false);
+            setIsWaitlistModal(false);
+            setPendingJoinAction(null);
+          } catch (e: unknown) {
+            handleError(e, isWaitlistModal ? "Hubo un error uniéndose a la lista de espera" : "Hubo un error al confirmar tu asistencia");
+          } finally {
+            setSubmitting(false);
+          }
+        }}
       />
     </main >
   );

@@ -56,6 +56,7 @@ export interface Match {
     creatorAdminType?: AdminType; // Tier del admin al crear el partido
     creatorSnapshot?: { name: string; photoURL?: string }; // Snapshot del creador al crear
     remindersSent?: Record<string, boolean>; // Tracks sent notifications to avoid duplicate push dispatches
+    instructions?: string; // Instrucciones libres del organizador para los jugadores (máx 500 chars)
 }
 
 export interface CreateMatchInput {

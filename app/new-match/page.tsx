@@ -25,6 +25,7 @@ export default function NewMatchPage() {
   const [maxPlayers, setMaxPlayers] = useState(14);
   const [isPrivate, setIsPrivate] = useState(false);
   const [allowGuests, setAllowGuests] = useState(false);
+  const [instructions, setInstructions] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -88,6 +89,7 @@ export default function NewMatchPage() {
         maxPlayers: finalMaxPlayers,
         isPrivate,
         allowGuests,
+        ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
       });
 
       toast.success("¡Partido creado exitosamente!");
@@ -334,6 +336,31 @@ export default function NewMatchPage() {
                         </div>
                       </label>
                     </div>
+                  </div>
+                </div>
+
+                {/* CARD: INSTRUCCIONES */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                  <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg text-sm">📋</span>
+                    Instrucciones para jugadores
+                    <span className="text-xs font-normal text-slate-400">(opcional)</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400 mb-3">
+                    Visible para todos en la página del partido. Pago, puntualidad u otras condiciones.
+                  </p>
+                  <div className="relative">
+                    <textarea
+                      value={instructions}
+                      maxLength={500}
+                      rows={3}
+                      placeholder="Ej: Pago $5000 en efectivo al llegar. Lleguen 10 minutos antes."
+                      className="w-full px-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent"
+                      onChange={(e) => setInstructions(e.target.value)}
+                    />
+                    <span className={`absolute bottom-2 right-3 text-[10px] ${instructions.length >= 500 ? "text-red-500" : "text-slate-400"}`}>
+                      {instructions.length}/500
+                    </span>
                   </div>
                 </div>
 

@@ -79,6 +79,7 @@ export async function createMatch(match: {
   };
   isPrivate?: boolean;
   allowGuests?: boolean;
+  instructions?: string;
 }) {
   const profile = await getUserProfile(match.createdBy);
   if (!profile) throw new Error("No se encontró el perfil de usuario");

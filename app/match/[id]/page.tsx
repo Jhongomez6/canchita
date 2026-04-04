@@ -822,6 +822,10 @@ export default function MatchDetailPage() {
                 }
                 await updateDoc(doc(db, "matches", id), update);
               }}
+              onUpdateInstructions={async (value) => {
+                await updateDoc(doc(db, "matches", id), { instructions: value });
+                toast.success("Instrucciones guardadas");
+              }}
             />
           )}
         </div>

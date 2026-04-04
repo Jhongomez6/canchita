@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { usePathname } from "next/navigation";
 import { submitFeedback } from "@/lib/feedback";
@@ -14,12 +14,27 @@ export default function BetaFeedbackWidget() {
     const [type, setType] = useState<'bug' | 'idea' | 'other'>('idea');
     const [message, setMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hiddenByModal, setHiddenByModal] = useState(false);
+
+    useEffect(() => {
+        const show = () => setHiddenByModal(true);
+        const hide = () => setHiddenByModal(false);
+        window.addEventListener("bottomsheet:open", show);
+        window.addEventListener("bottomsheet:close", hide);
+        return () => {
+            window.removeEventListener("bottomsheet:open", show);
+            window.removeEventListener("bottomsheet:close", hide);
+        };
+    }, []);
 
     // Si no está autenticado, no mostramos el widget
     if (!user) return null;
 
     // Ocultar en la página admin de partido (tiene su propio FAB)
     if (pathname.startsWith("/match/")) return null;
+
+    // Ocultar cuando hay un bottom sheet abierto
+    if (hiddenByModal) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
