@@ -1,5 +1,8 @@
 export function formatDateSpanish(dateStr: string) {
-    const date = new Date(dateStr + "T00:00:00");
+    if (!dateStr) return "";
+    // Si es un ISO completo, tomar solo la fecha
+    const baseDate = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const date = new Date(baseDate + "T00:00:00");
 
     const formatted = date.toLocaleDateString("es-CO", {
         weekday: "long",
@@ -15,7 +18,9 @@ export function formatDateSpanish(dateStr: string) {
 
 
 export function formatDateShort(dateStr: string): string {
-    const date = new Date(dateStr + "T00:00:00");
+    if (!dateStr) return "";
+    const baseDate = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const date = new Date(baseDate + "T00:00:00");
     const formatted = date.toLocaleDateString("es-CO", {
         weekday: "short",
         month: "short",
