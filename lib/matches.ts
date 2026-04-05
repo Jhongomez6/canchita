@@ -772,7 +772,7 @@ export async function voteForMVP(
       [updatePath]: targetId
     });
   });
-  logMvpVoted(matchId);
+  logMvpVoted(matchId, targetId);
 }
 
 /* =========================
