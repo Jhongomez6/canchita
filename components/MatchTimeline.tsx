@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Users, Shield, Trophy, Lock, Check } from "lucide-react";
 import type { Match } from "@/lib/domain/match";
 import { getMatchTimelineState, type TimelineStep } from "@/lib/domain/match";
+import { logTooltipOpened } from "@/lib/analytics";
 
 interface MatchTimelineProps {
   match: Match;
@@ -72,6 +73,9 @@ export default function MatchTimeline({
   const [activeTooltip, setActiveTooltip] = useState<TimelineStep | null>(null);
 
   const handleStepTap = (step: TimelineStep) => {
+    if (activeTooltip !== step) {
+      logTooltipOpened(`timeline_${step}`);
+    }
     setActiveTooltip(prev => prev === step ? null : step);
   };
 

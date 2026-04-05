@@ -14,8 +14,10 @@ import type { Player } from "@/lib/domain/player";
 import { getTeamSummary } from "@/lib/domain/team";
 import TeamColumn from "./TeamColumn";
 import ScoreInput from "./ScoreInput";
+import { logMatchReportCopied, logTeamsConfirmed } from "@/lib/analytics";
 
 interface TeamsTabProps {
+  matchId: string;
   balanced: { teamA: { players: Player[] }; teamB: { players: Player[] } } | null;
   confirmedCount: number;
   isOwner: boolean;
@@ -44,6 +46,7 @@ interface TeamsTabProps {
 }
 
 export default function TeamsTab({
+  matchId,
   balanced,
   confirmedCount,
   isOwner,
@@ -102,6 +105,7 @@ export default function TeamsTab({
     setCopiedReport(false);
     try {
       await onCopyReport();
+      logMatchReportCopied(matchId, isClosed ? "summary" : "teams", "clipboard");
       setCopiedReport(true);
       setTimeout(() => setCopiedReport(false), 2000);
     } finally {
@@ -209,7 +213,10 @@ export default function TeamsTab({
             <button
               onClick={() => {
                 const text = onGetReportText();
-                if (text) window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                if (text) {
+                  logMatchReportCopied(matchId, isClosed ? "summary" : "teams", "whatsapp");
+                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+                }
               }}
               className="py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border bg-green-50 border-green-200 text-green-600 hover:bg-green-100 transition-colors"
             >
@@ -219,7 +226,10 @@ export default function TeamsTab({
             <button
               onClick={() => {
                 const text = onGetReportText();
-                if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text.replace(/\*/g, ""))}`, "_blank");
+                if (text) {
+                  logMatchReportCopied(matchId, isClosed ? "summary" : "teams", "telegram");
+                  window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text.replace(/\*/g, ""))}`, "_blank");
+                }
               }}
               className="py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors"
             >
@@ -349,6 +359,7 @@ export default function TeamsTab({
             setConfirming(true);
             try {
               await onConfirmTeams();
+              logTeamsConfirmed(matchId);
             } finally {
               setConfirming(false);
             }

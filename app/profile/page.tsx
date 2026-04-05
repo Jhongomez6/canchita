@@ -24,7 +24,7 @@ import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { X, Share, PlusSquare, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
-import { logStatsViewed, logApplyCTAClicked } from "@/lib/analytics";
+import { logStatsViewed, logApplyCTAClicked, logPWAInstallClicked } from "@/lib/analytics";
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
 const SEX_LABELS: Record<string, string> = { male: "M", female: "F", other: "Otro" };
@@ -830,6 +830,7 @@ export default function ProfilePage() {
                     </div>
                     <button
                       onClick={async () => {
+                        logPWAInstallClicked();
                         if (isIOS) {
                           setShowInstallModal(true);
                         } else {

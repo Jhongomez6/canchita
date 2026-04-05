@@ -33,7 +33,20 @@ import { buildRosterReport, buildRosterReportTelegram } from "@/lib/matchReport"
 import { promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { calculateMvpStatus } from "@/lib/mvp";
 import { triggerMvpNotification } from "@/lib/push";
-import { logOrganizerContacted } from "@/lib/analytics";
+import {
+  logOrganizerContacted,
+  logMatchMapOpened,
+  logMatchCodeCopied,
+  logMatchMapDirectionClicked,
+  logMatchReportCopied,
+  logMatchJoined,
+  logWaitlistJoined,
+  logAttendanceConfirmed,
+  logAttendanceUnconfirmed,
+  logWaitlistLeft,
+  logGuestRemoved,
+  logMvpVoted,
+} from "@/lib/analytics";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
 import JoinSkeleton from "@/components/skeletons/JoinSkeleton";
@@ -478,7 +491,10 @@ export default function JoinMatchPage() {
               {/* Ubicación */}
               <div className="flex flex-col gap-2">
                 <button
-                  onClick={() => setIsMapOpen(!isMapOpen)}
+                  onClick={() => {
+                    if (!isMapOpen) logMatchMapOpened(id);
+                    setIsMapOpen(!isMapOpen);
+                  }}
                   className="flex items-center gap-3 text-slate-600 w-full text-left group"
                 >
                   <span className="bg-slate-100 p-1.5 rounded-lg group-hover:bg-slate-200 transition-colors shrink-0"><MapPin className="w-4 h-4 text-slate-400 transition-colors" /></span>
@@ -506,6 +522,7 @@ export default function JoinMatchPage() {
                         href={googleMapsLink(matchLocation.lat, matchLocation.lng)}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => logMatchMapDirectionClicked(id, "google")}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
                         <Image src="/icons/google-maps.svg" alt="G" width={16} height={16} className="w-4 h-4" />
@@ -515,6 +532,7 @@ export default function JoinMatchPage() {
                         href={wazeLink(matchLocation.lat, matchLocation.lng)}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => logMatchMapDirectionClicked(id, "waze")}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
                         <Image src="/icons/waze.svg" alt="W" width={16} height={16} className="w-4 h-4" />
@@ -598,6 +616,7 @@ export default function JoinMatchPage() {
                 <button
                   onClick={async () => {
                     await navigator.clipboard.writeText(id);
+                    logMatchCodeCopied(id);
                     setIsCodeCopied(true);
                     setTimeout(() => setIsCodeCopied(false), 2500);
                   }}
@@ -718,6 +737,7 @@ export default function JoinMatchPage() {
                       setSubmitting(true);
                       try {
                         await leaveWaitlist(id, playerName);
+                        logWaitlistLeft(id);
                         toast.success("Has salido de la lista de espera");
                       } catch (err: unknown) {
                         handleError(err, "Hubo un error al salir de la lista de espera");
@@ -745,6 +765,7 @@ export default function JoinMatchPage() {
                         setSubmitting(true);
                         try {
                           await unconfirmAttendance(id, playerName);
+                          logAttendanceUnconfirmed(id);
                           toast.success("Has liberado tu cupo");
                         } catch (err: unknown) {
                           handleError(err, "Hubo un error al liberar tu cupo");
@@ -1085,6 +1106,7 @@ export default function JoinMatchPage() {
                                           setSubmittingVote(true);
                                           try {
                                             await voteForMVP(id, user.uid, targetId);
+                                            logMvpVoted(id, targetId);
                                             toast.success("Tu voto ha sido registrado");
                                           } catch (err: unknown) {
                                             handleError(err, "Hubo un error al registrar tu voto");
@@ -1260,6 +1282,7 @@ export default function JoinMatchPage() {
                         const text = buildRosterReport(match, locName, confirmedCount);
 
                         await navigator.clipboard.writeText(text);
+                        logMatchReportCopied(id, "roster", "clipboard");
                         setIsCopied(true);
                         setTimeout(() => setIsCopied(false), 2500);
                       }}
@@ -1272,6 +1295,7 @@ export default function JoinMatchPage() {
                     <button
                       onClick={() => {
                         const text = buildRosterReport(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
+                        logMatchReportCopied(id, "roster", "whatsapp");
                         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
                       }}
                       className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -1283,6 +1307,7 @@ export default function JoinMatchPage() {
                     <button
                       onClick={() => {
                         const text = buildRosterReportTelegram(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
+                        logMatchReportCopied(id, "roster", "telegram");
                         window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
                       }}
                       className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -1360,6 +1385,7 @@ export default function JoinMatchPage() {
                                 if (!confirm(`¿Estás seguro de que deseas eliminar al invitado ${g.name}?`)) return;
                                 try {
                                   await removeGuestFromMatch(id, g.invitedBy, g.name);
+                                  logGuestRemoved(id);
                                   toast.success("Invitado cancelado");
                                 } catch (err: unknown) {
                                   handleError(err, "Hubo un error al eliminar el invitado.");
@@ -1457,6 +1483,7 @@ export default function JoinMatchPage() {
                                 if (!confirm(`¿Eliminar a ${rawGuestName} de la lista de espera?`)) return;
                                 try {
                                   await removeGuestFromMatch(id, guestInviterUid, rawGuestName);
+                                  logGuestRemoved(id);
                                   toast.success("Invitado removido de espera");
                                 } catch (err: unknown) {
                                   handleError(err, "Error al remover invitado.");
@@ -1510,6 +1537,13 @@ export default function JoinMatchPage() {
           setSubmitting(true);
           try {
             await pendingJoinAction();
+            if (isWaitlistModal) {
+              logWaitlistJoined(id);
+            } else if (match?.players?.find(p => p.uid === user.uid)) {
+              logAttendanceConfirmed(id);
+            } else {
+              logMatchJoined(id);
+            }
             toast.success(isWaitlistModal ? "Te has unido a la lista de espera" : "¡Asistencia confirmada!");
             setShowJoinModal(false);
             setIsWaitlistModal(false);

@@ -8,6 +8,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
 import { isSuperAdmin } from "@/lib/domain/user";
+import { logNotificationsOpened, logTooltipOpened } from "@/lib/analytics";
 import dynamic from "next/dynamic";
 const NotificationsDrawer = dynamic(() => import("./NotificationsDrawer"), { ssr: false });
 
@@ -110,7 +111,7 @@ export default function Header() {
             priority={true}
           />
         </Link>
-        <div className="group relative flex items-center gap-1" tabIndex={0}>
+        <div className="group relative flex items-center gap-1" tabIndex={0} onMouseEnter={() => logTooltipOpened("beta_admin_badge")}>
           <span className="cursor-pointer bg-amber-500 text-amber-950 px-2 py-0.5 rounded-full text-[10px] font-black tracking-widest uppercase shadow-sm border border-amber-600/50 hover:bg-amber-400 transition-colors">
             BETA
           </span>
@@ -237,7 +238,10 @@ export default function Header() {
 
           {/* BELL ICON */}
           <button
-            onClick={() => setIsDrawerOpen(true)}
+            onClick={() => {
+              logNotificationsOpened();
+              setIsDrawerOpen(true);
+            }}
             style={{
               position: "relative",
               display: "flex",

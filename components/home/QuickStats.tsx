@@ -5,6 +5,7 @@ import type { UserStats } from "@/lib/domain/user";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { logQuickStatsDetailedClicked, logTooltipOpened } from "@/lib/analytics";
 
 const pulseAnimation = {
     rotate: [-10, 10, -8, 8, -5, 5, -2, 2, 0],
@@ -31,6 +32,7 @@ export default function QuickStats({ stats, weeklyStreak, commitmentStreak }: Qu
     const commitment = commitmentStreak ?? 0;
 
     const handleNavigate = () => {
+        logQuickStatsDetailedClicked();
         router.push("/profile");
         // Intenta hacer scroll múltiples veces para asegurar que el elemento está renderizado
         const scrollToStats = () => {
@@ -64,7 +66,10 @@ export default function QuickStats({ stats, weeklyStreak, commitmentStreak }: Qu
                 {/* Racha Semanal (principal) */}
                 <div
                     className="flex-1 py-3 text-center relative group cursor-help"
-                    onMouseEnter={() => setTooltip("semanal")}
+                    onMouseEnter={() => {
+                        setTooltip("semanal");
+                        logTooltipOpened("streak_semanal");
+                    }}
                     onMouseLeave={() => setTooltip(null)}
                 >
                     <div className="flex items-center justify-center gap-1 mb-0.5">
@@ -101,7 +106,10 @@ export default function QuickStats({ stats, weeklyStreak, commitmentStreak }: Qu
                 {/* Commitment Streak */}
                 <div
                     className="flex-1 py-3 text-center relative group cursor-help"
-                    onMouseEnter={() => setTooltip("commitment")}
+                    onMouseEnter={() => {
+                        setTooltip("commitment");
+                        logTooltipOpened("streak_commitment");
+                    }}
                     onMouseLeave={() => setTooltip(null)}
                 >
                     <div className="flex items-center justify-center gap-1 mb-0.5">

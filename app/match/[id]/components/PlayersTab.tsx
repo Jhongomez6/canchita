@@ -10,6 +10,7 @@ import { guestToPlayer } from "@/lib/domain/guest";
 import type { UserProfile } from "@/lib/domain/user";
 import PlayerRow from "./PlayerRow";
 import AttendanceMode from "./AttendanceMode";
+import { logAttendanceModeOpened, logMatchReportCopied } from "@/lib/analytics";
 
 interface PlayersTabProps {
   match: Match;
@@ -94,6 +95,7 @@ export default function PlayersTab({
       <div role="tabpanel" id="panel-players" className="animate-in fade-in duration-200">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
           <AttendanceMode
+            matchId={match.id}
             players={match.players || []}
             onMarkAttendance={onMarkAttendance}
             onMarkAllPresent={onMarkAllPresent}
@@ -131,7 +133,10 @@ export default function PlayersTab({
       {/* Attendance Mode Button (game day) */}
       {isOwner && (phase === "gameday" || phase === "full") && !isClosed && (
         <button
-          onClick={() => setAttendanceMode(true)}
+          onClick={() => {
+            logAttendanceModeOpened(match.id);
+            setAttendanceMode(true);
+          }}
           className="w-full py-3 bg-emerald-50 border border-emerald-200 rounded-xl font-bold text-emerald-700 flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors"
         >
           📋 Pasar Lista
@@ -183,8 +188,8 @@ export default function PlayersTab({
                   const query = searchQuery.trim().toLowerCase();
                   const filtered = query
                     ? availableUsers.filter((u) =>
-                        (u.name || "").toLowerCase().includes(query)
-                      )
+                      (u.name || "").toLowerCase().includes(query)
+                    )
                     : availableUsers;
 
                   if (filtered.length === 0 && query) {
@@ -201,8 +206,8 @@ export default function PlayersTab({
                         const isAdding = addingUid === u.uid;
                         const posLabel = u.positions?.length
                           ? u.positions
-                              .map((p) => POSITION_ICONS[p as Position] || p)
-                              .join(" ")
+                            .map((p) => POSITION_ICONS[p as Position] || p)
+                            .join(" ")
                           : "";
                         const levelLabel =
                           u.level === 1
@@ -360,14 +365,14 @@ export default function PlayersTab({
               <button
                 onClick={async () => {
                   await onCopyRoster();
+                  logMatchReportCopied(match.id, "roster", "clipboard");
                   setIsCopied(true);
                   setTimeout(() => setIsCopied(false), 2500);
                 }}
-                className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${
-                  isCopied
+                className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${isCopied
                     ? "bg-emerald-50 border-emerald-200 text-emerald-600"
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
+                  }`}
                 title="Copiar lista"
               >
                 <span className="text-sm">{isCopied ? "✅" : "📋"}</span>
@@ -376,6 +381,7 @@ export default function PlayersTab({
               <button
                 onClick={() => {
                   const text = onShareRoster();
+                  logMatchReportCopied(match.id, "roster", "whatsapp");
                   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
                 }}
                 className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
@@ -387,6 +393,7 @@ export default function PlayersTab({
               <button
                 onClick={() => {
                   const text = onShareTelegram();
+                  logMatchReportCopied(match.id, "roster", "telegram");
                   window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
                 }}
                 className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100"
@@ -403,6 +410,7 @@ export default function PlayersTab({
           {players.map((p: Player, i: number) => (
             <PlayerRow
               key={p.uid || `player-${i}`}
+              matchId={match.id}
               player={p}
               isOwner={isOwner}
               isClosed={isClosed}

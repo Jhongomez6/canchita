@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { submitFeedback } from "@/lib/feedback";
 import { handleError } from "@/lib/utils/error";
 import { toast } from "react-hot-toast";
+import { logFeedbackOpened } from "@/lib/analytics";
 
 export default function BetaFeedbackWidget() {
     const { user, profile } = useAuth();
@@ -65,7 +66,10 @@ export default function BetaFeedbackWidget() {
             {/* Botón flotante */}
             <div className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-[100]">
                 <button
-                    onClick={() => setIsOpen(!isOpen)}
+                    onClick={() => {
+                        if (!isOpen) logFeedbackOpened();
+                        setIsOpen(!isOpen);
+                    }}
                     className={`w-14 h-14 bg-gradient-to-tr from-amber-500 to-amber-400 text-amber-950 rounded-full shadow-xl flex items-center justify-center text-2xl border-2 border-amber-300 transform transition-all hover:scale-105 active:scale-95 ${isOpen ? 'rotate-45' : ''}`}
                     aria-label="Dar feedback"
                 >

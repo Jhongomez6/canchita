@@ -2,6 +2,7 @@ import type { UserProfile } from "@/lib/domain/user";
 import { calcCommitmentScore } from "@/lib/domain/user";
 import { Heart } from "lucide-react";
 import Link from "next/link";
+import { logTooltipOpened } from "@/lib/analytics";
 
 interface IdentityHeaderProps {
     profile: UserProfile;
@@ -68,7 +69,7 @@ export default function IdentityHeader({ profile, isAdmin, pendingConfirmations,
                 ) : (
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {profile.level && (
-                            <div className="group relative inline-block" tabIndex={0}>
+                            <div className="group relative inline-block" tabIndex={0} onMouseEnter={() => logTooltipOpened("player_level")}>
                                 <span className="bg-white/15 text-white text-[11px] font-semibold px-2 py-0.5 rounded-full cursor-help">
                                     ⚡ {getLevelLabel(profile.level)}
                                 </span>
@@ -80,7 +81,7 @@ export default function IdentityHeader({ profile, isAdmin, pendingConfirmations,
                             </div>
                         )}
                         {com !== null && (
-                            <div className="group relative inline-block" tabIndex={0}>
+                            <div className="group relative inline-block" tabIndex={0} onMouseEnter={() => logTooltipOpened("commitment_score")}>
                                 <span className="flex items-center gap-1 text-[11px] font-bold text-white cursor-help">
                                     <Heart size={12} className={`shrink-0 transition-colors ${getComHeartColor(com)}`} />
                                     COM {com}

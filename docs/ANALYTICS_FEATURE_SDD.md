@@ -40,7 +40,14 @@ Firebase Analytics trackea automáticamente:
 | `pwa_install_dismissed` | Usuario rechaza instalar PWA | — | P4: Valor de la PWA |
 | `push_enabled` | Usuario activa notificaciones push | — | P5: Push y retención |
 | `push_prompt_dismissed` | Rechaza prompt de push | — | P5: Push y retención |
-| `mvp_voted` | Jugador vota por MVP | `match_id` | P6: Engagement |
+| `mvp_voted` | Jugador vota por MVP | `match_id`, `target_uid` | P6: Engagement |
+| `waitlist_joined` | Jugador se anota en lista de espera | `match_id` | P1: Activación |
+| `attendance_unconfirmed` | Jugador libera su cupo | `match_id` | P6: Engagement |
+| `waitlist_left` | Jugador sale de lista de espera | `match_id` | P6: Engagement |
+| `guest_removed` | Se elimina un invitado | `match_id` | P6: Engagement |
+| `match_map_opened` | Jugador abre el mapa del partido | `match_id` | P6: Engagement |
+| `match_code_copied` | Jugador copia el código del partido | `match_id` | P6: Engagement |
+| `match_map_direction_clicked` | Click en Google Maps o Waze | `match_id`, `provider` | P6: Engagement |
 | `stats_viewed` | Ve su card/stats de jugador | — | P6: Engagement |
 | `player_card_viewed` | Abre la card de otro jugador | — | P6: Engagement |
 | `organizer_contacted` | Jugador contacta organizador por WhatsApp | `match_id` | P6: Engagement |
@@ -53,6 +60,26 @@ Firebase Analytics trackea automáticamente:
 | `apply_submitted` | Al intentar enviar la solicitud | — | P7: Conversión Team Admin |
 | `apply_success` | Al recibir éxito de la API | — | P7: Conversión Team Admin |
 | `apply_error` | Si la API de aplicación falla | `error_message` | P7: Conversión Team Admin |
+| `hero_card_clicked` | Click en el CTA del Hero Card | `match_id`, `action_type` | P8: Engagement Home |
+| `quick_stats_detailed_clicked` | Click en "Ver estadísticas" de rachas | — | P8: Engagement Home |
+| `full_history_clicked` | Click en "Ver historial completo" | — | P8: Engagement Home |
+| `join_by_code_clicked` | Envío de formulario "Unirme con código" | `source` | P8: Viralidad |
+| `notifications_opened` | Click en la campana de notificaciones | — | P8: Engagement |
+| `pwa_install_clicked` | Click en el botón de instalar PWA (Perfil) | — | P8: PWA |
+| `feedback_opened` | Apertura del widget de feedback beta | — | P8: Engagement |
+| `tooltip_opened` | User opens an informational tooltip | `tooltip_name` | P8: Engagement |
+| `match_report_copied` | Admin copies or shares a match report | `match_id`, `report_type` (invitation, roster, teams, summary), `channel` (clipboard, whatsapp, telegram) | P8: Engagement |
+| `match_closed` | Admin permanently closes a match | `match_id` | P8: Engagement |
+| `match_deleted` | Admin deletes a match | `match_id` | P8: Engagement |
+| `teams_balanced` | Admin balances teams automatically | `match_id` | P8: Engagement |
+| `teams_confirmed` | Admin publishes teams to players | `match_id` | P8: Engagement |
+| `push_reminders_sent` | Admin sends manual push notifications | `match_id` | P8: Engagement |
+| `match_player_added` | Admin manually adds a player | `match_id`, `player_type` (registered, manual) | P8: Engagement |
+| `attendance_marked` | Admin marks player attendance | `match_id`, `status` (present, late, no_show, all_present) | P8: Engagement |
+| `attendance_mode_opened` | Admin opens "Pasar Lista" mode | `match_id` | P8: Engagement |
+| `match_admin_tab_switched` | Admin navigates between admin tabs | `match_id`, `tab` | P8: Engagement |
+| `match_setting_updated` | Admin updates a match setting | `match_id`, `setting` (max_players, duration, allow_guests), `value` | P8: Engagement |
+| `match_instructions_saved` | Admin saves match instructions | `match_id` | P8: Engagement |
 
 ### User Properties (Segmentación)
 

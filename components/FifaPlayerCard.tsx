@@ -7,6 +7,7 @@ import { POSITION_ICONS } from "@/lib/domain/player";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { logTooltipOpened } from "@/lib/analytics";
 
 // ========================
 // CONSTANTS
@@ -170,8 +171,12 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
   const mvp = profile.mvpAwards || 0;
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
-  const toggleTooltip = (label: string) =>
+  const toggleTooltip = (label: string) => {
+    if (activeTooltip !== label) {
+      logTooltipOpened(`fifa_card_${label.toLowerCase()}`);
+    }
     setActiveTooltip((prev) => (prev === label ? null : label));
+  };
 
   return (
     <motion.div

@@ -41,7 +41,19 @@ import { guestToPlayer } from "@/lib/domain/guest";
 import { addGuestToMatch, promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
-import { logMatchInvitationCopied, logPaymentsSaved } from "@/lib/analytics";
+import {
+  logMatchInvitationCopied,
+  logPaymentsSaved,
+  logMatchAdminTabSwitched,
+  logMatchClosed,
+  logMatchDeleted,
+  logTeamsBalanced,
+  logPushRemindersSent,
+  logMatchPlayerAdded,
+  logMatchReportCopied,
+  logMatchSettingUpdated,
+  logMatchInstructionsSaved,
+} from "@/lib/analytics";
 import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
 
 // Tab components
@@ -87,6 +99,7 @@ export default function MatchDetailPage() {
     if (paymentsAreDirty && activeTab === "payments" && tab !== "payments") {
       if (!window.confirm("Tienes cobros sin guardar. ¿Salir sin guardar?")) return;
     }
+    logMatchAdminTabSwitched(id, tab);
     setActiveTab(tab);
   }
 
@@ -346,6 +359,7 @@ export default function MatchDetailPage() {
         A: cleanObject(result.teamA.players),
         B: cleanObject(result.teamB.players),
       });
+      logTeamsBalanced(id);
       setHasUnsavedBalance(false);
       toast.success("Equipos balanceados y guardados");
     } catch (err: unknown) {
@@ -458,6 +472,11 @@ export default function MatchDetailPage() {
     const text = buildReportText();
     if (!text) return;
     await navigator.clipboard.writeText(text);
+    logMatchReportCopied(
+      id,
+      match?.status === "closed" ? "summary" : "teams",
+      "clipboard"
+    );
   }
 
   async function generateMatchInvitation() {
@@ -472,7 +491,8 @@ export default function MatchDetailPage() {
       `🔑 *Código de búsqueda:* ${id}.ai\n` +
       `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n`;
     await navigator.clipboard.writeText(text);
-    logMatchInvitationCopied(id);
+    logMatchReportCopied(id, "invitation", "clipboard");
+    logMatchInvitationCopied(id); // Keep existing one for backwards compatibility
   }
 
   async function handleManualReminder() {
@@ -485,6 +505,7 @@ export default function MatchDetailPage() {
     try {
       const { requestManualReminder } = await import("@/lib/push");
       const res = await requestManualReminder(id);
+      logPushRemindersSent(id);
       toast.success(
         `Recordatorios enviados a ${res.sentTokens} dispositivos activos.`
       );
@@ -594,6 +615,7 @@ export default function MatchDetailPage() {
       }
 
       await closeMatch(id);
+      logMatchClosed(id);
       toast.success("¡El partido ha sido cerrado!");
     } catch (error: unknown) {
       handleError(error, "Error cerrando el partido y guardando estado.");
@@ -603,6 +625,7 @@ export default function MatchDetailPage() {
   async function handleDeleteMatchAction() {
     try {
       await deleteMatch(id);
+      logMatchDeleted(id);
       router.push("/");
     } catch (err: unknown) {
       handleError(err, "Error al borrar el partido.");
@@ -621,6 +644,7 @@ export default function MatchDetailPage() {
         ...(prof.primaryPosition ? { primaryPosition: prof.primaryPosition } : {}),
         confirmed: true,
       });
+      logMatchPlayerAdded(id, "registered");
       toast.success("Jugador agregado!");
     } catch (err: unknown) {
       handleError(err, "Hubo un error al agregar al jugador.");
@@ -636,6 +660,7 @@ export default function MatchDetailPage() {
       name,
       positions: positions as Position[],
     });
+    logMatchPlayerAdded(id, "manual");
   }
 
   async function handleMarkAllPresent() {
@@ -748,6 +773,7 @@ export default function MatchDetailPage() {
 
           {activeTab === "teams" && (
             <TeamsTab
+              matchId={id}
               balanced={balanced}
               confirmedCount={confirmedCount}
               isOwner={isOwner}
@@ -795,9 +821,11 @@ export default function MatchDetailPage() {
               onUpdateMaxPlayers={async (value) => {
                 setMaxPlayersDraft(value);
                 await updateDoc(doc(db, "matches", id), { maxPlayers: value });
+                logMatchSettingUpdated(id, "max_players", value);
               }}
               onUpdateDuration={async (value) => {
                 await updateDoc(doc(db, "matches", id), { duration: value });
+                logMatchSettingUpdated(id, "duration", value);
               }}
               onSendReminder={handleManualReminder}
               onCopyLink={async () => {
@@ -844,9 +872,11 @@ export default function MatchDetailPage() {
                   update.guests = [];
                 }
                 await updateDoc(doc(db, "matches", id), update);
+                logMatchSettingUpdated(id, "allow_guests", value);
               }}
               onUpdateInstructions={async (value) => {
                 await updateDoc(doc(db, "matches", id), { instructions: value });
+                logMatchInstructionsSaved(id);
                 toast.success("Instrucciones guardadas");
               }}
             />

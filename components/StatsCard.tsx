@@ -1,6 +1,7 @@
 import { Heart } from "lucide-react";
 import { calcCommitmentScore } from "@/lib/domain/user";
 import type { UserStats } from "@/lib/domain/user";
+import { logTooltipOpened } from "@/lib/analytics";
 
 interface StatsCardProps {
     stats: UserStats;
@@ -29,7 +30,7 @@ export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     📊 Estadísticas
                 </h3>
-                <div className="group relative flex items-center" tabIndex={0}>
+                <div className="group relative flex items-center" tabIndex={0} onMouseEnter={() => logTooltipOpened("stats_legend")}>
                     <span className="cursor-pointer w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
                         ?
                     </span>

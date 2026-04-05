@@ -3,8 +3,10 @@
 import Image from "next/image";
 import { useState } from "react";
 import type { Player, AttendanceStatus } from "@/lib/domain/player";
+import { logAttendanceMarked } from "@/lib/analytics";
 
 interface AttendanceModeProps {
+  matchId: string;
   players: Player[];
   onMarkAttendance: (uid: string, status: AttendanceStatus) => Promise<void>;
   onMarkAllPresent: () => Promise<void>;
@@ -12,6 +14,7 @@ interface AttendanceModeProps {
 }
 
 export default function AttendanceMode({
+  matchId,
   players,
   onMarkAttendance,
   onMarkAllPresent,
@@ -34,12 +37,14 @@ export default function AttendanceMode({
 
     setFlashUid(player.uid);
     await onMarkAttendance(player.uid, next);
+    logAttendanceMarked(matchId, next);
     setTimeout(() => setFlashUid(null), 300);
   }
 
   async function handleMarkAllPresent() {
     setMarkingAll(true);
     await onMarkAllPresent();
+    logAttendanceMarked(matchId, "all_present");
     setMarkingAll(false);
   }
 

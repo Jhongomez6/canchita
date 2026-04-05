@@ -20,7 +20,7 @@ import type { Match } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
 import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
 import PlayerAvatars from "@/components/PlayerAvatars";
-import { logPushEnabled, logPushPromptDismissed, logApplyCTAShown, logApplyCTAClicked, logApplyCTADismissed } from "@/lib/analytics";
+import { logPushEnabled, logPushPromptDismissed, logApplyCTAShown, logApplyCTAClicked, logApplyCTADismissed, logHeroCardClicked, logJoinByCodeClicked, logFullHistoryClicked } from "@/lib/analytics";
 import { dismissApplyCTA } from "@/lib/users";
 import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
 import { Clock, Users, LandPlot, MapPin, Trophy, Plus, ChevronRight, Search, ArrowRight, X } from "lucide-react";
@@ -156,6 +156,7 @@ export default function Home() {
   // Hero card personal status
   const userInNextMatch = nextMatch?.players?.find(p => p.uid === user?.uid);
   const userConfirmed = userInNextMatch?.confirmed ?? false;
+  const nextMatchHref = isAdminUser ? `/match/${nextMatch?.id}` : `/join/${nextMatch?.id}`;
 
   // Compute "last played" for empty state
   const lastClosedMatch = closedMatches[0];
@@ -338,7 +339,8 @@ export default function Home() {
 
                   {/* CTA */}
                   <Link
-                    href={isAdminUser ? `/match/${nextMatch.id}` : `/join/${nextMatch.id}`}
+                    href={nextMatchHref}
+                    onClick={() => logHeroCardClicked(nextMatch.id, userConfirmed ? "details" : "confirm")}
                     className={`block w-full py-3 text-center rounded-xl font-bold shadow-md transition-all active:scale-[0.98] ${
                       !userConfirmed && !isAdminUser
                         ? 'bg-[#1f7a4f] text-white hover:bg-[#16603c]'
@@ -382,6 +384,7 @@ export default function Home() {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
+                      logJoinByCodeClicked("home");
                       if (joinCode.trim()) {
                         const sanitized = sanitizeMatchCode(joinCode);
                         router.push(`/join/${sanitized}`);
@@ -526,7 +529,11 @@ export default function Home() {
                     );
                   })}
                   {closedMatches.length > 5 && (
-                    <Link href="/history" className="flex items-center justify-center gap-1 py-2 text-sm text-emerald-600 font-semibold hover:text-emerald-700">
+                    <Link 
+                      href="/history" 
+                      onClick={() => logFullHistoryClicked()}
+                      className="flex items-center justify-center gap-1 py-2 text-sm text-emerald-600 font-semibold hover:text-emerald-700"
+                    >
                       Ver historial completo <ChevronRight size={14} />
                     </Link>
                   )}

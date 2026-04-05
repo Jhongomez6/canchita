@@ -3,8 +3,10 @@
 import Image from "next/image";
 import type { Player, Position, AttendanceStatus } from "@/lib/domain/player";
 import { POSITION_ICONS } from "@/lib/domain/player";
+import { logAttendanceMarked } from "@/lib/analytics";
 
 interface PlayerRowProps {
+  matchId: string;
   player: Player;
   isOwner: boolean;
   isClosed: boolean;
@@ -20,6 +22,7 @@ interface PlayerRowProps {
 }
 
 export default function PlayerRow({
+  matchId,
   player: p,
   isOwner,
   isClosed,
@@ -189,7 +192,10 @@ export default function PlayerRow({
                   key={opt.status}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (p.uid) onMarkAttendance(opt.status);
+                    if (p.uid) {
+                      onMarkAttendance(opt.status);
+                      logAttendanceMarked(matchId, opt.status);
+                    }
                   }}
                   className={`p-1.5 rounded-lg text-sm border transition-all ${
                     (p.attendance ?? "present") === opt.status

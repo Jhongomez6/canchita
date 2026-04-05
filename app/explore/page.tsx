@@ -12,7 +12,7 @@ import type { Location } from "@/lib/domain/location";
 import MatchListSkeleton from "@/components/skeletons/MatchListSkeleton";
 import { handleError } from "@/lib/utils/error";
 import { sanitizeMatchCode } from "@/lib/matchCode";
-import { logMatchJoinedViaExplore } from "@/lib/analytics";
+import { logMatchJoinedViaExplore, logJoinByCodeClicked } from "@/lib/analytics";
 
 export default function ExplorePage() {
     const { profile, loading: authLoading } = useAuth();
@@ -78,6 +78,7 @@ export default function ExplorePage() {
 
     const handleInviteCodeSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        logJoinByCodeClicked("explore");
         const code = sanitizeMatchCode(inviteCode);
         if (!code) return;
 

@@ -7,6 +7,7 @@ import { addGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { POSITION_LABELS } from "@/lib/domain/player";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import { logGuestAdded, logGuestRemoved } from "@/lib/analytics";
 import Link from "next/link";
 
 interface AddGuestFormProps {
@@ -84,6 +85,7 @@ export default function AddGuestForm({
         positions: selectedPositions,
         ...(primaryPosition ? { primaryPosition } : {}),
       });
+      logGuestAdded(matchId);
 
       setName("");
       setSelectedPositions([]);
@@ -110,6 +112,7 @@ export default function AddGuestForm({
 
     try {
       await removeGuestFromMatch(matchId, playerUid, guestName);
+      logGuestRemoved(matchId);
       toast.success("Invitado eliminado");
       if (onSuccess) onSuccess();
     } catch (err: unknown) {
