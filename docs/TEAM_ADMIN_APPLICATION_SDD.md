@@ -65,12 +65,14 @@ interface TeamAdminApplication {
 | 3 | Solo puede existir una solicitud activa por usuario | Firestore doc `applications/{uid}` — el UID es la clave |
 | 4 | Un usuario con solicitud pendiente no puede volver a enviar | `canApply()` verifica que no haya `status: "pending"` activo |
 | 5 | Un usuario rechazado puede volver a aplicar (sobrescribe el doc) | Al re-aplicar se actualiza el doc existente con nuevas respuestas |
-| 6 | Las stats del perfil se guardan en snapshot inmutable al momento de aplicar | `profileSnapshot` se construye en el submit, no se actualiza después |
+| 6 | Las stats del perfil se guardan en snapshot inmutable al momento de aplicar | `profileSnapshot` se construye en el submit con defaults para evitar `undefined` en Firestore |
 | 7 | Solo super_admin puede aprobar o rechazar solicitudes | Verificación en `lib/teamAdminApplications.ts` + Firestore Rules |
 | 8 | Al aprobar, se asigna automáticamente `adminType: "team_admin"` | `approveApplication()` llama la lógica existente de asignación de roles |
 | 9 | Al aprobar, el usuario recibe notificación push + in-app | `sendApplicationResultNotification()` |
 | 10 | Al rechazar, el motivo es obligatorio y llega al usuario por in-app notification | Formulario de rechazo requiere `rejectionReason` |
 | 11 | Usuarios que ya son admin no ven el CTA en su perfil | Se verifica `isAdmin(profile)` en el perfil |
+| 12 | PWA Accessibility: Evitar zoom automático en focus | Se usa `text-base` (16px) en todos los inputs |
+| 13 | PWA UX: Navegación entre pasos debe resetear scroll | `useEffect` con `window.scrollTo(0,0)` en cambio de `step` |
 
 ---
 
@@ -208,13 +210,13 @@ export function canApply(
 ```
 
 **Stats informativas** (no bloquean, se incluyen en el snapshot para el admin):
-| Campo | Fuente | Qué indica |
-|-------|--------|------------|
-| `played` | `profile.stats.played` | Experiencia en la plataforma |
-| `noShows` | `profile.stats.noShows` | Confiabilidad |
-| `commitmentScore` | `calcCommitmentScore(stats)` | Score 0-99 de compromiso |
-| `weeklyStreak` | `profile.weeklyStreak` | Regularidad de juego |
-| `memberSince` | `profile.createdAt` | Antigüedad en la app |
+| Campo | Fuente | Qué indica | Manejo de Nulos |
+|-------|--------|------------|-----------------|
+| `played` | `profile.stats.played` | Experience en la plataforma | Default 0 |
+| `noShows` | `profile.stats.noShows` | Confiabilidad | Default 0 (Garantiza persistencia Firestore) |
+| `commitmentScore` | `calcCommitmentScore(stats)` | Score 0-99 de compromiso | Default 0 |
+| `weeklyStreak` | `profile.weeklyStreak` | Regularidad de juego | Default 0 |
+| `memberSince` | `profile.createdAt` | Antigüedad en la app | Default current timestamp |
 
 ---
 

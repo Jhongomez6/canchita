@@ -130,6 +130,11 @@ export default function ApplyPage() {
             });
     }, [authLoading, user, profile, router]);
 
+    // Scroll to top on step change and initial mount
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [step]);
+
     if (authLoading || loading || existingApp === undefined) {
         return (
             <AuthGuard>
@@ -447,14 +452,14 @@ export default function ApplyPage() {
                                     value={venueName}
                                     onChange={(e) => setVenueName(e.target.value)}
                                     placeholder="Ej: Complejo Los Pinos, Cancha San Martín"
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-base focus:outline-none focus:border-emerald-500"
                                 />
                                 <input
                                     type="text"
                                     value={venueCity}
                                     onChange={(e) => setVenueCity(e.target.value)}
                                     placeholder="Ciudad"
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-base focus:outline-none focus:border-emerald-500"
                                 />
                             </div>
 
@@ -512,7 +517,7 @@ export default function ApplyPage() {
                                         value={communicationOther}
                                         onChange={(e) => setCommunicationOther(e.target.value)}
                                         placeholder="¿Cuál app?"
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500"
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-base focus:outline-none focus:border-emerald-500"
                                     />
                                 )}
                             </div>
@@ -527,7 +532,7 @@ export default function ApplyPage() {
                                     onChange={(e) => setToolsFeedback(e.target.value)}
                                     placeholder="Ej: Usaba otra app pero era muy complicada para confirmar quiénes asistían..."
                                     rows={3}
-                                    className={`w-full bg-white border rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none resize-none transition-colors ${toolsFeedback.length > 0 && toolsFeedback.length < 10 ? "border-amber-400 focus:border-amber-400" : "border-slate-200 focus:border-emerald-500"}`}
+                                    className={`w-full bg-white border rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-base focus:outline-none resize-none transition-colors ${toolsFeedback.length > 0 && toolsFeedback.length < 10 ? "border-amber-400 focus:border-amber-400" : "border-slate-200 focus:border-emerald-500"}`}
                                 />
                                 <p className={`text-xs text-right ${toolsFeedback.length >= 10 ? "text-slate-400" : "text-amber-500"}`}>
                                     {toolsFeedback.length < 10 ? `Mínimo ${10 - toolsFeedback.length} caracteres más` : `${toolsFeedback.length} caracteres`}
@@ -544,7 +549,7 @@ export default function ApplyPage() {
                                     onChange={(e) => setProblemToSolve(e.target.value)}
                                     placeholder="Ej: Me consume mucho tiempo confirmar quiénes van y armar los equipos..."
                                     rows={3}
-                                    className={`w-full bg-white border rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none resize-none transition-colors ${problemToSolve.length > 0 && problemToSolve.length < 10 ? "border-amber-400 focus:border-amber-400" : "border-slate-200 focus:border-emerald-500"}`}
+                                    className={`w-full bg-white border rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-base focus:outline-none resize-none transition-colors ${problemToSolve.length > 0 && problemToSolve.length < 10 ? "border-amber-400 focus:border-amber-400" : "border-slate-200 focus:border-emerald-500"}`}
                                 />
                                 <p className={`text-xs text-right ${problemToSolve.length >= 10 ? "text-slate-400" : "text-amber-500"}`}>
                                     {problemToSolve.length < 10 ? `Mínimo ${10 - problemToSolve.length} caracteres más` : `${problemToSolve.length} caracteres`}
@@ -599,7 +604,7 @@ export default function ApplyPage() {
                                             value={useCaseOther}
                                             onChange={(e) => setUseCaseOther(e.target.value)}
                                             placeholder="¿Para qué lo usarías?"
-                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500"
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-base focus:outline-none focus:border-emerald-500"
                                         />
                                     )}
                                 </div>
@@ -616,7 +621,7 @@ export default function ApplyPage() {
                                     value={socialLink}
                                     onChange={(e) => setSocialLink(e.target.value)}
                                     placeholder="@instagram, link de grupo de WhatsApp, etc."
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-base focus:outline-none focus:border-emerald-500"
                                 />
                             </div>
 
@@ -654,7 +659,7 @@ export default function ApplyPage() {
                                     }}
                                     placeholder="¿Cómo surgió el grupo, qué los une, algún dato curioso...?"
                                     rows={3}
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500 resize-none"
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-base focus:outline-none focus:border-emerald-500 resize-none"
                                 />
                                 <p className="text-slate-400 text-xs text-right">{groupDescription.length}/280</p>
                             </div>

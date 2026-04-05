@@ -113,9 +113,9 @@ export function buildProfileSnapshot(profile: UserProfile): ApplicationProfileSn
         name: profile.name,
         phone: profile.phone!,
         played: profile.stats?.played ?? 0,
-        noShows: profile.stats?.noShows,
-        commitmentScore,
-        weeklyStreak: profile.weeklyStreak,
-        memberSince: profile.createdAt,
+        noShows: profile.stats?.noShows ?? 0,
+        commitmentScore: commitmentScore ?? 0,
+        weeklyStreak: profile.weeklyStreak ?? 0,
+        memberSince: profile.createdAt ?? new Date().toISOString(),
     };
 }
