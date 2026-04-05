@@ -276,54 +276,11 @@ export default function MatchDetailPage() {
     return !uidExists && !nameExists;
   });
 
-  // MVP
-  const voteCounts: Record<string, number> = {};
-  if (match.mvpVotes) {
-    Object.values(match.mvpVotes).forEach((votedId) => {
-      voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
-    });
-  }
-  const sortedMVPLeaderboard = Object.entries(voteCounts).sort(
-    ([, a], [, b]) => b - a
-  );
-  const topMvpScore =
-    sortedMVPLeaderboard.length > 0 ? sortedMVPLeaderboard[0][1] : 0;
-  const currentMVPs = sortedMVPLeaderboard
-    .filter(([, score]) => score === topMvpScore && score > 0)
-    .map(([id]) => id);
-
-  const closedTime = match.closedAt
-    ? new Date(match.closedAt).getTime()
-    : 0;
-  const now = new Date().getTime();
-  const hoursSinceClosed = closedTime
-    ? (now - closedTime) / (1000 * 60 * 60)
-    : 0;
-  const timeLimitClosed = hoursSinceClosed > 5;
-
-  const eligibleUIDs = new Set(
-    match.players
-      ?.filter(
-        (p: Player) =>
-          p.confirmed && p.uid && !p.uid.startsWith("guest_")
-      )
-      .map((p: Player) => p.uid) || []
-  );
-  if (match.createdBy) eligibleUIDs.add(match.createdBy);
-  const totalEligibleVoters = eligibleUIDs.size;
-  const votesCast = match.mvpVotes
-    ? Object.keys(match.mvpVotes).filter((uid) => eligibleUIDs.has(uid))
-        .length
-    : 0;
-  const remainingVotes = totalEligibleVoters - votesCast;
-  const secondHighestScore =
-    sortedMVPLeaderboard.length > 1 ? sortedMVPLeaderboard[1][1] : 0;
-  const mathematicallyClosed =
-    topMvpScore > 0 && topMvpScore > secondHighestScore + remainingVotes;
-  const allEligibleVoted =
-    totalEligibleVoters > 0 && remainingVotes <= 0;
-  const earlyClosure = mathematicallyClosed || allEligibleVoted;
-  const votingClosed = isClosed && (timeLimitClosed || earlyClosure);
+  const { 
+    voteCounts, 
+    currentMVPs, 
+    votingClosed 
+  } = calculateMvpStatus(match);
 
   // ========================
   // HANDLERS

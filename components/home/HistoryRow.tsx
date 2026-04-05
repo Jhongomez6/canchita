@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Match } from "@/lib/domain/match";
+import { getMatchFormat } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
 import { Trophy } from "lucide-react";
 
@@ -102,7 +103,7 @@ export default function HistoryRow({ match, location, href, userId }: HistoryRow
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-slate-700 truncate">{locationName}</p>
                 <span className="text-xs text-slate-400">
-                    Fútbol {Math.floor(match.maxPlayers / 2)}
+                    {getMatchFormat(match.maxPlayers)}
                 </span>
             </div>
 

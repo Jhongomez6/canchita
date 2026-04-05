@@ -430,7 +430,7 @@ export const sendMvpWinnerNotification = onCall(async (request) => {
     const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
     const now = new Date().getTime();
     const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
-    const timeLimitClosed = hoursSinceClosed > 3;
+    const timeLimitClosed = hoursSinceClosed > 2;
 
     const isClosed = match.status === "closed";
     const votingClosed = isClosed && (timeLimitClosed || mathematicallyClosed || allEligibleVoted);

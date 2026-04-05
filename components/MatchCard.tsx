@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatTime12h } from "@/lib/date";
-import type { Match } from "@/lib/domain/match";
+import { Match, getMatchFormat } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
 import { Clock, Users, LandPlot, ChevronRight } from "lucide-react";
 
@@ -23,8 +23,7 @@ export default function MatchCard({ match, location, href, userConfirmed }: Matc
         ? location.name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
         : "Ubicación por definir";
 
-    const playersPerTeam = Math.floor(match.maxPlayers / 2);
-    const matchFormat = `Fútbol ${playersPerTeam}`;
+    const matchFormat = getMatchFormat(match.maxPlayers);
     const confirmedCount = (match.players?.filter(p => p.confirmed).length ?? 0)
         + (match.guests?.filter(g => !g.isWaitlist).length ?? 0);
 

@@ -81,7 +81,7 @@ export function calculateMvpStatus(match: Match | null | undefined): MvpStatus {
     const closedTime = match.closedAt ? new Date(match.closedAt).getTime() : 0;
     const now = new Date().getTime();
     const hoursSinceClosed = closedTime ? (now - closedTime) / (1000 * 60 * 60) : 0;
-    const timeLimitClosed = hoursSinceClosed > 3;
+    const timeLimitClosed = hoursSinceClosed > 2;
 
     const earlyClosure = mathematicallyClosed || allEligibleVoted;
     const votingClosed = isClosed && (timeLimitClosed || earlyClosure);

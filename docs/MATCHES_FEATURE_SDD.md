@@ -77,6 +77,8 @@ interface Player {
 | 18 | El Match Timeline es visual, interactivo y muestra explicaciones mediante tooltips formativos | `MatchTimeline.tsx` con `AnimatePresence` + `activeTooltip` state |
 | 19 | El creador puede agregar/editar instrucciones (opcionales) post-creación desde Settings Tab | `SettingsTab.tsx` > `localInstructions` text area via `onUpdateInstructions` |
 | 20 | Los Super Admins ven siempre el historial completo de TODOS los partidos de la plataforma | `getAllMatches()` intercepta `getMyMatches()` en `app/page.tsx` |
+| 21 | El formato visual del partido (Fútbol X) se limita a un máximo de "Fútbol 11" | `getMatchFormat()` en `lib/domain/match.ts` centraliza el tope de 22 jugadores |
+| 22 | El periodo de votación para el MVP se cierra automáticamente tras 2 horas del cierre del partido | `calculateMvpStatus()` en `lib/mvp.ts` (u otras clausuras matemáticas previas) |
 
 ---
 

@@ -16,6 +16,7 @@ import { db } from "@/lib/firebase";
 import MatchCard from "@/components/MatchCard";
 import { useRouter } from "next/navigation";
 import type { Match } from "@/lib/domain/match";
+import { getMatchFormat } from "@/lib/domain/match";
 
 import type { Location } from "@/lib/domain/location";
 import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
@@ -144,7 +145,7 @@ export default function Home() {
     ? (nextMatch.players?.filter((p: { confirmed?: boolean }) => p.confirmed).length ?? 0)
       + (nextMatch.guests?.filter((g: { isWaitlist?: boolean }) => !g.isWaitlist).length ?? 0)
     : 0;
-  const heroFormat = nextMatch ? `Fútbol ${Math.floor(nextMatch.maxPlayers / 2)}` : '';
+  const heroFormat = nextMatch ? getMatchFormat(nextMatch.maxPlayers) : '';
 
   // Compute admin context
   const isAdminUser = profile && isAdmin(profile);

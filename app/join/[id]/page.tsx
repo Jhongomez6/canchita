@@ -407,7 +407,7 @@ export default function JoinMatchPage() {
 
   const maxPlayers = match.maxPlayers ?? 0;
   const sidePlayers =
-    maxPlayers && maxPlayers % 2 === 0 ? maxPlayers / 2 : null;
+    maxPlayers && maxPlayers % 2 === 0 ? Math.min(maxPlayers / 2, 11) : null;
 
   const matchLabel = sidePlayers
     ? `Partido ${sidePlayers} vs ${sidePlayers}`

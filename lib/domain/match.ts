@@ -13,6 +13,7 @@
  * - maxPlayers define el límite de jugadores confirmados
  * - Status: "open" o "closed"
  * - Los equipos se generan cuando el admin balancea
+ * - El formato (Fútbol X) se limita a un máximo de Fútbol 11
  */
 
 import { ValidationError } from "./errors";
@@ -197,6 +198,16 @@ export function getDefaultTabForPhase(phase: MatchPhase): "dashboard" | "players
         case "postgame": return "teams";
         case "closed": return "dashboard";
     }
+}
+
+/**
+ * Retorna el formato del partido (ej: "Fútbol 6").
+ * Limitado a un máximo de "Fútbol 11" (22 jugadores).
+ */
+export function getMatchFormat(maxPlayers: number): string {
+    const perTeam = Math.floor(maxPlayers / 2);
+    const capped = Math.min(perTeam, 11);
+    return `Fútbol ${capped}`;
 }
 
 // ========================
