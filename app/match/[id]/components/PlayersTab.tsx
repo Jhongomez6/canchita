@@ -179,7 +179,7 @@ export default function PlayersTab({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar jugador por nombre..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#1f7a4f] outline-none text-base"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-[#1f7a4f] outline-none text-base"
                     autoFocus
                   />
                 </div>
@@ -202,7 +202,7 @@ export default function PlayersTab({
 
                   return (
                     <div className="max-h-60 overflow-y-auto space-y-1.5 rounded-xl">
-                      {filtered.slice(0, 20).map((u) => {
+                      {filtered.slice(0, searchQuery.trim() ? 20 : 3).map((u) => {
                         const isAdding = addingUid === u.uid;
                         const posLabel = u.positions?.length
                           ? u.positions
@@ -271,9 +271,9 @@ export default function PlayersTab({
                           </button>
                         );
                       })}
-                      {filtered.length > 20 && (
+                      {filtered.length > (searchQuery.trim() ? 20 : 3) && (
                         <p className="text-[10px] text-slate-400 text-center py-2">
-                          Mostrando 20 de {filtered.length} — escribe para filtrar
+                          Mostrando {searchQuery.trim() ? 20 : 3} de {filtered.length} — escribe para filtrar
                         </p>
                       )}
                     </div>
@@ -292,12 +292,12 @@ export default function PlayersTab({
                       placeholder="Nombre invitado"
                       value={manualName}
                       onChange={(e) => setManualName(e.target.value)}
-                      className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#1f7a4f]"
+                      className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-base outline-none focus:ring-2 focus:ring-[#1f7a4f]"
                     />
                     <select
                       value={manualLevel}
                       onChange={(e) => setManualLevel(Number(e.target.value))}
-                      className="w-24 px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#1f7a4f]"
+                      className="w-24 px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-base outline-none focus:ring-2 focus:ring-[#1f7a4f]"
                     >
                       <option value={1}>Bajo (1)</option>
                       <option value={2}>Medio (2)</option>
@@ -485,7 +485,7 @@ export default function PlayersTab({
                           onChange={(e) =>
                             onGuestLevelChange(g.name, Number(e.target.value) as PlayerLevel)
                           }
-                          className="text-xs bg-slate-50 border border-slate-200 rounded px-1 py-1 outline-none"
+                          className="text-base bg-slate-50 border border-slate-200 rounded px-1 py-1 outline-none"
                         >
                           <option value={1}>Lvl 1</option>
                           <option value={2}>Lvl 2</option>

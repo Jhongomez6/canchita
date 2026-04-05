@@ -138,7 +138,7 @@ export default function PlayerRow({
                 value={p.level ?? 2}
                 onChange={(e) => onUpdateLevel(Number(e.target.value))}
                 onClick={(e) => e.stopPropagation()}
-                className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#1f7a4f]"
+                className="text-base bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#1f7a4f]"
               >
                 <option value={1}>Bajo (1)</option>
                 <option value={2}>Medio (2)</option>

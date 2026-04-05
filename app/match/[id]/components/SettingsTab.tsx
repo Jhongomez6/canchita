@@ -131,7 +131,7 @@ export default function SettingsTab({
               <input
                 value={`${typeof window !== "undefined" ? window.location.origin : ""}/join/${match.id}`}
                 readOnly
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 font-mono"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-500 font-mono"
               />
               <span className="absolute left-3 top-3 text-slate-400">🔗</span>
             </div>
@@ -150,7 +150,7 @@ export default function SettingsTab({
               <input
                 value={match.id}
                 readOnly
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 font-mono font-bold tracking-wider"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-500 font-mono font-bold tracking-wider"
               />
               <span className="absolute left-3 top-3 text-slate-400">🔐</span>
             </div>
@@ -304,7 +304,7 @@ export default function SettingsTab({
                       setLocalMaxPlayers(evenVal);
                       await onUpdateMaxPlayers(evenVal);
                     }}
-                    className="w-12 text-center font-bold text-sm py-1 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-12 text-center font-bold text-base py-1 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <button
                     onClick={async () => {
@@ -333,7 +333,7 @@ export default function SettingsTab({
                     const val = Number(e.target.value) as MatchDuration;
                     await onUpdateDuration(val);
                   }}
-                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]"
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-base font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]"
                 >
                   {!match.duration && <option value="">Sin definir</option>}
                   {([30, 60, 90, 120, 150, 180] as MatchDuration[]).map((d) => (
@@ -403,7 +403,7 @@ export default function SettingsTab({
               maxLength={500}
               rows={3}
               placeholder="Ej: Pago $5000 en efectivo al llegar. Lleguen 10 minutos antes."
-              className="w-full px-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent"
+              className="w-full px-3 py-2.5 text-base text-slate-700 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent"
               onChange={(e) => setLocalInstructions(e.target.value)}
             />
             <span className={`absolute bottom-2 right-3 text-[10px] ${localInstructions.length >= 500 ? "text-red-500" : "text-slate-400"}`}>
