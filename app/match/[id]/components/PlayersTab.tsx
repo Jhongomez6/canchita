@@ -180,7 +180,6 @@ export default function PlayersTab({
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar jugador por nombre..."
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-[#1f7a4f] outline-none text-base"
-                    autoFocus
                   />
                 </div>
 
