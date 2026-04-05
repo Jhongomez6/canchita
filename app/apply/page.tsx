@@ -213,9 +213,9 @@ export default function ApplyPage() {
                     toolsFeedback: toolsFeedback.trim(),
                     problemToSolve: problemToSolve.trim(),
                     useCases: finalUseCases,
-                    socialLink: socialLink.trim() || undefined,
+                    socialLink: socialLink.trim() || "",
                     feedbackWillingness: feedbackWillingness as FeedbackWillingness,
-                    groupDescription: groupDescription.trim() || undefined,
+                    groupDescription: groupDescription.trim() || "",
                     termsAccepted,
                 },
                 profile
