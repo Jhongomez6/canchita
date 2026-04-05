@@ -202,7 +202,7 @@ export default function PlayersTab({
 
                   return (
                     <div className="max-h-60 overflow-y-auto space-y-1.5 rounded-xl">
-                      {filtered.slice(0, searchQuery.trim() ? 20 : 3).map((u) => {
+                      {filtered.slice(0, searchQuery.trim() ? 20 : 2).map((u) => {
                         const isAdding = addingUid === u.uid;
                         const posLabel = u.positions?.length
                           ? u.positions
@@ -271,9 +271,9 @@ export default function PlayersTab({
                           </button>
                         );
                       })}
-                      {filtered.length > (searchQuery.trim() ? 20 : 3) && (
+                      {filtered.length > (searchQuery.trim() ? 20 : 2) && (
                         <p className="text-[10px] text-slate-400 text-center py-2">
-                          Mostrando {searchQuery.trim() ? 20 : 3} de {filtered.length} — escribe para filtrar
+                          Mostrando {searchQuery.trim() ? 20 : 2} de {filtered.length} — escribe para filtrar
                         </p>
                       )}
                     </div>
