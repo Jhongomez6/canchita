@@ -91,12 +91,16 @@ export default function PlayersTab({
 
   // Attendance mode
   if (attendanceMode) {
+    const confirmedGuestsAsPlayers = match.guests
+      ?.filter(g => g.confirmed && !g.isWaitlist)
+      .map(g => guestToPlayer(g, guestLevels[g.name] ?? 2)) || [];
+
     return (
       <div role="tabpanel" id="panel-players" className="animate-in fade-in duration-200">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
           <AttendanceMode
             matchId={match.id}
-            players={match.players || []}
+            players={[...(match.players || []), ...confirmedGuestsAsPlayers]}
             onMarkAttendance={onMarkAttendance}
             onMarkAllPresent={onMarkAllPresent}
             onExit={() => setAttendanceMode(false)}

@@ -22,27 +22,48 @@ export default function AttendanceMode({
 }: AttendanceModeProps) {
   const [markingAll, setMarkingAll] = useState(false);
   const [flashUid, setFlashUid] = useState<string | null>(null);
+  const [localAttendance, setLocalAttendance] = useState<Record<string, AttendanceStatus>>(
+    Object.fromEntries(
+      players.map((p) => [p.uid || p.id || p.name, p.attendance || "present"])
+    )
+  );
 
   const confirmedPlayers = players.filter((p) => p.confirmed && !p.isWaitlist);
 
   async function handleTapPlayer(player: Player) {
-    if (!player.uid) return;
+    const id = player.uid || player.id || player.name;
+    if (!id) return;
 
     // Cycle through statuses
-    const current = player.attendance ?? "present";
+    const current = localAttendance[id] ?? "present";
     let next: AttendanceStatus;
     if (current === "present") next = "late";
     else if (current === "late") next = "no_show";
     else next = "present";
 
-    setFlashUid(player.uid);
-    await onMarkAttendance(player.uid, next);
-    logAttendanceMarked(matchId, next);
+    setFlashUid(id);
+    setLocalAttendance((prev) => ({ ...prev, [id]: next }));
+
+    // Persist only if registered player (uid exists and is not a guest ID)
+    const isGuest = id.startsWith("guest-");
+    if (player.uid && !isGuest) {
+      await onMarkAttendance(player.uid, next);
+      logAttendanceMarked(matchId, next);
+    }
+    
     setTimeout(() => setFlashUid(null), 300);
   }
 
   async function handleMarkAllPresent() {
     setMarkingAll(true);
+    // Local update
+    const updated: Record<string, AttendanceStatus> = {};
+    players.forEach(p => {
+      updated[p.uid || p.id || p.name] = "present";
+    });
+    setLocalAttendance(updated);
+
+    // Persistence update (backend only handles registered players)
     await onMarkAllPresent();
     logAttendanceMarked(matchId, "all_present");
     setMarkingAll(false);
@@ -83,8 +104,9 @@ export default function AttendanceMode({
       {/* Player list */}
       <div className="space-y-1">
         {confirmedPlayers.map((p) => {
-          const attendance = p.attendance ?? "present";
-          const isFlashing = flashUid === p.uid;
+          const id = p.uid || p.id || p.name;
+          const attendance = localAttendance[id] ?? "present";
+          const isFlashing = flashUid === id;
 
           let statusIcon = "✅";
           let statusBg = "bg-emerald-50 border-emerald-100";
