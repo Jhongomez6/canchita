@@ -17,7 +17,6 @@ import {
   approveFromWaitlist,
   deleteMatch,
   confirmTeams,
-  savePaymentsInBatch,
 } from "@/lib/matches";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -44,7 +43,6 @@ import { handleError } from "@/lib/utils/error";
 import { type FABPhase } from "./components/MatchFAB";
 import {
   logMatchInvitationCopied,
-  logPaymentsSaved,
   logMatchAdminTabSwitched,
   logMatchClosed,
   logMatchDeleted,
@@ -96,27 +94,13 @@ export default function MatchDetailPage() {
     (searchParams.get("tab") as TabId) || "dashboard"
   );
   const [tabInitialized, setTabInitialized] = useState(false);
-  const [paymentsAreDirty, setPaymentsAreDirty] = useState(false);
 
   // Interceptar cambio de tab si hay cobros sin guardar
   function handleTabChange(tab: TabId) {
-    if (paymentsAreDirty && activeTab === "payments" && tab !== "payments") {
-      if (!window.confirm("Tienes cobros sin guardar. ¿Salir sin guardar?")) return;
-    }
     logMatchAdminTabSwitched(id, tab);
     setActiveTab(tab);
   }
 
-  // Advertir si navega fuera de la página con cobros sin guardar
-  useEffect(() => {
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (paymentsAreDirty) {
-        e.preventDefault();
-      }
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [paymentsAreDirty]);
 
   // ========================
   // REAL-TIME LISTENER
@@ -859,7 +843,6 @@ export default function MatchDetailPage() {
               match={match}
               isOwner={isOwner}
               isClosed={isClosed}
-              isSavingTeams={isSavingTeams}
               hasScore={Boolean(match.score)}
               maxPlayersDraft={maxPlayersDraft}
               onUpdateMaxPlayers={async (value) => {

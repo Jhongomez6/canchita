@@ -16,7 +16,7 @@ export type TabId = "dashboard" | "players" | "teams" | "score" | "settings" | "
 interface Tab {
   id: TabId;
   label: string;
-  icon: any; // Lucide icon component
+  icon: React.ElementType; // Lucide icon component
   badge?: number;
   showDot?: boolean;
 }

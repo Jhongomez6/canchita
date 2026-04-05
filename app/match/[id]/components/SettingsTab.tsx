@@ -5,15 +5,9 @@ import Link from "next/link";
 import type { Match, MatchDuration } from "@/lib/domain/match";
 import { formatDuration } from "@/lib/date";
 import { 
-  Share2, 
-  Link2, 
-  ShieldCheck, 
-  Copy, 
-  Check, 
-  Smartphone, 
-  Settings, 
-  Ticket, 
-  Clock, 
+  Settings,
+  Ticket,
+  Clock,
   Users, 
   Eye, 
   ClipboardList, 
@@ -30,7 +24,6 @@ interface SettingsTabProps {
   match: Match;
   isOwner: boolean;
   isClosed: boolean;
-  isSavingTeams: boolean;
   hasScore: boolean;
   maxPlayersDraft: number | null;
   // Actions
@@ -48,7 +41,6 @@ export default function SettingsTab({
   match,
   isOwner,
   isClosed,
-  isSavingTeams: _isSavingTeams,
   hasScore,
   maxPlayersDraft,
   onUpdateMaxPlayers,

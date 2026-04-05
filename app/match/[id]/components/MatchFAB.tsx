@@ -25,7 +25,7 @@ interface MatchFABProps {
   disabled?: boolean;
 }
 
-const FAB_CONFIG: Record<FABPhase, { icon: any; label: string; color: string }> = {
+const FAB_CONFIG: Record<FABPhase, { icon: React.ElementType; label: string; color: string }> = {
   recruiting: { icon: Share2, label: "Compartir", color: "bg-amber-500 hover:bg-amber-600" },
   can_balance: { icon: Scale, label: "Balancear", color: "bg-[#16a34a] hover:bg-[#15803d]" },
   can_confirm: { icon: Check, label: "Publicar", color: "bg-[#16a34a] hover:bg-[#15803d]" },

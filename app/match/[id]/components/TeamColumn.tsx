@@ -32,7 +32,6 @@ export default function TeamColumn({
   const borderColor = isA ? "border-red-100" : "border-blue-100";
   const textColor = isA ? "text-red-800" : "text-blue-800";
   const subtextColor = isA ? "text-red-600" : "text-blue-600";
-  const icon = isA ? "🔴" : "🔵";
 
   const sortedPlayers = sortTeamForDisplay(players);
 
