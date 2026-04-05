@@ -79,6 +79,10 @@ interface Player {
 | 20 | Los Super Admins ven siempre el historial completo de TODOS los partidos de la plataforma | `getAllMatches()` intercepta `getMyMatches()` en `app/page.tsx` |
 | 21 | El formato visual del partido (Fútbol X) se limita a un máximo de "Fútbol 11" | `getMatchFormat()` en `lib/domain/match.ts` centraliza el tope de 22 jugadores |
 | 22 | El periodo de votación para el MVP se cierra automáticamente tras 2 horas del cierre del partido | `calculateMvpStatus()` en `lib/mvp.ts` (u otras clausuras matemáticas previas) |
+| 23 | El balance de equipos se guarda automáticamente con un debounce de 1.5s tras el último movimiento DnD | `handleDragEnd()` en `app/match/[id]/page.tsx` con `saveTimeoutRef` |
+| 24 | El link "Vista jugador" está siempre accesible en la cabecera del Dashboard para previsualización rápida | `DashboardTab.tsx` header con link persistente a `/join/[id]` |
+| 25 | Los controles de compartir (Link, Código, Invitación, Reporte) están consolidados en el Dashboard (Quick Share Bar) | `DashboardTab.tsx` > `Quick Share Bar` (5 botones compactos) |
+| 26 | Los reportes de lista en la pestaña Jugadores incluyen tanto jugadores registrados como invitados | `PlayersTab.tsx` > Conteo total `(confirmedPlayers.length + guests.length)` |
 
 ---
 
@@ -212,7 +216,7 @@ app/match/[id]/
   page.tsx                    -- Orquestador (~480 líneas)
   components/
     MatchAdminTabs.tsx        -- Navegación por tabs sticky (WAI-ARIA)
-    DashboardTab.tsx          -- Resumen de estado + progress bar + Timeline visual
+    DashboardTab.tsx          -- Resumen + Share Bar (Enlaces y Reportes) + progress bar + Timeline visual
     MatchTimeline.tsx         -- Stepper visual interactivo con iconos y tooltips
     MatchProgressBar.tsx      -- Barra de progreso lineal simple
     PlayersTab.tsx            -- Lista jugadores + agregar jugador + waitlist
@@ -222,38 +226,32 @@ app/match/[id]/
     TeamColumn.tsx            -- Columna DnD de equipo individual
     ScoreInput.tsx            -- Entrada de marcador +/-
     PlayerItem.tsx            -- Tarjeta drag-and-drop de jugador
-    SettingsTab.tsx           -- Compartir, config, ciclo de vida, zona peligrosa
+    SettingsTab.tsx           -- Config, instrucciones, ciclo de vida, zona peligrosa
     MatchFAB.tsx              -- Floating action button contextual
 ```
 
-### Match Lifecycle Phase System
+### Match Lifecycle Phase System (7-Stage FAB Workflow)
 
-Función pura `getMatchPhase()` en `lib/domain/match.ts` que determina la fase actual:
+La fase del partido determina la acción prioritaria en el Floating Action Button (FAB) y las señales visuales de navegación:
 
-| Phase | Condición | Tab por defecto |
-|---|---|---|
-| `recruiting` | Abierto, hay cupo, sin equipos | Dashboard |
-| `full` | Abierto, lleno O equipos existen | Teams |
-| `gameday` | Abierto, equipos guardados, es hoy | Teams |
-| `postgame` | Abierto, equipos + marcador ingresado | Teams |
-| `closed` | status=closed | Dashboard |
+| FAB Phase | Condición | Acción FAB | Icono | Tab Destino | Signal Dot |
+|-----------|-----------|------------|-------|-------------|------------|
+| `recruiting` | Abierto, hay cupo | Invitar / Compartir | `Share2` | Settings | Dashboard |
+| `can_balance` | Abierto, cupo lleno | Balancear Equipos | `Scale` | Teams | Equipos |
+| `can_confirm` | Abierto, equipos balanceados (manual/auto) | Publicar Equipos | `CheckCircle2` | Teams | Equipos |
+| `can_score` | Abierto, equipos publicados | Registrar Marcador | `Trophy` | Score | Marcador |
+| `can_close` | Abierto, marcador registrado | Cerrar Partido | `Lock` | Settings | Ajustes |
+| `can_collect` | Cerrado, cobros pendientes | Gestionar Cobros | `DollarSign` | Payments | Cobros |
+| `all_set` | Cerrado, todos pagados | Compartir Reporte | `Send` | Payments | - |
 
 ### Tab Navigation (MatchAdminTabs)
-- 4 tabs: Dashboard, Jugadores (badge con count), Equipos (dot unsaved), Ajustes
-- `sticky top-0 z-40`, WAI-ARIA tab pattern (`role="tablist"`, `aria-selected`)
-- Auto-selecciona tab según `MatchPhase` al cargar
-- Deep linking via `?tab=players` URL params
+- **Tabs**: Dashboard, Jugadores, Equipos, Marcador, Ajustes, Cobros (solo si cerrado).
+- **Sticky Layout**: `sticky top-0 z-40`, WAI-ARIA tab pattern.
+- **Deep Linking**: Persistencia de tab activa mediante `?tab=id` URL params.
+- **Attention Dots**: Círculos pulsantes sobre las labels de los tabs que indican la ubicación de la acción sugerida por el `fabPhase`.
 
-### Context-Sensitive FAB (MatchFAB)
-Botón flotante `fixed bottom-24 right-4 z-40` que muestra la acción prioritaria por fase:
-
-| Phase | FAB | Icono |
-|---|---|---|
-| recruiting | Compartir | 📲 |
-| full | Balancear | ⚖️ |
-| gameday | Pasar lista | ✅ |
-| postgame | Cerrar | 🔒 |
-| closed | Reporte | 📋 |
+### Visual Standard: Lucide Icons
+Toda la interfaz de administración de partidos utiliza exclusivamente la librería `lucide-react` para asegurar consistencia visual y un look premium. Se prohíbe el uso de emojis estáticos para elementos de la interfaz de usuario (botones, headers, indicadores de estado).
 
 ### Players Tab
 - **Summary bar**: Confirmados / Pendientes / Espera con conteos tappables

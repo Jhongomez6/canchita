@@ -15,6 +15,7 @@ export default function MatchAdminSkeleton() {
                                 <div className="h-6 w-32 bg-slate-200 rounded-full"></div>
                             </div>
                         </div>
+                        <div className="h-8 w-28 bg-slate-200 rounded-xl"></div>
                     </div>
 
                     <div className="space-y-4 my-6">
@@ -36,14 +37,15 @@ export default function MatchAdminSkeleton() {
                         </div>
                     </div>
 
-                    <div className="mt-6 flex flex-col gap-3">
+                    <div className="mt-6 flex flex-col gap-2">
                         <div className="flex gap-2">
-                            <div className="h-12 flex-1 bg-slate-100 rounded-xl"></div>
-                            <div className="h-12 w-24 bg-slate-200 rounded-xl"></div>
+                            <div className="h-12 flex-1 bg-slate-200 rounded-xl"></div>
+                            <div className="h-12 flex-1 bg-slate-200 rounded-xl"></div>
                         </div>
                         <div className="flex gap-2">
-                            <div className="h-12 flex-1 bg-slate-100 rounded-xl"></div>
-                            <div className="h-12 w-24 bg-slate-200 rounded-xl"></div>
+                            <div className="h-10 flex-[2] bg-slate-100 rounded-lg"></div>
+                            <div className="h-10 flex-1 bg-slate-100 rounded-lg"></div>
+                            <div className="h-10 flex-1 bg-slate-100 rounded-lg"></div>
                         </div>
                     </div>
 

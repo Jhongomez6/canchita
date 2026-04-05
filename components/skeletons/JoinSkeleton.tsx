@@ -25,7 +25,7 @@ export default function JoinSkeleton({ isClosedTemplate = false }: JoinSkeletonP
 
                         <div className="space-y-3">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-slate-100 rounded-lg shrink-0"></div>
+                                <div className="h-[18px] w-[18px] bg-slate-200 rounded-sm shrink-0"></div>
                                 <div className="flex flex-col space-y-2 flex-1">
                                     <div className="h-4 w-24 bg-slate-200 rounded"></div>
                                     <div className="h-3 w-16 bg-slate-200 rounded"></div>
@@ -33,7 +33,7 @@ export default function JoinSkeleton({ isClosedTemplate = false }: JoinSkeletonP
                             </div>
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center gap-3 w-full">
-                                    <div className="h-10 w-10 bg-slate-100 rounded-lg shrink-0"></div>
+                                    <div className="h-[18px] w-[18px] bg-slate-200 rounded-sm shrink-0"></div>
                                     <div className="flex-1 space-y-2">
                                         <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
                                         <div className="h-7 w-32 bg-slate-100 rounded-lg mt-1.5"></div>
@@ -42,7 +42,7 @@ export default function JoinSkeleton({ isClosedTemplate = false }: JoinSkeletonP
                             </div>
                             {/* Código del partido */}
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-slate-100 rounded-lg shrink-0"></div>
+                                <div className="h-[18px] w-[18px] bg-slate-200 rounded-sm shrink-0"></div>
                                 <div className="flex-1 flex items-center justify-between">
                                     <div className="flex flex-col space-y-2">
                                         <div className="h-3 w-20 bg-slate-200 rounded"></div>
@@ -53,7 +53,7 @@ export default function JoinSkeleton({ isClosedTemplate = false }: JoinSkeletonP
                             </div>
                             {/* Organizador */}
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-slate-100 rounded-lg shrink-0"></div>
+                                <div className="h-[18px] w-[18px] bg-slate-200 rounded-sm shrink-0"></div>
                                 <div className="flex flex-col space-y-2">
                                     <div className="h-3 w-16 bg-slate-200 rounded"></div>
                                     <div className="h-4 w-24 bg-slate-200 rounded"></div>

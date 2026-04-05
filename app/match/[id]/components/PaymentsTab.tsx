@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { Search, X, DollarSign, CheckCircle2, Clock, Ban, Users, Check, Loader2 } from "lucide-react";
 import type { Match } from "@/lib/domain/match";
 import type { Player } from "@/lib/domain/player";
 import type { Guest } from "@/lib/domain/guest";
 
 interface PaymentsTabProps {
   match: Match;
-  onSavePayments: (payments: Record<string, boolean>) => Promise<void>;
-  onDirtyChange?: (isDirty: boolean) => void;
+  onTogglePayment: (playerId: string, isPaid: boolean) => Promise<void>;
 }
 
 interface PayableEntry {
@@ -41,11 +41,11 @@ function getPayablePlayers(match: Match): PayableEntry[] {
       photoURL: p.photoURL,
       attendanceLabel:
         p.attendance === "present"
-          ? "✅ Presente"
+          ? "present"
           : p.attendance === "late"
-          ? "⏰ Tarde"
+          ? "late"
           : p.attendance === "no_show"
-          ? "🚫 No show"
+          ? "no_show"
           : undefined,
       isGuest: false,
     }));
@@ -61,57 +61,102 @@ function getPayableGuests(match: Match): PayableEntry[] {
     }));
 }
 
-export default function PaymentsTab({ match, onSavePayments, onDirtyChange }: PaymentsTabProps) {
+export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps) {
   const [draftPayments, setDraftPayments] = useState<Record<string, boolean>>(
     match.payments ?? {}
   );
-  const [isSaving, setIsSaving] = useState(false);
+  const [savingEntries, setSavingEntries] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Timers ref for debouncing rapid clicks
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+
+  useEffect(() => {
+    // Cleanup timers on unmount to prevent memory leaks or updating unmounted components
+    const timers = debounceTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   const players = getPayablePlayers(match);
   const guests = getPayableGuests(match);
-  const entries = [...players, ...guests];
+  const allEntries = [...players, ...guests];
+  const entries = allEntries.filter(e => 
+    e.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const paidCount = entries.filter((e) => draftPayments[e.key] === true).length;
   const pendingCount = entries.length - paidCount;
 
-  // Detectar si hay cambios sin guardar
-  const hasChanges = JSON.stringify(draftPayments) !== JSON.stringify(match.payments ?? {});
+  async function handleToggle(entry: PayableEntry) {
+    const currentPaidState = draftPayments[entry.key] ?? false;
+    const newPaidState = !currentPaidState;
 
-  // Notificar al padre cuando el estado dirty cambia
-  useEffect(() => {
-    onDirtyChange?.(hasChanges);
-  }, [hasChanges, onDirtyChange]);
-
-  function handleToggle(entry: PayableEntry) {
+    // Optimistic UI update
     setDraftPayments((prev) => ({
       ...prev,
-      [entry.key]: !prev[entry.key],
+      [entry.key]: newPaidState,
     }));
-  }
+    
+    // Mostramos el estado visual de carga
+    setSavingEntries((prev) => ({ ...prev, [entry.key]: true }));
 
-  async function handleSave() {
-    setIsSaving(true);
-    try {
-      await onSavePayments(draftPayments);
-    } finally {
-      setIsSaving(false);
+    // Si había un guardado programado pendiente, lo descartamos
+    if (debounceTimers.current[entry.key]) {
+      clearTimeout(debounceTimers.current[entry.key]);
     }
+
+    // Esperar 800ms de inactividad antes de golpear el backend
+    debounceTimers.current[entry.key] = setTimeout(async () => {
+      try {
+        await onTogglePayment(entry.key, newPaidState);
+      } catch {
+        // Revert on error
+        setDraftPayments((prev) => ({
+          ...prev,
+          [entry.key]: currentPaidState,
+        }));
+      } finally {
+        setSavingEntries((prev) => ({ ...prev, [entry.key]: false }));
+      }
+    }, 800);
   }
 
   return (
     <div role="tabpanel" id="panel-payments" className="space-y-4">
       {/* Summary bar */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <h2 className="text-base font-bold text-slate-800 mb-3">
-          💰 Cobros
+        <h2 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+          <DollarSign size={18} className="text-[#1f7a4f]" /> Cobros
         </h2>
-        <div className="flex gap-3">
+        <div className="flex gap-3 mb-4">
           <span className="flex-1 text-center py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">
             {paidCount} {paidCount === 1 ? "pagó" : "pagaron"}
           </span>
           <span className="flex-1 text-center py-2 rounded-xl bg-amber-50 border border-amber-100 text-xs font-bold text-amber-700">
             {pendingCount} {pendingCount === 1 ? "pendiente" : "pendientes"}
           </span>
+        </div>
+
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filtrar por nombre..."
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#1f7a4f] outline-none transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -125,6 +170,7 @@ export default function PaymentsTab({ match, onSavePayments, onDirtyChange }: Pa
 
         {entries.map((entry) => {
           const hasPaid = draftPayments[entry.key] ?? false;
+          const isSavingItem = savingEntries[entry.key] ?? false;
 
           return (
             <div key={entry.key} className="flex items-center gap-3 p-3">
@@ -151,8 +197,16 @@ export default function PaymentsTab({ match, onSavePayments, onDirtyChange }: Pa
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-slate-800 truncate">{entry.name}</p>
                 {(entry.attendanceLabel || entry.isGuest) && (
-                  <span className="text-[10px] font-semibold text-slate-400">
-                    {entry.isGuest ? "👥 Invitado" : entry.attendanceLabel}
+                  <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                    {entry.isGuest ? (
+                      <><Users size={10} /> Invitado</>
+                    ) : (
+                      <>
+                        {entry.attendanceLabel === "present" && <><CheckCircle2 size={10} className="text-emerald-500" /> Presente</>}
+                        {entry.attendanceLabel === "late" && <><Clock size={10} className="text-amber-500" /> Tarde</>}
+                        {entry.attendanceLabel === "no_show" && <><Ban size={10} className="text-red-500" /> No show</>}
+                      </>
+                    )}
                   </span>
                 )}
               </div>
@@ -160,34 +214,23 @@ export default function PaymentsTab({ match, onSavePayments, onDirtyChange }: Pa
               {/* Toggle button */}
               <button
                 onClick={() => handleToggle(entry)}
-                disabled={isSaving}
-                className={`shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
+                className={`relative shrink-0 text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 min-w-[90px] ${
                   hasPaid
-                    ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                    : "bg-amber-50 text-amber-600 hover:bg-amber-100"
-                }`}
+                    ? "bg-[#1f7a4f] text-white shadow-sm ring-1 ring-[#1f7a4f]/20 hover:bg-[#186440]"
+                    : "bg-slate-100 text-slate-600 border border-slate-200 hover:border-[#1f7a4f]/30 hover:bg-emerald-50 hover:text-[#1f7a4f]"
+                } ${isSavingItem ? "opacity-90" : ""}`}
               >
-                {hasPaid ? "Pagó ✓" : "Pendiente"}
+                {isSavingItem ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : hasPaid ? (
+                  <Check size={14} />
+                ) : null}
+                {hasPaid ? "Pagado" : "Cobrar"}
               </button>
             </div>
           );
         })}
       </div>
-
-      {/* Save button */}
-      {hasChanges && (
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className={`w-full font-bold py-3 rounded-xl transition-colors ${
-            isSaving
-              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-              : "bg-emerald-600 text-white hover:bg-emerald-700"
-          }`}
-        >
-          {isSaving ? "Guardando..." : "Guardar Cobros"}
-        </button>
-      )}
     </div>
   );
 }

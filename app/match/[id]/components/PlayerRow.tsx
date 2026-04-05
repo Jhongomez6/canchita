@@ -4,6 +4,13 @@ import Image from "next/image";
 import type { Player, Position, AttendanceStatus } from "@/lib/domain/player";
 import { POSITION_ICONS } from "@/lib/domain/player";
 import { logAttendanceMarked } from "@/lib/analytics";
+import { 
+  ChevronDown, 
+  Clock, 
+  Ban, 
+  Phone, 
+  CheckCircle2 
+} from "lucide-react";
 
 interface PlayerRowProps {
   matchId: string;
@@ -79,7 +86,11 @@ export default function PlayerRow({
               </span>
               {p.attendance && p.attendance !== "present" && (
                 <span className="text-[10px] font-bold text-slate-500">
-                  {p.attendance === "late" ? "⏰" : "🚫"}
+                  {p.attendance === "late" ? (
+                    <Clock size={10} className="inline mr-0.5" />
+                  ) : (
+                    <Ban size={10} className="inline mr-0.5" />
+                  )}
                 </span>
               )}
               <span className="text-[10px] text-slate-400">Lvl {p.level ?? 2}</span>
@@ -107,13 +118,12 @@ export default function PlayerRow({
           )}
 
           {/* Expand indicator */}
-          <span
-            className={`text-slate-400 text-xs transition-transform ${
+          <ChevronDown
+            size={16}
+            className={`text-slate-400 transition-transform ${
               isExpanded ? "rotate-180" : ""
             }`}
-          >
-            ▾
-          </span>
+          />
         </div>
       </div>
 
@@ -126,7 +136,7 @@ export default function PlayerRow({
               href={`tel:+57${p.phone}`}
               className="text-xs font-medium text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
             >
-              📞 +57 {p.phone}
+              <Phone size={12} /> +57 {p.phone}
             </a>
           )}
 
@@ -184,9 +194,9 @@ export default function PlayerRow({
             <div className="flex gap-1">
               <span className="text-xs font-bold text-slate-500 mr-2 self-center">Asistencia:</span>
               {[
-                { status: "present" as const, icon: "✅", label: "Presente" },
-                { status: "late" as const, icon: "⏰", label: "Tarde" },
-                { status: "no_show" as const, icon: "🚫", label: "No Show" },
+                { status: "present" as const, icon: CheckCircle2, label: "Presente" },
+                { status: "late" as const, icon: Clock, label: "Tarde" },
+                { status: "no_show" as const, icon: Ban, label: "No Show" },
               ].map((opt) => (
                 <button
                   key={opt.status}
@@ -197,14 +207,14 @@ export default function PlayerRow({
                       logAttendanceMarked(matchId, opt.status);
                     }
                   }}
-                  className={`p-1.5 rounded-lg text-sm border transition-all ${
+                  className={`p-2 rounded-lg text-sm border transition-all flex items-center justify-center ${
                     (p.attendance ?? "present") === opt.status
                       ? "bg-slate-800 border-slate-800 text-white shadow-sm"
                       : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
                   }`}
                   title={`Marcar como ${opt.label}`}
                 >
-                  {opt.icon}
+                  <opt.icon size={16} />
                 </button>
               ))}
             </div>

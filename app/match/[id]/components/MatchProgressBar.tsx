@@ -1,5 +1,14 @@
 "use client";
 
+import { 
+  Users, 
+  Scale, 
+  LoaderPinwheel, 
+  Trophy, 
+  Lock, 
+  DollarSign, 
+  Check 
+} from "lucide-react";
 import type { MatchPhase } from "@/lib/domain/match";
 
 interface MatchProgressBarProps {
@@ -7,12 +16,12 @@ interface MatchProgressBarProps {
 }
 
 const STEPS = [
-  { key: "recruiting", label: "Jugadores", icon: "👥" },
-  { key: "full", label: "Equipos", icon: "⚖️" },
-  { key: "gameday", label: "Juego", icon: "⚽" },
-  { key: "postgame", label: "Marcador", icon: "🏆" },
-  { key: "closed", label: "Cerrado", icon: "🔒" },
-  { key: "payments", label: "Cobros", icon: "💰" },
+  { key: "recruiting", label: "Jugadores", icon: Users },
+  { key: "full", label: "Equipos", icon: Scale },
+  { key: "gameday", label: "Juego", icon: LoaderPinwheel },
+  { key: "postgame", label: "Marcador", icon: Trophy },
+  { key: "closed", label: "Cerrado", icon: Lock },
+  { key: "payments", label: "Cobros", icon: DollarSign },
 ] as const;
 
 const PHASE_INDEX: Record<MatchPhase, number> = {
@@ -45,7 +54,10 @@ export default function MatchProgressBar({ phase }: MatchProgressBarProps) {
                       : "bg-slate-100 text-slate-400"
                 }`}
               >
-                {isCompleted ? "✓" : step.icon}
+                {isCompleted ? <Check size={14} /> : (() => {
+                  const Icon = step.icon;
+                  return <Icon size={14} />;
+                })()}
               </div>
               <span
                 className={`text-[10px] font-bold ${

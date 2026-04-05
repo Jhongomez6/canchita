@@ -14,6 +14,15 @@ import type { Player } from "@/lib/domain/player";
 import { getTeamSummary } from "@/lib/domain/team";
 import TeamColumn from "./TeamColumn";
 import { logMatchReportCopied, logTeamsConfirmed } from "@/lib/analytics";
+import { 
+  Scale, 
+  Loader2, 
+  ChevronDown, 
+  Check, 
+  Copy, 
+  Hand, 
+  CheckCircle2
+} from "lucide-react";
 
 interface TeamsTabProps {
   matchId: string;
@@ -21,7 +30,7 @@ interface TeamsTabProps {
   confirmedCount: number;
   isOwner: boolean;
   isClosed: boolean;
-  hasUnsavedBalance: boolean;
+  isSavingTeams: boolean;
   votingClosed: boolean;
   currentMVPs: string[];
   voteCounts: Record<string, number>;
@@ -30,8 +39,6 @@ interface TeamsTabProps {
   // Actions
   onBalance: () => void;
   onDragEnd: (event: DragEndEvent) => void;
-  onSaveTeams: () => Promise<void>;
-  onDiscardChanges: () => void;
   onCopyReport: () => Promise<void>;
   onGetReportText: () => string;
   onConfirmTeams: () => Promise<void>;
@@ -44,7 +51,7 @@ export default function TeamsTab({
   confirmedCount,
   isOwner,
   isClosed,
-  hasUnsavedBalance,
+  isSavingTeams,
   votingClosed,
   currentMVPs,
   voteCounts,
@@ -52,15 +59,11 @@ export default function TeamsTab({
   teamsConfirmed,
   onBalance,
   onDragEnd,
-  onSaveTeams,
-  onDiscardChanges,
   onCopyReport,
   onGetReportText,
   onConfirmTeams,
   balancing,
 }: TeamsTabProps) {
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [copyingReport, setCopyingReport] = useState(false);
   const [copiedReport, setCopiedReport] = useState(false);
   const [showPositionGrid, setShowPositionGrid] = useState(false);
@@ -75,17 +78,6 @@ export default function TeamsTab({
     })
   );
 
-  async function handleSaveTeams() {
-    setSaving(true);
-    setSaved(false);
-    try {
-      await onSaveTeams();
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function handleCopyReport() {
     setCopyingReport(true);
@@ -107,7 +99,7 @@ export default function TeamsTab({
         {isOwner && !isClosed && (
           <div className="bg-emerald-50 rounded-2xl border-2 border-emerald-500/20 p-5">
             <h3 className="font-bold text-emerald-800 mb-2 flex items-center gap-2">
-              ⚖️ Balancear equipos
+              <Scale size={18} /> Balancear equipos
             </h3>
             <p className="text-sm text-emerald-700 mb-4 opacity-80">
               Se usarán los jugadores <strong>confirmados</strong> + <strong>invitados</strong>.
@@ -117,12 +109,13 @@ export default function TeamsTab({
             <button
               disabled={confirmedCount < 4}
               onClick={onBalance}
-              className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${confirmedCount < 4
+              className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2 ${confirmedCount < 4
                   ? "bg-slate-300 cursor-not-allowed shadow-none"
                   : "bg-[#16a34a] hover:bg-[#15803d]"
                 }`}
             >
-              {balancing ? "⏳ Balanceando..." : "⚖️ Generar equipos"}
+              {balancing ? <Loader2 size={20} className="animate-spin" /> : <Scale size={20} />}
+              {balancing ? "Balanceando..." : "Generar equipos"}
             </button>
             {confirmedCount < 4 && (
               <p className="text-xs text-red-500 mt-2 font-medium text-center">
@@ -133,8 +126,8 @@ export default function TeamsTab({
         )}
 
         {!isOwner && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
-            <span className="text-4xl mb-3 block">⚖️</span>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center flex flex-col items-center">
+            <Scale size={48} className="text-slate-200 mb-3" />
             <p className="text-slate-500 font-medium">
               Los equipos aún no han sido balanceados
             </p>
@@ -157,7 +150,7 @@ export default function TeamsTab({
           className="w-full flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <span className="text-lg">⚖️</span>
+            <Scale size={24} className="text-[#1f7a4f]" />
             <div className="text-left">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Diferencia de nivel
@@ -178,9 +171,7 @@ export default function TeamsTab({
                 Re-balancear
               </span>
             )}
-            <span className={`text-slate-400 text-xs transition-transform ${showPositionGrid ? "rotate-180" : ""}`}>
-              ▾
-            </span>
+            <ChevronDown size={18} className={`text-slate-400 transition-transform ${showPositionGrid ? "rotate-180" : ""}`} />
           </div>
         </button>
 
@@ -194,7 +185,13 @@ export default function TeamsTab({
                   : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                 }`}
             >
-              <span>{copyingReport ? "⏳" : copiedReport ? "✅" : "📋"}</span>
+              {copyingReport ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : copiedReport ? (
+                <Check size={14} />
+              ) : (
+                <Copy size={14} />
+              )}
               <span>{copiedReport ? "Copiado" : "Copiar"}</span>
             </button>
             <button
@@ -260,9 +257,9 @@ export default function TeamsTab({
       )}
 
       {/* Drag hint */}
-      {isOwner && !isClosed && !hasUnsavedBalance && (
-        <p className="text-center text-[11px] text-slate-400 font-medium">
-          ✋ Mantén presionado y arrastra un jugador para moverlo entre equipos
+      {isOwner && !isClosed && !isSavingTeams && (
+        <p className="text-center text-[11px] text-slate-400 font-medium flex items-center justify-center gap-1.5">
+          <Hand size={12} /> Mantén presionado y arrastra un jugador para moverlo entre equipos
         </p>
       )}
 
@@ -292,34 +289,18 @@ export default function TeamsTab({
         </div>
       </DndContext>
 
-      {/* Unsaved warning + save actions */}
-      {isOwner && !isClosed && (hasUnsavedBalance || !hasTeamsSaved) && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg animate-in fade-in slide-in-from-top-1">
-          <span className="text-xs font-bold text-amber-600 flex-1">
-            {saved ? "✅ Guardado" : "⚠️ Tienes cambios sin guardar"}
-          </span>
-          {hasUnsavedBalance && (
-            <button
-              onClick={onDiscardChanges}
-              className="text-xs font-bold px-2.5 py-1.5 bg-white border border-slate-200 text-slate-500 hover:text-red-500 hover:border-red-200 hover:bg-red-50 rounded-lg transition-colors"
-              title="Descartar cambios"
-            >
-              ↩️ Deshacer
-            </button>
-          )}
-          <button
-            disabled={saving}
-            onClick={handleSaveTeams}
-            className="text-xs font-bold px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50"
-          >
-            {saving ? "⏳ Guardando..." : "💾 Guardar equipos"}
-          </button>
+      {/* Auto-save indicator */}
+      {isOwner && !isClosed && isSavingTeams && (
+        <div className="flex items-center gap-2 text-xs text-slate-400 px-1">
+          <Loader2 size={12} className="animate-spin" />
+          <span>Sincronizando... Puedes seguir moviendo jugadores libremente</span>
         </div>
       )}
 
       {/* Confirm teams (publish to players) — above score */}
-      {isOwner && !isClosed && balanced && !hasUnsavedBalance && !teamsConfirmed && (
+      {isOwner && !isClosed && balanced && !isSavingTeams && !teamsConfirmed && (
         <button
+          id="btn-confirm-teams"
           disabled={confirming}
           onClick={async () => {
             if (!confirm("Al confirmar, los jugadores podrán ver los equipos en la página del partido. ¿Deseas publicar los equipos?")) return;
@@ -331,19 +312,20 @@ export default function TeamsTab({
               setConfirming(false);
             }
           }}
-          className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] ${confirming
+          className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2 ${confirming
               ? "bg-slate-400 cursor-not-allowed shadow-none"
               : "bg-emerald-600 hover:bg-emerald-700"
             }`}
         >
-          {confirming ? "⏳ Publicando..." : "✅ Confirmar y publicar equipos"}
+          {confirming ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
+          {confirming ? "Publicando..." : "Confirmar y publicar equipos"}
         </button>
       )}
 
       {/* Teams published badge */}
       {teamsConfirmed && !isClosed && (
         <div className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-xs font-bold border border-emerald-200 text-center">
-          ✅ Equipos publicados — los jugadores ya pueden ver los equipos
+          <CheckCircle2 size={14} /> Equipos publicados — los jugadores ya pueden ver los equipos
         </div>
       )}
 

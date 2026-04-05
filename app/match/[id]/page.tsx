@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { buildWhatsAppReport, buildRosterReport, buildRosterReportTelegram } from "@/lib/matchReport";
 import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
@@ -41,6 +41,7 @@ import { guestToPlayer } from "@/lib/domain/guest";
 import { addGuestToMatch, promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import { type FABPhase } from "./components/MatchFAB";
 import {
   logMatchInvitationCopied,
   logPaymentsSaved,
@@ -54,6 +55,7 @@ import {
   logMatchSettingUpdated,
   logMatchInstructionsSaved,
 } from "@/lib/analytics";
+import { Lock } from "lucide-react";
 import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
 
 // Tab components
@@ -86,7 +88,8 @@ export default function MatchDetailPage() {
   const [balancing, setBalancing] = useState(false);
   const [scoreA, setScoreA] = useState(0);
   const [scoreB, setScoreB] = useState(0);
-  const [hasUnsavedBalance, setHasUnsavedBalance] = useState(false);
+  const [isSavingTeams, setIsSavingTeams] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [guestLevels, setGuestLevels] = useState<Record<string, PlayerLevel>>({});
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>(
@@ -218,7 +221,7 @@ export default function MatchDetailPage() {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-5 text-center">
-          <p className="text-6xl mb-4">🔒</p>
+          <Lock size={64} className="text-slate-300 mb-4" />
           <h1 className="text-xl font-bold text-slate-800 mb-2">
             Sin permisos de administración
           </h1>
@@ -260,7 +263,28 @@ export default function MatchDetailPage() {
   const confirmedCount =
     (match.players?.filter((p: Player) => p.confirmed).length ?? 0) +
     guestCount;
-  const isFull = confirmedCount >= (match.maxPlayers ?? Infinity);
+  const isFull = confirmedCount >= (match?.maxPlayers || 14);
+
+  // New granular FAB state detection
+  const confirmedP = match?.players?.filter(p => p.confirmed && !p.isWaitlist) || [];
+  const confirmedG = match?.guests?.filter(g => g.confirmed && !g.isWaitlist) || [];
+  const totalConfirmedParticipants = confirmedP.length + confirmedG.length;
+  const paidCount = Object.values(match?.payments || {}).filter(Boolean).length;
+  const isAllPaid = totalConfirmedParticipants > 0 && paidCount >= totalConfirmedParticipants;
+
+  let fabPhase: FABPhase = "recruiting";
+  if (isClosed) {
+    fabPhase = isAllPaid ? "all_set" : "can_collect";
+  } else if (match?.score) {
+    fabPhase = "can_close";
+  } else if (match?.teamsConfirmed) {
+    fabPhase = "can_score";
+  } else if (match?.teams) {
+    fabPhase = "can_confirm";
+  } else if (isFull) {
+    fabPhase = "can_balance";
+  }
+
   const today = new Date().toISOString().split("T")[0];
   const phase = getMatchPhase(match, confirmedCount, match.maxPlayers ?? 14, today);
 
@@ -318,7 +342,7 @@ export default function MatchDetailPage() {
         B: cleanObject(result.teamB.players),
       });
       logTeamsBalanced(id);
-      setHasUnsavedBalance(false);
+      setIsSavingTeams(false);
       toast.success("Equipos balanceados y guardados");
     } catch (err: unknown) {
       handleError(err, "Hubo un error balanceando los equipos.");
@@ -343,38 +367,35 @@ export default function MatchDetailPage() {
     let newB = [...balanced.teamB.players];
 
     if (fromA) {
-      newA = newA.filter(
-        (p) => (p.id || p.uid || p.name) !== playerId
-      );
+      newA = newA.filter((p) => (p.id || p.uid || p.name) !== playerId);
       newB.push(fromA);
     } else if (fromB) {
-      newB = newB.filter(
-        (p) => (p.id || p.uid || p.name) !== playerId
-      );
+      newB = newB.filter((p) => (p.id || p.uid || p.name) !== playerId);
       newA.push(fromB);
     }
 
-    setHasUnsavedBalance(true);
-    setBalanced({
+    const nextBalanced = {
       teamA: { players: newA },
       teamB: { players: newB },
-    });
-  }
+    };
+    setBalanced(nextBalanced);
 
-  async function handleSaveTeams() {
-    if (!balanced) return;
-    const cleanObject = (obj: unknown) => JSON.parse(JSON.stringify(obj));
-
-    try {
-      await saveTeams(id, {
-        A: cleanObject(balanced.teamA.players),
-        B: cleanObject(balanced.teamB.players),
-      });
-      setHasUnsavedBalance(false);
-      toast.success("Equipos guardados");
-    } catch (err: unknown) {
-      handleError(err, "Error al guardar equipos");
-    }
+    // Debounced auto-save: cancel any pending save, then schedule a new one
+    setIsSavingTeams(true);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      const cleanObject = (obj: unknown) => JSON.parse(JSON.stringify(obj));
+      try {
+        await saveTeams(id, {
+          A: cleanObject(nextBalanced.teamA.players),
+          B: cleanObject(nextBalanced.teamB.players),
+        });
+      } catch (err: unknown) {
+        handleError(err, "Error al guardar equipos automáticamente");
+      } finally {
+        setIsSavingTeams(false);
+      }
+    }, 1500);
   }
 
   async function handleSaveScore(sa: number, sb: number) {
@@ -386,16 +407,6 @@ export default function MatchDetailPage() {
     } catch (err: unknown) {
       handleError(err, "Error al guardar marcador");
     }
-  }
-
-  function handleDiscardChanges() {
-    if (!match?.teams?.A || !match?.teams?.B) return;
-    setBalanced({
-      teamA: { players: [...match.teams.A] },
-      teamB: { players: [...match.teams.B] },
-    });
-    setHasUnsavedBalance(false);
-    toast("Cambios descartados", { icon: "↩️" });
   }
 
   function buildReportText(): string {
@@ -489,10 +500,8 @@ export default function MatchDetailPage() {
       toast.error("Debes registrar el marcador antes de cerrar el partido.");
       return;
     }
-    if (hasUnsavedBalance) {
-      toast.error(
-        "Tienes cambios sin guardar en los equipos. Por favor guarda o descarta los movimientos antes de cerrar el partido."
-      );
+    if (isSavingTeams) {
+      toast.error("Los equipos se están guardando. Espera un momento y vuelve a intentarlo.");
       return;
     }
 
@@ -647,25 +656,44 @@ export default function MatchDetailPage() {
 
   // FAB action based on phase
   function handleFABAction() {
-    switch (phase) {
+    const scrollTo = (elementId: string) => {
+      // Small delay to allow the tab panel to render before we try to scroll to the element
+      setTimeout(() => {
+        const el = document.getElementById(elementId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Highlight with a pulse effect if possible (CSS transition)
+          el.classList.add("ring-2", "ring-emerald-500", "ring-offset-2");
+          setTimeout(() => el.classList.remove("ring-2", "ring-emerald-500", "ring-offset-2"), 2000);
+        }
+      }, 400);
+    };
+
+    switch (fabPhase) {
       case "recruiting":
         setActiveTab("settings");
-        // Trigger invitation copy
         generateMatchInvitation().then(() => {
           toast.success("Invitación copiada");
         });
         break;
-      case "full":
+      case "can_balance":
         setActiveTab("teams");
-        handleBalance();
         break;
-      case "gameday":
-        setActiveTab("players");
+      case "can_confirm":
+        setActiveTab("teams");
+        scrollTo("btn-confirm-teams");
         break;
-      case "postgame":
+      case "can_score":
+        setActiveTab("score");
+        break;
+      case "can_close":
         setActiveTab("settings");
+        scrollTo("btn-close-match");
         break;
-      case "closed":
+      case "can_collect":
+        setActiveTab("payments");
+        break;
+      case "all_set":
         generateWhatsAppReport().then(() => {
           toast.success("Reporte copiado");
         });
@@ -676,6 +704,10 @@ export default function MatchDetailPage() {
   // ========================
   // RENDER
   // ========================
+  const hasUnsavedScore = match.score 
+    ? (scoreA !== match.score.A || scoreB !== match.score.B)
+    : (scoreA !== 0 || scoreB !== 0);
+
   return (
     <AuthGuard>
       <main className="min-h-screen bg-slate-50 pb-24">
@@ -685,10 +717,11 @@ export default function MatchDetailPage() {
             activeTab={activeTab}
             onTabChange={handleTabChange}
             playerCount={confirmedCount}
-            hasUnsavedBalance={hasUnsavedBalance}
-            hasUnsavedScore={!match.score || scoreA !== match.score.A || scoreB !== match.score.B}
+            isSavingTeams={isSavingTeams}
+            hasUnsavedScore={hasUnsavedScore}
             hasTeams={Boolean(match.teams)}
             isClosed={isClosed}
+            fabPhase={fabPhase}
           />
 
           {/* Tab Panels */}
@@ -700,6 +733,39 @@ export default function MatchDetailPage() {
               confirmedCount={confirmedCount}
               isClosed={isClosed}
               onNavigateTab={setActiveTab}
+              onCopyLink={async () => {
+                await navigator.clipboard.writeText(`${window.location.origin}/join/${id}`);
+              }}
+              onCopyCode={async () => {
+                await navigator.clipboard.writeText(id);
+              }}
+              onCopyInvitation={generateMatchInvitation}
+              onCopyReport={generateWhatsAppReport}
+              getInvitationText={() => {
+                const shareUrl = `${window.location.origin}/join/${id}`;
+                return (
+                  `⚽ *¡NUEVO PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
+                  `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
+                  `⏰ *Hora:* ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
+                  `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+                  `🔗 *Link de invitación:* ${shareUrl}\n\n` +
+                  `🔑 *Código de búsqueda:* ${id}.ai\n` +
+                  `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n`
+                );
+              }}
+              getInvitationTextTelegram={() => {
+                const shareUrl = `${window.location.origin}/join/${id}`;
+                return (
+                  `⚽ ¡NUEVO PARTIDO EN LA CANCHITA! 🏟️\n\n` +
+                  `📅 Día: ${formatDateSpanish(match.date)}\n` +
+                  `⏰ Hora: ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
+                  `📍 Lugar: ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+                  `🔗 Link de invitación: ${shareUrl}\n\n` +
+                  `🔑 Código de búsqueda: ${id}.ai\n` +
+                  `(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)\n`
+                );
+              }}
+              getReportText={buildReportText}
             />
           )}
 
@@ -750,7 +816,7 @@ export default function MatchDetailPage() {
               confirmedCount={confirmedCount}
               isOwner={isOwner}
               isClosed={isClosed}
-              hasUnsavedBalance={hasUnsavedBalance}
+              isSavingTeams={isSavingTeams}
               votingClosed={votingClosed}
               currentMVPs={currentMVPs}
               voteCounts={voteCounts}
@@ -758,8 +824,6 @@ export default function MatchDetailPage() {
               teamsConfirmed={match.teamsConfirmed ?? false}
               onBalance={handleBalance}
               onDragEnd={handleDragEnd}
-              onSaveTeams={handleSaveTeams}
-              onDiscardChanges={handleDiscardChanges}
               onCopyReport={generateWhatsAppReport}
               onGetReportText={buildReportText}
               onConfirmTeams={async () => {
@@ -795,7 +859,7 @@ export default function MatchDetailPage() {
               match={match}
               isOwner={isOwner}
               isClosed={isClosed}
-              hasUnsavedBalance={hasUnsavedBalance}
+              isSavingTeams={isSavingTeams}
               hasScore={Boolean(match.score)}
               maxPlayersDraft={maxPlayersDraft}
               onUpdateMaxPlayers={async (value) => {
@@ -808,41 +872,6 @@ export default function MatchDetailPage() {
                 logMatchSettingUpdated(id, "duration", value);
               }}
               onSendReminder={handleManualReminder}
-              onCopyLink={async () => {
-                await navigator.clipboard.writeText(
-                  `${window.location.origin}/join/${id}`
-                );
-              }}
-              onCopyCode={async () => {
-                await navigator.clipboard.writeText(id);
-              }}
-              onCopyInvitation={generateMatchInvitation}
-              getInvitationText={() => {
-                const shareUrl = `${window.location.origin}/join/${id}`;
-                return (
-                  `⚽ *¡NUEVO PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
-                  `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
-                  `⏰ *Hora:* ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
-                  `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
-                  `🔗 *Link de invitación:* ${shareUrl}\n\n` +
-                  `🔑 *Código de búsqueda:* ${id}.ai\n` +
-                  `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n`
-                );
-              }}
-              getInvitationTextTelegram={() => {
-                const shareUrl = `${window.location.origin}/join/${id}`;
-                return (
-                  `⚽ ¡NUEVO PARTIDO EN LA CANCHITA! 🏟️\n\n` +
-                  `📅 Día: ${formatDateSpanish(match.date)}\n` +
-                  `⏰ Hora: ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
-                  `📍 Lugar: ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
-                  `🔗 Link de invitación: ${shareUrl}\n\n` +
-                  `🔑 Código de búsqueda: ${id}.ai\n` +
-                  `(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)\n`
-                );
-              }}
-              onCopyReport={generateWhatsAppReport}
-              getReportText={buildReportText}
               onCloseMatch={handleCloseMatch}
               onReopenMatch={async () => reopenMatch(id)}
               onDeleteMatch={handleDeleteMatchAction}
@@ -862,18 +891,17 @@ export default function MatchDetailPage() {
             />
           )}
 
-          {activeTab === "payments" && isClosed && (
+          {activeTab === "payments" && (
             <PaymentsTab
               match={match}
-              onDirtyChange={setPaymentsAreDirty}
-              onSavePayments={async (payments) => {
+              onTogglePayment={async (playerId, isPaid) => {
                 try {
-                  await savePaymentsInBatch(id, payments);
-                  const paidCount = Object.values(payments).filter(Boolean).length;
-                  await logPaymentsSaved(id, paidCount);
-                  toast.success("Cobros guardados");
+                  await updateDoc(doc(db, "matches", id), {
+                    [`payments.${playerId}`]: isPaid
+                  });
                 } catch (err: unknown) {
-                  handleError(err, "Error al guardar los cobros.");
+                  handleError(err, "Error al guardar el cobro.");
+                  throw err;
                 }
               }}
             />
@@ -883,7 +911,7 @@ export default function MatchDetailPage() {
         {/* Floating Action Button */}
         {isOwner && (
           <MatchFAB
-            phase={phase}
+            phase={fabPhase}
             onAction={handleFABAction}
           />
         )}

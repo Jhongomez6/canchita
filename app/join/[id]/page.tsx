@@ -9,7 +9,7 @@ import { loginWithGoogle } from "@/lib/auth";
 import { formatDateSpanish, formatDateShort, formatTime12h, formatEndTime } from "@/lib/date";
 import { googleMapsEmbedUrl, googleMapsLink, wazeLink } from "@/lib/maps";
 import Image from "next/image";
-import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCircle, CheckCircle2, ClipboardList, Trophy, Crown, Star, CalendarX, Lock } from "lucide-react";
+import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCircle, CheckCircle2, ClipboardList, Trophy, Crown, Star, CalendarX, Lock, Activity, Calendar } from "lucide-react";
 
 import { AnimatePresence, motion } from "framer-motion";
 import AddGuestForm from "@/components/AddGuestForm";
@@ -448,9 +448,10 @@ export default function JoinMatchPage() {
           <div className="absolute top-0 right-0 -mt-10 -mr-10 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
           <div className="relative flex justify-between items-center">
             <h2 className="font-bold text-lg text-white flex items-center gap-2">
+              <Activity className="w-5 h-5 text-white/90" />
               {matchLabel}
               {match.isPrivate && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white/70 flex items-center gap-1">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white/70 flex items-center gap-1 border border-white/20">
                   <Lock className="w-3 h-3" /> Privado
                 </span>
               )}
@@ -479,12 +480,16 @@ export default function JoinMatchPage() {
             <div className="space-y-3 px-4 py-3">
               {/* Fecha y hora en una sola línea */}
               <div className="flex items-center gap-3 text-slate-600">
-                <span className="bg-slate-100 p-1.5 rounded-lg shrink-0"><Clock className="w-4 h-4 text-slate-400" /></span>
-                <span className="text-sm text-slate-700">
+                <Calendar size={18} className="text-slate-400 shrink-0" />
+                <span className="text-sm text-slate-700 font-medium">
                   {formatDateShort(match.date)}
-                  {" · "}
+                  <span className="text-slate-300 mx-2">·</span>
                   <span className="font-bold">{formatTime12h(match.time)}</span>
-                  {match.duration ? ` – ${formatEndTime(match.time, match.duration)}` : ""}
+                  {match.duration ? (
+                    <span className="text-slate-400 font-normal ml-1.5 italic">
+                      hasta {formatEndTime(match.time, match.duration)}
+                    </span>
+                  ) : ""}
                 </span>
               </div>
 
@@ -497,8 +502,10 @@ export default function JoinMatchPage() {
                   }}
                   className="flex items-center gap-3 text-slate-600 w-full text-left group"
                 >
-                  <span className="bg-slate-100 p-1.5 rounded-lg group-hover:bg-slate-200 transition-colors shrink-0"><MapPin className="w-4 h-4 text-slate-400 transition-colors" /></span>
-                  <span className="text-slate-700 text-sm flex-1 text-left">{matchLocation?.name || match.locationSnapshot?.name || "Cancha no disponible"}</span>
+                  <MapPin size={18} className="text-slate-400 shrink-0" />
+                  <span className="text-slate-700 text-sm flex-1 text-left font-medium">
+                    {matchLocation?.name || match.locationSnapshot?.name || "Cancha no disponible"}
+                  </span>
                   <span className={`w-28 justify-center flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-medium transition-colors shrink-0 ${isMapOpen ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-600 group-hover:bg-slate-100"}`}>
                     <Map className="w-3 h-3" />
                     {isMapOpen ? "Ocultar" : "Ver mapa"}
@@ -546,13 +553,8 @@ export default function JoinMatchPage() {
               {/* Organizador */}
               {match.creatorSnapshot?.name && (
                 <div className="flex items-center gap-3 text-slate-600">
-                  <div className="relative shrink-0">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowOrganizerTooltip(p => !p); setShowCodeTooltip(false); }}
-                      className="bg-slate-100 p-1.5 rounded-lg block"
-                    >
-                      <User className="w-4 h-4 text-slate-400" />
-                    </button>
+                  <div className="relative shrink-0 flex items-center">
+                    <User size={18} className="text-slate-400 shrink-0" />
                     <AnimatePresence>
                       {showOrganizerTooltip && (
                         <motion.div
@@ -569,7 +571,12 @@ export default function JoinMatchPage() {
                       )}
                     </AnimatePresence>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); setShowOrganizerTooltip(p => !p); setShowCodeTooltip(false); }} className="text-slate-700 text-sm flex-1 text-left">{match.creatorSnapshot.name}</button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowOrganizerTooltip(p => !p); setShowCodeTooltip(false); }} 
+                    className="text-slate-700 text-sm flex-1 text-left font-medium"
+                  >
+                    {match.creatorSnapshot.name}
+                  </button>
                   {organizerPhone && match.createdBy !== user.uid && (
                     <a
                       href={`https://wa.me/${organizerPhone.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola! Te escribo por el partido del ${formatDateSpanish(match.date)} a las ${formatTime12h(match.time)}, código ${id}`)}`}
@@ -587,15 +594,9 @@ export default function JoinMatchPage() {
                 </div>
               )}
 
-              {/* Código del partido — truncado, sin etiqueta */}
               <div className="flex items-center gap-3 text-slate-600">
-                <div className="relative shrink-0">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowCodeTooltip(p => !p); setShowOrganizerTooltip(false); }}
-                    className="bg-slate-100 p-1.5 rounded-lg block"
-                  >
-                    <Key className="w-4 h-4 text-slate-400" />
-                  </button>
+                <div className="relative shrink-0 flex items-center">
+                  <Key size={18} className="text-slate-400 shrink-0" />
                   <AnimatePresence>
                     {showCodeTooltip && (
                       <motion.div
@@ -612,7 +613,12 @@ export default function JoinMatchPage() {
                     )}
                   </AnimatePresence>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); setShowCodeTooltip(p => !p); setShowOrganizerTooltip(false); }} className="font-mono text-slate-600 text-sm flex-1 text-left truncate">{id}</button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setShowCodeTooltip(p => !p); setShowOrganizerTooltip(false); }} 
+                  className="font-mono text-slate-600 text-sm flex-1 text-left truncate font-medium"
+                >
+                  {id}
+                </button>
                 <button
                   onClick={async () => {
                     await navigator.clipboard.writeText(id);

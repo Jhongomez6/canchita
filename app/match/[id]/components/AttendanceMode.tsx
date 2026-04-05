@@ -4,6 +4,12 @@ import Image from "next/image";
 import { useState } from "react";
 import type { Player, AttendanceStatus } from "@/lib/domain/player";
 import { logAttendanceMarked } from "@/lib/analytics";
+import { 
+  ClipboardCheck, 
+  CheckCircle2, 
+  Clock, 
+  Ban 
+} from "lucide-react";
 
 interface AttendanceModeProps {
   matchId: string;
@@ -74,7 +80,7 @@ export default function AttendanceMode({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-slate-800 flex items-center gap-2">
-          📋 Pasar Lista
+          <ClipboardCheck size={20} className="text-[#1f7a4f]" /> Pasar Lista
         </h3>
         <button
           onClick={onExit}
@@ -88,17 +94,22 @@ export default function AttendanceMode({
       <button
         onClick={handleMarkAllPresent}
         disabled={markingAll}
-        className="w-full py-3 mb-4 bg-emerald-50 border border-emerald-200 rounded-xl font-bold text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+        className="w-full py-3 mb-4 bg-emerald-50 border border-emerald-200 rounded-xl font-bold text-emerald-700 flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors disabled:opacity-50"
       >
-        {markingAll ? "⏳ Marcando..." : "✅ Todos presentes"}
+        {markingAll ? (
+          <Clock size={20} className="animate-pulse" />
+        ) : (
+          <CheckCircle2 size={20} />
+        )}
+        {markingAll ? "Marcando..." : "Todos presentes"}
       </button>
 
       {/* Legend */}
-      <div className="flex gap-3 mb-3 text-[10px] font-bold text-slate-500 justify-center">
-        <span>✅ Presente</span>
-        <span>⏰ Tarde</span>
-        <span>🚫 No Show</span>
-        <span className="text-slate-400">(tap para cambiar)</span>
+      <div className="flex gap-4 mb-3 text-[10px] font-bold text-slate-500 justify-center items-center">
+        <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-emerald-500" /> Presente</span>
+        <span className="flex items-center gap-1"><Clock size={12} className="text-amber-500" /> Tarde</span>
+        <span className="flex items-center gap-1"><Ban size={12} className="text-red-500" /> No Show</span>
+        <span className="text-slate-400 ml-1">(tap para cambiar)</span>
       </div>
 
       {/* Player list */}
@@ -108,14 +119,18 @@ export default function AttendanceMode({
           const attendance = localAttendance[id] ?? "present";
           const isFlashing = flashUid === id;
 
-          let statusIcon = "✅";
+          let StatusIcon = CheckCircle2;
           let statusBg = "bg-emerald-50 border-emerald-100";
+          let iconColor = "text-emerald-500";
+          
           if (attendance === "late") {
-            statusIcon = "⏰";
+            StatusIcon = Clock;
             statusBg = "bg-amber-50 border-amber-100";
+            iconColor = "text-amber-500";
           } else if (attendance === "no_show") {
-            statusIcon = "🚫";
+            StatusIcon = Ban;
             statusBg = "bg-red-50 border-red-100";
+            iconColor = "text-red-500";
           }
 
           return (
@@ -143,7 +158,7 @@ export default function AttendanceMode({
               <span className="font-bold text-slate-800 flex-1 text-left">{p.name}</span>
 
               {/* Status */}
-              <span className="text-xl">{statusIcon}</span>
+              <StatusIcon size={24} className={iconColor} />
             </button>
           );
         })}

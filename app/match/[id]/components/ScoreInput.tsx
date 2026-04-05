@@ -1,4 +1,4 @@
-"use client";
+import { Shield, Plus, Minus } from "lucide-react";
 
 interface ScoreInputProps {
   scoreA: number;
@@ -22,15 +22,17 @@ export default function ScoreInput({
       </h4>
       <div className="flex items-center justify-center gap-4">
         <div className="flex flex-col items-center">
-          <div className="text-[10px] font-bold text-red-500 uppercase mb-1">🔴 A</div>
+          <div className="text-[10px] font-bold text-red-500 uppercase mb-1 flex items-center gap-1">
+            <Shield size={10} fill="#ef4444" /> A
+          </div>
           <div className="flex items-center gap-1.5">
             {!disabled && (
               <button
                 onClick={() => onScoreAChange(Math.max(0, scoreA - 1))}
                 disabled={scoreA <= 0}
-                className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center font-bold text-lg text-slate-600 transition-colors disabled:opacity-50"
+                className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors disabled:opacity-50"
               >
-                −
+                <Minus size={14} />
               </button>
             )}
             <input
@@ -44,9 +46,9 @@ export default function ScoreInput({
             {!disabled && (
               <button
                 onClick={() => onScoreAChange(scoreA + 1)}
-                className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center font-bold text-lg text-slate-600 transition-colors"
+                className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"
               >
-                +
+                <Plus size={14} />
               </button>
             )}
           </div>
@@ -55,15 +57,17 @@ export default function ScoreInput({
         <div className="text-3xl text-slate-300 font-thin mt-4">—</div>
 
         <div className="flex flex-col items-center">
-          <div className="text-[10px] font-bold text-blue-500 uppercase mb-1">🔵 B</div>
+          <div className="text-[10px] font-bold text-blue-500 uppercase mb-1 flex items-center gap-1">
+            <Shield size={10} fill="#3b82f6" /> B
+          </div>
           <div className="flex items-center gap-1.5">
             {!disabled && (
               <button
                 onClick={() => onScoreBChange(Math.max(0, scoreB - 1))}
                 disabled={scoreB <= 0}
-                className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center font-bold text-lg text-slate-600 transition-colors disabled:opacity-50"
+                className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors disabled:opacity-50"
               >
-                −
+                <Minus size={14} />
               </button>
             )}
             <input
@@ -77,9 +81,9 @@ export default function ScoreInput({
             {!disabled && (
               <button
                 onClick={() => onScoreBChange(scoreB + 1)}
-                className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center font-bold text-lg text-slate-600 transition-colors"
+                className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"
               >
-                +
+                <Plus size={14} />
               </button>
             )}
           </div>

@@ -4,6 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import type { Player } from "@/lib/domain/player";
 import { sortTeamForDisplay } from "@/lib/domain/team";
 import PlayerItem from "./PlayerItem";
+import { Shield, Zap, Users } from "lucide-react";
 
 interface TeamColumnProps {
   team: "A" | "B";
@@ -52,11 +53,17 @@ export default function TeamColumn({
 
   return (
     <div className={`${bgColor} rounded-xl p-3 border ${borderColor} min-w-0`}>
-      <h4 className={`font-bold ${textColor} mb-1 text-sm`}>
-        {icon} Equipo {team}
+      <h4 className={`font-bold ${textColor} mb-1 text-sm flex items-center gap-1.5`}>
+        <Shield size={14} fill={isA ? "#ef4444" : "#3b82f6"} className={isA ? "text-red-500" : "text-blue-500"} />
+        Equipo {team}
       </h4>
-      <div className={`text-[10px] ${subtextColor} mb-3 opacity-80 font-medium`}>
-        ⚡ <strong>{totalLevel}</strong> pts · 👥 {count}
+      <div className={`text-[10px] ${subtextColor} mb-3 opacity-80 font-medium flex items-center gap-3`}>
+        <span className="flex items-center gap-1">
+          <Zap size={10} /> <strong>{totalLevel}</strong> pts
+        </span>
+        <span className="flex items-center gap-1">
+          <Users size={10} /> {count}
+        </span>
       </div>
 
       <SortableContext
@@ -75,12 +82,9 @@ export default function TeamColumn({
                 id={targetId}
                 name={p.name}
                 photoURL={p.photoURL}
-                details={`⚡${p.level} · ${[
-                  p.primaryPosition ? `👑${p.primaryPosition}` : null,
-                  ...(p.positions || []).filter((pos) => pos !== p.primaryPosition),
-                ]
-                  .filter(Boolean)
-                  .join("/")}`}
+                level={p.level ?? 2}
+                primaryPosition={p.primaryPosition}
+                positions={p.positions || []}
                 isMvp={isMvp}
                 votes={votes}
                 disabled={isClosed}

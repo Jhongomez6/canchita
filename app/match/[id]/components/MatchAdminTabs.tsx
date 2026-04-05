@@ -1,13 +1,22 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { 
+  LayoutDashboard, 
+  Users, 
+  Scale, 
+  Trophy, 
+  Settings, 
+  DollarSign 
+} from "lucide-react";
+import { type FABPhase } from "./MatchFAB";
 
 export type TabId = "dashboard" | "players" | "teams" | "score" | "settings" | "payments";
 
 interface Tab {
   id: TabId;
   label: string;
-  icon: string;
+  icon: any; // Lucide icon component
   badge?: number;
   showDot?: boolean;
 }
@@ -16,20 +25,22 @@ interface MatchAdminTabsProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   playerCount: number;
-  hasUnsavedBalance: boolean;
+  isSavingTeams: boolean;
   hasUnsavedScore: boolean;
   hasTeams: boolean;
   isClosed: boolean;
+  fabPhase: FABPhase;
 }
 
 export default function MatchAdminTabs({
   activeTab,
   onTabChange,
   playerCount,
-  hasUnsavedBalance,
+  isSavingTeams,
   hasUnsavedScore,
   hasTeams,
   isClosed,
+  fabPhase,
 }: MatchAdminTabsProps) {
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
@@ -44,12 +55,42 @@ export default function MatchAdminTabs({
   }, [activeTab]);
 
   const tabs: Tab[] = [
-    { id: "dashboard", label: "Dashboard", icon: "📊" },
-    { id: "players", label: "Jugadores", icon: "👥", badge: playerCount },
-    { id: "teams", label: "Equipos", icon: "⚖️", showDot: hasUnsavedBalance },
-    ...(hasTeams ? [{ id: "score" as const, label: "Marcador", icon: "🏆", showDot: hasUnsavedScore && !isClosed }] : []),
-    { id: "settings", label: "Ajustes", icon: "⚙️" },
-    ...(isClosed ? [{ id: "payments" as const, label: "Cobros", icon: "💰" }] : []),
+    { 
+      id: "dashboard", 
+      label: "Dashboard", 
+      icon: LayoutDashboard,
+      showDot: fabPhase === "all_set" && activeTab !== "dashboard" // Summary is ready
+    },
+    { 
+      id: "players", 
+      label: "Jugadores", 
+      icon: Users, 
+      badge: playerCount 
+    },
+    { 
+      id: "teams", 
+      label: "Equipos", 
+      icon: Scale, 
+      showDot: (fabPhase === "can_balance" || fabPhase === "can_confirm" || isSavingTeams) && activeTab !== "teams"
+    },
+    ...(hasTeams ? [{ 
+      id: "score" as const, 
+      label: "Marcador", 
+      icon: Trophy, 
+      showDot: (fabPhase === "can_score" || hasUnsavedScore) && !isClosed && activeTab !== "score"
+    }] : []),
+    { 
+      id: "settings", 
+      label: "Ajustes", 
+      icon: Settings,
+      showDot: (fabPhase === "recruiting" || fabPhase === "can_close") && activeTab !== "settings"
+    },
+    { 
+      id: "payments" as const, 
+      label: "Cobros", 
+      icon: DollarSign,
+      showDot: fabPhase === "can_collect" && activeTab !== "payments"
+    },
   ];
 
   return (
@@ -73,7 +114,7 @@ export default function MatchAdminTabs({
                 : "text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300"
             }`}
           >
-            <span className="text-base">{tab.icon}</span>
+            <tab.icon size={18} className="shrink-0" />
             <span>{tab.label}</span>
 
             {tab.badge !== undefined && tab.badge > 0 && (

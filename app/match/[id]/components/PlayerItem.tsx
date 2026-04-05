@@ -4,18 +4,31 @@ import Image from "next/image";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { POSITION_ICONS, type Position } from "@/lib/domain/player";
+import { Zap, Crown } from "lucide-react";
 
 interface PlayerItemProps {
   id: string;
   name: string;
   photoURL?: string;
-  details: string;
+  level: number;
+  primaryPosition?: Position;
+  positions: Position[];
   isMvp?: boolean;
   votes?: number;
   disabled?: boolean;
 }
 
-export default function PlayerItem({ id, name, photoURL, details, isMvp, votes, disabled }: PlayerItemProps) {
+export default function PlayerItem({ 
+  id, 
+  name, 
+  photoURL, 
+  level, 
+  primaryPosition, 
+  positions, 
+  isMvp, 
+  votes, 
+  disabled 
+}: PlayerItemProps) {
   const {
     attributes,
     listeners,
@@ -52,15 +65,29 @@ export default function PlayerItem({ id, name, photoURL, details, isMvp, votes, 
             </div>
           )}
           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-[8px] shadow-sm border border-slate-100 z-10">
-            {POSITION_ICONS[details.split(" · ")[1]?.split("/")[0]?.replace("👑", "") as Position] || POSITION_ICONS["MID"]}
+            {POSITION_ICONS[primaryPosition || positions[0] || "MID"]}
           </div>
         </div>
         <div>
           <div className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
             {name}
-            {isMvp && <span className="text-sm drop-shadow-sm" title="MVP Actual">👑</span>}
+            {isMvp && <Crown size={12} className="text-amber-500 fill-amber-300" />}
           </div>
-          <div className="text-[10px] text-slate-500 font-medium">{details}</div>
+          <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1.5">
+            <span className="flex items-center gap-0.5"><Zap size={10} className="text-amber-500" />{level}</span>
+            <span className="text-slate-300">·</span>
+            <div className="flex items-center gap-1">
+              {primaryPosition && (
+                <span className="text-blue-600 font-bold">{primaryPosition}</span>
+              )}
+              {positions.filter(p => p !== primaryPosition).map((p, i) => (
+                <span key={p} className="flex items-center gap-1">
+                  {(primaryPosition || i > 0) && <span className="text-slate-300">/</span>}
+                  {p}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

@@ -4,25 +4,39 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Match, MatchDuration } from "@/lib/domain/match";
 import { formatDuration } from "@/lib/date";
+import { 
+  Share2, 
+  Link2, 
+  ShieldCheck, 
+  Copy, 
+  Check, 
+  Smartphone, 
+  Settings, 
+  Ticket, 
+  Clock, 
+  Users, 
+  Eye, 
+  ClipboardList, 
+  Bell, 
+  RefreshCw, 
+  AlertCircle, 
+  Lock, 
+  Unlock, 
+  Trash2,
+  Loader2
+} from "lucide-react";
 
 interface SettingsTabProps {
   match: Match;
   isOwner: boolean;
   isClosed: boolean;
-  hasUnsavedBalance: boolean;
+  isSavingTeams: boolean;
   hasScore: boolean;
   maxPlayersDraft: number | null;
   // Actions
   onUpdateMaxPlayers: (value: number) => Promise<void>;
   onUpdateDuration: (value: MatchDuration) => Promise<void>;
   onSendReminder: () => Promise<void>;
-  onCopyLink: () => Promise<void>;
-  onCopyCode: () => Promise<void>;
-  onCopyInvitation: () => Promise<void>;
-  getInvitationText: () => string;
-  getInvitationTextTelegram: () => string;
-  onCopyReport: () => Promise<void>;
-  getReportText: () => string;
   onCloseMatch: () => Promise<void>;
   onReopenMatch: () => Promise<void>;
   onDeleteMatch: () => Promise<void>;
@@ -34,31 +48,18 @@ export default function SettingsTab({
   match,
   isOwner,
   isClosed,
-  hasUnsavedBalance,
+  isSavingTeams: _isSavingTeams,
   hasScore,
   maxPlayersDraft,
   onUpdateMaxPlayers,
   onUpdateDuration,
   onSendReminder,
-  onCopyLink,
-  onCopyCode,
-  onCopyInvitation,
-  getInvitationText,
-  getInvitationTextTelegram,
-  onCopyReport,
-  getReportText,
   onCloseMatch,
   onReopenMatch,
   onDeleteMatch,
   onToggleAllowGuests,
   onUpdateInstructions,
 }: SettingsTabProps) {
-  const [copied, setCopied] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [copiedInvitation, setCopiedInvitation] = useState(false);
-  const [copyingInvitation, setCopyingInvitation] = useState(false);
-  const [copyingReport, setCopyingReport] = useState(false);
-  const [copiedReport, setCopiedReport] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isReopening, setIsReopening] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -72,30 +73,6 @@ export default function SettingsTab({
 
   const currentMax = localMaxPlayers ?? match.maxPlayers ?? 14;
   const guestCount = match.guests?.length ?? 0;
-
-  async function handleCopyLink() {
-    await onCopyLink();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
-  async function handleCopyCode() {
-    await onCopyCode();
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 1500);
-  }
-
-  async function handleCopyInvitation() {
-    setCopyingInvitation(true);
-    setCopiedInvitation(false);
-    try {
-      await onCopyInvitation();
-      setCopiedInvitation(true);
-      setTimeout(() => setCopiedInvitation(false), 2000);
-    } finally {
-      setCopyingInvitation(false);
-    }
-  }
 
   async function handleSendReminder() {
     setSendingReminder(true);
@@ -118,153 +95,13 @@ export default function SettingsTab({
 
   return (
     <div role="tabpanel" id="panel-settings" className="space-y-4 animate-in fade-in duration-200">
-      {/* Sharing Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-          📤 Compartir
-        </h3>
 
-        <div className="flex flex-col gap-3">
-          {/* Match link */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                value={`${typeof window !== "undefined" ? window.location.origin : ""}/join/${match.id}`}
-                readOnly
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-500 font-mono"
-              />
-              <span className="absolute left-3 top-3 text-slate-400">🔗</span>
-            </div>
-            <button
-              onClick={handleCopyLink}
-              className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${copied ? "bg-[#16a34a]" : "bg-blue-600 hover:bg-blue-700"
-                }`}
-            >
-              {copied ? "Copiado" : "Copiar"}
-            </button>
-          </div>
-
-          {/* Match code */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                value={match.id}
-                readOnly
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-500 font-mono font-bold tracking-wider"
-              />
-              <span className="absolute left-3 top-3 text-slate-400">🔐</span>
-            </div>
-            <button
-              onClick={handleCopyCode}
-              className={`px-4 py-2 rounded-xl font-bold text-white transition-all ${copiedCode ? "bg-[#16a34a]" : "bg-slate-700 hover:bg-slate-800"
-                }`}
-            >
-              {copiedCode ? "Copiado" : "Copiar"}
-            </button>
-          </div>
-
-          {/* Invitation sharing / Report sharing */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-              <span className="text-lg">📲</span>
-              <p className="text-sm font-bold text-slate-700">
-                {isClosed ? "Compartir reporte final" : "Invitar jugadores"}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              {isClosed ? (
-                <>
-                  <button
-                    disabled={copyingReport}
-                    onClick={async () => {
-                      setCopyingReport(true);
-                      setCopiedReport(false);
-                      try {
-                        await onCopyReport();
-                        setCopiedReport(true);
-                        setTimeout(() => setCopiedReport(false), 2000);
-                      } finally {
-                        setCopyingReport(false);
-                      }
-                    }}
-                    className={`w-full py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 disabled:opacity-50 ${copiedReport
-                        ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
-                      }`}
-                  >
-                    <span className="text-lg">{copyingReport ? "⏳" : copiedReport ? "✅" : "📋"}</span>
-                    {copiedReport ? "Copiado" : "Copiar"}
-                  </button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => {
-                        const text = getReportText();
-                        if (text) window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-                      }}
-                      className="py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
-                    >
-                      <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
-                      WhatsApp
-                    </button>
-                    <button
-                      onClick={() => {
-                        const text = getReportText();
-                        if (text) window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text.replace(/\*/g, ""))}`, "_blank");
-                      }}
-                      className="py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
-                    >
-                      <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
-                      Telegram
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={handleCopyInvitation}
-                    disabled={copyingInvitation}
-                    className={`w-full py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${copiedInvitation
-                        ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
-                      }`}
-                  >
-                    <span className="text-lg">{copiedInvitation ? "✅" : "📋"}</span>
-                    {copiedInvitation ? "Copiado" : "Copiar"}
-                  </button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => {
-                        const text = getInvitationText();
-                        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-                      }}
-                      className="py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
-                    >
-                      <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
-                      WhatsApp
-                    </button>
-                    <button
-                      onClick={() => {
-                        const text = getInvitationTextTelegram();
-                        window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
-                      }}
-                      className="py-3 px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 shadow-sm"
-                    >
-                      <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
-                      Telegram
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Match Config */}
-      {isOwner && (
+      {isOwner && !isClosed && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
           <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-            🎛️ Configuración
+            <Settings size={18} className="text-[#1f7a4f]" /> Configuración
           </h3>
 
           <div className="space-y-4">
@@ -272,7 +109,7 @@ export default function SettingsTab({
             {!isClosed && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">🎟️</span>
+                  <Ticket size={18} className="text-slate-400" />
                   <span className="text-slate-600 font-medium text-sm">Cupo máximo</span>
                 </div>
                 <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm h-8">
@@ -324,7 +161,7 @@ export default function SettingsTab({
             {!isClosed && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">⏱️</span>
+                  <Clock size={18} className="text-slate-400" />
                   <span className="text-slate-600 font-medium text-sm">Duración</span>
                 </div>
                 <select
@@ -347,7 +184,7 @@ export default function SettingsTab({
             {!isClosed && (
               <label className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">👥</span>
+                  <Users size={18} className="text-slate-400" />
                   <div>
                     <span className="text-slate-600 font-medium text-sm">Permitir invitados</span>
                     <p className="text-[10px] text-slate-500 leading-tight">
@@ -376,21 +213,23 @@ export default function SettingsTab({
             )}
 
             {/* View as player */}
-            <Link
-              href={`/join/${match.id}`}
-              className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              👁️ Ver como jugador
-            </Link>
+              <Link
+                href={`/join/${match.id}`}
+                className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                <Eye size={16} /> Vista jugador
+              </Link>
           </div>
         </div>
       )}
 
       {/* Match Instructions */}
-      {isOwner && onUpdateInstructions && (
+      {isOwner && onUpdateInstructions && !isClosed && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
           <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-            <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg text-sm">📋</span>
+            <div className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg">
+              <ClipboardList size={18} />
+            </div>
             Instrucciones para jugadores
             <span className="text-xs font-normal text-slate-400">(opcional)</span>
           </h3>
@@ -421,13 +260,14 @@ export default function SettingsTab({
               }
             }}
             disabled={savingInstructions || localInstructions === (match.instructions || "")}
-            className={`w-full py-3 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-[0.98] ${
+            className={`w-full py-3 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
               savingInstructions || localInstructions === (match.instructions || "")
                 ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200"
                 : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
             }`}
           >
-            {savingInstructions ? "⏳ Guardando..." : "Guardar instrucciones"}
+            {savingInstructions && <Loader2 size={16} className="animate-spin" />}
+            {savingInstructions ? "Guardando..." : "Guardar instrucciones"}
           </button>
         </div>
       )}
@@ -436,7 +276,7 @@ export default function SettingsTab({
       {isOwner && !isClosed && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
           <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-            🔔 Notificaciones
+            <Bell size={18} className="text-[#1f7a4f]" /> Notificaciones
           </h3>
           <p className="text-xs text-slate-500 mb-4">
             Envía una notificación push a todos los jugadores confirmados y pendientes que tengan activadas las notificaciones en su dispositivo.
@@ -446,7 +286,11 @@ export default function SettingsTab({
             disabled={sendingReminder}
             className="w-full py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 font-bold flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors disabled:opacity-50"
           >
-            <span className="text-xl">{sendingReminder ? "⏳" : "🔔"}</span>
+            {sendingReminder ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Bell size={18} />
+            )}
             {sendingReminder
               ? "Despachando notificaciones..."
               : "Enviar Recordatorio (Push)"}
@@ -458,25 +302,23 @@ export default function SettingsTab({
       {isOwner && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
           <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-            🔄 Estado del partido
+            <RefreshCw size={18} className="text-[#1f7a4f]" /> Estado del partido
           </h3>
 
           {!isClosed && (
             <>
               {match.teams && !hasScore && (
-                <div className="mb-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 font-medium">
-                  <span className="text-base leading-none mt-0.5">⚠️</span>
-                  <span>Debes registrar el marcador antes de cerrar el partido. Ve a la pestaña <strong>Equipos</strong> e ingresa el resultado.</span>
+                <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 font-medium">
+                  <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                  <span>Debes registrar el marcador antes de cerrar el partido. Ve a la pestaña <strong>Marcador</strong> e ingresa el resultado.</span>
                 </div>
               )}
-              <button
-                disabled={!match.teams || !hasScore || isClosing}
-                onClick={async () => {
+                  <button
+                    id="btn-close-match"
+                    disabled={!match.teams || !hasScore || isClosing}
+                    onClick={async () => {
                   if (!match.teams || !hasScore || isClosing) return;
                   if (!confirm("¿Cerrar partido y procesar estadísticas?")) return;
-                  if (hasUnsavedBalance) {
-                    return; // Parent will show toast
-                  }
                   setIsClosing(true);
                   try {
                     await onCloseMatch();
@@ -489,7 +331,12 @@ export default function SettingsTab({
                     : "bg-red-600 hover:bg-red-700"
                   }`}
               >
-                {isClosing ? "⏳ Cerrando partido..." : "🔒 Cerrar partido final"}
+                {isClosing ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Lock size={18} />
+                )}
+                {isClosing ? "Cerrando partido..." : "Cerrar partido final"}
               </button>
             </>
           )}
@@ -512,7 +359,12 @@ export default function SettingsTab({
                   : "bg-[#1f7a4f] hover:bg-[#16603c]"
                 }`}
             >
-              {isReopening ? "⏳ Reabriendo..." : "🔓 Reabrir partido"}
+              {isReopening ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Unlock size={18} />
+              )}
+              {isReopening ? "Reabriendo..." : "Reabrir partido"}
             </button>
           )}
 
@@ -535,7 +387,7 @@ export default function SettingsTab({
             onClick={() => setShowDeleteConfirm(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-white border border-red-300 text-red-600 hover:bg-red-100 transition-colors"
           >
-            🗑️ Borrar partido
+            <Trash2 size={16} /> Borrar partido
           </button>
         </div>
       )}

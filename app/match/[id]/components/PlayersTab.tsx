@@ -2,6 +2,20 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { 
+  CheckCircle2, 
+  Clock, 
+  Ticket, 
+  ClipboardList, 
+  ClipboardCheck, 
+  UserPlus, 
+  Search, 
+  X, 
+  Phone, 
+  Check,
+  Users,
+  Copy
+} from "lucide-react";
 import type { Match, MatchPhase } from "@/lib/domain/match";
 import type { Player, Position, PlayerLevel, AttendanceStatus } from "@/lib/domain/player";
 import { POSITION_ICONS } from "@/lib/domain/player";
@@ -114,22 +128,22 @@ export default function PlayersTab({
     <div role="tabpanel" id="panel-players" className="space-y-4 animate-in fade-in duration-200">
       {/* Summary Bar */}
       <div className="flex gap-2 text-xs font-bold">
-        <span className="flex-1 text-center bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg py-2">
-          ✅ {confirmedPlayers.length} Confirmados
+        <span className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg py-2">
+          <CheckCircle2 size={12} /> {confirmedPlayers.length} Confirmados
         </span>
         {pendingPlayers.length > 0 && (
-          <span className="flex-1 text-center bg-amber-50 text-amber-600 border border-amber-100 rounded-lg py-2">
-            ⏳ {pendingPlayers.length} Pendientes
+          <span className="flex-1 flex items-center justify-center gap-1.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg py-2">
+            <Clock size={12} /> {pendingPlayers.length} Pendientes
           </span>
         )}
         {guests.length > 0 && (
-          <span className="flex-1 text-center bg-violet-50 text-violet-600 border border-violet-100 rounded-lg py-2">
-            🎟️ {guests.length} {guests.length === 1 ? "Invitado" : "Invitados"}
+          <span className="flex-1 flex items-center justify-center gap-1.5 bg-violet-50 text-violet-600 border border-violet-100 rounded-lg py-2">
+            <Ticket size={12} /> {guests.length} {guests.length === 1 ? "Invitado" : "Invitados"}
           </span>
         )}
         {waitlistPlayers.length > 0 && (
-          <span className="flex-1 text-center bg-slate-50 text-slate-600 border border-slate-100 rounded-lg py-2">
-            📋 {waitlistPlayers.length} Espera
+          <span className="flex-1 flex items-center justify-center gap-1.5 bg-slate-50 text-slate-600 border border-slate-100 rounded-lg py-2">
+            <ClipboardList size={12} /> {waitlistPlayers.length} Espera
           </span>
         )}
       </div>
@@ -143,7 +157,7 @@ export default function PlayersTab({
           }}
           className="w-full py-3 bg-emerald-50 border border-emerald-200 rounded-xl font-bold text-emerald-700 flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors"
         >
-          📋 Pasar Lista
+          <ClipboardCheck size={20} /> Pasar Lista
         </button>
       )}
 
@@ -155,16 +169,14 @@ export default function PlayersTab({
               onClick={() => setIsAddPlayerOpen(true)}
               className="w-full py-3 bg-white border border-slate-200 rounded-xl shadow-sm text-slate-600 font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
             >
-              <span className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs">
-                +
-              </span>
+              <UserPlus size={18} className="text-emerald-600" />
               Agregar Jugador o Invitado
             </button>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  ➕ Agregar jugador
+                  <UserPlus size={18} className="text-[#1f7a4f]" /> Agregar jugador
                 </h3>
                 <button
                   onClick={() => setIsAddPlayerOpen(false)}
@@ -177,7 +189,7 @@ export default function PlayersTab({
               {/* Searchable registered user list */}
               <div className="mb-6">
                 <div className="relative mb-3">
-                  <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+                  <Search className="absolute left-3 top-3 text-slate-400" size={16} />
                   <input
                     type="text"
                     value={searchQuery}
@@ -268,8 +280,8 @@ export default function PlayersTab({
                             </div>
 
                             {/* Add indicator */}
-                            <span className="shrink-0 text-xs font-bold text-emerald-600">
-                              {isAdding ? "⏳" : "+"}
+                            <span className="shrink-0 text-emerald-600">
+                              {isAdding ? <Clock size={16} className="animate-pulse" /> : <UserPlus size={16} />}
                             </span>
                           </button>
                         );
@@ -356,15 +368,13 @@ export default function PlayersTab({
 
       {/* Players List */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="flex items-center justify-between gap-2 mb-4">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
-            👥 Jugadores
-            <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">
-              {players.length}
-            </span>
+            <Users className="w-4 h-4 text-slate-500" /> Jugadores
+             <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full">{confirmedPlayers.length + guests.length} / {match.maxPlayers || "?"}</span>
           </h3>
-          {confirmedPlayers.length > 0 && (
-            <div className="flex items-center gap-1.5">
+          {(confirmedPlayers.length > 0 || guests.length > 0) && (
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={async () => {
                   await onCopyRoster();
@@ -372,13 +382,13 @@ export default function PlayersTab({
                   setIsCopied(true);
                   setTimeout(() => setIsCopied(false), 2500);
                 }}
-                className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 ${isCopied
+                className={`p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold shrink-0 ${isCopied
                     ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 title="Copiar lista"
               >
-                <span className="text-sm">{isCopied ? "✅" : "📋"}</span>
+                {isCopied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                 <span className="text-[10px] hidden sm:inline uppercase">{isCopied ? "Copiado" : "Copiar"}</span>
               </button>
               <button
@@ -387,7 +397,7 @@ export default function PlayersTab({
                   logMatchReportCopied(match.id, "roster", "whatsapp");
                   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
                 }}
-                className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
+                className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold shrink-0 bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                 title="Compartir por WhatsApp"
               >
                 <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
@@ -399,7 +409,7 @@ export default function PlayersTab({
                   logMatchReportCopied(match.id, "roster", "telegram");
                   window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
                 }}
-                className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100"
+                className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold shrink-0 bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                 title="Compartir por Telegram"
               >
                 <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
@@ -440,7 +450,7 @@ export default function PlayersTab({
         {guests.length > 0 && (
           <div className="mt-6 border-t border-slate-100 pt-4">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-              🎟️ Invitados ({guests.length})
+              <Ticket size={14} /> Invitados ({guests.length})
             </h4>
             <div className="divide-y divide-slate-100">
               {guests.map((g: Guest, i: number) => {
@@ -507,7 +517,7 @@ export default function PlayersTab({
         {!isClosed && waitlistPlayers.length > 0 && (
           <div className="mt-6 border-t border-slate-100 pt-4">
             <h4 className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-3 flex items-center gap-2">
-              📋 Lista de Espera ({waitlistPlayers.length})
+              <ClipboardList size={14} /> Lista de Espera ({waitlistPlayers.length})
             </h4>
             <div className="divide-y divide-slate-100">
               {waitlistPlayers.map((p: Player, i: number) => {
@@ -560,7 +570,7 @@ export default function PlayersTab({
                             href={`tel:+57${p.phone}`}
                             className="text-[10px] font-medium text-amber-600 hover:underline flex items-center gap-1 mt-0.5"
                           >
-                            📞 +57 {p.phone}
+                            <Phone size={10} /> +57 {p.phone}
                           </a>
                         )}
                       </div>
