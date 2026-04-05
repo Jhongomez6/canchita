@@ -2,13 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin as checkIsSuperAdmin } from "@/lib/domain/user";
+import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
 
 export default function BottomNav() {
     const pathname = usePathname();
     const { user, profile } = useAuth();
     const isSuperAdminUser = profile ? checkIsSuperAdmin(profile) : false;
+    const [pendingApps, setPendingApps] = useState(0);
+
+    useEffect(() => {
+        if (!isSuperAdminUser) return;
+        getPendingApplicationsCount()
+            .then((count) => setPendingApps(count))
+            .catch(() => {/* silencioso */});
+    }, [isSuperAdminUser]);
 
     if (!user) return null;
 
@@ -106,22 +116,29 @@ export default function BottomNav() {
 
                 {/* ADMIN USERS (Super Admin Only) */}
                 {isSuperAdminUser && (
-                    <Link href="/admin/users" className={navItemClass(pathname.startsWith("/admin/users"))}>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill={pathname.startsWith("/admin/users") ? "currentColor" : "none"}
-                            stroke="currentColor"
-                            strokeWidth={pathname.startsWith("/admin/users") ? "0" : "2"}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="w-7 h-7"
-                        >
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                        </svg>
+                    <Link href="/admin/users" className={navItemClass(pathname.startsWith("/admin/users") || pathname.startsWith("/admin/applications"))}>
+                        <div className="relative">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill={(pathname.startsWith("/admin/users") || pathname.startsWith("/admin/applications")) ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth={(pathname.startsWith("/admin/users") || pathname.startsWith("/admin/applications")) ? "0" : "2"}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="w-7 h-7"
+                            >
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                            {pendingApps > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-yellow-400 text-gray-900 text-[9px] font-bold rounded-full flex items-center justify-center">
+                                    {pendingApps > 9 ? "9+" : pendingApps}
+                                </span>
+                            )}
+                        </div>
                         <span className="text-[10px] font-bold tracking-wide">Usuarios</span>
                     </Link>
                 )}

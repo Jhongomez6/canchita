@@ -13,7 +13,9 @@ import type { UserStats } from "@/lib/domain/user";
 import type { Sex, Foot, CourtSize } from "@/lib/domain/rating";
 import { handleError } from "@/lib/utils/error";
 import Link from "next/link";
-import { isSuperAdmin } from "@/lib/domain/user";
+import { isSuperAdmin, isAdmin } from "@/lib/domain/user";
+import { getMyApplication } from "@/lib/teamAdminApplications";
+import type { TeamAdminApplication } from "@/lib/domain/teamAdminApplication";
 import AuthGuard from "@/components/AuthGuard";
 import StatsCard from "@/components/StatsCard";
 import FifaPlayerCard from "@/components/FifaPlayerCard";
@@ -22,7 +24,7 @@ import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { X, Share, PlusSquare, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
-import { logStatsViewed } from "@/lib/analytics";
+import { logStatsViewed, logApplyCTAClicked } from "@/lib/analytics";
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
 const SEX_LABELS: Record<string, string> = { male: "M", female: "F", other: "Otro" };
@@ -77,6 +79,9 @@ export default function ProfilePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Team admin application
+  const [myApplication, setMyApplication] = useState<TeamAdminApplication | null>(null);
+
   // Push notifications
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -124,6 +129,13 @@ export default function ProfilePage() {
     if (profile.dominantFoot) setDominantFoot(profile.dominantFoot);
     if (profile.preferredCourt) setPreferredCourt(profile.preferredCourt);
     setLoading(false);
+
+    // Cargar solicitud de team admin (solo si no es admin)
+    if (user && !isAdmin(profile)) {
+      getMyApplication(user.uid)
+        .then((app) => setMyApplication(app))
+        .catch(() => {/* silencioso */});
+    }
 
   }, [profile, user]);
 
@@ -691,6 +703,61 @@ export default function ProfilePage() {
           {/*      ESTADÍSTICAS       */}
           {/* ========================= */}
           {!isOnboarding && <StatsCard stats={stats} mvpAwards={profile.mvpAwards} />}
+
+          {/* ========================= */}
+          {/*   TEAM ADMIN APPLICATION  */}
+          {/* ========================= */}
+          {!isOnboarding && !isAdmin(profile) && (
+            <div className="mb-4">
+              {!myApplication && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🎽</span>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">¿Organizas partidos?</p>
+                      <p className="text-xs text-slate-500">Aplica para ser Team Admin y gestiona tu grupo desde la app</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/apply"
+                    onClick={() => logApplyCTAClicked()}
+                    className="flex items-center gap-1 text-emerald-600 hover:text-emerald-500 font-semibold text-sm transition-colors flex-shrink-0"
+                  >
+                    Ver más <ChevronRight size={16} />
+                  </Link>
+                </div>
+              )}
+              {myApplication?.status === "pending" && (
+                <div className="bg-white rounded-2xl shadow-sm border border-yellow-200 p-5 flex items-center gap-3">
+                  <span className="text-2xl">🕐</span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">Solicitud enviada</p>
+                    <p className="text-xs text-yellow-600 font-medium">En revisión — te avisamos pronto</p>
+                  </div>
+                </div>
+              )}
+              {myApplication?.status === "rejected" && (
+                <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">❌</span>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Solicitud no aprobada</p>
+                      {myApplication.rejectionReason && (
+                        <p className="text-xs text-red-500">{myApplication.rejectionReason}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Link
+                    href="/apply"
+                    onClick={() => logApplyCTAClicked()}
+                    className="block w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl text-center transition-colors"
+                  >
+                    Volver a aplicar
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ========================= */}
           {/*     CTA + NOTIFICATIONS   */}

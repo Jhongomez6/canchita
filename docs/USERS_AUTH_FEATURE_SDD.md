@@ -28,6 +28,7 @@ interface UserProfile {
   stats?: UserStats;        // Estadísticas de partidos
   nameLastChanged?: string; // ISO timestamp del último cambio de nombre
   notificationsEnabled?: boolean;
+  applyCTADismissed?: boolean; // El usuario descartó el banner de "Aplicar como Team Admin"
 }
 ```
 
@@ -84,6 +85,7 @@ export interface UserProfile {
   assignedLocationIds?: string[];
   positions?: Position[];
   notificationsEnabled?: boolean;
+  applyCTADismissed?: boolean;
   // Habeas Data / Legal Proof
   createdAt?: string;
   authAcceptedVersion?: string;

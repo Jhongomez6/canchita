@@ -154,8 +154,45 @@ service cloud.firestore {
       // Update: solo el propio usuario (para marcar como leída)
       allow update: if request.auth != null && request.auth.uid == userId;
 
-      // Crear/Borrar: solo Cloud Functions (admin SDK)
-      allow create, delete: if false;
+      // Crear: Cloud Functions (admin SDK) o super_admin (para notificaciones de aplicación)
+      allow create: if request.auth != null && isSuperAdmin();
+
+      // Borrar: solo Cloud Functions (admin SDK)
+      allow delete: if false;
+    }
+
+    /* =========================
+       📝 SOLICITUDES TEAM ADMIN
+    ========================= */
+    match /applications/{applicantUid} {
+      // Leer propia solicitud: el propio usuario / Leer cualquier solicitud individual: super_admin
+      allow get: if request.auth != null && (request.auth.uid == applicantUid || isSuperAdmin());
+
+      // Leer todas (queries): solo super_admin
+      allow list: if request.auth != null && isSuperAdmin();
+
+      // Crear (primer submit): solo el propio usuario con status "pending"
+      allow create: if request.auth != null
+        && request.auth.uid == applicantUid
+        && request.resource.data.status == "pending";
+
+      // Actualizar:
+      // - super_admin puede cambiar cualquier campo (aprobación/rechazo)
+      // - el propio usuario solo puede re-aplicar: si el doc actual es "rejected"
+      //   y el nuevo doc vuelve a "pending" (sin tocar campos de revisión internos)
+      allow update: if request.auth != null
+        && (
+          isSuperAdmin()
+          ||
+          (
+            request.auth.uid == applicantUid
+            && resource.data.status == "rejected"
+            && request.resource.data.status == "pending"
+          )
+        );
+
+      // Borrar: nadie (las solicitudes quedan como historial)
+      allow delete: if false;
     }
 
   }

@@ -18,7 +18,7 @@ Reemplazar el header genérico de saludo por una identidad de jugador con indica
 
 ```
 ┌────────────────────────────────┐
-│  IdentityHeader (verde)        │  → link a /profile
+│  IdentityHeader (verde)        │  → Avatar link a /profile
 │  Avatar + nombre + nivel + COM │
 ├────────────────────────────────┤
 │  Admin Action Bar (solo admin) │  → Nuevo Partido, Ver Usuarios, Explorar

@@ -221,6 +221,14 @@ export async function assignLocationsToAdmin(uid: string, locationIds: string[])
 }
 
 /* =========================
+   DESCARTAR BANNER TEAM ADMIN
+========================= */
+export async function dismissApplyCTA(uid: string) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { applyCTADismissed: true });
+}
+
+/* =========================
    ELIMINAR USUARIO (anonimización — Habeas Data)
    Conserva una traza no identificable: uid, stats, nivel, fechas.
    Elimina todos los datos personales: nombre, email, foto, teléfono, tokens.

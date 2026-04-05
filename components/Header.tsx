@@ -189,6 +189,17 @@ export default function Header() {
                 Usuarios
               </Link>
               <Link
+                href="/admin/applications"
+                className="hidden md:block"
+                style={{
+                  color: "#e6f6ed",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
+                Aplicaciones 📝
+              </Link>
+              <Link
                 href="/admin/ranking"
                 className="hidden md:block"
                 style={{

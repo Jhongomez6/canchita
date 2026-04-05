@@ -1,6 +1,7 @@
 import type { UserProfile } from "@/lib/domain/user";
 import { calcCommitmentScore } from "@/lib/domain/user";
 import { Heart } from "lucide-react";
+import Link from "next/link";
 
 interface IdentityHeaderProps {
     profile: UserProfile;
@@ -35,15 +36,17 @@ export default function IdentityHeader({ profile, isAdmin, pendingConfirmations,
     return (
         <div className="flex items-center gap-3">
             {/* Avatar */}
-            <div className="w-12 h-12 rounded-full shrink-0 overflow-hidden border-2 border-white/30">
-                {profile.photoURL ? (
-                    <img src={profile.photoURL} alt={profile.name} className="w-full h-full object-cover" />
-                ) : (
-                    <div className="w-full h-full bg-white/20 flex items-center justify-center text-white font-black text-base">
-                        {initials}
-                    </div>
-                )}
-            </div>
+            <Link href="/profile" className="block active:scale-95 transition-transform">
+                <div className="w-12 h-12 rounded-full shrink-0 overflow-hidden border-2 border-white/30">
+                    {profile.photoURL ? (
+                        <img src={profile.photoURL} alt={profile.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full bg-white/20 flex items-center justify-center text-white font-black text-base">
+                            {initials}
+                        </div>
+                    )}
+                </div>
+            </Link>
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">

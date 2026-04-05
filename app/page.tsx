@@ -20,8 +20,10 @@ import type { Match } from "@/lib/domain/match";
 import type { Location } from "@/lib/domain/location";
 import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
 import PlayerAvatars from "@/components/PlayerAvatars";
-import { logPushEnabled, logPushPromptDismissed } from "@/lib/analytics";
-import { Clock, Users, LandPlot, MapPin, Trophy, Plus, ChevronRight, Search, ArrowRight } from "lucide-react";
+import { logPushEnabled, logPushPromptDismissed, logApplyCTAShown, logApplyCTAClicked, logApplyCTADismissed } from "@/lib/analytics";
+import { dismissApplyCTA } from "@/lib/users";
+import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
+import { Clock, Users, LandPlot, MapPin, Trophy, Plus, ChevronRight, Search, ArrowRight, X } from "lucide-react";
 import IdentityHeader from "@/components/home/IdentityHeader";
 import QuickStats from "@/components/home/QuickStats";
 import HistoryRow from "@/components/home/HistoryRow";
@@ -35,6 +37,7 @@ export default function Home() {
   const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [joinCode, setJoinCode] = useState("");
+  const [pendingApps, setPendingApps] = useState(0);
 
   useEffect(() => {
     if (
@@ -99,6 +102,13 @@ export default function Home() {
         console.error("Error fetching matches:", error);
         setLoadingMatches(false);
       });
+    // Fetch pending apps count if super admin
+    if (profile && isSuperAdmin(profile)) {
+      getPendingApplicationsCount()
+        .then(count => setPendingApps(count))
+        .catch(() => {/* silence */});
+    }
+
   }, [user, authLoading, profile]);
 
   if (loadingMatches) {
@@ -161,14 +171,12 @@ export default function Home() {
           {/* HEADER / IDENTITY */}
           <div className="bg-[#1f7a4f] text-white p-5 rounded-b-[2.5rem] shadow-lg pt-safe">
             {profile && (
-              <Link href="/profile">
-                <IdentityHeader
-                  profile={profile}
-                  isAdmin={isAdminUser ?? false}
-                  pendingConfirmations={pendingConfirmations}
-                  activeMatchesCount={activeMatches.length}
-                />
-              </Link>
+              <IdentityHeader
+                profile={profile}
+                isAdmin={isAdminUser ?? false}
+                pendingConfirmations={pendingConfirmations}
+                activeMatchesCount={activeMatches.length}
+              />
             )}
           </div>
 
@@ -191,12 +199,55 @@ export default function Home() {
                     Ver Usuarios
                   </Link>
                 )}
+                {profile?.adminType === "super_admin" && (
+                  <Link
+                    href="/admin/applications"
+                    className="relative inline-flex items-center gap-2 px-4 py-2.5 bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200 rounded-xl font-semibold text-sm whitespace-nowrap shadow-sm active:scale-[0.95] transition-transform shrink-0 snap-center"
+                  >
+                    <Users size={16} />
+                    Solicitudes
+                    {pendingApps > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-4.5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                        {pendingApps > 9 ? "9+" : pendingApps}
+                      </span>
+                    )}
+                  </Link>
+                )}
                 <Link
                   href="/explore"
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm whitespace-nowrap shadow-sm active:scale-[0.95] transition-transform shrink-0 snap-center"
                 >
                   Explorar
                 </Link>
+              </div>
+            )}
+
+            {/* TEAM ADMIN CTA BANNER */}
+            {profile && !isAdminUser && profile.initialRatingCalculated && !profile.applyCTADismissed && (
+              <div className="relative mt-5 mb-4 bg-white border border-emerald-100 rounded-2xl p-4 pr-10 shadow-sm flex items-center gap-3" ref={(el) => { if (el) logApplyCTAShown(); }}>
+                <button
+                  onClick={async () => {
+                    if (!user) return;
+                    logApplyCTADismissed();
+                    await dismissApplyCTA(user.uid);
+                  }}
+                  className="absolute top-2.5 right-2.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100 rounded-lg p-1 transition-colors"
+                  aria-label="Descartar"
+                >
+                  <X size={18} />
+                </button>
+                <span className="text-2xl flex-shrink-0">🎽</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-800">¿Organizas partidos?</p>
+                  <p className="text-xs text-slate-500">Aplica para ser Team Admin y gestiona tu grupo desde la app</p>
+                  <Link
+                    href="/apply"
+                    onClick={() => logApplyCTAClicked()}
+                    className="inline-block mt-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-500 transition-colors"
+                  >
+                    Ver más →
+                  </Link>
+                </div>
               </div>
             )}
 

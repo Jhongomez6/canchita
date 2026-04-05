@@ -44,6 +44,15 @@ Firebase Analytics trackea automáticamente:
 | `stats_viewed` | Ve su card/stats de jugador | — | P6: Engagement |
 | `player_card_viewed` | Abre la card de otro jugador | — | P6: Engagement |
 | `organizer_contacted` | Jugador contacta organizador por WhatsApp | `match_id` | P6: Engagement |
+| `apply_cta_shown` | Se muestra banner CTA de Team Admin | — | P1: Activación |
+| `apply_cta_clicked` | Click en Ver más del CTA | — | P1: Activación |
+| `apply_cta_dismissed` | Click en descartar banner CTA | — | P1: Activación |
+| `apply_page_viewed` | Al entrar a `/apply` | — | P7: Conversión Team Admin |
+| `apply_step_completed` | Al completar un paso (1, 2, 3) | `step` | P7: Conversión Team Admin |
+| `apply_back_clicked` | Al retroceder o salir de un paso | `step` | P7: Conversión Team Admin |
+| `apply_submitted` | Al intentar enviar la solicitud | — | P7: Conversión Team Admin |
+| `apply_success` | Al recibir éxito de la API | — | P7: Conversión Team Admin |
+| `apply_error` | Si la API de aplicación falla | `error_message` | P7: Conversión Team Admin |
 
 ### User Properties (Segmentación)
 
@@ -106,11 +115,11 @@ Llamadas de 1 línea en los puntos de acción:
 | `app/onboarding/page.tsx` | `onboarding_completed` |
 | `app/explore/page.tsx` | `match_joined_via_explore` |
 | `app/match/[id]/page.tsx` | `match_invitation_copied` |
-| `app/profile/page.tsx` | `stats_viewed` |
+| `app/profile/page.tsx` | `stats_viewed`, `apply_cta_clicked` |
 | `components/PlayerCardDrawer.tsx` | `player_card_viewed` |
 | `app/join/[id]/page.tsx` | `organizer_contacted` |
 | `lib/firebase-messaging.ts` | `push_enabled` |
-| `app/page.tsx` | `push_prompt_dismissed` |
+| `app/page.tsx` | `push_prompt_dismissed`, `apply_cta_shown`, `apply_cta_clicked`, `apply_cta_dismissed` |
 
 ---
 

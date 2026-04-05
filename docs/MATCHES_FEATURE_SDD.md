@@ -75,6 +75,8 @@ interface Player {
 | 16 | Los reportes de equipos usan numeración (1, 2, 3...) en lugar de viñetas para facilitar el conteo visual | `buildReportText()` en `page.tsx` and `buildWhatsAppReport()` en `matchReport.ts` |
 | 17 | En la página join, el organizador muestra botón WhatsApp si tiene teléfono registrado | Botón aparece solo si no es el propio usuario; enlace pre-llena mensaje con fecha, hora y código |
 | 18 | El Match Timeline es visual, interactivo y muestra explicaciones mediante tooltips formativos | `MatchTimeline.tsx` con `AnimatePresence` + `activeTooltip` state |
+| 19 | El creador puede agregar/editar instrucciones (opcionales) post-creación desde Settings Tab | `SettingsTab.tsx` > `localInstructions` text area via `onUpdateInstructions` |
+| 20 | Los Super Admins ven siempre el historial completo de TODOS los partidos de la plataforma | `getAllMatches()` intercepta `getMyMatches()` en `app/page.tsx` |
 
 ---
 
@@ -149,7 +151,7 @@ export async function addPlayerToMatch(
 
 **✅ Cumple especificación**: Reglas #2, #5, #12
 
-#### Obtención de partidos del usuario (`getMyMatches`)
+#### Obtención de partidos del usuario (`getMyMatches` y `getAllMatches`)
 ```typescript
 export async function getMyMatches(uid: string): Promise<Match[]> {
   // Query 1: partidos donde el usuario es jugador
@@ -168,9 +170,16 @@ export async function getMyMatches(uid: string): Promise<Match[]> {
   }
   return Array.from(matchMap.values());
 }
+
+export async function getAllMatches(): Promise<Match[]> {
+  // Para Super Admins: devuelve el historial completo de todos los partidos en la base de datos
+  const q = query(matchesRef, orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Match, "id">) }));
+}
 ```
 
-**✅ Cumple especificación**: Regla #14 — Garantiza que admins siempre vean partidos que crearon
+**✅ Cumple especificación**: Regla #14 y #20 — Garantiza que admins siempre vean partidos que crearon y que Super Admins puedan supervisar toda la plataforma.
 
 ### Limitación por Tier (Creación de Partidos)
 ```typescript

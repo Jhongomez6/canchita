@@ -67,6 +67,8 @@ export interface UserProfile {
     // Habeas Data / Legal
     createdAt?: string;                // ISO date of profile creation (first login)
     authAcceptedVersion?: string;      // Version of Terms/Privacy accepted at first login
+    // Team Admin Application
+    applyCTADismissed?: boolean;        // El usuario descartó el banner de "Aplicar como Team Admin"
     // Soft-anonymization (set on account deletion — personal data wiped, traza conservada)
     deleted?: boolean;
     deletedAt?: string;                // ISO date of anonymization

@@ -62,7 +62,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 
 | # | Regla | Implementación |
 |---|-------|----------------|
-| 1 | Solo Cloud Functions pueden crear notificaciones | Firestore rules: `allow create: if false` |
+| 1 | Cloud Functions o el super_admin (para notificaciones de aplicación) pueden crear notificaciones | Firestore rules: `allow create: if request.auth != null && isSuperAdmin()` |
 | 2 | El usuario solo puede leer sus propias notificaciones | Firestore rules: `request.auth.uid == userId` |
 | 3 | El usuario puede marcar como leída | `markAsRead()` en `lib/notifications.ts` |
 | 4 | In-app SIEMPRE se escribe, push es best-effort | Cloud Function: write primero, push después (feedback resolved es SOLO in-app) |
@@ -111,7 +111,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 - [x] Estado vacío con mensaje amigable
 - [x] Timestamps relativos ("Hace 5 min", "Hace 2 días")
 - [x] Firestore rules protegen acceso por usuario
-- [x] Cloud Functions son la única fuente de creación
+- [x] Cloud Functions y super_admins son la única fuente de creación
 - [x] Cloud Functions incluyen logging detallado de errores FCM para diagnóstico
 - [x] URLs de click-through actualizadas (sin apuntar a rutas eliminadas)
 - [x] Auto-refresh de tokens FCM previene death spiral por token rotation

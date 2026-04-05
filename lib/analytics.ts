@@ -176,9 +176,57 @@ export async function logOrganizerContacted(matchId: string) {
   await trackEvent("organizer_contacted", { match_id: matchId });
 }
 
+export async function logApplyCTAShown() {
+  await trackEvent("apply_cta_shown");
+}
+
+export async function logApplyCTAClicked() {
+  await trackEvent("apply_cta_clicked");
+}
+
+export async function logApplyCTADismissed() {
+  await trackEvent("apply_cta_dismissed");
+}
+
 export async function logPaymentsSaved(matchId: string, paidCount: number) {
   await trackEvent("payments_saved", {
     match_id: matchId,
     paid_count: paidCount.toString(),
   });
+}
+
+/* =========================
+   P7: FUNNEL TEAM ADMIN (/apply)
+========================= */
+
+export async function logApplyPageViewed() {
+  await trackEvent("apply_page_viewed");
+}
+
+/**
+ * Registra que se ha completado un paso del formulario.
+ * @param step El paso que SE ACABA DE TERMINAR (1, 2 o 3)
+ */
+export async function logApplyStepCompleted(step: number) {
+  await trackEvent("apply_step_completed", { step: step.toString() });
+}
+
+/**
+ * Registra que el usuario retrocedió o salió.
+ * @param fromStep El paso donde estaba el usuario cuando decidió retroceder.
+ */
+export async function logApplyBackClicked(fromStep: number) {
+  await trackEvent("apply_back_clicked", { step: fromStep.toString() });
+}
+
+export async function logApplySubmitted() {
+  await trackEvent("apply_submitted");
+}
+
+export async function logApplySuccess() {
+  await trackEvent("apply_success");
+}
+
+export async function logApplyError(error: string) {
+  await trackEvent("apply_error", { error_message: error });
 }
