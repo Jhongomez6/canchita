@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-export type TabId = "dashboard" | "players" | "teams" | "settings" | "payments";
+export type TabId = "dashboard" | "players" | "teams" | "score" | "settings" | "payments";
 
 interface Tab {
   id: TabId;
@@ -17,6 +17,8 @@ interface MatchAdminTabsProps {
   onTabChange: (tab: TabId) => void;
   playerCount: number;
   hasUnsavedBalance: boolean;
+  hasUnsavedScore: boolean;
+  hasTeams: boolean;
   isClosed: boolean;
 }
 
@@ -25,6 +27,8 @@ export default function MatchAdminTabs({
   onTabChange,
   playerCount,
   hasUnsavedBalance,
+  hasUnsavedScore,
+  hasTeams,
   isClosed,
 }: MatchAdminTabsProps) {
   const activeTabRef = useRef<HTMLButtonElement | null>(null);
@@ -43,6 +47,7 @@ export default function MatchAdminTabs({
     { id: "dashboard", label: "Dashboard", icon: "📊" },
     { id: "players", label: "Jugadores", icon: "👥", badge: playerCount },
     { id: "teams", label: "Equipos", icon: "⚖️", showDot: hasUnsavedBalance },
+    ...(hasTeams ? [{ id: "score" as const, label: "Marcador", icon: "🏆", showDot: hasUnsavedScore && !isClosed }] : []),
     { id: "settings", label: "Ajustes", icon: "⚙️" },
     ...(isClosed ? [{ id: "payments" as const, label: "Cobros", icon: "💰" }] : []),
   ];

@@ -13,7 +13,6 @@ import {
 import type { Player } from "@/lib/domain/player";
 import { getTeamSummary } from "@/lib/domain/team";
 import TeamColumn from "./TeamColumn";
-import ScoreInput from "./ScoreInput";
 import { logMatchReportCopied, logTeamsConfirmed } from "@/lib/analytics";
 
 interface TeamsTabProps {
@@ -26,22 +25,16 @@ interface TeamsTabProps {
   votingClosed: boolean;
   currentMVPs: string[];
   voteCounts: Record<string, number>;
-  scoreA: number;
-  scoreB: number;
   hasTeamsSaved: boolean;
-  hasUnsavedScore: boolean;
   teamsConfirmed: boolean;
   // Actions
   onBalance: () => void;
   onDragEnd: (event: DragEndEvent) => void;
-  onSaveAll: (scoreA: number, scoreB: number) => Promise<void>;
+  onSaveTeams: () => Promise<void>;
   onDiscardChanges: () => void;
-  onDiscardScore: () => void;
   onCopyReport: () => Promise<void>;
   onGetReportText: () => string;
   onConfirmTeams: () => Promise<void>;
-  onScoreAChange: (score: number) => void;
-  onScoreBChange: (score: number) => void;
   balancing: boolean;
 }
 
@@ -55,21 +48,15 @@ export default function TeamsTab({
   votingClosed,
   currentMVPs,
   voteCounts,
-  scoreA,
-  scoreB,
   hasTeamsSaved,
-  hasUnsavedScore,
   teamsConfirmed,
   onBalance,
   onDragEnd,
-  onSaveAll,
+  onSaveTeams,
   onDiscardChanges,
-  onDiscardScore,
   onCopyReport,
   onGetReportText,
   onConfirmTeams,
-  onScoreAChange,
-  onScoreBChange,
   balancing,
 }: TeamsTabProps) {
   const [saving, setSaving] = useState(false);
@@ -88,11 +75,11 @@ export default function TeamsTab({
     })
   );
 
-  async function handleSaveAll() {
+  async function handleSaveTeams() {
     setSaving(true);
     setSaved(false);
     try {
-      await onSaveAll(scoreA, scoreB);
+      await onSaveTeams();
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
@@ -305,35 +292,15 @@ export default function TeamsTab({
         </div>
       </DndContext>
 
-      {/* Score input (inline) */}
-      {isOwner && (
-        <ScoreInput
-          scoreA={scoreA}
-          scoreB={scoreB}
-          onScoreAChange={onScoreAChange}
-          onScoreBChange={onScoreBChange}
-          disabled={isClosed}
-        />
-      )}
-
-      {isClosed && (
-        <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-xs font-bold border border-red-100 text-center">
-          🔒 El partido está cerrado. No se puede modificar el resultado.
-        </div>
-      )}
-
       {/* Unsaved warning + save actions */}
-      {isOwner && !isClosed && (hasUnsavedBalance || hasUnsavedScore || !hasTeamsSaved) && (
+      {isOwner && !isClosed && (hasUnsavedBalance || !hasTeamsSaved) && (
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg animate-in fade-in slide-in-from-top-1">
           <span className="text-xs font-bold text-amber-600 flex-1">
             {saved ? "✅ Guardado" : "⚠️ Tienes cambios sin guardar"}
           </span>
-          {(hasUnsavedBalance || hasUnsavedScore) && (
+          {hasUnsavedBalance && (
             <button
-              onClick={() => {
-                if (hasUnsavedBalance) onDiscardChanges();
-                if (hasUnsavedScore) onDiscardScore();
-              }}
+              onClick={onDiscardChanges}
               className="text-xs font-bold px-2.5 py-1.5 bg-white border border-slate-200 text-slate-500 hover:text-red-500 hover:border-red-200 hover:bg-red-50 rounded-lg transition-colors"
               title="Descartar cambios"
             >
@@ -342,10 +309,10 @@ export default function TeamsTab({
           )}
           <button
             disabled={saving}
-            onClick={handleSaveAll}
+            onClick={handleSaveTeams}
             className="text-xs font-bold px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50"
           >
-            {saving ? "⏳ Guardando..." : "💾 Guardar"}
+            {saving ? "⏳ Guardando..." : "💾 Guardar equipos"}
           </button>
         </div>
       )}

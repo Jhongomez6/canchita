@@ -61,6 +61,7 @@ import MatchAdminTabs, { type TabId } from "./components/MatchAdminTabs";
 import DashboardTab from "./components/DashboardTab";
 import PlayersTab from "./components/PlayersTab";
 import TeamsTab from "./components/TeamsTab";
+import ScoreTab from "./components/ScoreTab";
 import SettingsTab from "./components/SettingsTab";
 import PaymentsTab from "./components/PaymentsTab";
 import MatchFAB from "./components/MatchFAB";
@@ -360,7 +361,7 @@ export default function MatchDetailPage() {
     });
   }
 
-  async function handleSaveAll(sa: number, sb: number) {
+  async function handleSaveTeams() {
     if (!balanced) return;
     const cleanObject = (obj: unknown) => JSON.parse(JSON.stringify(obj));
 
@@ -369,13 +370,21 @@ export default function MatchDetailPage() {
         A: cleanObject(balanced.teamA.players),
         B: cleanObject(balanced.teamB.players),
       });
+      setHasUnsavedBalance(false);
+      toast.success("Equipos guardados");
+    } catch (err: unknown) {
+      handleError(err, "Error al guardar equipos");
+    }
+  }
+
+  async function handleSaveScore(sa: number, sb: number) {
+    try {
       await updateDoc(doc(db, "matches", id), {
         score: { A: sa, B: sb },
       });
-      setHasUnsavedBalance(false);
-      toast.success("Equipos y marcador guardados");
+      toast.success("Marcador guardado");
     } catch (err: unknown) {
-      handleError(err, "Error al guardar");
+      handleError(err, "Error al guardar marcador");
     }
   }
 
@@ -476,6 +485,10 @@ export default function MatchDetailPage() {
 
   async function handleCloseMatch() {
     if (!match?.teams) return;
+    if (!match?.score) {
+      toast.error("Debes registrar el marcador antes de cerrar el partido.");
+      return;
+    }
     if (hasUnsavedBalance) {
       toast.error(
         "Tienes cambios sin guardar en los equipos. Por favor guarda o descarta los movimientos antes de cerrar el partido."
@@ -673,6 +686,8 @@ export default function MatchDetailPage() {
             onTabChange={handleTabChange}
             playerCount={confirmedCount}
             hasUnsavedBalance={hasUnsavedBalance}
+            hasUnsavedScore={!match.score || scoreA !== match.score.A || scoreB !== match.score.B}
+            hasTeams={Boolean(match.teams)}
             isClosed={isClosed}
           />
 
@@ -739,19 +754,12 @@ export default function MatchDetailPage() {
               votingClosed={votingClosed}
               currentMVPs={currentMVPs}
               voteCounts={voteCounts}
-              scoreA={scoreA}
-              scoreB={scoreB}
               hasTeamsSaved={Boolean(match.teams)}
-              hasUnsavedScore={scoreA !== (match.score?.A ?? 0) || scoreB !== (match.score?.B ?? 0)}
               teamsConfirmed={match.teamsConfirmed ?? false}
               onBalance={handleBalance}
               onDragEnd={handleDragEnd}
-              onSaveAll={handleSaveAll}
+              onSaveTeams={handleSaveTeams}
               onDiscardChanges={handleDiscardChanges}
-              onDiscardScore={() => {
-                setScoreA(match.score?.A ?? 0);
-                setScoreB(match.score?.B ?? 0);
-              }}
               onCopyReport={generateWhatsAppReport}
               onGetReportText={buildReportText}
               onConfirmTeams={async () => {
@@ -762,9 +770,23 @@ export default function MatchDetailPage() {
                   handleError(err, "Error al confirmar equipos");
                 }
               }}
+              balancing={balancing}
+            />
+          )}
+
+          {activeTab === "score" && (
+            <ScoreTab
+              scoreA={scoreA}
+              scoreB={scoreB}
+              isClosed={isClosed}
+              hasUnsavedScore={!match.score || scoreA !== match.score.A || scoreB !== match.score.B}
               onScoreAChange={setScoreA}
               onScoreBChange={setScoreB}
-              balancing={balancing}
+              onSaveScore={handleSaveScore}
+              onDiscardScore={() => {
+                setScoreA(match.score?.A ?? 0);
+                setScoreB(match.score?.B ?? 0);
+              }}
             />
           )}
 
@@ -774,6 +796,7 @@ export default function MatchDetailPage() {
               isOwner={isOwner}
               isClosed={isClosed}
               hasUnsavedBalance={hasUnsavedBalance}
+              hasScore={Boolean(match.score)}
               maxPlayersDraft={maxPlayersDraft}
               onUpdateMaxPlayers={async (value) => {
                 setMaxPlayersDraft(value);

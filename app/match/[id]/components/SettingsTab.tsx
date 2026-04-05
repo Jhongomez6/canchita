@@ -10,6 +10,7 @@ interface SettingsTabProps {
   isOwner: boolean;
   isClosed: boolean;
   hasUnsavedBalance: boolean;
+  hasScore: boolean;
   maxPlayersDraft: number | null;
   // Actions
   onUpdateMaxPlayers: (value: number) => Promise<void>;
@@ -34,6 +35,7 @@ export default function SettingsTab({
   isOwner,
   isClosed,
   hasUnsavedBalance,
+  hasScore,
   maxPlayersDraft,
   onUpdateMaxPlayers,
   onUpdateDuration,
@@ -460,28 +462,36 @@ export default function SettingsTab({
           </h3>
 
           {!isClosed && (
-            <button
-              disabled={!match.teams || isClosing}
-              onClick={async () => {
-                if (!match.teams || isClosing) return;
-                if (!confirm("¿Cerrar partido y procesar estadísticas?")) return;
-                if (hasUnsavedBalance) {
-                  return; // Parent will show toast
-                }
-                setIsClosing(true);
-                try {
-                  await onCloseMatch();
-                } finally {
-                  setIsClosing(false);
-                }
-              }}
-              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${!match.teams || isClosing
-                  ? "bg-slate-400 cursor-not-allowed opacity-50 shadow-none"
-                  : "bg-red-600 hover:bg-red-700"
-                }`}
-            >
-              {isClosing ? "⏳ Cerrando partido..." : "🔒 Cerrar partido final"}
-            </button>
+            <>
+              {match.teams && !hasScore && (
+                <div className="mb-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 font-medium">
+                  <span className="text-base leading-none mt-0.5">⚠️</span>
+                  <span>Debes registrar el marcador antes de cerrar el partido. Ve a la pestaña <strong>Equipos</strong> e ingresa el resultado.</span>
+                </div>
+              )}
+              <button
+                disabled={!match.teams || !hasScore || isClosing}
+                onClick={async () => {
+                  if (!match.teams || !hasScore || isClosing) return;
+                  if (!confirm("¿Cerrar partido y procesar estadísticas?")) return;
+                  if (hasUnsavedBalance) {
+                    return; // Parent will show toast
+                  }
+                  setIsClosing(true);
+                  try {
+                    await onCloseMatch();
+                  } finally {
+                    setIsClosing(false);
+                  }
+                }}
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${!match.teams || !hasScore || isClosing
+                    ? "bg-slate-400 cursor-not-allowed opacity-50 shadow-none"
+                    : "bg-red-600 hover:bg-red-700"
+                  }`}
+              >
+                {isClosing ? "⏳ Cerrando partido..." : "🔒 Cerrar partido final"}
+              </button>
+            </>
           )}
 
           {isClosed && (

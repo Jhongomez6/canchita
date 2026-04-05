@@ -12,6 +12,7 @@ const STEPS = [
   { key: "gameday", label: "Juego", icon: "⚽" },
   { key: "postgame", label: "Marcador", icon: "🏆" },
   { key: "closed", label: "Cerrado", icon: "🔒" },
+  { key: "payments", label: "Cobros", icon: "💰" },
 ] as const;
 
 const PHASE_INDEX: Record<MatchPhase, number> = {
@@ -19,7 +20,7 @@ const PHASE_INDEX: Record<MatchPhase, number> = {
   full: 1,
   gameday: 2,
   postgame: 3,
-  closed: 4,
+  closed: 5,
 };
 
 export default function MatchProgressBar({ phase }: MatchProgressBarProps) {

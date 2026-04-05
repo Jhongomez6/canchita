@@ -166,7 +166,7 @@ export default function DashboardTab({
 
           {/* Score card */}
           <button
-            onClick={() => onNavigateTab("teams")}
+            onClick={() => onNavigateTab("score")}
             className={`${scoreBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
           >
             <div className="text-2xl mb-1">🏆</div>
@@ -218,7 +218,7 @@ export default function DashboardTab({
 
           {/* Score card */}
           <button
-            onClick={() => onNavigateTab("teams")}
+            onClick={() => onNavigateTab("score")}
             className={`${scoreBg} border rounded-xl p-3 text-center transition-all hover:shadow-md active:scale-[0.97]`}
           >
             <div className="text-2xl mb-1">🏆</div>
