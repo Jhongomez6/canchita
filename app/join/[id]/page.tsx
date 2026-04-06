@@ -230,7 +230,6 @@ export default function JoinMatchPage() {
               width={120}
               height={100}
               style={{ height: "auto", width: "auto" }}
-              unoptimized
             />
           </div>
 
@@ -343,7 +342,6 @@ export default function JoinMatchPage() {
               width={120}
               height={100}
               style={{ height: "auto", width: "auto" }}
-              unoptimized
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Redirigiendo a tu perfil...</p>
@@ -369,7 +367,6 @@ export default function JoinMatchPage() {
               width={120}
               height={100}
               style={{ height: "auto", width: "auto" }}
-              unoptimized
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Necesitamos tu número de teléfono...</p>
@@ -535,7 +532,7 @@ export default function JoinMatchPage() {
                         onClick={() => logMatchMapDirectionClicked(id, "google")}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
-                        <Image src="/icons/google-maps.svg" alt="G" width={16} height={16} className="w-4 h-4" unoptimized />
+                        <Image src="/icons/google-maps.svg" alt="G" width={16} height={16} className="w-4 h-4" />
                         Maps
                       </a>
                       <a
@@ -545,7 +542,7 @@ export default function JoinMatchPage() {
                         onClick={() => logMatchMapDirectionClicked(id, "waze")}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50"
                       >
-                        <Image src="/icons/waze.svg" alt="W" width={16} height={16} className="w-4 h-4" unoptimized />
+                        <Image src="/icons/waze.svg" alt="W" width={16} height={16} className="w-4 h-4" />
                         Waze
                       </a>
                     </div>
@@ -907,7 +904,7 @@ export default function JoinMatchPage() {
                               <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                                 {photoURL ? (
                                   <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                    <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="48px" />
+                                    <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
                                   </div>
                                 ) : (
                                   <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
@@ -954,7 +951,7 @@ export default function JoinMatchPage() {
                               <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                                 {photoURL ? (
                                   <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                    <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="48px" />
+                                    <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
                                   </div>
                                 ) : (
                                   <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
@@ -1037,7 +1034,7 @@ export default function JoinMatchPage() {
                                     <div className="relative">
                                       {player.photoURL ? (
                                         <div className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}>
-                                          <Image src={player.photoURL} alt={player.name} fill className="object-cover" sizes="96px" />
+                                          <Image src={player.photoURL} alt={player.name} fill className="object-cover" sizes="56px" />
                                         </div>
                                       ) : (
                                         <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-inner
@@ -1136,7 +1133,7 @@ export default function JoinMatchPage() {
                                         >
                                           {photoURL ? (
                                             <div className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200">
-                                              <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="48px" />
+                                              <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="24px" />
                                             </div>
                                           ) : (
                                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? "bg-white text-amber-600" : "bg-slate-100 text-slate-500"}`}>
@@ -1196,7 +1193,7 @@ export default function JoinMatchPage() {
                             <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                               {photoURL ? (
                                 <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                  <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="48px" />
+                                  <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
                                 </div>
                               ) : (
                                 <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
@@ -1238,7 +1235,7 @@ export default function JoinMatchPage() {
                             <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                               {photoURL ? (
                                 <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                  <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="48px" />
+                                  <Image src={photoURL} alt={p.name} fill className="object-cover" sizes="28px" />
                                 </div>
                               ) : (
                                 <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
@@ -1340,7 +1337,7 @@ export default function JoinMatchPage() {
                         <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                           {p.photoURL ? (
                             <div className="w-9 h-9 rounded-full overflow-hidden relative border border-emerald-200 shadow-sm">
-                              <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="48px" />
+                              <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="36px" />
                             </div>
                           ) : (
                             <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-black shadow-sm ring-1 ring-emerald-200">
@@ -1457,7 +1454,7 @@ export default function JoinMatchPage() {
                           <div className={`relative shrink-0 ${!isGuest && p.uid ? "cursor-pointer" : ""}`} onClick={() => !isGuest && handlePlayerTap(p.uid)}>
                             {p.photoURL ? (
                               <div className="w-8 h-8 rounded-full overflow-hidden relative border border-amber-200 ring-1 ring-amber-100 shadow-sm">
-                                <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="48px" />
+                                <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="32px" />
                               </div>
                             ) : (
                               <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">

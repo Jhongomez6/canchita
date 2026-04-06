@@ -183,7 +183,7 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
                       alt={entry.name}
                       fill
                       className="object-cover"
-                      sizes="48px"
+                      sizes="40px"
                     />
                   </div>
                 ) : (

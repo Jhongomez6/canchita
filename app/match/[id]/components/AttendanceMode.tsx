@@ -145,7 +145,7 @@ export default function AttendanceMode({
               <div className="relative shrink-0">
                 {p.photoURL ? (
                   <div className="w-10 h-10 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                    <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="48px" />
+                    <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="40px" />
                   </div>
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-sm text-slate-600">

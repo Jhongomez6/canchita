@@ -551,8 +551,7 @@ export default function ProfilePage() {
                         alt="Editar foto"
                         fill
                         className="object-cover transition-opacity group-hover:opacity-50"
-                        sizes="96px"
-                        unoptimized={!editPhotoB64 && !profile?.photoURL}
+                        sizes="64px"
                       />
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
                         <span className="text-base drop-shadow-sm">📷</span>

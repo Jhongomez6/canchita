@@ -48,7 +48,6 @@ interface UserProfile {
 | 10 | Posiciones con iconos visuales | `POSITION_ICONS` en `lib/domain/player.ts` |
 | 11 | Feedback separado nombre/posiciones | `nameSaved` / `positionsSaved` estados independientes |
 | 12 | Carga de foto de perfil | `uploadAvatarBase64` en `lib/storage.ts` y crop con `react-easy-crop` |
-| 13 | Optimización de imágenes | Tamaños estándar (48px/96px/256px), calidad 75 y cache de 60 días |
 
 ---
 

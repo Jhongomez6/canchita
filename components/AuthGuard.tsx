@@ -90,7 +90,6 @@ function AuthGuardInner({
               height={100}
               style={{ height: "auto", width: "auto" }}
               priority={true}
-              unoptimized
             />
           </div>
           <div className="flex justify-center items-center gap-2 mt-4">
@@ -149,7 +148,6 @@ function AuthGuardInner({
               height={100}
               style={{ height: "auto", width: "auto" }}
               priority={true}
-              unoptimized
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Preparando tu evaluación...</p>
@@ -178,7 +176,6 @@ function AuthGuardInner({
               height={100}
               style={{ height: "auto", width: "auto" }}
               priority={true}
-              unoptimized
             />
           </div>
           <p className="text-lg text-slate-500 font-medium">Verificando información de contacto...</p>

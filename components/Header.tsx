@@ -109,7 +109,6 @@ export default function Header() {
             height={50}
             style={{ borderRadius: 6, height: "auto", width: "auto" }}
             priority={true}
-            unoptimized
           />
         </Link>
         <div className="group relative flex items-center gap-1" tabIndex={0} onMouseEnter={() => logTooltipOpened("beta_admin_badge")}>

@@ -251,13 +251,13 @@ export default function PlayersTab({
                             <div className="shrink-0">
                               {u.photoURL ? (
                                 <div className="w-9 h-9 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                    <Image
-                                      src={u.photoURL}
-                                      alt={u.name}
-                                      fill
-                                      className="object-cover"
-                                      sizes="48px"
-                                    />
+                                  <Image
+                                    src={u.photoURL}
+                                    alt={u.name}
+                                    fill
+                                    className="object-cover"
+                                    sizes="36px"
+                                  />
                                 </div>
                               ) : (
                                 <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-sm text-slate-500">
@@ -540,13 +540,13 @@ export default function PlayersTab({
                       <div className="relative shrink-0">
                         {p.photoURL ? (
                           <div className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm ring-1 ring-amber-200">
-                              <Image
-                                src={p.photoURL}
-                                alt={p.name}
-                                fill
-                                className="object-cover"
-                                sizes="48px"
-                              />
+                            <Image
+                              src={p.photoURL}
+                              alt={p.name}
+                              fill
+                              className="object-cover"
+                              sizes="32px"
+                            />
                           </div>
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
