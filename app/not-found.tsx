@@ -46,6 +46,7 @@ export default function NotFound() {
                     height={80}
                     style={{ height: "auto", width: "auto" }}
                     className="opacity-50 drop-shadow-md grayscale brightness-200"
+                    unoptimized
                 />
             </div>
         </div>

@@ -55,6 +55,7 @@ export default function LandingPage({ inApp, onLoginClick }: LandingPageProps) {
                                 style={{ height: "auto", width: "auto" }}
                                 priority={true}
                                 className="drop-shadow-sm"
+                                unoptimized
                             />
                         </div>
                     </div>

@@ -8,7 +8,7 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 
 | Campo | Uso en la carta |
 |-------|----------------|
-| `photoURL` | Foto circular del jugador (165px). Google photos se upgradan automáticamente de `=s96-c` a `=s400-c` |
+| `photoURL` | Foto circular del jugador (256px). Optimizada con Next Image a `sizes="256px"` y `quality={75}`. Google photos se upgradan automáticamente de `=s96-c` a `=s400-c`. |
 | `name` | Nombre del jugador (centrado con líneas decorativas) |
 | `primaryPosition` | Posición principal (debajo del OVR, arriba-izquierda) |
 | `positions[]` | Posiciones alternas (pills sobresaliendo del borde derecho superior) |
