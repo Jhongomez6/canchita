@@ -35,7 +35,7 @@ interface AppNotification {
     id?: string;
     title: string;
     body: string;
-    type: 'feedback_resolved' | 'match_reminder' | 'mvp' | 'general';
+    type: 'feedback_resolved' | 'match_reminder' | 'mvp' | 'teams_confirmed' | 'mvp_voting_open' | 'general';
     url?: string;       // deeplink para navegación
     read: boolean;
     createdAt: string;  // ISO string
@@ -51,7 +51,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 {
     "title": "string",
     "body": "string",
-    "type": "feedback_resolved" | "match_reminder" | "mvp" | "general",
+    "type": "feedback_resolved" | "match_reminder" | "mvp" | "teams_confirmed" | "mvp_voting_open" | "general",
     "url": "string (optional)",
     "read": "boolean",
     "createdAt": "ISOString"
@@ -76,6 +76,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 | 12 | **Manifest incluye `gcm_sender_id`** | `public/manifest.json` tiene `"gcm_sender_id": "103953800507"` (valor fijo requerido por FCM web) |
 | 13 | **Estado de push en perfil: 3 estados** | Activas (granted + enabled), Bloqueadas (denied + enabled), Inactivas (no enabled) |
 | 14 | **Idempotencia en recordatorio manual** | `sendManualReminder()` usa `remindersSent.manual` (timestamp ISO) como debounce de 5 minutos para prevenir envíos duplicados |
+| 15 | **Notificación de Votación MVP** | Se dispara cuando `status` cambia de `open` a `closed`. Notifica a todos los jugadores confirmados con UID. Usa `remindersSent.mvpVotingOpen` para evitar duplicados. |
 
 
 ---

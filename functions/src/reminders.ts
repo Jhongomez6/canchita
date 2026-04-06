@@ -882,6 +882,112 @@ export const teamsConfirmedNotification = onDocumentUpdated(
 );
 
 /**
+ * 🏆 Notificación de partido cerrado / Votación MVP (Trigger reactivo)
+ * Se dispara cuando status cambia de open → closed.
+ * Notifica a todos los jugadores confirmados con uid (in-app + push).
+ * Idempotente: usa remindersSent.mvpVotingOpen como barrera.
+ */
+export const matchClosedNotification = onDocumentUpdated(
+  { document: "matches/{matchId}", region: "us-central1" },
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+
+    // Solo actuar cuando status cambia de open → closed
+    if (after?.status !== "closed" || before?.status !== "open") return;
+
+    // Idempotencia
+    if (after?.remindersSent?.mvpVotingOpen) return;
+
+    const matchId = event.params.matchId;
+    const matchRef = db.collection("matches").doc(matchId);
+
+    // Sellar barrera anti-duplicados
+    await matchRef.update({ "remindersSent.mvpVotingOpen": true });
+
+    const players = after?.players ?? [];
+    
+    // Recopilar UIDs únicos (excluir guests)
+    const seen = new Set<string>();
+    const uids: string[] = [];
+    for (const p of players) {
+      if (p.confirmed && p.uid && typeof p.uid === "string" && !p.uid.startsWith("guest_") && !seen.has(p.uid)) {
+        seen.add(p.uid);
+        uids.push(p.uid);
+      }
+    }
+
+    if (uids.length === 0) {
+      console.log(`[MatchClosed] Match ${matchId} — sin jugadores con uid, nada que notificar`);
+      return;
+    }
+
+    // Batch-read todos los usuarios
+    const userRefs = uids.map(uid => db.collection("users").doc(uid));
+    const userSnaps = await db.getAll(...userRefs);
+    const userDataMap = new Map<string, { data: FirebaseFirestore.DocumentData | undefined; ref: FirebaseFirestore.DocumentReference }>();
+    userSnaps.forEach((snap, idx) => {
+      userDataMap.set(uids[idx], { data: snap.data(), ref: snap.ref });
+    });
+
+    const url = `${APP_URL}/join/${matchId}`;
+    const title = "🏆 ¡Partido terminado!";
+    const body = "Ya puedes votar por el MVP del partido.";
+    const now = new Date().toISOString();
+    const expireAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS));
+
+    const inAppPromises: Promise<any>[] = [];
+    const allTokens: string[] = [];
+    const tokenToUserRef = new Map<string, FirebaseFirestore.DocumentReference>();
+
+    for (const uid of uids) {
+      // 1. In-app notification
+      inAppPromises.push(
+        db.collection("notifications").doc(uid).collection("items").add({
+          title,
+          body,
+          type: "mvp_voting_open",
+          url: `/join/${matchId}`,
+          read: false,
+          createdAt: now,
+          expireAt,
+        })
+      );
+
+      // 2. Recopilar tokens para push
+      const userData = userDataMap.get(uid);
+      const tokens: string[] = Array.from(new Set<string>(userData?.data?.fcmTokens ?? []));
+      for (const token of tokens) {
+        allTokens.push(token);
+        tokenToUserRef.set(token, userData!.ref);
+      }
+    }
+
+    await Promise.all(inAppPromises);
+
+    if (allTokens.length > 0) {
+      const result = await safeSendPush(allTokens, { title, body }, url, "match-closed");
+
+      // Limpiar tokens inválidos
+      const invalidByUser = new Map<string, string[]>();
+      for (const invalidToken of result.invalidTokens) {
+        const ref = tokenToUserRef.get(invalidToken);
+        if (!ref) continue;
+        const list = invalidByUser.get(ref.id) ?? [];
+        list.push(invalidToken);
+        invalidByUser.set(ref.id, list);
+      }
+      for (const [, ref] of [...tokenToUserRef.entries()].filter(([t]) => result.invalidTokens.includes(t))) {
+        const invalidTokens = invalidByUser.get(ref.id) ?? [];
+        await cleanupInvalidTokens(ref, invalidTokens);
+      }
+    }
+
+    console.log(`[MatchClosed] Match ${matchId} — notificados ${uids.length} jugadores`);
+  }
+);
+
+/**
  * 📱 Clear iOS App Badge
  * Sends a silent push with badge: 0 to clear the PWA icon badge on iOS.
  * Called by the client when the user reads all notifications.
