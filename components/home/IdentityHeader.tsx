@@ -40,6 +40,7 @@ export default function IdentityHeader({ profile, isAdmin, pendingConfirmations,
             <Link href="/profile" className="block active:scale-95 transition-transform">
                 <div className="w-12 h-12 rounded-full shrink-0 overflow-hidden border-2 border-white/30">
                     {profile.photoURL ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={profile.photoURL} alt={profile.name} className="w-full h-full object-cover" />
                     ) : (
                         <div className="w-full h-full bg-white/20 flex items-center justify-center text-white font-black text-base">

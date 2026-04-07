@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { logTooltipOpened } from "@/lib/analytics";
 import { Star, ShieldCheck, AlertTriangle, Flag, SportShoe } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 // ========================
 // CONSTANTS
@@ -43,7 +44,7 @@ function getCommitmentDisplay(profile: UserProfile): number {
   return calcCommitmentScore(profile.stats ?? { played: 0, won: 0, lost: 0, draw: 0 });
 }
 
-function getCommitmentTier(com: number): { label: string; icon: any; color: string } {
+function getCommitmentTier(com: number): { label: string; icon: LucideIcon; color: string } {
   if (com >= 99) return { label: "Siempre en la cancha antes que el balón", icon: Star, color: "text-green-300" };
   if (com >= 80)  return { label: "Listo para el 11 titular", icon: ShieldCheck, color: "text-lime-300" };
   if (com >= 50)  return { label: "Llegando justo para el pitazo inicial", icon: AlertTriangle, color: "text-yellow-300" };

@@ -1,4 +1,5 @@
-import { Heart, BarChart2, HelpCircle} from "lucide-react";
+import { Heart, BarChart2, HelpCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { calcCommitmentScore } from "@/lib/domain/user";
 import type { UserStats } from "@/lib/domain/user";
 import { logTooltipOpened } from "@/lib/analytics";
@@ -8,7 +9,7 @@ interface StatsCardProps {
     mvpAwards?: number;
 }
 
-const StatItem = ({ label, value, colorClass, icon: Icon }: { label: string, value: number, colorClass: string, icon?: any }) => (
+const StatItem = ({ label, value, colorClass, icon: Icon }: { label: string, value: number, colorClass: string, icon?: LucideIcon }) => (
     <div className="flex flex-col items-center flex-1">
         <span className={`text-2xl font-black ${colorClass}`}>{value}</span>
         <div className="flex items-center gap-1">
