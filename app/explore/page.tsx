@@ -13,6 +13,7 @@ import MatchListSkeleton from "@/components/skeletons/MatchListSkeleton";
 import { handleError } from "@/lib/utils/error";
 import { sanitizeMatchCode } from "@/lib/matchCode";
 import { logMatchJoinedViaExplore, logJoinByCodeClicked } from "@/lib/analytics";
+import { Search, Lock, Trophy, ArrowRight, Sparkles } from "lucide-react";
 
 export default function ExplorePage() {
     const { profile, loading: authLoading } = useAuth();
@@ -100,8 +101,8 @@ export default function ExplorePage() {
                                 <h1 className="text-2xl font-bold mb-1">Buscar Partidos</h1>
                                 <p className="text-emerald-100 text-sm">Encuentra dónde jugar hoy</p>
                             </div>
-                            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                                <span className="text-2xl">🔎</span>
+                            <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/10">
+                                <Search className="w-6 h-6 text-white" />
                             </div>
                         </div>
                     </div>
@@ -111,7 +112,8 @@ export default function ExplorePage() {
                         {/* PRIVATE INVITE CODE SECTION */}
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                             <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-                                <span>🔐</span> Código o link de invitación
+                                <Lock className="w-4 h-4 text-emerald-600" />
+                                <span>Código o link de invitación</span>
                             </h2>
                             <p className="text-xs text-slate-500 mb-4 leading-relaxed">
                                 ¿Te pasaron un código o link por WhatsApp para un partido? Pégalo aquí.
@@ -129,12 +131,17 @@ export default function ExplorePage() {
                                 <button
                                     type="submit"
                                     disabled={!inviteCode.trim() || isSubmittingCode}
-                                    className={`px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-sm ${!inviteCode.trim() || isSubmittingCode
+                                    className={`px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-sm flex items-center justify-center gap-2 ${!inviteCode.trim() || isSubmittingCode
                                         ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                                        : "bg-[#1f7a4f] text-white hover:bg-[#16603c] active:scale-95"
+                                        : "bg-[#1f7a4f] text-white hover:bg-[#16603c] active:scale-95 shadow-lg shadow-emerald-900/10"
                                         }`}
                                 >
-                                    {isSubmittingCode ? "..." : "Ir"}
+                                    {isSubmittingCode ? "..." : (
+                                        <>
+                                            Ir
+                                            <ArrowRight className="w-4 h-4" />
+                                        </>
+                                    )}
                                 </button>
                             </form>
                         </div>
@@ -157,7 +164,10 @@ export default function ExplorePage() {
                                 <MatchListSkeleton />
                             ) : matches.length === 0 ? (
                                 <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-dashed border-slate-300">
-                                    <div className="text-4xl mb-3 opacity-50">🏟️</div>
+                                    <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-inner overflow-hidden relative">
+                                    <Trophy className="w-10 h-10 text-slate-300 relative z-10" />
+                                    <Sparkles className="absolute top-4 right-4 w-3 h-3 text-emerald-400 opacity-40" />
+                                </div>
                                     <p className="text-slate-800 font-bold text-sm mb-1">No hay partidos públicos</p>
                                     <p className="text-xs text-slate-500 leading-relaxed max-w-[200px] mx-auto">
                                         Actualmente no hay partidos abiertos programados. Vuelve pronto o contacta al administrador.

@@ -8,7 +8,7 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 
 | Campo | Uso en la carta |
 |-------|----------------|
-| `photoURL` | Foto circular del jugador (165px). Google photos se upgradan automáticamente de `=s96-c` a `=s400-c` |
+| `photoURL` | Foto circular del jugador (256px). Optimizada con Next Image a `sizes="256px"` y `quality={75}`. Google photos se upgradan automáticamente de `=s96-c` a `=s400-c`. |
 | `name` | Nombre del jugador (centrado con líneas decorativas) |
 | `primaryPosition` | Posición principal (debajo del OVR, arriba-izquierda) |
 | `positions[]` | Posiciones alternas (pills sobresaliendo del borde derecho superior) |
@@ -61,7 +61,7 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
    - `hasTournaments = true` → +5
 5. **COM (Compromiso):** `Math.max(0, Math.min(99, 99 - noShows×20 - lateArrivals×6 + played))`. Computado en display — no se almacena en Firestore. El `+played` da recuperación (+1 por partido puntual). Los late arrivals no recuperan (neto 0). Los no-shows no incrementan `played`. Misma fórmula que `StatsCard`.
 6. **MVP:** Campo `mvpAwards` en la raíz del documento `users/{uid}`. Incrementado por la Cloud Function `sendMvpWinnerNotification` al cerrar la votación.
-7. **Pie dominante:** Pill sobresaliendo del borde derecho inferior (🦶 + IZQ/DER/AMB).
+7. **Pie dominante:** Pill sobresaliendo del borde derecho inferior (🦶 icon SportShoe + IZQ/DER/AMB).
 8. **Posiciones alternas:** Solo posiciones distintas a `primaryPosition`, como pills en el borde derecho superior con emoji + abreviación.
 9. **Stats en fila 1x6:** COM, TEC, FIS, PJ, PG, MVP en una sola fila horizontal.
 10. **Google Photos upgrade:** `ensureUserProfile()` en `lib/users.ts` reemplaza `=s96-c` → `=s400-c` en login. Script one-time `scripts/upgrade-google-photos.js` migra usuarios existentes.
@@ -92,8 +92,11 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 | `docs/FIFA_PLAYER_CARD_SDD.md` | Nuevo — esta documentación |
 | `docs/PUBLIC_PLAYER_CARD_SDD.md` | Nuevo — SDD del perfil público |
 
-## Criterios de Aceptación
+### Reglas de Visualización de Branding
+- El logo "La Canchita" en el pico inferior de la carta utiliza el prop `unoptimized` en `<Image />` para asegurar que el asset de marca no consuma cuota de transformación de imágenes de Vercel (manteniendo costo cero por assets de branding).
+- El logo utiliza `priority` para evitar parpadeos durante la entrada animada de la carta.
 
+## Criterios de Aceptación
 - [x] Carta dorada renderiza en `/profile` con "?" como OVR
 - [x] Stats muestran COM, TEC, FIS, PJ, PG, MVP en fila 1x6
 - [x] Posición principal con emoji + abreviación en español (3 letras)
@@ -107,3 +110,4 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 - [x] Fotos y nombres de jugadores son tapeables en todas las secciones del join
 - [x] Google profile photos se upgradan a s400 en login y con script de migración
 - [x] ProfileSkeleton refleja layout actual con FifaCardSkeleton
+- [x] El logo de branding inferior usa `unoptimized` para control de costos.

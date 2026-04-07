@@ -8,6 +8,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { logTooltipOpened } from "@/lib/analytics";
+import { Star, ShieldCheck, AlertTriangle, Flag, SportShoe } from "lucide-react";
 
 // ========================
 // CONSTANTS
@@ -42,11 +43,11 @@ function getCommitmentDisplay(profile: UserProfile): number {
   return calcCommitmentScore(profile.stats ?? { played: 0, won: 0, lost: 0, draw: 0 });
 }
 
-function getCommitmentTier(com: number): { label: string; icon: string; color: string } {
-  if (com >= 99) return { label: "Siempre en la cancha antes que el balón", icon: "🌟", color: "text-green-300" };
-  if (com >= 80)  return { label: "Listo para el 11 titular", icon: "🛡️", color: "text-lime-300" };
-  if (com >= 50)  return { label: "Llegando justo para el pitazo inicial", icon: "⚠️", color: "text-yellow-300" };
-  return { label: "Con la roja por falta de compromiso", icon: "🚩", color: "text-red-400" };
+function getCommitmentTier(com: number): { label: string; icon: any; color: string } {
+  if (com >= 99) return { label: "Siempre en la cancha antes que el balón", icon: Star, color: "text-green-300" };
+  if (com >= 80)  return { label: "Listo para el 11 titular", icon: ShieldCheck, color: "text-lime-300" };
+  if (com >= 50)  return { label: "Llegando justo para el pitazo inicial", icon: AlertTriangle, color: "text-yellow-300" };
+  return { label: "Con la roja por falta de compromiso", icon: Flag, color: "text-red-400" };
 }
 
 function getTecDisplay(profile: UserProfile): number {
@@ -236,9 +237,9 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
                     alt={profile.name || "Jugador"}
                     fill
                     className="object-cover"
-                    sizes="210px"
-                    quality={100}
+                    sizes="256px"
                     priority
+                    unoptimized={!profile.photoURL}
                   />
                   {/* Vignette — difumina bordes de la foto */}
                   <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse at center, transparent 62%, rgba(7,30,18,1) 88%, rgba(4,18,10,1) 100%), linear-gradient(to bottom, rgba(4,18,10,0.75) 0%, transparent 32%), linear-gradient(to top, rgba(4,18,10,0.9) 0%, transparent 40%)" }} />
@@ -309,6 +310,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
                 className="opacity-70 object-contain"
                 style={{ width: "auto", height: "auto" }}
                 priority
+                unoptimized
               />
             </div>
           </div>
@@ -341,7 +343,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
           className="absolute right-0 bottom-[6rem] translate-x-[40%] z-40 bg-gradient-to-r from-emerald-800 to-emerald-900 rounded px-1.5 py-0.5 border border-green-400/50 shadow-md shadow-black/20 cursor-pointer select-none flex items-center gap-0.5"
           onClick={(e) => { e.stopPropagation(); toggleTooltip(`FOOT_${footAbbrev}`); }}
         >
-          <span className="text-[11px] leading-none">🥾</span>
+          <SportShoe size={11} className="text-green-300" />
           <span className="text-[8px] font-black text-green-100 tracking-wider leading-none">{footAbbrev}</span>
         </div>
       )}
@@ -359,7 +361,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
           >
             <div className="bg-emerald-950/95 border border-green-400/40 rounded-lg px-3 py-2 mx-1 shadow-lg shadow-black/40">
               <p className="text-[10px] text-green-100 leading-tight text-center">{STAT_TOOLTIPS[activeTooltip]}</p>
-              {activeTooltip === "COM" && (() => { const tier = getCommitmentTier(com); return <p className={`text-[11px] font-black text-center mt-1 ${tier.color}`}>{tier.icon} {tier.label}</p>; })()}
+              {activeTooltip === "COM" && (() => { const tier = getCommitmentTier(com); return <p className={`text-[11px] font-black text-center mt-1 flex items-center justify-center gap-1 ${tier.color}`}><tier.icon size={12} /> {tier.label}</p>; })()}
             </div>
           </motion.div>
         )}

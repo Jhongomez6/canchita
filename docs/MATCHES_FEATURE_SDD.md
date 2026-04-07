@@ -492,6 +492,8 @@ En todos los listados de jugadores (Join Page, Admin, MVP), se utiliza un sistem
 | Elemento | Fuente de Datos | Comportamiento |
 |------|-----------------------|---------------------------|
 | **Base del Avatar** | `photoURL` | Si existe, muestra la foto; si no, muestra las **iniciales** del nombre. |
+| **Tamaño Estándar** | - | **48px** para todos los listados (Rosters, Asistencia, Pagos) para optimizar el cache de Next.js. |
+| **Optimización** | - | Bypasseo de transformación para logos y placeholders (`unoptimized`). Calidad 75 solo para fotos de perfil. |
 | **Badge de Posición** | `primaryPosition` | Se muestra siempre como un badge flotante sobre el avatar. |
 | **Prioridad de Icono** | `primaryPosition` > `positions[0]` | Prioriza la posición principal del perfil sobre la lista general. |
 

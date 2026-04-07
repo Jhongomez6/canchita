@@ -78,7 +78,7 @@ export default function Header() {
       style={{
         background: "linear-gradient(180deg, #1f7a4f, #145c3a)",
         color: "#fff",
-        padding: "14px 16px",
+        padding: "12px 16px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -105,10 +105,11 @@ export default function Header() {
           <Image
             src="/logo/lacanchita-logo.png"
             alt="La Canchita"
-            width={60}
-            height={50}
-            style={{ borderRadius: 6, height: "auto", width: "auto" }}
+            width={70}
+            height={60}
+            style={{ borderRadius: 6 }}
             priority={true}
+            unoptimized={true}
           />
         </Link>
         <div className="group relative flex items-center gap-1" tabIndex={0} onMouseEnter={() => logTooltipOpened("beta_admin_badge")}>

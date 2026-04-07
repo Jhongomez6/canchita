@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -46,15 +45,15 @@ export default function LandingPage({ inApp, onLoginClick }: LandingPageProps) {
                 <div className="relative z-10 w-full max-w-md mx-auto">
                     {/* Logo Area */}
                     <div className="mb-6 flex justify-center">
-                        <div className="bg-white p-3 rounded-2xl shadow-lg inline-block">
-                            <Image
+                        <div className="bg-white p-2.5 rounded-2xl shadow-xl inline-block text-center border-2 border-white/20">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
                                 src="/logo/lacanchita-logo.png"
                                 alt="La Canchita"
-                                width={80}
-                                height={80}
-                                style={{ height: "auto", width: "auto" }}
-                                priority={true}
-                                className="drop-shadow-sm"
+                                width={160}
+                                height={130}
+                                style={{ height: "auto", width: "160px" }}
+                                className="drop-shadow-sm transition-transform hover:scale-105 duration-300 rounded-lg"
                             />
                         </div>
                     </div>

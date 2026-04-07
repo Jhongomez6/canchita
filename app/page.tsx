@@ -398,7 +398,7 @@ export default function Home() {
                       value={joinCode}
                       onChange={(e) => setJoinCode(e.target.value)}
                       placeholder="Pega el código o link"
-                      className="flex-1 text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-colors"
+                      className="flex-1 text-base bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-colors"
                     />
                     <button
                       type="submit"

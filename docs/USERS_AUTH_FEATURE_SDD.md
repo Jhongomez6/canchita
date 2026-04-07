@@ -45,9 +45,10 @@ interface UserProfile {
 | 7 | Eliminación de cuenta anonimiza datos personales (Habeas Data) | `deleteUser()` en `lib/users.ts` — reemplaza doc con traza anónima en lugar de borrar |
 | 8 | Jugador puede editar su nombre (mínimo 2 palabras) | `updateUserName()` en `lib/users.ts` y validación en `app/profile/page.tsx` |
 | 9 | Cambio de nombre solo cada 30 días | `nameLastChanged` + cooldown en profile page |
-| 10 | Posiciones con iconos visuales | `POSITION_ICONS` en `lib/domain/player.ts` |
+| 10 | Posiciones y secciones con iconos visuales | `POSITION_ICONS` en domain y `lucide-react` en UI (`FileUser`, `Pencil`, `User`, etc.) |
 | 11 | Feedback separado nombre/posiciones | `nameSaved` / `positionsSaved` estados independientes |
 | 12 | Carga de foto de perfil | `uploadAvatarBase64` en `lib/storage.ts` y crop con `react-easy-crop` |
+| 13 | Optimización de imágenes / Branding | Unoptimized para logos (ahorro quota Vercel) y 48/96/256px + calidad 75 para perfiles |
 
 ---
 
@@ -134,14 +135,15 @@ export async function deleteUser(uid: string): Promise<void>
 **✅ Cumple especificación**: Reglas #4, #6, #7
 
 #### **Capa 3: UI**
-- `components/LandingPage.tsx` — Página de inicio pública para usuarios no autenticados, presentando la propuesta de valor y el botón de inicio de sesión con Google. Maneja lógica condicional de navegadores in-app.
-- `components/AuthGuard.tsx` — Protege rutas, redirige a `/profile` si incompleto. Consume `profile` localmente del Contexto global para eliminar el "flash de carga" evitando renders intermedios.
+- `components/LandingPage.tsx` — Página de inicio pública. Optimizada con `<img>` nativo para el logo Hero (160px) para bypass de Vercel Image Transformation mantiniendo costo cero por assets estáticos.
+- `components/AuthGuard.tsx` — Protege rutas. Implementa loaders de transición con `<Image unoptimized />` para garantizar branding inmediato sin parpadeos ni degradación de cuotas.
 - `app/profile/page.tsx` — Dashboard de perfil:
   - Edición de nombre con cooldown 30d y validación (mín. 2 palabras de 2 caracteres). Lee perfil en tiempo real.
-  - Posiciones con iconos emoji (`POSITION_ICONS`) y bloqueo durante guardado
-  - Feedback independiente: `nameSaved` vs `positionsSaved`
-  - Visualización de estadísticas (PJ/PG/PE/PP) apoyada por *CSS Tooltips* explicativos (optimizados para Mobile Touch).
-  - Tracker de "Compromiso" con apoyos visuales (*Tooltips Touch*) enseñando la fórmula de penalización por llegadas tarde y faltas.
+  - Posiciones con iconos de `lucide-react` y modo interactivo para selección principal (Corona Lucide)
+  - Interfaz modernizada con iconos Lucide (`FileUser`, `Cake`, `User`, `Smartphone`, `Bell`, `Clock`, `Lock`, etc.) para una estética premium.
+  - Feedback independiente: `saved` visual con checkmarks Lucide
+  - Visualización de estadísticas (PJ, PG, PE, PP, MVP, COM) modernizada con iconos de `lucide-react` (`PlayCircle`, `CheckCircle2`, `Equal`, `XCircle`, `Trophy`, `Heart`).
+  - Tracker de "Compromiso" con apoyos visuales y tiers de compromiso representados por iconos Lucide en la `FifaPlayerCard`.
   - **Habeas Data**: Zona de Peligro para eliminación permanente de cuenta (requiere confirmación robusta escribiendo "ELIMINAR" y flujo de re-autenticación OAuth si es necesario).
   - **Habeas Data**: Campos sensibles (Edad y Sexo) son de solo lectura y requieren intervención directiva (admin) para su rectificación, protegiendo la integridad del algoritmo deportivo.
 - `app/admin/users/page.tsx` — Panel admin con lista de usuarios tipada `UserProfile[]`. Usa `UserListSkeleton.tsx` para una transición perfecta.
@@ -188,7 +190,7 @@ export const POSITION_ICONS: Record<Position, string> = {
     GK: "🧤", DEF: "🛡️", MID: "⚙️", FWD: "⚡",
 };
 ```
-2. **UI** (`app/profile/page.tsx`): Renderiza `{POSITION_ICONS[pos]} {POSITION_LABELS[pos]}`
+2. **UI** (`app/profile/page.tsx`): Renderiza `{POSITION_ICONS[pos]}` junto a etiquetas y decoraciones de Lucide.
 
 ---
 

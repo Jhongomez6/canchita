@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 
 export default function NotFound() {
     return (
@@ -39,13 +38,14 @@ export default function NotFound() {
             </div>
 
             <div className="mt-8">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                     src="/logo/lacanchita-logo.png"
                     alt="La Canchita"
                     width={100}
                     height={80}
-                    style={{ height: "auto", width: "auto" }}
-                    className="opacity-50 drop-shadow-md grayscale brightness-200"
+                    style={{ height: "auto", width: "100px" }}
+                    className="opacity-50 drop-shadow-md grayscale brightness-200 hover:opacity-100 transition-opacity duration-300"
                 />
             </div>
         </div>

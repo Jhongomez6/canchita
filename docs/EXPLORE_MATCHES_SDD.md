@@ -38,9 +38,9 @@ Proveer un componente central para que los jugadores (incluso aquellos sin parti
 *   No hubo cambios en el modelo. Se re-utilizaron las interfaces `Match` y `Location` existentes.
 
 ### 2.3 UI Components (`app/explore/page.tsx` & `components/BottomNav.tsx`)
-*   **Explore Page**: Renderiza SSR y ejecuta `useEffect` para cargar `getOpenMatches()` y luego los respectivos detalles de la sede `Location` (db locations) requeridos para el `MatchCard`.
-*   **Gestión de Estados**: Utiliza un Skeleton Loader nativo mientras solicita datos a Firebase.
-*   **MatchCard Integration**: Re-utiliza el `<MatchCard/>` (con date box de día de semana + día + mes, hora protagonista, metadata con iconos `Clock`/`Users`/`LandPlot`, chevron de navegación), inyectando sobre el mismo un div condicional absoluto indicando capacidad (Lleno/Disponibilidad).
+*   **Explore Page**: Renderiza SSR y ejecuta `useEffect` para cargar `getOpenMatches()` y detalles de `Location`. Utiliza iconos de `lucide-react` (`Search`, `Lock`, `Trophy`, `ArrowRight`, `Sparkles`) para una interfaz premium.
+*   **Gestión de Estados**: Utiliza un Skeleton Loader nativo y un Empty State decorado con iconos Lucide y efectos visuales (Sparkles).
+*   **MatchCard Integration**: Re-utiliza el `<MatchCard/>` inyectando etiquetas de capacidad (`Lleno`/`Cupos`) con estilos dinámicos (rojo/ámbar/esmeralda).
 *   **BottomNav**: `<Link>` agregado entre "Inicio" y "Perfil" (o Ranking/Usuarios para admins).
 
 ---
@@ -49,8 +49,8 @@ Proveer un componente central para que los jugadores (incluso aquellos sin parti
 
 ### Flujo 1: Ingreso a través de Código Privado
 **Given** que el usuario recibe el código `abc123xd` por WhatsApp.
-**When** el usuario navega a "Buscar" (Lupa) y lo prega en la sección *🔐 Código de invitación*.
-**Then** pulsa Enter o el botón "Ir", y la App ejecuta `router.push('/join/abc123xd')` directo a la página de Confirmación.
+**When** el usuario navega a "Buscar" (Lupa) y lo pega en la sección de código de invitación (icono de candado Lucide).
+**Then** pulsa el botón con icono `ArrowRight`, y la App ejecuta `router.push('/join/abc123xd')`.
 
 ### Flujo 2: El Partido Público se Llenó
 **Given** que un partido abierto alcanza la capacidad de `maxPlayers`.

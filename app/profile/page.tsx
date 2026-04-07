@@ -21,7 +21,13 @@ import StatsCard from "@/components/StatsCard";
 import FifaPlayerCard from "@/components/FifaPlayerCard";
 import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
-import { X, Share, PlusSquare, ChevronRight } from "lucide-react";
+import {
+  X, Share, PlusSquare, ChevronRight, FileUser, Pencil,
+  Cake, User, Activity, RotateCcw, Camera, Crown,
+  Shirt, Clock, Lock, XCircle, Bell, CheckCircle2,
+  AlertTriangle, Smartphone, Settings,
+  Zap, Flame, Sprout
+} from "lucide-react";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
 import { logStatsViewed, logApplyCTAClicked, logPWAInstallClicked } from "@/lib/analytics";
@@ -29,7 +35,7 @@ import { logStatsViewed, logApplyCTAClicked, logPWAInstallClicked } from "@/lib/
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
 const SEX_LABELS: Record<string, string> = { male: "M", female: "F", other: "Otro" };
 const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado"];
-const LEVEL_EMOJIS = ["", "🌱", "⚡", "🔥"];
+const LEVEL_ICONS = [null, Sprout, Zap, Flame];
 
 export default function ProfilePage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -134,7 +140,7 @@ export default function ProfilePage() {
     if (user && !isAdmin(profile)) {
       getMyApplication(user.uid)
         .then((app) => setMyApplication(app))
-        .catch(() => {/* silencioso */});
+        .catch(() => {/* silencioso */ });
     }
 
   }, [profile, user]);
@@ -437,14 +443,14 @@ export default function ProfilePage() {
             {/* Header */}
             <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span className="text-xl">🏅</span> Ficha Técnica
+                <FileUser className="w-5 h-5 text-slate-600" /> Ficha Técnica
               </h2>
               {!isOnboarding && !editing && (
                 <button
                   onClick={startEditing}
-                  className="text-sm font-semibold text-[#1f7a4f] hover:text-[#16603c] transition-colors"
+                  className="flex items-center gap-1 text-sm font-semibold text-[#1f7a4f] hover:text-[#16603c] transition-colors whitespace-nowrap"
                 >
-                  ✏️ Editar
+                  <Pencil className="w-3.5 h-3.5" /> Editar
                 </button>
               )}
             </div>
@@ -472,35 +478,38 @@ export default function ProfilePage() {
                     <div className="flex flex-wrap justify-center gap-2 mb-2 mt-1">
                       {age != null && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white border border-slate-200 shadow-sm">
-                          <span className="text-base leading-none">🎂</span>
+                          <Cake className="w-3.5 h-3.5 text-pink-500" />
                           <span className="text-slate-400 font-medium">Edad</span>
                           <span className="font-bold text-slate-700">{age} años</span>
                         </span>
                       )}
                       {sex && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white border border-slate-200 shadow-sm">
-                          <span className="text-base leading-none">{sex === "male" ? "♂️" : sex === "female" ? "♀️" : "⚧️"}</span>
+                          <User className="w-3.5 h-3.5 text-blue-500" />
                           <span className="text-slate-400 font-medium">Sexo</span>
                           <span className="font-bold text-slate-700">{SEX_LABELS[sex] || sex}</span>
                         </span>
                       )}
                       {preferredCourt && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white border border-slate-200 shadow-sm">
-                          <span className="text-base leading-none">⚽</span>
+                          <Activity className="w-3.5 h-3.5 text-emerald-500" />
                           <span className="text-slate-400 font-medium">Cancha</span>
                           <span className="font-bold text-slate-700">{preferredCourt}</span>
                         </span>
                       )}
                       {level != null && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-emerald-50 border border-emerald-200 shadow-sm">
-                          <span className="text-base leading-none">{LEVEL_EMOJIS[level]}</span>
+                          {(() => {
+                            const Icon = LEVEL_ICONS[level];
+                            return Icon ? <Icon className="w-3.5 h-3.5 text-amber-500" /> : null;
+                          })()}
                           <span className="text-emerald-600 font-medium">Nivel</span>
                           <span className="font-bold text-emerald-800">{level} — {LEVEL_LABELS[level]}</span>
                         </span>
                       )}
                     </div>
                   )}
-                  
+
                   {/* Re-evaluation Link */}
                   {level != null && (
                     <div className="mt-4 text-center">
@@ -523,13 +532,13 @@ export default function ProfilePage() {
                           {requestingReeval ? (
                             <span className="w-3.5 h-3.5 border-2 border-amber-400/40 border-t-amber-600 rounded-full animate-spin" />
                           ) : (
-                            <span>🔄</span>
+                            <RotateCcw className="w-3.5 h-3.5" />
                           )}
                           {requestingReeval ? "Redirigiendo..." : "Nueva autoevaluación"}
                         </button>
                       ) : (
-                        <p className="text-[10px] text-slate-400">
-                          🔒 Nueva autoevaluación disponible el {reevalUnlockDate}
+                        <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
+                          <Lock className="w-3 h-3" /> Nueva autoevaluación disponible el {reevalUnlockDate}
                         </p>
                       )}
                     </div>
@@ -551,10 +560,11 @@ export default function ProfilePage() {
                         alt="Editar foto"
                         fill
                         className="object-cover transition-opacity group-hover:opacity-50"
-                        sizes="64px"
+                        sizes="96px"
+                        unoptimized={!editPhotoB64 && !profile?.photoURL}
                       />
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
-                        <span className="text-base drop-shadow-sm">📷</span>
+                        <Camera className="w-5 h-5 text-white/80 drop-shadow-sm" />
                       </div>
                     </div>
                     <input
@@ -623,14 +633,16 @@ export default function ProfilePage() {
                               }
                             }}
                             className={`relative flex flex-col items-center gap-0.5 py-2 rounded-xl text-xs font-bold transition-all border ${sel
-                                ? isPrimary
-                                  ? "bg-[#1f7a4f] border-[#16603c] text-white shadow-md ring-2 ring-[#1f7a4f]"
-                                  : "bg-emerald-100/50 border-emerald-800 text-emerald-800"
-                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                              ? isPrimary
+                                ? "bg-[#1f7a4f] border-[#16603c] text-white shadow-md ring-2 ring-[#1f7a4f]"
+                                : "bg-emerald-100/50 border-emerald-800 text-emerald-800"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                               }`}
                           >
                             {isPrimary && (
-                              <div className="absolute -top-1.5 -right-1.5 bg-white text-amber-500 rounded-full w-4 h-4 flex items-center justify-center shadow border border-amber-300 text-[8px] z-10 animate-in zoom-in-50 duration-200">👑</div>
+                              <div className="absolute -top-1.5 -right-1.5 bg-white text-amber-500 rounded-full w-5 h-5 flex items-center justify-center shadow border border-amber-300 z-10 animate-in zoom-in-50 duration-200">
+                                <Crown className="w-3 h-3" />
+                              </div>
                             )}
                             <span className="text-base">{POSITION_ICONS[pos]}</span>
                             <span className="text-[10px]">{POSITION_LABELS[pos]}</span>
@@ -712,7 +724,7 @@ export default function ProfilePage() {
               {!myApplication && (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🎽</span>
+                    <Shirt className="w-6 h-6 text-emerald-500" />
                     <div>
                       <p className="text-sm font-bold text-slate-800">¿Organizas partidos?</p>
                       <p className="text-xs text-slate-500">Aplica para ser Team Admin y gestiona tu grupo desde la app</p>
@@ -729,7 +741,7 @@ export default function ProfilePage() {
               )}
               {myApplication?.status === "pending" && (
                 <div className="bg-white rounded-2xl shadow-sm border border-yellow-200 p-5 flex items-center gap-3">
-                  <span className="text-2xl">🕐</span>
+                  <Clock className="w-6 h-6 text-amber-500" />
                   <div>
                     <p className="text-sm font-bold text-slate-800">Solicitud enviada</p>
                     <p className="text-xs text-yellow-600 font-medium">En revisión — te avisamos pronto</p>
@@ -739,7 +751,7 @@ export default function ProfilePage() {
               {myApplication?.status === "rejected" && (
                 <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-5 space-y-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">❌</span>
+                    <XCircle className="w-6 h-6 text-red-500" />
                     <div>
                       <p className="text-sm font-bold text-slate-800">Solicitud no aprobada</p>
                       {myApplication.rejectionReason && (
@@ -769,7 +781,7 @@ export default function ProfilePage() {
 
                 {/* — Notifications row — */}
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🔔</span>
+                  <Bell className="w-6 h-6 text-[#1f7a4f]" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-slate-800">Notificaciones</p>
                     {pushState === "active" && (
@@ -783,10 +795,10 @@ export default function ProfilePage() {
                     )}
                   </div>
                   {pushState === "active" && (
-                    <span className="flex-shrink-0 text-xl">✅</span>
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                   )}
                   {pushState === "blocked" && (
-                    <span className="flex-shrink-0 text-xl">⚠️</span>
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
                   )}
                   {pushState === "inactive" && (
                     <button
@@ -823,7 +835,7 @@ export default function ProfilePage() {
                 {/* — Install row — */}
                 {canInstall && (
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">📱</span>
+                    <Smartphone className="w-6 h-6 text-slate-600" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800">Instalar App</p>
                       <p className="text-xs text-slate-500">Acceso rápido desde la pantalla de inicio</p>
@@ -926,7 +938,7 @@ export default function ProfilePage() {
           {!isOnboarding && profile && isSuperAdmin(profile) && (
             <div className="mt-8 p-4 bg-slate-100 rounded-2xl border border-slate-200">
               <h3 className="text-sm font-bold text-slate-600 mb-3 flex items-center gap-1.5">
-                <span>🛠</span> Herramientas Admin
+                <Settings className="w-4 h-4" /> Herramientas Admin
               </h3>
               <Link
                 href="/admin/push-test"
@@ -960,7 +972,7 @@ export default function ProfilePage() {
             <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
               <div className="bg-white text-slate-900 rounded-3xl w-full max-w-sm p-8 text-center shadow-2xl relative animate-in zoom-in-95 duration-200">
                 <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-sm">
-                  ⚠️
+                  <AlertTriangle className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-black mb-2 text-slate-800">¿Eliminar cuenta?</h3>
                 <p className="text-sm text-slate-500 mb-6 font-medium">

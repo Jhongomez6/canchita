@@ -57,7 +57,7 @@ export default function PlayerItem({
         <div className="relative shrink-0">
           {photoURL ? (
             <div className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-              <Image src={photoURL} alt={name} fill className="object-cover" sizes="32px" />
+              <Image src={photoURL} alt={name} fill className="object-cover" sizes="48px" />
             </div>
           ) : (
             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
