@@ -1307,6 +1307,7 @@ export default function JoinMatchPage() {
                       className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                       title="Compartir por WhatsApp"
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-5 h-5" />
                       <span className="text-[10px] hidden sm:inline uppercase">WhatsApp</span>
                     </button>
@@ -1319,6 +1320,7 @@ export default function JoinMatchPage() {
                       className="p-1.5 px-2 rounded-lg transition-colors border flex items-center justify-center gap-1 shadow-sm font-bold flex-shrink-0 bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                       title="Compartir por Telegram"
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/icons/telegram.svg" alt="Telegram" className="w-5 h-5" />
                       <span className="text-[10px] hidden sm:inline uppercase">Telegram</span>
                     </button>

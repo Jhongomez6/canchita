@@ -30,6 +30,7 @@ export default function PlayerAvatars({ players, guestCount }: PlayerAvatarsProp
                             {!allLoaded && (
                                 <div className="absolute inset-0 rounded-full border-2 border-white bg-emerald-100 animate-pulse" />
                             )}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={p.photoURL}
                                 alt={p.name || ''}

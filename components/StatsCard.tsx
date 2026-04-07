@@ -1,4 +1,4 @@
-import { Heart, BarChart2, Trophy, HelpCircle, PlayCircle, CheckCircle2, Equal, XCircle } from "lucide-react";
+import { Heart, BarChart2, HelpCircle} from "lucide-react";
 import { calcCommitmentScore } from "@/lib/domain/user";
 import type { UserStats } from "@/lib/domain/user";
 import { logTooltipOpened } from "@/lib/analytics";

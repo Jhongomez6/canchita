@@ -204,6 +204,7 @@ export default function TeamsTab({
               }}
               className="py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border bg-green-50 border-green-200 text-green-600 hover:bg-green-100 transition-colors"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
               <span>WhatsApp</span>
             </button>
@@ -217,6 +218,7 @@ export default function TeamsTab({
               }}
               className="py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 border bg-sky-50 border-sky-200 text-sky-600 hover:bg-sky-100 transition-colors"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/icons/telegram.svg" alt="Telegram" className="w-4 h-4" />
               <span>Telegram</span>
             </button>

@@ -242,6 +242,7 @@ export default function DashboardTab({
               className="flex-[1] flex items-center justify-center p-2.5 bg-[#25D366]/10 text-[#075E54] hover:bg-[#25D366]/20 rounded-xl transition-colors border border-[#25D366]/30 active:scale-[0.98]"
               title="Compartir por WhatsApp"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/icons/whatsapp.svg" alt="WhatsApp" className="w-[16px] h-[16px]" />
             </button>
 
@@ -253,6 +254,7 @@ export default function DashboardTab({
               className="flex-[1] flex items-center justify-center p-2.5 bg-[#0088cc]/10 text-[#0088cc] hover:bg-[#0088cc]/20 rounded-xl transition-colors border border-[#0088cc]/30 active:scale-[0.98]"
               title="Compartir por Telegram"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/icons/telegram.svg" alt="Telegram" className="w-[16px] h-[16px]" />
             </button>
           </div>
