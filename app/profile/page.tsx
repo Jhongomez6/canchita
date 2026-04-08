@@ -561,7 +561,7 @@ export default function ProfilePage() {
                         fill
                         className="object-cover transition-opacity group-hover:opacity-50"
                         sizes="96px"
-                        unoptimized={!editPhotoB64 && !profile?.photoURL}
+                        unoptimized
                       />
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
                         <Camera className="w-5 h-5 text-white/80 drop-shadow-sm" />

@@ -257,6 +257,7 @@ export default function PlayersTab({
                                       fill
                                       className="object-cover"
                                       sizes="48px"
+                                      unoptimized
                                     />
                                 </div>
                               ) : (
@@ -548,6 +549,7 @@ export default function PlayersTab({
                                 fill
                                 className="object-cover"
                                 sizes="48px"
+                                unoptimized
                               />
                           </div>
                         ) : (

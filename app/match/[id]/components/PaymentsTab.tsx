@@ -184,6 +184,7 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
                       fill
                       className="object-cover"
                       sizes="48px"
+                      unoptimized
                     />
                   </div>
                 ) : (
