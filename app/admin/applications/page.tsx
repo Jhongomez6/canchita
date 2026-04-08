@@ -264,8 +264,8 @@ function ApplicationCard({
 
             {/* Modal de rechazo */}
             {showRejectModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowRejectModal(false)}>
-                    <div className="bg-white rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl border border-slate-100 animate-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-end md:items-center justify-center p-4 pb-24 md:pb-4 animate-in fade-in duration-200" onClick={() => setShowRejectModal(false)}>
+                    <div className="bg-white rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl border border-slate-100 animate-in slide-in-from-bottom-4 duration-300 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-2">
                             <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600">
                                 <XCircle size={24} />
