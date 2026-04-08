@@ -298,6 +298,30 @@ export async function logMatchReportCopied(
   });
 }
 
+/* =========================
+   CAMPAÑAS
+========================= */
+
+export async function logCampaignViewed(campaign: string) {
+  await trackEvent("campaign_viewed", { campaign });
+}
+
+export async function logCampaignCTAClicked(campaign: string) {
+  await trackEvent("campaign_cta_clicked", { campaign });
+}
+
+export async function logCampaignWhatsappShared(campaign: string) {
+  await trackEvent("campaign_whatsapp_shared", { campaign });
+}
+
+export async function logCampaignLinkCopied(campaign: string) {
+  await trackEvent("campaign_link_copied", { campaign });
+}
+
+export async function logCampaignInstagramClicked(campaign: string) {
+  await trackEvent("campaign_instagram_clicked", { campaign });
+}
+
 export async function logMatchDeleted(matchId: string) {
   await trackEvent("match_deleted", { match_id: matchId });
 }
