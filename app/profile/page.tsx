@@ -4,7 +4,8 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { enablePushNotifications } from "@/lib/push";
 import { updateUserPositions, updateUserName, updatePlayerAttributes, requestReEvaluation, deleteUser, updateUserPhoto } from "@/lib/users";
-import { uploadAvatarBase64 } from "@/lib/storage";
+import { uploadAvatarBothSizes } from "@/lib/storage";
+import { generateAvatarSizes, type AvatarBlobs } from "@/lib/avatarProcessing";
 import { deleteUser as deleteAuthUser, updateProfile } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import type { Position } from "@/lib/domain/player";
@@ -75,7 +76,7 @@ export default function ProfilePage() {
   const [editPrimaryPosition, setEditPrimaryPosition] = useState<string | null>(null);
   const [editFoot, setEditFoot] = useState<Foot | null>(null);
   const [editCourt, setEditCourt] = useState<CourtSize | null>(null);
-  const [editPhotoB64, setEditPhotoB64] = useState<string | null>(null);
+  const [editPhotoBlobs, setEditPhotoBlobs] = useState<AvatarBlobs | null>(null);
 
   // Cropper states
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -185,9 +186,9 @@ export default function ProfilePage() {
       primaryPosition: (editPrimaryPosition as Position) || profile.primaryPosition,
       dominantFoot: editFoot ?? profile.dominantFoot,
       preferredCourt: editCourt ?? profile.preferredCourt,
-      photoURL: editPhotoB64 || profile.photoURL,
+      photoURL: editPhotoBlobs?.large || profile.photoURL,
     };
-  }, [editing, profile, editName, editPositions, editPrimaryPosition, editFoot, editCourt, editPhotoB64]);
+  }, [editing, profile, editName, editPositions, editPrimaryPosition, editFoot, editCourt, editPhotoBlobs]);
 
   function startEditing() {
     setEditName(displayName);
@@ -195,7 +196,7 @@ export default function ProfilePage() {
     setEditPrimaryPosition(primaryPosition);
     setEditFoot(dominantFoot);
     setEditCourt(preferredCourt);
-    setEditPhotoB64(null);
+    setEditPhotoBlobs(null);
     setImageSrc(null);
     setEditing(true);
   }
@@ -237,30 +238,10 @@ export default function ProfilePage() {
     if (!imageSrc || !croppedAreaPixels) return;
 
     const img = new window.Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      // Output 512x512 for sharp rendering on retina displays
-      const MAX_SIZE = 512;
-      canvas.width = MAX_SIZE;
-      canvas.height = MAX_SIZE;
-      const ctx = canvas.getContext("2d");
-
-      if (ctx) {
-        ctx.drawImage(
-          img,
-          croppedAreaPixels.x,
-          croppedAreaPixels.y,
-          croppedAreaPixels.width,
-          croppedAreaPixels.height,
-          0,
-          0,
-          MAX_SIZE,
-          MAX_SIZE
-        );
-        const compressedBase64 = canvas.toDataURL("image/webp", 0.85);
-        setEditPhotoB64(compressedBase64);
-        setImageSrc(null);
-      }
+    img.onload = async () => {
+      const blobs = await generateAvatarSizes(img, croppedAreaPixels);
+      setEditPhotoBlobs(blobs);
+      setImageSrc(null);
     };
     img.src = imageSrc;
   };
@@ -298,15 +279,10 @@ export default function ProfilePage() {
         if (editCourt) setPreferredCourt(editCourt);
       }
 
-      if (editPhotoB64) {
-        // Enlazar la subida a Storage en lugar de tirarlo directo a la BD (Ahorra un montón de ancho de banda a largo plazo)
-        const publicUrl = await uploadAvatarBase64(user.uid, editPhotoB64);
-
-        // Guardamos solo el URL público súper corto en Firestore y Auth
-        await updateUserPhoto(user.uid, publicUrl);
-        await updateProfile(user, { photoURL: publicUrl });
-
-        // Reforzamos local el cambio visual inmediato de la foto de base64 ya que ya no vivirá ahí sino por red
+      if (editPhotoBlobs) {
+        const { largeURL, thumbURL } = await uploadAvatarBothSizes(user.uid, editPhotoBlobs);
+        await updateUserPhoto(user.uid, largeURL, thumbURL);
+        await updateProfile(user, { photoURL: largeURL });
       }
 
       setSaved(true);
@@ -556,7 +532,7 @@ export default function ProfilePage() {
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <Image
-                        src={editPhotoB64 || profile?.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                        src={editPhotoBlobs?.large || profile?.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
                         alt="Editar foto"
                         fill
                         className="object-cover transition-opacity group-hover:opacity-50"

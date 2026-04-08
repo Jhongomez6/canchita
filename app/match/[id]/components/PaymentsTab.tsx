@@ -16,6 +16,7 @@ interface PayableEntry {
   key: string;
   name: string;
   photoURL?: string;
+  photoURLThumb?: string;
   attendanceLabel?: string;
   isGuest: boolean;
 }
@@ -39,6 +40,7 @@ function getPayablePlayers(match: Match): PayableEntry[] {
       key: p.uid!,
       name: p.name,
       photoURL: p.photoURL,
+      photoURLThumb: p.photoURLThumb,
       attendanceLabel:
         p.attendance === "present"
           ? "present"
@@ -176,10 +178,10 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
             <div key={entry.key} className="flex items-center gap-3 p-3">
               {/* Avatar */}
               <div className="shrink-0">
-                {entry.photoURL ? (
+                {(entry.photoURLThumb ?? entry.photoURL) ? (
                   <div className="w-10 h-10 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
                     <Image
-                      src={entry.photoURL}
+                      src={entry.photoURLThumb ?? entry.photoURL!}
                       alt={entry.name}
                       fill
                       className="object-cover"

@@ -6,6 +6,7 @@ import { auth } from "./auth";
 import { db } from "./firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { ensureUserProfile } from "@/lib/users";
+import { migrateGooglePhotoToStorage, generateThumbFromStorageURL } from "@/lib/avatarMigration";
 import { listenToPushMessages } from "./firebase-messaging";
 import { useTokenRefresh } from "./hooks/useTokenRefresh";
 import {
@@ -107,6 +108,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const roles = data.roles ?? (data.role ? [data.role] : ["player"]);
               const userProfile = { uid: docSnap.id, ...data, roles } as UserProfile;
               setProfile(userProfile);
+              // Migración automática: si tiene URL de Google y no tiene thumb, migrar todo a Storage
+              if (
+                userProfile.photoURL?.includes("lh3.googleusercontent.com") &&
+                !userProfile.photoURLThumb
+              ) {
+                migrateGooglePhotoToStorage(userProfile.uid, userProfile.photoURL).catch(() => {});
+              // Usuarios con foto legacy en Storage (avatars/{uid}.webp) sin thumb
+              } else if (
+                userProfile.photoURL?.includes("firebasestorage.googleapis.com") &&
+                !userProfile.photoURLThumb
+              ) {
+                generateThumbFromStorageURL(userProfile.uid, userProfile.photoURL).catch(() => {});
+              }
               // 📊 Set user properties para segmentación en Analytics
               setAnalyticsUserProperties({
                 user_role: roles.join(","),

@@ -10,6 +10,7 @@ interface PlayerItemProps {
   id: string;
   name: string;
   photoURL?: string;
+  photoURLThumb?: string;
   level: number;
   primaryPosition?: Position;
   positions: Position[];
@@ -18,16 +19,17 @@ interface PlayerItemProps {
   disabled?: boolean;
 }
 
-export default function PlayerItem({ 
-  id, 
-  name, 
-  photoURL, 
-  level, 
-  primaryPosition, 
-  positions, 
-  isMvp, 
-  votes, 
-  disabled 
+export default function PlayerItem({
+  id,
+  name,
+  photoURL,
+  photoURLThumb,
+  level,
+  primaryPosition,
+  positions,
+  isMvp,
+  votes,
+  disabled
 }: PlayerItemProps) {
   const {
     attributes,
@@ -55,9 +57,9 @@ export default function PlayerItem({
     >
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          {photoURL ? (
+          {(photoURLThumb ?? photoURL) ? (
             <div className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-              <Image src={photoURL} alt={name} fill className="object-cover" sizes="48px" unoptimized />
+              <Image src={photoURLThumb ?? photoURL!} alt={name} fill className="object-cover" sizes="48px" unoptimized />
             </div>
           ) : (
             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">

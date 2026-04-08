@@ -102,6 +102,7 @@ export async function createMatch(match: {
     creatorSnapshot: {
       name: profile.name,
       photoURL: profile.photoURL || null,
+      photoURLThumb: profile.photoURLThumb || null,
       phone: profile.phone || null,
     },
     isPrivate: match.isPrivate || false,
@@ -263,6 +264,7 @@ export async function joinMatch(
       sex: profile?.sex,
       ...(profile?.phone ? { phone: profile.phone } : {}),
       ...(profile?.photoURL ? { photoURL: profile.photoURL } : {}),
+      ...(profile?.photoURLThumb ? { photoURLThumb: profile.photoURLThumb } : {}),
     };
 
     const updateData: Record<string, unknown> = {
@@ -324,6 +326,7 @@ export async function joinWaitlist(
       sex: profile?.sex,
       ...(profile?.phone ? { phone: profile.phone } : {}),
       ...(profile?.photoURL ? { photoURL: profile.photoURL } : {}),
+      ...(profile?.photoURLThumb ? { photoURLThumb: profile.photoURLThumb } : {}),
     };
 
     // Si el jugador ya existe pero canceló (confirmed: false, no waitlist), actualizar su registro
@@ -544,9 +547,11 @@ export async function addPlayerToMatch(
 ) {
   // Fetch profile BEFORE transaction (doesn't compete with match doc)
   let photoURL: string | undefined;
+  let photoURLThumb: string | undefined;
   if (player.uid) {
     const profile = await getUserProfile(player.uid);
     photoURL = profile?.photoURL;
+    photoURLThumb = profile?.photoURLThumb;
   }
 
   const ref = doc(db, "matches", matchId);
@@ -568,6 +573,7 @@ export async function addPlayerToMatch(
       ...player,
       confirmed: player.confirmed ?? false,
       ...(photoURL ? { photoURL } : {}),
+      ...(photoURLThumb ? { photoURLThumb } : {}),
     };
 
     const updateData: Record<string, unknown> = {

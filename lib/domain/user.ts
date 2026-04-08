@@ -31,6 +31,7 @@ export interface UserProfile {
     name: string;
     email?: string;
     photoURL?: string;
+    photoURLThumb?: string;     // 96×96 WebP — avatares pequeños
     originalGoogleName?: string;
     roles: UserRole[];
     positions: Position[];

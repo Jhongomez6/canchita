@@ -240,7 +240,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
                     className="object-cover"
                     sizes="256px"
                     priority
-                    unoptimized={!profile.photoURL}
+                    unoptimized
                   />
                   {/* Vignette — difumina bordes de la foto */}
                   <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse at center, transparent 62%, rgba(7,30,18,1) 88%, rgba(4,18,10,1) 100%), linear-gradient(to bottom, rgba(4,18,10,0.75) 0%, transparent 32%), linear-gradient(to top, rgba(4,18,10,0.9) 0%, transparent 40%)" }} />

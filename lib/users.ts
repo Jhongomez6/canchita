@@ -24,10 +24,10 @@ import { APP_LEGAL_CONSTANTS } from "./constants";
 /* =========================
    CREAR / ASEGURAR PERFIL
 ========================= */
-function upgradeGooglePhotoURL(url?: string | null): string | null | undefined {
-  if (!url) return url;
-  // Google profile photos default to =s96-c (96px). Replace with larger size.
-  return url.replace(/=s\d+-c$/, "=s400-c");
+// Solo URLs de Firebase Storage son confiables para guardar en Firestore.
+// Las URLs de Google (lh3.googleusercontent.com) expiran y generan imágenes rotas.
+function isStorageURL(url?: string | null): boolean {
+  return !!url?.includes("firebasestorage.googleapis.com");
 }
 
 export async function ensureUserProfile(
@@ -36,7 +36,6 @@ export async function ensureUserProfile(
   email?: string | null,
   photoURL?: string | null
 ): Promise<{ isNewUser: boolean }> {
-  photoURL = upgradeGooglePhotoURL(photoURL);
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
 
@@ -47,18 +46,19 @@ export async function ensureUserProfile(
       positions: [],
       roles: ["player"],
       createdAt: new Date().toISOString(),
-      authAcceptedVersion: APP_LEGAL_CONSTANTS.CURRENT_TERMS_VERSION, // Current version of Terms & Privacy
+      authAcceptedVersion: APP_LEGAL_CONSTANTS.CURRENT_TERMS_VERSION,
     };
     if (email) data.email = email;
-    if (photoURL) data.photoURL = photoURL;
+    // Solo guardar photoURL si ya está en Storage (no URLs de Google)
+    if (isStorageURL(photoURL)) data.photoURL = photoURL;
     await setDoc(ref, data);
     return { isNewUser: true };
   } else {
-    // Si ya existe pero le faltan datos que ahora tenemos, los actualizamos
     const currentData = snap.data();
     const updates: Record<string, unknown> = {};
     if (email && !currentData.email) updates.email = email;
-    if (photoURL && !currentData.photoURL) updates.photoURL = photoURL;
+    // Solo actualizar photoURL si viene de Storage y el usuario no tiene una aún
+    if (isStorageURL(photoURL) && !currentData.photoURL) updates.photoURL = photoURL;
     if (!currentData.originalGoogleName) updates.originalGoogleName = name;
 
     if (Object.keys(updates).length > 0) {
@@ -129,9 +129,19 @@ export async function updateUserName(uid: string, name: string, originalGoogleNa
 /* =========================
    ACTUALIZAR FOTO DE PERFIL
 ========================= */
-export async function updateUserPhoto(uid: string, photoURL: string) {
+export async function updateUserPhoto(uid: string, photoURL: string, photoURLThumb?: string) {
   const ref = doc(db, "users", uid);
-  await updateDoc(ref, { photoURL });
+  const data: Record<string, string> = { photoURL };
+  if (photoURLThumb) data.photoURLThumb = photoURLThumb;
+  await updateDoc(ref, data);
+}
+
+/**
+ * Escribe solo los campos de foto (usado por la migración automática).
+ */
+export async function updateUserPhotoURLs(uid: string, photoURL: string, photoURLThumb: string) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { photoURL, photoURLThumb });
 }
 
 /* =========================

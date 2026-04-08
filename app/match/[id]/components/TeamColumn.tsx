@@ -81,6 +81,7 @@ export default function TeamColumn({
                 id={targetId}
                 name={p.name}
                 photoURL={p.photoURL}
+                photoURLThumb={p.photoURLThumb}
                 level={p.level ?? 2}
                 primaryPosition={p.primaryPosition}
                 positions={p.positions || []}

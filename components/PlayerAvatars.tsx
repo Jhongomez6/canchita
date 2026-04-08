@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 
 interface PlayerAvatarsProps {
-    players: { uid?: string; photoURL?: string; name?: string }[];
+    players: { uid?: string; photoURL?: string; photoURLThumb?: string; name?: string }[];
     guestCount: number;
 }
 
@@ -11,7 +11,7 @@ export default function PlayerAvatars({ players, guestCount }: PlayerAvatarsProp
     const shown = players.slice(0, 4);
     const remaining = (players.length - shown.length) + guestCount;
 
-    const totalWithPhotos = shown.filter(p => p.photoURL).length;
+    const totalWithPhotos = shown.filter(p => p.photoURLThumb || p.photoURL).length;
     const [loadedCount, setLoadedCount] = useState(0);
     const allLoaded = totalWithPhotos === 0 || loadedCount >= totalWithPhotos;
 
@@ -25,14 +25,14 @@ export default function PlayerAvatars({ players, guestCount }: PlayerAvatarsProp
         <div className="flex items-center mb-4">
             <div className="flex -space-x-2">
                 {shown.map((p, i) => (
-                    p.photoURL ? (
+                    (p.photoURLThumb || p.photoURL) ? (
                         <div key={p.uid || i} className="relative w-8 h-8 shrink-0">
                             {!allLoaded && (
                                 <div className="absolute inset-0 rounded-full border-2 border-white bg-emerald-100 animate-pulse" />
                             )}
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                                src={p.photoURL}
+                                src={p.photoURLThumb ?? p.photoURL}
                                 alt={p.name || ''}
                                 className={`w-8 h-8 rounded-full border-2 border-white object-cover transition-opacity duration-200 ${allLoaded ? 'opacity-100' : 'opacity-0'}`}
                                 onLoad={handleLoad}

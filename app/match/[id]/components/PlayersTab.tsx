@@ -249,10 +249,10 @@ export default function PlayersTab({
                           >
                             {/* Photo */}
                             <div className="shrink-0">
-                              {u.photoURL ? (
+                              {(u.photoURLThumb ?? u.photoURL) ? (
                                 <div className="w-9 h-9 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
                                     <Image
-                                      src={u.photoURL}
+                                      src={u.photoURLThumb ?? u.photoURL!}
                                       alt={u.name}
                                       fill
                                       className="object-cover"
@@ -541,10 +541,10 @@ export default function PlayersTab({
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative shrink-0">
-                        {p.photoURL ? (
+                        {(p.photoURLThumb ?? p.photoURL) ? (
                           <div className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm ring-1 ring-amber-200">
                               <Image
-                                src={p.photoURL}
+                                src={p.photoURLThumb ?? p.photoURL!}
                                 alt={p.name}
                                 fill
                                 className="object-cover"

@@ -52,9 +52,9 @@ export default function PlayerRow({
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0">
-            {p.photoURL ? (
+            {(p.photoURLThumb ?? p.photoURL) ? (
               <div className="w-10 h-10 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                <Image src={p.photoURL} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
+                <Image src={p.photoURLThumb ?? p.photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
               </div>
             ) : (
               <div

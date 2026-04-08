@@ -57,6 +57,7 @@ export interface Player {
     sex?: 'M' | 'F';
     phone?: string;
     photoURL?: string;
+    photoURLThumb?: string;     // 96×96 WebP — avatares pequeños
 }
 
 // ========================
