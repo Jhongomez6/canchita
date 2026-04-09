@@ -82,6 +82,7 @@ export default function ProfilePage() {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<{ width: number, height: number, x: number, y: number } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -215,6 +216,8 @@ export default function ProfilePage() {
       return;
     }
 
+    setOriginalFile(file);
+
     const reader = new FileReader();
     reader.onload = (event) => {
       setImageSrc(event.target?.result as string);
@@ -235,15 +238,11 @@ export default function ProfilePage() {
   };
 
   const applyCrop = async () => {
-    if (!imageSrc || !croppedAreaPixels) return;
-
-    const img = new window.Image();
-    img.onload = async () => {
-      const blobs = await generateAvatarSizes(img, croppedAreaPixels);
-      setEditPhotoBlobs(blobs);
-      setImageSrc(null);
-    };
-    img.src = imageSrc;
+    if (!originalFile || !croppedAreaPixels) return;
+    const blobs = await generateAvatarSizes(originalFile, croppedAreaPixels);
+    setEditPhotoBlobs(blobs);
+    setImageSrc(null);
+    setOriginalFile(null);
   };
 
   async function saveAll() {

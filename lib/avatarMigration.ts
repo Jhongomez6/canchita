@@ -7,11 +7,13 @@
  * Se ejecuta fire & forget en el login, sin bloquear la UI.
  */
 
-import { generateAvatarSizesFromDataURL } from "./avatarProcessing";
+import { generateAvatarSizesFromBlob } from "./avatarProcessing";
 import { uploadAvatarBothSizes } from "./storage";
 import { updateUserPhotoURLs } from "./users";
 import { storage } from "./firebase";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
+
+const WEBP_METADATA = { contentType: 'image/webp' };
 
 // Guard: evita lanzar migraciones en paralelo para el mismo uid
 const migrating = new Set<string>();
@@ -35,14 +37,7 @@ export async function migrateGooglePhotoToStorage(
     if (!response.ok) throw new Error(`Proxy respondió ${response.status}`);
 
     const blob = await response.blob();
-    const objectURL = URL.createObjectURL(blob);
-
-    let blobs;
-    try {
-      blobs = await generateAvatarSizesFromDataURL(objectURL);
-    } finally {
-      URL.revokeObjectURL(objectURL);
-    }
+    const blobs = await generateAvatarSizesFromBlob(blob);
 
     const { largeURL, thumbURL } = await uploadAvatarBothSizes(uid, blobs);
     await updateUserPhotoURLs(uid, largeURL, thumbURL);
@@ -70,17 +65,10 @@ export async function generateThumbFromStorageURL(
     if (!response.ok) throw new Error(`Storage respondió ${response.status}`);
 
     const blob = await response.blob();
-    const objectURL = URL.createObjectURL(blob);
-
-    let blobs;
-    try {
-      blobs = await generateAvatarSizesFromDataURL(objectURL);
-    } finally {
-      URL.revokeObjectURL(objectURL);
-    }
+    const blobs = await generateAvatarSizesFromBlob(blob);
 
     const thumbRef = ref(storage, `avatars/${uid}_thumb.webp`);
-    await uploadString(thumbRef, blobs.thumb, 'data_url');
+    await uploadString(thumbRef, blobs.thumb, 'data_url', WEBP_METADATA);
     const thumbURL = await getDownloadURL(thumbRef);
 
     await updateUserPhotoURLs(uid, storageURL, thumbURL);

@@ -3,78 +3,66 @@
  * AVATAR PROCESSING
  * ========================
  *
- * Módulo cliente puro — solo canvas API, sin Firebase.
- * Genera dos variantes WebP de una imagen de perfil:
- *   - large: 512×512 (FIFA card, perfil)
- *   - thumb: 96×96 (avatares en listas)
+ * Módulo cliente — envía la imagen al API route /api/process-avatar
+ * donde Sharp (server-side) garantiza encoding WebP real.
+ *
+ * Genera dos variantes:
+ *   - large: 512×512 WebP
+ *   - thumb: 96×96 WebP
  */
 
 export interface AvatarBlobs {
-    large: string; // data URL 512×512 WebP 0.85
-    thumb: string; // data URL 96×96 WebP 0.85
+    large: string; // data URL 512×512 WebP
+    thumb: string; // data URL 96×96 WebP
 }
 
-const LARGE_SIZE = 512;
-const THUMB_SIZE = 96;
-const WEBP_QUALITY = 0.85;
-
-function drawToCanvas(
-    img: HTMLImageElement,
-    srcX: number,
-    srcY: number,
-    srcW: number,
-    srcH: number,
-    targetSize: number
-): string {
-    const canvas = document.createElement("canvas");
-    canvas.width = targetSize;
-    canvas.height = targetSize;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("No se pudo obtener el contexto del canvas");
-    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, targetSize, targetSize);
-    return canvas.toDataURL("image/webp", WEBP_QUALITY);
+async function callProcessAvatar(file: File, crop?: { x: number; y: number; width: number; height: number }): Promise<AvatarBlobs> {
+    const formData = new FormData();
+    formData.append("image", file);
+    if (crop) {
+        formData.append("x", String(Math.round(crop.x)));
+        formData.append("y", String(Math.round(crop.y)));
+        formData.append("width", String(Math.round(crop.width)));
+        formData.append("height", String(Math.round(crop.height)));
+    }
+    const res = await fetch("/api/process-avatar", { method: "POST", body: formData });
+    if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "Error procesando imagen" }));
+        throw new Error(error ?? "Error procesando imagen");
+    }
+    return res.json();
 }
 
 /**
  * Para el flujo de perfil: genera large + thumb desde un crop preciso.
  *
- * @param img      - HTMLImageElement ya cargado
+ * @param file     - Archivo original seleccionado por el usuario
  * @param cropArea - Área de recorte en píxeles del original { x, y, width, height }
  */
 export async function generateAvatarSizes(
-    img: HTMLImageElement,
+    file: File,
     cropArea: { x: number; y: number; width: number; height: number }
 ): Promise<AvatarBlobs> {
-    const { x, y, width, height } = cropArea;
-    return {
-        large: drawToCanvas(img, x, y, width, height, LARGE_SIZE),
-        thumb: drawToCanvas(img, x, y, width, height, THUMB_SIZE),
-    };
+    return callProcessAvatar(file, cropArea);
 }
 
 /**
- * Para la migración de Google: genera large + thumb desde un data URL,
+ * Para la migración de Google / Storage: genera large + thumb desde un Blob,
  * escalando la imagen completa sin recorte.
  *
- * @param dataURL - Data URL o object URL de la imagen fuente
+ * @param blob - Blob o File de la imagen fuente
  */
-export async function generateAvatarSizesFromDataURL(
-    dataURL: string
-): Promise<AvatarBlobs> {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            try {
-                const blobs = {
-                    large: drawToCanvas(img, 0, 0, img.naturalWidth, img.naturalHeight, LARGE_SIZE),
-                    thumb: drawToCanvas(img, 0, 0, img.naturalWidth, img.naturalHeight, THUMB_SIZE),
-                };
-                resolve(blobs);
-            } catch (err) {
-                reject(err);
-            }
-        };
-        img.onerror = () => reject(new Error("No se pudo cargar la imagen"));
-        img.src = dataURL;
-    });
+export async function generateAvatarSizesFromBlob(blob: Blob): Promise<AvatarBlobs> {
+    const file = blob instanceof File ? blob : new File([blob], "avatar.jpg", { type: blob.type || "image/jpeg" });
+    return callProcessAvatar(file);
+}
+
+/**
+ * @deprecated Usar generateAvatarSizesFromBlob.
+ * Mantiene compatibilidad si algún caller pasa un data URL.
+ */
+export async function generateAvatarSizesFromDataURL(dataURL: string): Promise<AvatarBlobs> {
+    const res = await fetch(dataURL);
+    const blob = await res.blob();
+    return generateAvatarSizesFromBlob(blob);
 }
