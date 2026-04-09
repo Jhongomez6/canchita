@@ -2,6 +2,8 @@ import { storage } from "./firebase";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import type { AvatarBlobs } from "./avatarProcessing";
 
+const WEBP_METADATA = { contentType: 'image/webp' };
+
 /**
  * Sube un avatar en formato Data URL (Base64 WebP) a Firebase Storage.
  * Retorna la URL pública de descarga.
@@ -9,7 +11,7 @@ import type { AvatarBlobs } from "./avatarProcessing";
  */
 export async function uploadAvatarBase64(uid: string, base64Data: string): Promise<string> {
   const storageRef = ref(storage, `avatars/${uid}.webp`);
-  await uploadString(storageRef, base64Data, 'data_url');
+  await uploadString(storageRef, base64Data, 'data_url', WEBP_METADATA);
   return await getDownloadURL(storageRef);
 }
 
@@ -25,8 +27,8 @@ export async function uploadAvatarBothSizes(
   const thumbRef = ref(storage, `avatars/${uid}_thumb.webp`);
 
   await Promise.all([
-    uploadString(largeRef, blobs.large, 'data_url'),
-    uploadString(thumbRef, blobs.thumb, 'data_url'),
+    uploadString(largeRef, blobs.large, 'data_url', WEBP_METADATA),
+    uploadString(thumbRef, blobs.thumb, 'data_url', WEBP_METADATA),
   ]);
 
   const [largeURL, thumbURL] = await Promise.all([

@@ -73,6 +73,8 @@ export default function Header() {
     router.push("/");
   };
 
+  if (pathname?.startsWith("/campaigns")) return null;
+
   return (
     <header
       style={{

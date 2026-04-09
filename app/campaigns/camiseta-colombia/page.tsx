@@ -66,7 +66,10 @@ export default function CamisetaColombiaCampaign() {
 
                     <CampaignCTA />
 
-                    <p className="mt-4 text-white/60 text-xs">Participación gratuita · Solo para Colombia</p>
+                    <p className="mt-4 text-white/60 text-xs">Participación gratuita</p>
+                    <p className="mt-1 text-white/40 text-xs">
+                        <a href="#terminos" className="underline underline-offset-2 hover:text-white/70 transition-colors">Aplican términos y condiciones</a>
+                    </p>
                 </div>
             </section>
 
@@ -206,7 +209,7 @@ export default function CamisetaColombiaCampaign() {
             </section>
 
             {/* ── TÉRMINOS Y CONDICIONES ── */}
-            <section className="max-w-xl mx-auto px-6 py-14">
+            <section id="terminos" className="max-w-xl mx-auto px-6 py-14">
                 <div className="text-center mb-8">
                     <p className="text-xs font-black tracking-widest text-[#1f7a4f] uppercase mb-1">Transparencia</p>
                     <h2 className="text-2xl font-bold text-slate-800">Términos y Condiciones</h2>
