@@ -19,12 +19,14 @@ import {
   ShieldCheck
 } from "lucide-react";
 import type { Match, MatchPhase } from "@/lib/domain/match";
+import type { Location } from "@/lib/domain/location";
 import { formatDateSpanish, formatTime12h, formatEndTime } from "@/lib/date";
 import MatchProgressBar from "./MatchProgressBar";
 import type { TabId } from "./MatchAdminTabs";
 
 interface DashboardTabProps {
   match: Match;
+  location: Location | null;
   phase: MatchPhase;
   confirmedCount: number;
   isClosed: boolean;
@@ -40,6 +42,7 @@ interface DashboardTabProps {
 
 export default function DashboardTab({
   match,
+  location,
   phase,
   confirmedCount,
   isClosed,
@@ -130,7 +133,11 @@ export default function DashboardTab({
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <MapPin size={18} className="text-slate-400" />
-            <span className="text-slate-600 font-medium">{match.locationSnapshot?.name || "Cancha por definir"}</span>
+            {location?.name ? (
+              <span className="text-slate-600 font-medium">{location.name}</span>
+            ) : (
+              <div className="h-5 bg-slate-200 rounded animate-pulse w-48"></div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Calendar size={18} className="text-slate-400" />

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { loginWithGoogle } from "@/lib/auth";
 import { formatDateSpanish, formatDateShort, formatTime12h, formatEndTime } from "@/lib/date";
@@ -13,12 +13,12 @@ import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCirc
 
 import { AnimatePresence, motion } from "framer-motion";
 import AddGuestForm from "@/components/AddGuestForm";
-import PlayerAvatar from "@/components/PlayerAvatar";
 import { isInAppBrowser } from "@/lib/browser";
 import { Guest, guestToPlayer } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
 
 import { isAdmin } from "@/lib/domain/user";
+import type { Location } from "@/lib/domain/location";
 import { type Player, type Position, POSITION_ICONS } from "@/lib/domain/player";
 
 import {
@@ -60,6 +60,7 @@ export default function JoinMatchPage() {
   const router = useRouter();
   const { user, profile, loading } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
+  const [matchLocation, setMatchLocation] = useState<Location | null>(null);
   const [error, setError] = useState("");
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -188,6 +189,16 @@ export default function JoinMatchPage() {
     }
   }, [user, profile, match, id]);
 
+  useEffect(() => {
+    if (!match?.locationId) return;
+
+    getDoc(doc(db, "locations", match.locationId))
+      .then(snap => {
+        if (snap.exists()) {
+          setMatchLocation({ id: snap.id, ...snap.data() } as Location);
+        }
+      });
+  }, [match]);
 
   useEffect(() => {
     if (!match) return;
@@ -501,7 +512,7 @@ export default function JoinMatchPage() {
                 >
                   <MapPin size={18} className="text-slate-400 shrink-0" />
                   <span className="text-slate-700 text-sm flex-1 text-left font-medium">
-                    {match.locationSnapshot?.name || "Cancha no disponible"}
+                    {matchLocation?.name || match.locationSnapshot?.name || "Cancha no disponible"}
                   </span>
                   <span className={`w-28 justify-center flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-medium transition-colors shrink-0 ${isMapOpen ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-600 group-hover:bg-slate-100"}`}>
                     <Map className="w-3 h-3" />
@@ -510,11 +521,11 @@ export default function JoinMatchPage() {
                 </button>
 
                 {/* MAPA EXPANDIBLE */}
-                {isMapOpen && match.locationSnapshot && (
+                {isMapOpen && matchLocation && (
                   <div className="mt-1 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <p className="text-xs text-slate-500 mb-2 ml-10">{match.locationSnapshot.address}</p>
+                    <p className="text-xs text-slate-500 mb-2 ml-10">{matchLocation.address}</p>
                     <iframe
-                      src={googleMapsEmbedUrl(match.locationSnapshot.lat, match.locationSnapshot.lng)}
+                      src={googleMapsEmbedUrl(matchLocation.lat, matchLocation.lng)}
                       width="100%"
                       height="200"
                       className="rounded-xl border-0 bg-slate-100 mb-2"
@@ -523,7 +534,7 @@ export default function JoinMatchPage() {
                     />
                     <div className="flex gap-2">
                       <a
-                        href={googleMapsLink(match.locationSnapshot.lat, match.locationSnapshot.lng)}
+                        href={googleMapsLink(matchLocation.lat, matchLocation.lng)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => logMatchMapDirectionClicked(id, "google")}
@@ -533,7 +544,7 @@ export default function JoinMatchPage() {
                         Maps
                       </a>
                       <a
-                        href={wazeLink(match.locationSnapshot.lat, match.locationSnapshot.lng)}
+                        href={wazeLink(matchLocation.lat, matchLocation.lng)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => logMatchMapDirectionClicked(id, "waze")}
@@ -901,11 +912,9 @@ export default function JoinMatchPage() {
                             <div className="flex items-center gap-2">
                               <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                                 {(photoURLThumb ?? photoURL) ? (
-                                  <PlayerAvatar
-                                    src={photoURLThumb ?? photoURL!}
-                                    alt={p.name}
-                                    className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
-                                  />
+                                  <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                                    <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
+                                  </div>
                                 ) : (
                                   <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
                                     {p.name.charAt(0).toUpperCase()}
@@ -951,11 +960,9 @@ export default function JoinMatchPage() {
                             <div className="flex items-center gap-2">
                               <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                                 {(photoURLThumb ?? photoURL) ? (
-                                  <PlayerAvatar
-                                    src={photoURLThumb ?? photoURL!}
-                                    alt={p.name}
-                                    className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
-                                  />
+                                  <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                                    <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
+                                  </div>
                                 ) : (
                                   <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
                                     {p.name.charAt(0).toUpperCase()}
@@ -1036,12 +1043,9 @@ export default function JoinMatchPage() {
                                   >
                                     <div className="relative">
                                       {(player.photoURLThumb ?? player.photoURL) ? (
-                                        <PlayerAvatar
-                                          src={player.photoURLThumb ?? player.photoURL!}
-                                          alt={player.name}
-                                          className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}
-                                          sizes="96px"
-                                        />
+                                        <div className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}>
+                                          <Image src={player.photoURLThumb ?? player.photoURL!} alt={player.name} fill className="object-cover" sizes="96px" unoptimized />
+                                        </div>
                                       ) : (
                                         <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-inner
                                             ${isWinner ? 'bg-amber-100/50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}>
@@ -1139,11 +1143,9 @@ export default function JoinMatchPage() {
                                           onClick={e => { e.stopPropagation(); if (p.uid && !p.uid.startsWith("guest_")) handlePlayerTap(p.uid); }}
                                         >
                                           {(photoURLThumb ?? photoURL) ? (
-                                            <PlayerAvatar
-                                              src={photoURLThumb ?? photoURL!}
-                                              alt={p.name}
-                                              className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200"
-                                            />
+                                            <div className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200">
+                                              <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
+                                            </div>
                                           ) : (
                                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? "bg-white text-amber-600" : "bg-slate-100 text-slate-500"}`}>
                                               {p.name.charAt(0).toUpperCase()}
@@ -1202,11 +1204,9 @@ export default function JoinMatchPage() {
                           <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg">
                             <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                               {(photoURLThumb ?? photoURL) ? (
-                                <PlayerAvatar
-                                  src={photoURLThumb ?? photoURL!}
-                                  alt={p.name}
-                                  className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
-                                />
+                                <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                                  <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
+                                </div>
                               ) : (
                                 <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
                                   {p.name.charAt(0).toUpperCase()}
@@ -1247,11 +1247,9 @@ export default function JoinMatchPage() {
                           <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg">
                             <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                               {(photoURLThumb ?? photoURL) ? (
-                                <PlayerAvatar
-                                  src={photoURLThumb ?? photoURL!}
-                                  alt={p.name}
-                                  className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
-                                />
+                                <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
+                                  <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
+                                </div>
                               ) : (
                                 <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
                                   {p.name.charAt(0).toUpperCase()}
@@ -1299,7 +1297,7 @@ export default function JoinMatchPage() {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={async () => {
-                        const locName = match.locationSnapshot?.name || "Cancha por definir";
+                        const locName = matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir";
                         const text = buildRosterReport(match, locName, confirmedCount);
 
                         await navigator.clipboard.writeText(text);
@@ -1315,7 +1313,7 @@ export default function JoinMatchPage() {
                     </button>
                     <button
                       onClick={() => {
-                        const text = buildRosterReport(match, match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
+                        const text = buildRosterReport(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
                         logMatchReportCopied(id, "roster", "whatsapp");
                         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
                       }}
@@ -1328,7 +1326,7 @@ export default function JoinMatchPage() {
                     </button>
                     <button
                       onClick={() => {
-                        const text = buildRosterReportTelegram(match, match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
+                        const text = buildRosterReportTelegram(match, matchLocation?.name || match.locationSnapshot?.name || "Cancha por definir", confirmedCount);
                         logMatchReportCopied(id, "roster", "telegram");
                         window.open(`https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`, "_blank");
                       }}
@@ -1353,11 +1351,9 @@ export default function JoinMatchPage() {
                       <div className="flex items-center gap-3">
                         <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                           {(p.photoURLThumb ?? p.photoURL) ? (
-                            <PlayerAvatar
-                              src={p.photoURLThumb ?? p.photoURL!}
-                              alt={p.name}
-                              className="w-9 h-9 rounded-full overflow-hidden relative border border-emerald-200 shadow-sm"
-                            />
+                            <div className="w-9 h-9 rounded-full overflow-hidden relative border border-emerald-200 shadow-sm">
+                              <Image src={p.photoURLThumb ?? p.photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
+                            </div>
                           ) : (
                             <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-black shadow-sm ring-1 ring-emerald-200">
                               {p.name.charAt(0).toUpperCase()}
@@ -1472,11 +1468,9 @@ export default function JoinMatchPage() {
                         <div className="flex items-center gap-3">
                           <div className={`relative shrink-0 ${!isGuest && p.uid ? "cursor-pointer" : ""}`} onClick={() => !isGuest && handlePlayerTap(p.uid)}>
                             {(p.photoURLThumb ?? p.photoURL) ? (
-                              <PlayerAvatar
-                                src={p.photoURLThumb ?? p.photoURL!}
-                                alt={p.name}
-                                className="w-8 h-8 rounded-full overflow-hidden relative border border-amber-200 ring-1 ring-amber-100 shadow-sm"
-                              />
+                              <div className="w-8 h-8 rounded-full overflow-hidden relative border border-amber-200 ring-1 ring-amber-100 shadow-sm">
+                                <Image src={p.photoURLThumb ?? p.photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
+                              </div>
                             ) : (
                               <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
                                 #{i + 1}
