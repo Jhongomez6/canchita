@@ -538,7 +538,7 @@ export default function ProfilePage() {
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <Image
-                        src={editPhotoBlobs?.large || profile?.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                        src={editPhotoBlobs?.thumb || profile?.photoURLThumb || profile?.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
                         alt="Editar foto"
                         fill
                         className="object-cover transition-opacity group-hover:opacity-50"
