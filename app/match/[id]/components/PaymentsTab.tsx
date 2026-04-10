@@ -84,9 +84,14 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
   const players = getPayablePlayers(match);
   const guests = getPayableGuests(match);
   const allEntries = [...players, ...guests];
-  const entries = allEntries.filter(e => 
-    e.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const entries = allEntries
+    .filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      const aPaid = draftPayments[a.key] ?? false;
+      const bPaid = draftPayments[b.key] ?? false;
+      if (aPaid !== bPaid) return aPaid ? 1 : -1;
+      return a.name.localeCompare(b.name, "es");
+    });
 
   const paidCount = entries.filter((e) => draftPayments[e.key] === true).length;
   const pendingCount = entries.length - paidCount;
