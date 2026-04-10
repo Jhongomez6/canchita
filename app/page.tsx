@@ -459,8 +459,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* QUICK STATS (player only, ≥3 matches) */}
-            {!isAdminUser && profile?.stats && (
+            {/* QUICK STATS (≥3 matches, también aplica a admins que juegan) */}
+            {profile?.stats && (
               <div className="mb-5">
                 <QuickStats
                   stats={profile.stats}
