@@ -34,7 +34,6 @@ import type { Match } from "@/lib/domain/match";
 import { canViewMatchAdmin, getMatchPhase, getDefaultTabForPhase } from "@/lib/domain/match";
 import type { UserProfile } from "@/lib/domain/user";
 import { isSuperAdmin } from "@/lib/domain/user";
-import type { Location } from "@/lib/domain/location";
 import type { Guest } from "@/lib/domain/guest";
 import { guestToPlayer } from "@/lib/domain/guest";
 import { addGuestToMatch, promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
@@ -82,7 +81,6 @@ export default function MatchDetailPage() {
   } | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [maxPlayersDraft, setMaxPlayersDraft] = useState<number | null>(null);
-  const [location, setLocation] = useState<Location | null>(null);
   const [balancing, setBalancing] = useState(false);
   const [scoreA, setScoreA] = useState(0);
   const [scoreB, setScoreB] = useState(0);
@@ -135,15 +133,6 @@ export default function MatchDetailPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match?.score?.A, match?.score?.B]);
 
-  // Fetch location
-  useEffect(() => {
-    if (!match?.locationId) return;
-    getDoc(doc(db, "locations", match.locationId)).then((snap) => {
-      if (snap.exists()) {
-        setLocation({ id: snap.id, ...snap.data() } as Location);
-      }
-    });
-  }, [match?.locationId]);
 
   // Fetch users for player dropdown
   useEffect(() => {
@@ -447,7 +436,7 @@ export default function MatchDetailPage() {
       `⚽ *¡NUEVO PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
       `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
       `⏰ *Hora:* ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
-      `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+      `📍 *Lugar:* ${match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
       `🔗 *Link de invitación:* ${shareUrl}\n\n` +
       `🔑 *Código de búsqueda:* ${id}.ai\n` +
       `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n`;
@@ -712,7 +701,6 @@ export default function MatchDetailPage() {
           {activeTab === "dashboard" && (
             <DashboardTab
               match={match}
-              location={location}
               phase={phase}
               confirmedCount={confirmedCount}
               isClosed={isClosed}
@@ -731,7 +719,7 @@ export default function MatchDetailPage() {
                   `⚽ *¡NUEVO PARTIDO EN LA CANCHITA!* 🏟️\n\n` +
                   `📅 *Día:* ${formatDateSpanish(match.date)}\n` +
                   `⏰ *Hora:* ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
-                  `📍 *Lugar:* ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+                  `📍 *Lugar:* ${match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
                   `🔗 *Link de invitación:* ${shareUrl}\n\n` +
                   `🔑 *Código de búsqueda:* ${id}.ai\n` +
                   `_(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)_\n`
@@ -743,7 +731,7 @@ export default function MatchDetailPage() {
                   `⚽ ¡NUEVO PARTIDO EN LA CANCHITA! 🏟️\n\n` +
                   `📅 Día: ${formatDateSpanish(match.date)}\n` +
                   `⏰ Hora: ${formatTime12h(match.time)}${match.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n` +
-                  `📍 Lugar: ${location?.name || match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
+                  `📍 Lugar: ${match.locationSnapshot?.name || "Cancha por definir"}\n\n` +
                   `🔗 Link de invitación: ${shareUrl}\n\n` +
                   `🔑 Código de búsqueda: ${id}.ai\n` +
                   `(Copia el código y pégalo en la pantalla inicial o en "Buscar" para entrar al partido)\n`
@@ -777,17 +765,17 @@ export default function MatchDetailPage() {
               onRemoveGuest={(invitedBy, name) => removeGuestFromMatch(id, invitedBy, name)}
               onPromoteGuest={async (name, invitedBy) => { await promoteGuestToMatch(id, name, invitedBy); toast.success("Suplente aceptado y confirmado"); }}
               onCopyRoster={async () => {
-                const locName = location?.name || match.locationSnapshot?.name || "Cancha por definir";
+                const locName = match.locationSnapshot?.name || "Cancha por definir";
                 const text = buildRosterReport(match, locName, confirmedCount);
                 await navigator.clipboard.writeText(text);
                 toast.success("Lista copiada");
               }}
               onShareRoster={() => {
-                const locName = location?.name || match.locationSnapshot?.name || "Cancha por definir";
+                const locName = match.locationSnapshot?.name || "Cancha por definir";
                 return buildRosterReport(match, locName, confirmedCount);
               }}
               onShareTelegram={() => {
-                const locName = location?.name || match.locationSnapshot?.name || "Cancha por definir";
+                const locName = match.locationSnapshot?.name || "Cancha por definir";
                 return buildRosterReportTelegram(match, locName, confirmedCount);
               }}
             />
