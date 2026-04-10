@@ -81,6 +81,7 @@ export default function ProfilePage() {
   // Cropper states
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [processingCrop, setProcessingCrop] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<{ width: number, height: number, x: number, y: number } | null>(null);
@@ -239,10 +240,15 @@ export default function ProfilePage() {
 
   const applyCrop = async () => {
     if (!originalFile || !croppedAreaPixels) return;
-    const blobs = await generateAvatarSizes(originalFile, croppedAreaPixels);
-    setEditPhotoBlobs(blobs);
-    setImageSrc(null);
-    setOriginalFile(null);
+    setProcessingCrop(true);
+    try {
+      const blobs = await generateAvatarSizes(originalFile, croppedAreaPixels);
+      setEditPhotoBlobs(blobs);
+      setImageSrc(null);
+      setOriginalFile(null);
+    } finally {
+      setProcessingCrop(false);
+    }
   };
 
   async function saveAll() {
@@ -361,9 +367,10 @@ export default function ProfilePage() {
               <h2 className="text-white font-bold text-sm">Ajustar foto</h2>
               <button
                 onClick={applyCrop}
-                className="bg-white text-black font-bold text-sm px-5 py-2 rounded-full hover:bg-slate-200 shadow-xl transition-all active:scale-95"
+                disabled={processingCrop}
+                className="bg-white text-black font-bold text-sm px-5 py-2 rounded-full hover:bg-slate-200 shadow-xl transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Hecho
+                {processingCrop ? "Procesando..." : "Hecho"}
               </button>
             </div>
 
