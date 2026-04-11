@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
-import { getAllUsers, deleteUser, updateUserRoles, updateAdminType, assignLocationsToAdmin } from "@/lib/users";
+import { getAllUsers, deleteUser, updateUserRoles, updateAdminType, assignLocationsToAdmin, revokeAdminRole } from "@/lib/users";
 import { getActiveLocations } from "@/lib/locations";
 import AuthGuard from "@/components/AuthGuard";
 import UserListSkeleton from "@/components/skeletons/UserListSkeleton";
@@ -20,11 +20,12 @@ export default function AdminUsersPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
     const allUsers = await getAllUsers();
-    setUsers(allUsers);
+    setUsers(allUsers.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "es")));
     setLoading(false);
   }, []);
 
@@ -68,8 +69,16 @@ export default function AdminUsersPage() {
     // Must have at least one role
     if (newRoles.length === 0) return;
     try {
-      await updateUserRoles(targetUser.uid, newRoles);
-      setUsers(prev => prev.map(u => u.uid === targetUser.uid ? { ...u, roles: newRoles as UserRole[] } : u));
+      if (role === "admin" && hasRole) {
+        const finalRoles = await revokeAdminRole(targetUser.uid, targetUser.roles);
+        setUsers(prev => prev.map(u => u.uid === targetUser.uid
+          ? { ...u, roles: finalRoles as UserRole[], adminType: undefined, assignedLocationIds: undefined }
+          : u
+        ));
+      } else {
+        await updateUserRoles(targetUser.uid, newRoles);
+        setUsers(prev => prev.map(u => u.uid === targetUser.uid ? { ...u, roles: newRoles as UserRole[] } : u));
+      }
       toast.success("Roles actualizados");
     } catch (err: unknown) {
       handleError(err, "Error actualizando roles");
@@ -125,11 +134,28 @@ export default function AdminUsersPage() {
         >
           <h1 style={{ marginBottom: 20 }}>👑 Administrar Usuarios (Super Admin)</h1>
 
+          <input
+            type="text"
+            placeholder="Buscar por nombre..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              fontSize: 14,
+              marginBottom: 16,
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+
           {loading ? (
             <UserListSkeleton />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {users.map(u => (
+              {users.filter(u => (u.name ?? "").toLowerCase().includes(search.toLowerCase())).map(u => (
                 <div
                   key={u.uid}
                   style={{
@@ -247,9 +273,9 @@ export default function AdminUsersPage() {
                 </div>
               ))}
 
-              {users.length === 0 && (
+              {users.filter(u => (u.name ?? "").toLowerCase().includes(search.toLowerCase())).length === 0 && (
                 <p style={{ textAlign: "center", color: "#666", padding: 20 }}>
-                  No hay usuarios registrados
+                  {search ? "Sin resultados para esa búsqueda" : "No hay usuarios registrados"}
                 </p>
               )}
             </div>

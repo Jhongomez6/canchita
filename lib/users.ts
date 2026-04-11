@@ -15,6 +15,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteField,
   collection,
   getDocs,
 } from "firebase/firestore";
@@ -219,6 +220,21 @@ export async function updateUserRoles(uid: string, roles: string[]) {
 export async function updateAdminType(uid: string, adminType: AdminType) {
   const ref = doc(db, "users", uid);
   await updateDoc(ref, { adminType });
+}
+
+/* =========================
+   REVOCAR ROL ADMIN
+   Quita el rol "admin" de roles y limpia adminType y assignedLocationIds
+========================= */
+export async function revokeAdminRole(uid: string, currentRoles: string[]) {
+  const ref = doc(db, "users", uid);
+  const newRoles = currentRoles.filter(r => r !== "admin");
+  await updateDoc(ref, {
+    roles: newRoles.length > 0 ? newRoles : ["player"],
+    adminType: deleteField(),
+    assignedLocationIds: deleteField(),
+  });
+  return newRoles.length > 0 ? newRoles : ["player"];
 }
 
 /* =========================
