@@ -241,7 +241,7 @@ export default function CamisetaColombiaCampaign() {
                         <h3 className="text-sm font-bold text-[#1f7a4f] mb-2">3. Requisitos de participación</h3>
                         <ul className="text-sm text-slate-600 leading-relaxed space-y-2 list-disc pl-4">
                             <li>Tener una cuenta activa y verificada en La Canchita.</li>
-                            <li>Haber jugado un mínimo de <strong>3 (tres) partidos</strong> dentro del período de vigencia. Se entenderá como "jugado" aquel partido que cumpla <em>todas</em> las condiciones siguientes: (a) el usuario confirmó su asistencia, (b) la fecha de celebración se encuentra dentro del período de vigencia, (c) el partido se encuentra en estado <strong>completado</strong> y (d) el resultado fue registrado por el administrador del partido.</li>
+                            <li>Haber jugado un mínimo de <strong>3 (tres) partidos</strong> dentro del período de vigencia. Se entenderá como jugado aquel partido que cumpla <em>todas</em> las condiciones siguientes: (a) el usuario confirmó su asistencia, (b) la fecha de celebración se encuentra dentro del período de vigencia, (c) el partido se encuentra en estado <strong>completado</strong> y (d) el resultado fue registrado por el administrador del partido.</li>
                             <li>Ser mayor de 18 años.</li>
                             <li>Residir en Colombia.</li>
                         </ul>
