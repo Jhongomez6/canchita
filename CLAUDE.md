@@ -2,12 +2,175 @@
 
 ## Reglas de desarrollo
 
-### 1. Documentación SDD obligatoria
+### 1. Documentación SDD obligatoria — Blocker antes de implementar
 
-Cada feature o fix significativo debe estar documentado en `docs/`. Los SDDs son la fuente de verdad funcional. Al crear o modificar funcionalidad:
+**REGLA CRÍTICA**: Nunca escribir código de implementación sin que exista primero el SDD correspondiente en `docs/`. El SDD es la fuente de verdad funcional y el contrato de calidad de la feature.
 
-- Si la feature ya tiene SDD → actualizar las secciones afectadas (reglas de negocio, criterios de aceptación, archivos involucrados).
-- Si es una feature nueva → crear `docs/NOMBRE_FEATURE_SDD.md` siguiendo el formato existente.
+**Flujo obligatorio:**
+1. Usuario pide una feature → Claude crea `docs/NOMBRE_FEATURE_SDD.md` antes de cualquier código
+2. Usuario revisa y aprueba el SDD (o pide ajustes)
+3. Claude implementa siguiendo el SDD como guía
+
+**Cuándo aplica:**
+- Feature nueva → crear `docs/NOMBRE_FEATURE_SDD.md` con el template completo
+- Feature existente con SDD → actualizar secciones afectadas antes de modificar código
+- Bug fix simple (1-3 líneas) → excepción, no requiere SDD
+
+**Template obligatorio para SDDs nuevos:**
+
+```markdown
+# Feature: [Nombre]
+
+## 📋 Specification-Driven Development (SDD)
+
+[Descripción de una línea del problema que resuelve]
+
+---
+
+## 1. ESPECIFICACIÓN FUNCIONAL
+
+### Objetivo
+[Qué problema resuelve y por qué importa]
+
+### Reglas de Negocio
+| # | Regla | Impacto UI |
+|---|-------|------------|
+| 1 | ...   | ...        |
+
+---
+
+## 2. ESCALABILIDAD
+
+### Volumen esperado
+- Usuarios concurrentes estimados
+- Tamaño de colecciones Firestore afectadas
+
+### Índices Firestore requeridos
+- Índices compuestos necesarios para las queries
+
+### Paginación
+- Estrategia de cursors / limit para listas grandes
+
+---
+
+## 3. CONCURRENCIA SEGURA
+
+### Operaciones que requieren `runTransaction()`
+- Listar cada operación de escritura compartida
+
+### Race conditions identificadas
+- Escenario: [descripción] → Mitigación: [solución]
+
+---
+
+## 4. SEGURIDAD
+
+### Autenticación y autorización
+- Quién puede leer / escribir cada colección/documento
+
+### Firestore Rules requeridas
+```
+// reglas nuevas o modificadas
+```
+
+### Validaciones de input
+- Campos requeridos, tipos, rangos (OWASP: nunca confiar en el cliente)
+
+### Datos sensibles
+- Qué campos NO deben exponerse en queries públicas
+
+---
+
+## 5. TOLERANCIA A FALLOS
+
+### Estados de error y fallbacks
+| Error | Causa probable | Fallback UI |
+|-------|---------------|-------------|
+| ...   | ...           | ...         |
+
+### Retry strategy
+- Operaciones con retry automático vs. error al usuario
+
+### Degradación elegante
+- Qué muestra la UI si la feature falla parcialmente
+
+---
+
+## 6. UX — FLUJOS DE USUARIO
+
+### Flujo principal (happy path)
+1. Usuario hace X → Sistema responde Y → UI muestra Z
+
+### Estados de UI
+| Estado | Qué muestra |
+|--------|-------------|
+| Cargando | Skeleton de ... |
+| Vacío | Empty state con CTA |
+| Error | Toast + opción de retry |
+| Éxito | Toast + transición a ... |
+
+### Consideraciones mobile-first
+- Touch targets, gestures, bottom nav padding (`pb-24`)
+
+---
+
+## 7. UI DESIGN — COMPONENTES Y ANIMACIONES
+
+### Componentes nuevos
+- `ComponentName` → propósito
+
+### Animaciones (Framer Motion)
+- `AnimatePresence` para: ...
+- Transiciones de: entrada / salida / layout
+
+### Responsive
+- Mobile: ...
+- Desktop (md+): ...
+
+---
+
+## 8. ANALYTICS
+
+| Evento | Trigger | Propiedades |
+|--------|---------|-------------|
+| `event_name` | Cuándo se dispara | `match_id`, etc. |
+
+---
+
+## 9. ARQUITECTURA TÉCNICA
+
+### Modelo de datos
+```typescript
+// interfaces nuevas o modificadas
+```
+
+### Capa de dominio (`lib/domain/`)
+- Funciones puras nuevas
+
+### Capa de API (`lib/`)
+- Funciones Firestore nuevas
+
+### Componentes UI (`app/`)
+- Páginas y componentes afectados
+
+---
+
+## 10. CRITERIOS DE ACEPTACIÓN
+
+- [ ] Criterio 1
+- [ ] Criterio 2
+
+---
+
+## 11. ARCHIVOS INVOLUCRADOS
+
+| Archivo | Cambio |
+|---------|--------|
+| `lib/domain/...` | ... |
+| `lib/matches.ts` | ... |
+| `app/.../page.tsx` | ... |
+| `firestore.rules` | ... |
+```
 
 ### 2. Datos de jugador en `match.teams`
 
@@ -103,6 +266,7 @@ type Position = "GK" | "DEF" | "MID" | "FWD";
 - **Iconos**: Solo `lucide-react`.
 - **Skeletons**: Cada página con carga async debe tener su skeleton en `components/skeletons/`.
 - **Bottom nav padding**: Todo contenido de página debe incluir `pb-24 md:pb-0` para no quedar tapado por la navegación inferior móvil.
+- **Inputs — prevenir zoom en iOS**: Todo `<input>`, `<select>` y `<textarea>` debe tener font-size mínimo de 16px. En Tailwind usar siempre `text-base` (o mayor) en estos elementos. Nunca usar `text-sm` o menor en inputs — iOS Safari hace zoom automático cuando el font-size es menor a 16px, rompiendo la navegación.
 
 ### 10. Eventos de analytics
 
@@ -124,7 +288,7 @@ Siempre incluir `match_id` cuando el evento es sobre un partido. Usar `initAnaly
 
 ### 12. Commits y ramas
 
-Formato de commits: `tipo: descripción concisa`
+Formato de commits: `tipo: descripción concisa` — siempre en **inglés**.
 
 | Prefijo | Uso |
 |---------|-----|
