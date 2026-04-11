@@ -377,6 +377,57 @@ export async function leaveWaitlist(
 }
 
 /* =========================
+   MOVER CONFIRMADO A LISTA DE ESPERA
+========================= */
+export async function moveToWaitlist(
+  matchId: string,
+  playerName: string
+) {
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const players: Player[] = data.players || [];
+
+    const playerIndex = players.findIndex(
+      (p) => p.name === playerName && p.confirmed && !p.isWaitlist
+    );
+    if (playerIndex === -1) return;
+
+    // Calcular timestamp para quedar primero en la lista de espera
+    const waitlistTimes = players
+      .filter((p) => p.isWaitlist && p.waitlistJoinedAt)
+      .map((p) => new Date(p.waitlistJoinedAt!).getTime());
+    const earliestWaitlist = waitlistTimes.length > 0 ? Math.min(...waitlistTimes) : null;
+    const waitlistJoinedAt = earliestWaitlist !== null
+      ? new Date(earliestWaitlist - 1).toISOString()
+      : new Date().toISOString();
+
+    const updatedPlayers = [...players];
+    updatedPlayers[playerIndex] = {
+      ...updatedPlayers[playerIndex],
+      confirmed: false,
+      isWaitlist: true,
+      waitlistJoinedAt,
+    };
+
+    const updateData: Record<string, unknown> = { players: updatedPlayers };
+
+    // Remover del equipo balanceado si existe
+    if (data.teams?.A && data.teams?.B) {
+      updateData.teams = {
+        A: (data.teams.A as Player[]).filter((p) => p.name !== playerName),
+        B: (data.teams.B as Player[]).filter((p) => p.name !== playerName),
+      };
+    }
+
+    transaction.update(ref, updateData);
+  });
+}
+
+/* =========================
    APROBAR DE L. DE ESPERA
 ========================= */
 export async function approveFromWaitlist(

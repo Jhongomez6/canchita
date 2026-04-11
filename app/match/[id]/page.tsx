@@ -15,6 +15,7 @@ import {
   deletePlayerFromMatch,
   markPlayerAttendance,
   approveFromWaitlist,
+  moveToWaitlist,
   deleteMatch,
   confirmTeams,
 } from "@/lib/matches";
@@ -762,6 +763,7 @@ export default function MatchDetailPage() {
               onMarkAttendance={(uid, status) => markPlayerAttendance(id, uid, status)}
               onMarkAllPresent={handleMarkAllPresent}
               onApproveFromWaitlist={async (name) => { await approveFromWaitlist(id, name); toast.success("Suplente aceptado y confirmado"); }}
+              onMoveToWaitlist={async (name) => { await moveToWaitlist(id, name); toast.success(`${name} movido a lista de espera`); }}
               onRemoveGuest={(invitedBy, name) => removeGuestFromMatch(id, invitedBy, name)}
               onPromoteGuest={async (name, invitedBy) => { await promoteGuestToMatch(id, name, invitedBy); toast.success("Suplente aceptado y confirmado"); }}
               onCopyRoster={async () => {

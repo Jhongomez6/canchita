@@ -4,12 +4,13 @@ import type { Player, Position, AttendanceStatus } from "@/lib/domain/player";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { POSITION_ICONS } from "@/lib/domain/player";
 import { logAttendanceMarked } from "@/lib/analytics";
-import { 
-  ChevronDown, 
-  Clock, 
-  Ban, 
-  Phone, 
-  CheckCircle2 
+import {
+  ChevronDown,
+  Clock,
+  Ban,
+  Phone,
+  CheckCircle2,
+  ListOrdered
 } from "lucide-react";
 
 interface PlayerRowProps {
@@ -26,6 +27,7 @@ interface PlayerRowProps {
   onUpdateLevel: (level: number) => void;
   onUpdatePositions: (positions: Position[]) => void;
   onMarkAttendance: (status: AttendanceStatus) => void;
+  onMoveToWaitlist: () => void;
 }
 
 export default function PlayerRow({
@@ -42,6 +44,7 @@ export default function PlayerRow({
   onUpdateLevel,
   onUpdatePositions,
   onMarkAttendance,
+  onMoveToWaitlist,
 }: PlayerRowProps) {
   return (
     <div className="py-3">
@@ -220,6 +223,19 @@ export default function PlayerRow({
                 </button>
               ))}
             </div>
+          )}
+
+          {/* Move to waitlist */}
+          {isOwner && !isClosed && p.confirmed && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToWaitlist();
+              }}
+              className="text-xs font-bold px-3 py-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors flex items-center gap-1.5"
+            >
+              <ListOrdered size={13} /> Mover a lista de espera
+            </button>
           )}
 
           {/* Delete */}

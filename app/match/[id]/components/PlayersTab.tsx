@@ -44,6 +44,7 @@ interface PlayersTabProps {
   onMarkAttendance: (uid: string, status: AttendanceStatus) => Promise<void>;
   onMarkAllPresent: () => Promise<void>;
   onApproveFromWaitlist: (name: string) => Promise<void>;
+  onMoveToWaitlist: (name: string) => Promise<void>;
   onRemoveGuest: (invitedBy: string, name: string) => Promise<void>;
   onPromoteGuest: (name: string, invitedBy: string) => Promise<void>;
   onCopyRoster: () => Promise<void>;
@@ -69,6 +70,7 @@ export default function PlayersTab({
   onMarkAttendance,
   onMarkAllPresent,
   onApproveFromWaitlist,
+  onMoveToWaitlist,
   onRemoveGuest,
   onPromoteGuest,
   onCopyRoster,
@@ -441,6 +443,7 @@ export default function PlayersTab({
               onDelete={() => {
                 if (confirm(`Eliminar a ${p.name}?`)) onDeletePlayer(p.name);
               }}
+              onMoveToWaitlist={() => onMoveToWaitlist(p.name)}
               onUpdateLevel={(level) => onUpdatePlayerData(p.name, { level })}
               onUpdatePositions={(positions) => onUpdatePlayerData(p.name, { positions })}
               onMarkAttendance={(status) => p.uid ? onMarkAttendance(p.uid, status) : Promise.resolve()}
