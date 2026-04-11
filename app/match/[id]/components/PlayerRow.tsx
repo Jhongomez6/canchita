@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import type { Player, Position, AttendanceStatus } from "@/lib/domain/player";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { POSITION_ICONS } from "@/lib/domain/player";
 import { logAttendanceMarked } from "@/lib/analytics";
 import { 
@@ -53,9 +53,11 @@ export default function PlayerRow({
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0">
             {(p.photoURLThumb ?? p.photoURL) ? (
-              <div className="w-10 h-10 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                <Image src={p.photoURLThumb ?? p.photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
-              </div>
+              <PlayerAvatar
+                src={p.photoURLThumb ?? p.photoURL!}
+                alt={p.name}
+                className="w-10 h-10 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
+              />
             ) : (
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${

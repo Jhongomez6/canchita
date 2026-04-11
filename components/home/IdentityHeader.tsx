@@ -1,8 +1,11 @@
+'use client';
+
 import type { UserProfile } from "@/lib/domain/user";
 import { calcCommitmentScore } from "@/lib/domain/user";
 import { Heart } from "lucide-react";
 import Link from "next/link";
 import { logTooltipOpened } from "@/lib/analytics";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 interface IdentityHeaderProps {
     profile: UserProfile;
@@ -38,12 +41,16 @@ export default function IdentityHeader({ profile, isAdmin, pendingConfirmations,
         <div className="flex items-center gap-3">
             {/* Avatar */}
             <Link href="/profile" className="block active:scale-95 transition-transform">
-                <div className="w-12 h-12 rounded-full shrink-0 overflow-hidden border-2 border-white/30">
+                <div className="w-12 h-12 rounded-full shrink-0 border-2 border-white/30">
                     {(profile.photoURLThumb ?? profile.photoURL) ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={profile.photoURLThumb ?? profile.photoURL} alt={profile.name} className="w-full h-full object-cover" />
+                        <PlayerAvatar
+                            src={profile.photoURLThumb ?? profile.photoURL!}
+                            alt={profile.name}
+                            className="w-12 h-12 rounded-full overflow-hidden relative"
+                            skeletonClassName="bg-white/20 rounded-full"
+                        />
                     ) : (
-                        <div className="w-full h-full bg-white/20 flex items-center justify-center text-white font-black text-base">
+                        <div className="w-full h-full bg-white/20 rounded-full flex items-center justify-center text-white font-black text-base">
                             {initials}
                         </div>
                     )}

@@ -172,6 +172,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
   const pg = profile.stats?.won || 0;
   const mvp = profile.mvpAwards || 0;
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [photoLoaded, setPhotoLoaded] = useState(false);
 
   const toggleTooltip = (label: string) => {
     if (activeTooltip !== label) {
@@ -233,14 +234,19 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
             <div className="mt-3 mb-1">
               <div className="relative mx-1.5 h-[180px]">
                 <div className="relative w-full h-full overflow-hidden rounded-full">
+                  {!photoLoaded && (
+                    <div className="absolute inset-0 bg-emerald-800/80 animate-pulse rounded-full" />
+                  )}
                   <Image
                     src={profile.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
                     alt={profile.name || "Jugador"}
                     fill
-                    className="object-cover"
+                    className={`object-cover transition-opacity duration-300 ${photoLoaded ? 'opacity-100' : 'opacity-0'}`}
                     sizes="256px"
                     priority
                     unoptimized
+                    onLoad={() => setPhotoLoaded(true)}
+                    onError={() => setPhotoLoaded(true)}
                   />
                   {/* Vignette — difumina bordes de la foto */}
                   <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(ellipse at center, transparent 62%, rgba(7,30,18,1) 88%, rgba(4,18,10,1) 100%), linear-gradient(to bottom, rgba(4,18,10,0.75) 0%, transparent 32%), linear-gradient(to top, rgba(4,18,10,0.9) 0%, transparent 40%)" }} />

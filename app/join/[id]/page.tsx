@@ -13,6 +13,7 @@ import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCirc
 
 import { AnimatePresence, motion } from "framer-motion";
 import AddGuestForm from "@/components/AddGuestForm";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { isInAppBrowser } from "@/lib/browser";
 import { Guest, guestToPlayer } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
@@ -900,9 +901,11 @@ export default function JoinMatchPage() {
                             <div className="flex items-center gap-2">
                               <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                                 {(photoURLThumb ?? photoURL) ? (
-                                  <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                    <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
-                                  </div>
+                                  <PlayerAvatar
+                                    src={photoURLThumb ?? photoURL!}
+                                    alt={p.name}
+                                    className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
+                                  />
                                 ) : (
                                   <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
                                     {p.name.charAt(0).toUpperCase()}
@@ -948,9 +951,11 @@ export default function JoinMatchPage() {
                             <div className="flex items-center gap-2">
                               <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                                 {(photoURLThumb ?? photoURL) ? (
-                                  <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                    <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
-                                  </div>
+                                  <PlayerAvatar
+                                    src={photoURLThumb ?? photoURL!}
+                                    alt={p.name}
+                                    className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
+                                  />
                                 ) : (
                                   <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
                                     {p.name.charAt(0).toUpperCase()}
@@ -1031,9 +1036,12 @@ export default function JoinMatchPage() {
                                   >
                                     <div className="relative">
                                       {(player.photoURLThumb ?? player.photoURL) ? (
-                                        <div className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}>
-                                          <Image src={player.photoURLThumb ?? player.photoURL!} alt={player.name} fill className="object-cover" sizes="96px" unoptimized />
-                                        </div>
+                                        <PlayerAvatar
+                                          src={player.photoURLThumb ?? player.photoURL!}
+                                          alt={player.name}
+                                          className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}
+                                          sizes="96px"
+                                        />
                                       ) : (
                                         <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-inner
                                             ${isWinner ? 'bg-amber-100/50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}>
@@ -1131,9 +1139,11 @@ export default function JoinMatchPage() {
                                           onClick={e => { e.stopPropagation(); if (p.uid && !p.uid.startsWith("guest_")) handlePlayerTap(p.uid); }}
                                         >
                                           {(photoURLThumb ?? photoURL) ? (
-                                            <div className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200">
-                                              <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
-                                            </div>
+                                            <PlayerAvatar
+                                              src={photoURLThumb ?? photoURL!}
+                                              alt={p.name}
+                                              className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200"
+                                            />
                                           ) : (
                                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? "bg-white text-amber-600" : "bg-slate-100 text-slate-500"}`}>
                                               {p.name.charAt(0).toUpperCase()}
@@ -1192,9 +1202,11 @@ export default function JoinMatchPage() {
                           <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg">
                             <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                               {(photoURLThumb ?? photoURL) ? (
-                                <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                  <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
-                                </div>
+                                <PlayerAvatar
+                                  src={photoURLThumb ?? photoURL!}
+                                  alt={p.name}
+                                  className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
+                                />
                               ) : (
                                 <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
                                   {p.name.charAt(0).toUpperCase()}
@@ -1235,9 +1247,11 @@ export default function JoinMatchPage() {
                           <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg">
                             <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                               {(photoURLThumb ?? photoURL) ? (
-                                <div className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-                                  <Image src={photoURLThumb ?? photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
-                                </div>
+                                <PlayerAvatar
+                                  src={photoURLThumb ?? photoURL!}
+                                  alt={p.name}
+                                  className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
+                                />
                               ) : (
                                 <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
                                   {p.name.charAt(0).toUpperCase()}
@@ -1339,9 +1353,11 @@ export default function JoinMatchPage() {
                       <div className="flex items-center gap-3">
                         <div className={`relative shrink-0 ${p.uid ? "cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                           {(p.photoURLThumb ?? p.photoURL) ? (
-                            <div className="w-9 h-9 rounded-full overflow-hidden relative border border-emerald-200 shadow-sm">
-                              <Image src={p.photoURLThumb ?? p.photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
-                            </div>
+                            <PlayerAvatar
+                              src={p.photoURLThumb ?? p.photoURL!}
+                              alt={p.name}
+                              className="w-9 h-9 rounded-full overflow-hidden relative border border-emerald-200 shadow-sm"
+                            />
                           ) : (
                             <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-black shadow-sm ring-1 ring-emerald-200">
                               {p.name.charAt(0).toUpperCase()}
@@ -1456,9 +1472,11 @@ export default function JoinMatchPage() {
                         <div className="flex items-center gap-3">
                           <div className={`relative shrink-0 ${!isGuest && p.uid ? "cursor-pointer" : ""}`} onClick={() => !isGuest && handlePlayerTap(p.uid)}>
                             {(p.photoURLThumb ?? p.photoURL) ? (
-                              <div className="w-8 h-8 rounded-full overflow-hidden relative border border-amber-200 ring-1 ring-amber-100 shadow-sm">
-                                <Image src={p.photoURLThumb ?? p.photoURL!} alt={p.name} fill className="object-cover" sizes="48px" unoptimized />
-                              </div>
+                              <PlayerAvatar
+                                src={p.photoURLThumb ?? p.photoURL!}
+                                alt={p.name}
+                                className="w-8 h-8 rounded-full overflow-hidden relative border border-amber-200 ring-1 ring-amber-100 shadow-sm"
+                              />
                             ) : (
                               <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center text-xs font-bold ring-1 ring-amber-200">
                                 #{i + 1}

@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useSortable } from "@dnd-kit/sortable";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { CSS } from "@dnd-kit/utilities";
 import { POSITION_ICONS, type Position } from "@/lib/domain/player";
 import { Zap, Crown } from "lucide-react";
@@ -58,9 +58,11 @@ export default function PlayerItem({
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
           {(photoURLThumb ?? photoURL) ? (
-            <div className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm">
-              <Image src={photoURLThumb ?? photoURL!} alt={name} fill className="object-cover" sizes="48px" unoptimized />
-            </div>
+            <PlayerAvatar
+              src={photoURLThumb ?? photoURL!}
+              alt={name}
+              className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
+            />
           ) : (
             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
               {name.charAt(0).toUpperCase()}
