@@ -9,7 +9,7 @@ import { loginWithGoogle } from "@/lib/auth";
 import { formatDateSpanish, formatDateShort, formatTime12h, formatEndTime } from "@/lib/date";
 import { googleMapsEmbedUrl, googleMapsLink, wazeLink } from "@/lib/maps";
 import Image from "next/image";
-import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCircle, CheckCircle2, ClipboardList, Trophy, Crown, Star, CalendarX, Lock, Activity, Calendar, Wallet } from "lucide-react";
+import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCircle, CheckCircle2, ClipboardList, Trophy, Crown, Star, CalendarX, Lock, Activity, Calendar, Wallet as WalletIcon } from "lucide-react";
 
 import { AnimatePresence, motion } from "framer-motion";
 import AddGuestForm from "@/components/AddGuestForm";
@@ -655,7 +655,7 @@ export default function JoinMatchPage() {
               {/* Depósito */}
               {(match.deposit ?? 0) > 0 && (
                 <div className="flex items-center gap-3 text-slate-600">
-                  <Wallet size={18} className="text-emerald-500 shrink-0" />
+                  <WalletIcon size={18} className="text-emerald-500 shrink-0" />
                   <span className="text-sm font-medium text-slate-700">
                     Depósito requerido <span className="font-bold text-emerald-600">{formatCOP(match.deposit!)}</span>
                   </span>

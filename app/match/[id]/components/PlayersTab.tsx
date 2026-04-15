@@ -432,7 +432,6 @@ export default function PlayersTab({
               player={p}
               isOwner={isOwner}
               isClosed={isClosed}
-              isFull={isFull}
               isExpanded={expandedPlayerId === (p.uid || p.name)}
               onToggleExpand={() =>
                 setExpandedPlayerId(

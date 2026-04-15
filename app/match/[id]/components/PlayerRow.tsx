@@ -20,7 +20,6 @@ interface PlayerRowProps {
   player: Player;
   isOwner: boolean;
   isClosed: boolean;
-  isFull: boolean;
   isExpanded: boolean;
   onToggleExpand: () => void;
   onDelete: () => void;
@@ -38,7 +37,6 @@ export default function PlayerRow({
   player: p,
   isOwner,
   isClosed,
-  isFull,
   isExpanded,
   onToggleExpand,
   onDelete,
