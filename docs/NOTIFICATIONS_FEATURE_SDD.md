@@ -35,7 +35,10 @@ interface AppNotification {
     id?: string;
     title: string;
     body: string;
-    type: 'feedback_resolved' | 'match_reminder' | 'mvp' | 'teams_confirmed' | 'mvp_voting_open' | 'general';
+    type: 'feedback_resolved' | 'match_reminder' | 'mvp' | 'teams_confirmed' | 'mvp_voting_open' | 'general'
+      | 'player_removed'   // admin retiró al jugador del partido
+      | 'match_deleted'    // partido fue cancelado por el organizador
+      | 'wallet_topup';    // recarga exitosa en la billetera
     url?: string;       // deeplink para navegación
     read: boolean;
     createdAt: string;  // ISO string
@@ -51,7 +54,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 {
     "title": "string",
     "body": "string",
-    "type": "feedback_resolved" | "match_reminder" | "mvp" | "teams_confirmed" | "mvp_voting_open" | "general",
+    "type": "feedback_resolved" | "match_reminder" | "mvp" | "teams_confirmed" | "mvp_voting_open" | "general" | "player_removed" | "match_deleted" | "wallet_topup",
     "url": "string (optional)",
     "read": "boolean",
     "createdAt": "ISOString"
@@ -77,6 +80,9 @@ Colección: `notifications/{userId}/items/{notifId}`
 | 13 | **Estado de push en perfil: 3 estados** | Activas (granted + enabled), Bloqueadas (denied + enabled), Inactivas (no enabled) |
 | 14 | **Idempotencia en recordatorio manual** | `sendManualReminder()` usa `remindersSent.manual` (timestamp ISO) como debounce de 5 minutos para prevenir envíos duplicados |
 | 15 | **Notificación de Votación MVP** | Se dispara cuando `status` cambia de `open` a `closed`. Notifica a todos los jugadores confirmados con UID. Usa `remindersSent.mvpVotingOpen` para evitar duplicados. |
+| 16 | Cuando un admin retira a un jugador con uid (`adminRemovePlayer`), se envía una notificación in-app al jugador. Si tenía depósito (`depositPaid: true`), el cuerpo menciona el reembolso y el url apunta a `/wallet`. Si no, url apunta a `/join/{matchId}`. | `adminRemovePlayer` en `functions/src/payments.ts` |
+| 17 | Cuando se borra un partido, todos los jugadores con uid (confirmados y en waitlist) reciben notificación `match_deleted`. Los que tenían `depositPaid: true` reciben mención del reembolso y url `/wallet`; los demás url `/`. | `deleteMatchWithRefunds` en `functions/src/payments.ts` |
+| 18 | La notificación `wallet_topup` se envía cuando el webhook de Wompi acredita exitosamente una recarga. | `wompiWebhook` en `functions/src/payments.ts` |
 
 
 ---
@@ -92,6 +98,7 @@ Colección: `notifications/{userId}/items/{notifId}`
 | UI | `components/skeletons/NotificationsSkeleton.tsx` | Skeleton exacto de carga |
 | UI | `components/Header.tsx` | Campana + botón para abrir Drawer |
 | Backend | `functions/src/reminders.ts` | Cloud Functions (`safeSendPush`, `cleanupInvalidTokens`, batch reads) |
+| Backend | `functions/src/payments.ts` | Notificaciones `player_removed`, `match_deleted`, `wallet_topup` |
 | Push | `lib/firebase-messaging.ts` | Foreground push display, SW registration singleton (v4) |
 | Push | `lib/push.ts` | Token registration (primera vez), manual reminders |
 | Push | `lib/hooks/useTokenRefresh.ts` | **Auto-refresh de tokens FCM** en cada carga de app |

@@ -51,6 +51,14 @@ self.addEventListener("notificationclick", function (event) {
 messaging.onBackgroundMessage(function (payload) {
   console.log("[SW] Background message received:", payload);
 
+  // Silent badge-clear message — just clear the badge, no notification
+  if (payload.data?.type === "badge_clear") {
+    if ("clearAppBadge" in self.navigator) {
+      self.navigator.clearAppBadge().catch(() => {});
+    }
+    return;
+  }
+
   // If FCM already shows the notification (via `notification` field),
   // this won't duplicate because we check for the notification field
   // and only show manually for data-only messages or as a safety net.

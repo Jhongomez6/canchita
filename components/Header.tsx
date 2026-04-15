@@ -7,8 +7,10 @@ import { logout } from "@/lib/auth";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
-import { isSuperAdmin } from "@/lib/domain/user";
+import { isSuperAdmin, hasWalletAccess } from "@/lib/domain/user";
 import { logNotificationsOpened, logTooltipOpened } from "@/lib/analytics";
+import { subscribeToWallet } from "@/lib/wallet";
+import { formatCOP } from "@/lib/domain/wallet";
 import dynamic from "next/dynamic";
 const NotificationsDrawer = dynamic(() => import("./NotificationsDrawer"), { ssr: false });
 
@@ -18,6 +20,7 @@ export default function Header() {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const skipFetchRef = useRef(false);
 
   const isAdmin = profile?.roles?.includes("admin") ?? false;
@@ -56,6 +59,18 @@ export default function Header() {
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [user, pathname, isDrawerOpen]);
+
+  // Suscripción en tiempo real al saldo de billetera (solo si tiene acceso)
+  useEffect(() => {
+    if (!user || !profile || !hasWalletAccess(profile)) {
+      setWalletBalance(null);
+      return;
+    }
+    const unsub = subscribeToWallet(user.uid, (w) => {
+      setWalletBalance(w?.balanceCOP ?? 0);
+    });
+    return () => unsub();
+  }, [user, profile]);
 
   // Sync unread count → OS app badge (Badging API)
   useEffect(() => {
@@ -237,6 +252,34 @@ export default function Header() {
                 Push 🧪
               </Link>
             </>
+          )}
+
+          {/* WALLET BALANCE PILL */}
+          {walletBalance !== null && (
+            <Link
+              href="/wallet"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                background: "#ffffff",
+                borderRadius: 8,
+                padding: "5px 10px",
+                color: "#1f7a4f",
+                fontWeight: 700,
+                fontSize: 13,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {/* Wallet icon inline */}
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+                <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+              </svg>
+              {formatCOP(walletBalance)}
+            </Link>
           )}
 
           {/* BELL ICON */}

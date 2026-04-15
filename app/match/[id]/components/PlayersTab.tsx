@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import { 
-  CheckCircle2, 
-  Clock, 
+  CheckCircle2,
+  Clock,
+  UserX,
   Ticket, 
   ClipboardList, 
   ClipboardCheck, 
@@ -37,8 +38,6 @@ interface PlayersTabProps {
   // Actions
   onAddRegisteredPlayer: (uid: string) => Promise<void>;
   onAddManualPlayer: (name: string, level: number, positions: string[]) => Promise<void>;
-  onConfirmAttendance: (name: string) => Promise<void>;
-  onUnconfirmAttendance: (name: string) => Promise<void>;
   onDeletePlayer: (name: string) => Promise<void>;
   onUpdatePlayerData: (name: string, data: { level?: number; positions?: Position[] }) => Promise<void>;
   onMarkAttendance: (uid: string, status: AttendanceStatus) => Promise<void>;
@@ -63,8 +62,6 @@ export default function PlayersTab({
   onGuestLevelChange,
   onAddRegisteredPlayer,
   onAddManualPlayer,
-  onConfirmAttendance,
-  onUnconfirmAttendance,
   onDeletePlayer,
   onUpdatePlayerData,
   onMarkAttendance,
@@ -78,6 +75,10 @@ export default function PlayersTab({
   onShareTelegram,
 }: PlayersTabProps) {
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
+  const [deletingPlayer, setDeletingPlayer] = useState<string | null>(null);
+  const [movingToWaitlist, setMovingToWaitlist] = useState<string | null>(null);
+  const [acceptingFromWaitlist, setAcceptingFromWaitlist] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ name: string; hasDeposit: boolean; isWaitlist: boolean } | null>(null);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
   const [attendanceMode, setAttendanceMode] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -134,7 +135,7 @@ export default function PlayersTab({
         </span>
         {pendingPlayers.length > 0 && (
           <span className="flex-1 flex items-center justify-center gap-1.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg py-2">
-            <Clock size={12} /> {pendingPlayers.length} Pendientes
+            <UserX size={12} /> {pendingPlayers.length} Cancelados
           </span>
         )}
         {guests.length > 0 && (
@@ -438,12 +439,20 @@ export default function PlayersTab({
                   expandedPlayerId === (p.uid || p.name) ? null : (p.uid || p.name)
                 )
               }
-              onConfirm={() => onConfirmAttendance(p.name)}
-              onUnconfirm={() => onUnconfirmAttendance(p.name)}
+              matchDeposit={match.deposit ?? 0}
+              isDeleting={deletingPlayer === p.name}
               onDelete={() => {
-                if (confirm(`Eliminar a ${p.name}?`)) onDeletePlayer(p.name);
+                setDeleteConfirm({
+                  name: p.name,
+                  hasDeposit: !!(match.deposit && match.deposit > 0 && (p as { depositPaid?: boolean }).depositPaid),
+                  isWaitlist: false,
+                });
               }}
-              onMoveToWaitlist={() => onMoveToWaitlist(p.name)}
+              isMovingToWaitlist={movingToWaitlist === p.name}
+              onMoveToWaitlist={() => {
+                setMovingToWaitlist(p.name);
+                onMoveToWaitlist(p.name).finally(() => setMovingToWaitlist(null));
+              }}
               onUpdateLevel={(level) => onUpdatePlayerData(p.name, { level })}
               onUpdatePositions={(positions) => onUpdatePlayerData(p.name, { positions })}
               onMarkAttendance={(status) => p.uid ? onMarkAttendance(p.uid, status) : Promise.resolve()}
@@ -590,30 +599,40 @@ export default function PlayersTab({
                       {isOwner && !isClosed && (
                         <>
                           <button
+                            disabled={acceptingFromWaitlist === p.name}
                             onClick={async () => {
-                              if (isGuest) {
-                                await onPromoteGuest(rawGuestName, guestInviterUid);
-                              } else {
-                                await onApproveFromWaitlist(p.name);
+                              setAcceptingFromWaitlist(p.name);
+                              try {
+                                if (isGuest) {
+                                  await onPromoteGuest(rawGuestName, guestInviterUid);
+                                } else {
+                                  await onApproveFromWaitlist(p.name);
+                                }
+                              } finally {
+                                setAcceptingFromWaitlist(null);
                               }
                             }}
-                            className="text-xs font-bold px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"
+                            className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${acceptingFromWaitlist === p.name ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"}`}
                           >
-                            Aceptar
+                            {acceptingFromWaitlist === p.name ? "Aceptando…" : "Aceptar"}
                           </button>
 
                           <button
+                            disabled={deletingPlayer === p.name}
                             onClick={() => {
-                              if (!confirm(`¿Eliminar a ${p.name} de la lista de espera?`)) return;
                               if (isGuest) {
                                 onRemoveGuest(guestInviterUid, rawGuestName);
                               } else {
-                                onDeletePlayer(p.name);
+                                setDeleteConfirm({
+                                  name: p.name,
+                                  hasDeposit: !!(match.deposit && match.deposit > 0 && (p as { depositPaid?: boolean }).depositPaid),
+                                  isWaitlist: true,
+                                });
                               }
                             }}
-                            className="text-xs font-bold px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
+                            className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${deletingPlayer === p.name ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-red-50 text-red-600 hover:bg-red-100"}`}
                           >
-                            Eliminar
+                            {deletingPlayer === p.name ? "Eliminando…" : "Eliminar"}
                           </button>
                         </>
                       )}
@@ -625,6 +644,46 @@ export default function PlayersTab({
           </div>
         )}
       </div>
+
+      {/* Modal confirmación eliminar jugador */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold text-slate-800 mb-2">
+              {deleteConfirm.isWaitlist ? "¿Eliminar de la lista de espera?" : "¿Eliminar jugador?"}
+            </h2>
+            <p className="text-sm text-slate-500 mb-2">
+              {deleteConfirm.name} será eliminado{deleteConfirm.isWaitlist ? " de la lista de espera" : " del partido"}.
+            </p>
+            {deleteConfirm.hasDeposit && (
+              <p className="text-sm text-emerald-700 font-semibold bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 mb-4">
+                El depósito será reembolsado a su billetera.
+              </p>
+            )}
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deletingPlayer === deleteConfirm.name}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={deletingPlayer === deleteConfirm.name}
+                onClick={() => {
+                  const name = deleteConfirm.name;
+                  setDeletingPlayer(name);
+                  setDeleteConfirm(null);
+                  onDeletePlayer(name).finally(() => setDeletingPlayer(null));
+                }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deletingPlayer === deleteConfirm.name ? "Eliminando…" : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

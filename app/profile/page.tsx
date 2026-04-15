@@ -922,13 +922,22 @@ export default function ProfilePage() {
               <h3 className="text-sm font-bold text-slate-600 mb-3 flex items-center gap-1.5">
                 <Settings className="w-4 h-4" /> Herramientas Admin
               </h3>
-              <Link
-                href="/admin/push-test"
-                className="flex items-center justify-between px-4 py-3 bg-white rounded-xl shadow-sm border border-slate-100 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <span>🧪 Push & Badge Diagnostics</span>
-                <ChevronRight size={16} className="text-slate-400" />
-              </Link>
+              <div className="space-y-2">
+                <Link
+                  href="/admin/codes"
+                  className="flex items-center justify-between px-4 py-3 bg-white rounded-xl shadow-sm border border-slate-100 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <span>🎟️ Generar códigos de recarga</span>
+                  <ChevronRight size={16} className="text-slate-400" />
+                </Link>
+                <Link
+                  href="/admin/push-test"
+                  className="flex items-center justify-between px-4 py-3 bg-white rounded-xl shadow-sm border border-slate-100 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <span>🧪 Push & Badge Diagnostics</span>
+                  <ChevronRight size={16} className="text-slate-400" />
+                </Link>
+              </div>
             </div>
           )}
 

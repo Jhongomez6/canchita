@@ -44,7 +44,8 @@ Funciones migradas a `runTransaction`:
 
 | Función | Campos leídos | Campos escritos |
 |---------|--------------|-----------------|
-| `unconfirmAttendance()` | `players`, `teams` | `players`, `teams` |
+| `unconfirmAttendance()` | `players`, `teams`, `playerUids` | `players`, `teams`, `playerUids` |
+| `confirmAttendance()` | `players` | `players`, `playerUids` (optional via arrayUnion) |
 | `leaveWaitlist()` | `players` | `players`, `playerUids` |
 | `updatePlayerData()` | `players` | `players` |
 | `addPlayerToMatch()` | `players`, `teams` | `players`, `playerUids`, `teams` |
@@ -52,6 +53,8 @@ Funciones migradas a `runTransaction`:
 | `markPlayerAttendance()` | `players` | `players` |
 
 **Nota sobre `addPlayerToMatch`**: La lectura del perfil de usuario (`getUserProfile`) se ejecuta **antes** de la transacción, ya que el perfil no compite con el documento del match.
+
+**Nota sobre `unconfirmAttendance` y `confirmAttendance`**: `unconfirmAttendance()` ahora también remueve el uid de `playerUids` para que la Home Page pueda filtrar correctamente (usa `array-contains` sobre `playerUids`). `confirmAttendance()` acepta `uid?` opcional y lo restaura en `playerUids` via `arrayUnion` cuando el jugador había cancelado previamente — esto es necesario porque las Firestore Rules requieren que el uid esté en `playerUids` (antes o después del update) para permitir la escritura.
 
 ### Capa API — `lib/playerStats.ts`
 

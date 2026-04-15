@@ -80,6 +80,7 @@ export async function createMatch(match: {
   isPrivate?: boolean;
   allowGuests?: boolean;
   instructions?: string;
+  deposit?: number;
 }) {
   const profile = await getUserProfile(match.createdBy);
   if (!profile) throw new Error("No se encontró el perfil de usuario");
@@ -480,7 +481,8 @@ export async function approveFromWaitlist(
 ========================= */
 export async function confirmAttendance(
   matchId: string,
-  playerName: string
+  playerName: string,
+  uid?: string
 ) {
   const ref = doc(db, "matches", matchId);
 
@@ -510,6 +512,12 @@ export async function confirmAttendance(
     );
 
     const confirmUpdate: Record<string, unknown> = { players: updatedPlayers };
+
+    // Si el uid fue removido de playerUids (ej. al cancelar asistencia), restaurarlo
+    if (uid) {
+      confirmUpdate.playerUids = arrayUnion(uid);
+    }
+
     if (data.teams?.A && data.teams?.B) {
       const confirmedPlayer = updatedPlayers.find((p) => p.name === playerName);
       if (confirmedPlayer) {
@@ -536,12 +544,20 @@ export async function unconfirmAttendance(
 
     const data = snap.data();
     const players: Player[] = data.players || [];
+    const playerUids: string[] = data.playerUids || [];
+
+    const cancelledPlayer = players.find((p) => p.name === playerName);
 
     const updatedPlayers = players.map((p) =>
       p.name === playerName ? { ...p, confirmed: false } : p
     );
 
-    const updateData: Record<string, unknown> = { players: updatedPlayers };
+    const updateData: Record<string, unknown> = {
+      players: updatedPlayers,
+      playerUids: cancelledPlayer?.uid
+        ? playerUids.filter((uid) => uid !== cancelledPlayer.uid)
+        : playerUids,
+    };
 
     // Remove player from balanced teams if they exist
     if (data.teams?.A && data.teams?.B) {
@@ -622,7 +638,7 @@ export async function addPlayerToMatch(
 
     const newPlayer = {
       ...player,
-      confirmed: player.confirmed ?? false,
+      confirmed: player.confirmed ?? true,
       ...(photoURL ? { photoURL } : {}),
       ...(photoURLThumb ? { photoURLThumb } : {}),
     };
@@ -853,7 +869,22 @@ export async function savePaymentsInBatch(
   await updateDoc(ref, updateData);
 }
 
-export async function deleteMatch(matchId: string): Promise<void> {
+/**
+ * Borra un partido.
+ * - Si tiene depósito o jugadores confirmados: usa la Cloud Function
+ *   (reembolsa depósitos + envía notificaciones in-app).
+ * - Si no hay nada que notificar ni reembolsar: borra directo (más rápido y barato).
+ */
+export async function deleteMatch(
+  matchId: string,
+  opts?: { hasDeposit?: boolean; confirmedCount?: number }
+): Promise<{ refundedCount: number }> {
+  const needsFunction = (opts?.hasDeposit ?? false) || (opts?.confirmedCount ?? 0) > 0;
+  if (needsFunction) {
+    const { deleteMatchWithRefunds } = await import("./wallet");
+    return deleteMatchWithRefunds(matchId);
+  }
   const ref = doc(db, "matches", matchId);
   await deleteDoc(ref);
+  return { refundedCount: 0 };
 }

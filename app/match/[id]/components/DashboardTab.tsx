@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { Match, MatchPhase } from "@/lib/domain/match";
 import { formatDateSpanish, formatTime12h, formatEndTime } from "@/lib/date";
+import { formatCOP } from "@/lib/domain/wallet";
 import MatchProgressBar from "./MatchProgressBar";
 import type { TabId } from "./MatchAdminTabs";
 
@@ -143,6 +144,15 @@ export default function DashboardTab({
               {match.duration ? <span className="text-slate-400 font-normal"> · hasta las {formatEndTime(match.time, match.duration)}</span> : ""}
             </span>
           </div>
+
+          {(match.deposit ?? 0) > 0 && (
+            <div className="flex items-center gap-3">
+              <DollarSign size={18} className="text-emerald-500" />
+              <span className="text-slate-600 font-medium">
+                Depósito requerido <span className="font-bold text-emerald-600">{formatCOP(match.deposit!)}</span>
+              </span>
+            </div>
+          )}
 
           {isClosed && match.closedAt && (
             <div className="flex items-center gap-3 bg-red-50 p-2 rounded-lg border border-red-100 mt-1">
@@ -306,9 +316,15 @@ export default function DashboardTab({
         >
           <DollarSign size={24} className="text-emerald-600 mb-1" />
           <div className="text-sm font-black text-emerald-600">Cobros</div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            Pagos
-          </div>
+          {(match.deposit ?? 0) > 0 ? (
+            <div className="text-[10px] font-bold text-emerald-600 mt-0.5">
+              Dep. {formatCOP(match.deposit!)}
+            </div>
+          ) : (
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Pagos
+            </div>
+          )}
         </button>
       </div>
 

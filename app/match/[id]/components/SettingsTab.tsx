@@ -427,9 +427,14 @@ export default function SettingsTab({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-lg font-bold text-slate-800 mb-2">¿Borrar partido?</h2>
-            <p className="text-sm text-slate-500 mb-6">
+            <p className="text-sm text-slate-500 mb-2">
               Esta acción es permanente. El partido y todos sus datos serán eliminados.
             </p>
+            {(match.deposit ?? 0) > 0 && (
+              <p className="text-sm text-emerald-700 font-semibold bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 mb-4">
+                Los depósitos de los jugadores confirmados serán reembolsados automáticamente a sus billeteras.
+              </p>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}

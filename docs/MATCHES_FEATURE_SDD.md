@@ -30,6 +30,7 @@ interface Match {
   status: "open" | "closed";
   createdBy: string;      // UID del administrador
   allowGuests?: boolean;  // Si el partido permite agregar invitados (por defecto true si no existe)
+  deposit?: number;      // centavos COP — valores válidos: 500000 ($5k) o 1000000 ($10k)
   creatorSnapshot?: { name: string; photoURL?: string; phone?: string }; // Snapshot del creador
   players: Player[];      // Lista de jugadores
   guests?: Guest[];       // Invitados (ver GUESTS_FEATURE_SDD.md)
@@ -50,6 +51,7 @@ interface Player {
   primaryPosition?: Position; // Posición principal preferida (renderizada con 👑)
   confirmed: boolean;     // Si confirmó asistencia
   photoURL?: string;      // URL de la foto de perfil (Firebase Storage)
+  depositPaid?: boolean;  // true si el jugador pagó depósito al unirse (via joinWithDeposit)
 }
 ```
 
@@ -62,7 +64,7 @@ interface Player {
 | 3 | Partido no puede cerrarse sin equipos balanceados | Validación en UI (`disabled={!match?.teams}`) |
 | 4 | Jugador puede confirmar/cancelar asistencia | `confirmAttendance()` / `unconfirmAttendance()` en `lib/matches.ts` |
 | 5 | Admin puede agregar jugadores registrados o manuales | `addPlayerToMatch()` en `lib/matches.ts` |
-| 6 | Owner (o Super Admin) puede eliminar jugadores | `deletePlayerFromMatch()` en `lib/matches.ts` |
+| 6 | Owner (o Super Admin) puede eliminar jugadores — siempre vía `adminRemovePlayer` Cloud Function (envía notificación in-app al jugador retirado) | `adminRemovePlayer` Cloud Function en `functions/src/payments.ts` |
 | 7 | Al cerrar partido se registran estadísticas | `updatePlayerStats()` en `lib/playerStats.ts` |
 | 8 | Partido reabierto revierte stats previos | `previousResult` param en `updatePlayerStats()` |
 | 9 | Invitados visibles y balanceables desde match detail | Guest display + `guestToPlayer()` en match page |
@@ -83,6 +85,10 @@ interface Player {
 | 24 | El link "Vista jugador" está siempre accesible en la cabecera del Dashboard para previsualización rápida | `DashboardTab.tsx` header con link persistente a `/join/[id]` |
 | 25 | Los controles de compartir (Link, Código, Invitación, Reporte) están consolidados en el Dashboard (Quick Share Bar) | `DashboardTab.tsx` > `Quick Share Bar` (5 botones compactos) |
 | 26 | Los reportes de lista en la pestaña Jugadores incluyen tanto jugadores registrados como invitados | `PlayersTab.tsx` > Conteo total `(confirmedPlayers.length + guests.length)` |
+| 27 | Al cancelar asistencia (`unconfirmAttendance`), el jugador queda `confirmed: false` en `players` (visible para admin) y se remueve de `playerUids` (libera cupo). La Home Page filtra partidos donde el usuario tiene `confirmed: false`. | `unconfirmAttendance()` en `lib/matches.ts` |
+| 28 | Al volver a anotarse en un partido sin depósito después de cancelar, `confirmAttendance(matchId, playerName, uid)` restaura el uid en `playerUids` vía `arrayUnion`. Esto es necesario porque las Firestore Rules requieren que el uid esté en `playerUids` para hacer updates. | `confirmAttendance()` en `lib/matches.ts` acepta `uid?` opcional |
+| 29 | Los jugadores en lista de espera NO pagan depósito, ni al anotarse ni al ser aceptados por el admin. | `depositPaid` permanece `undefined`/`false` para jugadores de waitlist |
+| 30 | El campo `depositPaid: true` en el objeto Player es la fuente de verdad para saber si un jugador debe recibir reembolso al ser eliminado o al cancelarse el partido. | `adminRemovePlayer` y `deleteMatchWithRefunds` en `functions/src/payments.ts` |
 
 ---
 
@@ -457,10 +463,11 @@ describe("isMatchFull", () => {
 | Dominio | `lib/domain/player.ts` | Player, Position |
 | Dominio | `lib/domain/team.ts` | `sortTeamForDisplay()` |
 | Dominio | `lib/domain/errors.ts` | MatchFullError |
-| API | `lib/matches.ts` | CRUD Firestore, `getMyMatches()` (dual query) |
+| API | `lib/matches.ts` | CRUD Firestore, `getMyMatches()` (dual query), `confirmAttendance(matchId, playerName, uid?)`, `deleteMatch(matchId, opts?)` |
 | API | `lib/playerStats.ts` | Estadísticas |
 | API | `lib/matchReport.ts` | Reporte WhatsApp |
 | API | `lib/matchCode.ts` | Sanitización de códigos (.ai/.app trick, URLs, query params) |
+| Backend | `functions/src/payments.ts` | `adminRemovePlayer` (única vía para eliminar jugadores con uid; envía notificación + reembolso condicional), `deleteMatchWithRefunds` |
 | Test | `lib/matchCode.test.ts` | 22 tests para sanitizeMatchCode |
 | UI | `app/match/[id]/page.tsx` | Orquestador admin (onSnapshot, state, callbacks) |
 | UI | `app/match/[id]/components/*.tsx` | 12 componentes: Tabs, Dashboard, Players, Teams, Settings, FAB, etc. |

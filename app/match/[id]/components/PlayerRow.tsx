@@ -10,8 +10,10 @@ import {
   Ban,
   Phone,
   CheckCircle2,
-  ListOrdered
+  ListOrdered,
+  Wallet
 } from "lucide-react";
+import { formatCOP } from "@/lib/domain/wallet";
 
 interface PlayerRowProps {
   matchId: string;
@@ -21,13 +23,14 @@ interface PlayerRowProps {
   isFull: boolean;
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onConfirm: () => void;
-  onUnconfirm: () => void;
   onDelete: () => void;
+  isDeleting?: boolean;
   onUpdateLevel: (level: number) => void;
   onUpdatePositions: (positions: Position[]) => void;
   onMarkAttendance: (status: AttendanceStatus) => void;
   onMoveToWaitlist: () => void;
+  isMovingToWaitlist?: boolean;
+  matchDeposit?: number;
 }
 
 export default function PlayerRow({
@@ -38,13 +41,14 @@ export default function PlayerRow({
   isFull,
   isExpanded,
   onToggleExpand,
-  onConfirm,
-  onUnconfirm,
   onDelete,
+  isDeleting = false,
   onUpdateLevel,
   onUpdatePositions,
   onMarkAttendance,
   onMoveToWaitlist,
+  isMovingToWaitlist = false,
+  matchDeposit = 0,
 }: PlayerRowProps) {
   return (
     <div className="py-3">
@@ -84,10 +88,10 @@ export default function PlayerRow({
                 className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
                   p.confirmed
                     ? "bg-emerald-50 text-emerald-600"
-                    : "bg-amber-50 text-amber-600"
+                    : "bg-red-50 text-red-500"
                 }`}
               >
-                {p.confirmed ? "Confirmado" : "Pendiente"}
+                {p.confirmed ? "Confirmado" : "Canceló"}
               </span>
               {p.attendance && p.attendance !== "present" && (
                 <span className="text-[10px] font-bold text-slate-500">
@@ -99,28 +103,17 @@ export default function PlayerRow({
                 </span>
               )}
               <span className="text-[10px] text-slate-400">Lvl {p.level ?? 2}</span>
+              {matchDeposit > 0 && (
+                <span className={`text-[10px] font-bold flex items-center gap-0.5 ${(p as { depositPaid?: boolean }).depositPaid ? "text-emerald-600" : "text-red-500"}`}>
+                  <Wallet size={9} />
+                  {(p as { depositPaid?: boolean }).depositPaid ? formatCOP(matchDeposit) : "Sin dep."}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* Context action — confirm/unconfirm */}
-          {!isClosed && (
-            <button
-              disabled={!p.confirmed && isFull}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (p.confirmed) { onUnconfirm(); } else { onConfirm(); }
-              }}
-              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${
-                p.confirmed
-                  ? "bg-red-50 text-red-600 hover:bg-red-100"
-                  : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-              }`}
-            >
-              {p.confirmed ? "Cancelar" : "Confirmar"}
-            </button>
-          )}
 
           {/* Expand indicator */}
           <ChevronDown
@@ -228,26 +221,28 @@ export default function PlayerRow({
           {/* Move to waitlist */}
           {isOwner && !isClosed && p.confirmed && (
             <button
+              disabled={isMovingToWaitlist}
               onClick={(e) => {
                 e.stopPropagation();
                 onMoveToWaitlist();
               }}
-              className="text-xs font-bold px-3 py-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors flex items-center gap-1.5"
+              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${isMovingToWaitlist ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-amber-50 text-amber-600 hover:bg-amber-100"}`}
             >
-              <ListOrdered size={13} /> Mover a lista de espera
+              <ListOrdered size={13} /> {isMovingToWaitlist ? "Moviendo…" : "Mover a lista de espera"}
             </button>
           )}
 
           {/* Delete */}
           {isOwner && !isClosed && (
             <button
+              disabled={isDeleting}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
               }}
-              className="text-xs font-bold px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${isDeleting ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-red-50 text-red-600 hover:bg-red-100"}`}
             >
-              Eliminar jugador
+              {isDeleting ? "Eliminando…" : "Eliminar jugador"}
             </button>
           )}
         </div>

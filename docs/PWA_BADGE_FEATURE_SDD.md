@@ -107,12 +107,27 @@ if ("setAppBadge" in self.navigator) {
 }
 ```
 
-**En `onBackgroundMessage`** (agregar al final del handler, fuera del `if`):
+**En `onBackgroundMessage`** — primero interceptar `badge_clear` para evitar notificación fantasma, luego setear badge para mensajes normales:
 ```js
-if ("setAppBadge" in self.navigator) {
-  self.navigator.setAppBadge().catch(() => {});
-}
+messaging.onBackgroundMessage(function (payload) {
+  // Silent badge-clear message — just clear the badge, no notification
+  if (payload.data?.type === "badge_clear") {
+    if ("clearAppBadge" in self.navigator) {
+      self.navigator.clearAppBadge().catch(() => {});
+    }
+    return; // No mostrar notificación
+  }
+
+  // ... mostrar notificación normal ...
+
+  // Set app badge para mensajes normales
+  if ("setAppBadge" in self.navigator) {
+    self.navigator.setAppBadge().catch(() => {});
+  }
+});
 ```
+
+> **Bug conocido (resuelto):** Sin el guard `badge_clear`, el SW mostraba una notificación vacía con título "La Canchita" y body en blanco cada vez que el usuario leía sus notificaciones. Causa: `clearIOSBadge` envía un mensaje data-only (`!payload.notification === true`) que el handler trataba como notificación normal.
 
 ### 3.3 `functions/src/reminders.ts` — APNs Badge en Payload
 

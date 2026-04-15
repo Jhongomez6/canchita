@@ -9,7 +9,7 @@ import { loginWithGoogle } from "@/lib/auth";
 import { formatDateSpanish, formatDateShort, formatTime12h, formatEndTime } from "@/lib/date";
 import { googleMapsEmbedUrl, googleMapsLink, wazeLink } from "@/lib/maps";
 import Image from "next/image";
-import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCircle, CheckCircle2, ClipboardList, Trophy, Crown, Star, CalendarX, Lock, Activity, Calendar } from "lucide-react";
+import { Clock, MapPin, Map, User, Users, Key, Copy, Check, AlertTriangle, XCircle, CheckCircle2, ClipboardList, Trophy, Crown, Star, CalendarX, Lock, Activity, Calendar, Wallet } from "lucide-react";
 
 import { AnimatePresence, motion } from "framer-motion";
 import AddGuestForm from "@/components/AddGuestForm";
@@ -17,6 +17,7 @@ import PlayerAvatar from "@/components/PlayerAvatar";
 import { isInAppBrowser } from "@/lib/browser";
 import { Guest, guestToPlayer } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
+import { isDepositRefundable } from "@/lib/domain/match";
 
 import { isAdmin } from "@/lib/domain/user";
 import { type Player, type Position, POSITION_ICONS } from "@/lib/domain/player";
@@ -54,6 +55,9 @@ import Link from "next/link";
 import PlayerCardDrawer from "@/components/PlayerCardDrawer";
 import MatchTimeline from "@/components/MatchTimeline";
 import JoinConfirmModal from "@/components/JoinConfirmModal";
+import { getWallet, joinWithDeposit, leaveWithRefund } from "@/lib/wallet";
+import type { Wallet } from "@/lib/domain/wallet";
+import { formatCOP } from "@/lib/domain/wallet";
 
 export default function JoinMatchPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,6 +79,9 @@ export default function JoinMatchPage() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [isWaitlistModal, setIsWaitlistModal] = useState(false);
   const [pendingJoinAction, setPendingJoinAction] = useState<(() => Promise<void>) | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [showCancelDepositConfirm, setShowCancelDepositConfirm] = useState(false);
 
   const handlePlayerTap = (uid?: string) => {
     if (!uid) return;
@@ -140,6 +147,16 @@ export default function JoinMatchPage() {
 
     return () => unsubscribe();
   }, [loading, user, id, profile]);
+
+  // Fetch wallet cuando el partido tiene depósito
+  useEffect(() => {
+    if (!user || !match?.deposit) return;
+    setWalletLoading(true);
+    getWallet(user.uid)
+      .then(setWallet)
+      .catch(() => setWallet(null))
+      .finally(() => setWalletLoading(false));
+  }, [user, match?.deposit]);
 
   // Sync player profile data (photo, positions) to match document reactively
   useEffect(() => {
@@ -635,6 +652,16 @@ export default function JoinMatchPage() {
                 </button>
               </div>
 
+              {/* Depósito */}
+              {(match.deposit ?? 0) > 0 && (
+                <div className="flex items-center gap-3 text-slate-600">
+                  <Wallet size={18} className="text-emerald-500 shrink-0" />
+                  <span className="text-sm font-medium text-slate-700">
+                    Depósito requerido <span className="font-bold text-emerald-600">{formatCOP(match.deposit!)}</span>
+                  </span>
+                </div>
+              )}
+
             </div>
           </div>
 
@@ -689,11 +716,17 @@ export default function JoinMatchPage() {
               {/* ── CTA: Confirmar asistencia (primera vez) ── */}
               {!isFull && !hasWaitlist && !existingPlayer && (
                 <button
-                  disabled={submitting}
+                  disabled={submitting || walletLoading}
                   onClick={() => {
-                    setPendingJoinAction(() => async () => {
-                      await joinMatch(id, { uid: user.uid, name: playerName });
-                    });
+                    if (match?.deposit && match.deposit > 0) {
+                      setPendingJoinAction(() => async () => {
+                        await joinWithDeposit(id);
+                      });
+                    } else {
+                      setPendingJoinAction(() => async () => {
+                        await joinMatch(id, { uid: user.uid, name: playerName });
+                      });
+                    }
                     setShowJoinModal(true);
                   }}
                   className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${submitting
@@ -705,28 +738,29 @@ export default function JoinMatchPage() {
                 </button>
               )}
 
-              {/* ── CTA: Confirmar asistencia (ya en lista, no confirmado) ── */}
+              {/* ── CTA: Volver a anotarse (canceló antes) ── */}
               {!isFull && existingPlayer && !existingPlayer.confirmed && !existingPlayer.isWaitlist && (
-                <>
-                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 text-amber-700 text-xs font-semibold flex items-center justify-center gap-2">
-                    <Clock className="w-3.5 h-3.5 shrink-0" /> Aún no confirmaste
-                  </div>
-                  <button
-                    disabled={submitting}
-                    onClick={() => {
+                <button
+                  disabled={submitting || walletLoading}
+                  onClick={() => {
+                    if (match?.deposit && match.deposit > 0) {
                       setPendingJoinAction(() => async () => {
-                        await confirmAttendance(id, playerName);
+                        await joinWithDeposit(id);
                       });
-                      setShowJoinModal(true);
-                    }}
-                    className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] ${submitting
-                      ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                      : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
-                      }`}
-                  >
-                    <CheckCircle2 className="w-4 h-4" /> Anotarme al partido
-                  </button>
-                </>
+                    } else {
+                      setPendingJoinAction(() => async () => {
+                        await confirmAttendance(id, playerName, user.uid);
+                      });
+                    }
+                    setShowJoinModal(true);
+                  }}
+                  className={`w-full py-3.5 font-bold text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${submitting
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
+                    }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Anotarme al partido
+                </button>
               )}
 
               {/* ── CTA: En lista de espera ── */}
@@ -764,16 +798,15 @@ export default function JoinMatchPage() {
                       Estás confirmado
                     </span>
                     <button
-                      onClick={async () => {
-                        setSubmitting(true);
-                        try {
-                          await unconfirmAttendance(id, playerName);
-                          logAttendanceUnconfirmed(id);
-                          toast.success("Has liberado tu cupo");
-                        } catch (err: unknown) {
-                          handleError(err, "Hubo un error al liberar tu cupo");
-                        } finally {
-                          setSubmitting(false);
+                      onClick={() => {
+                        if (match?.deposit && match.deposit > 0) {
+                          setShowCancelDepositConfirm(true);
+                        } else {
+                          setSubmitting(true);
+                          unconfirmAttendance(id, playerName)
+                            .then(() => { logAttendanceUnconfirmed(id); toast.success("Has liberado tu cupo"); })
+                            .catch((err: unknown) => handleError(err, "Hubo un error al liberar tu cupo"))
+                            .finally(() => setSubmitting(false));
                         }
                       }}
                       disabled={submitting}
@@ -1558,6 +1591,9 @@ export default function JoinMatchPage() {
         instructions={match?.instructions}
         isWaitlist={isWaitlistModal}
         submitting={submitting}
+        deposit={match?.deposit}
+        userBalanceCOP={wallet?.balanceCOP}
+        onRecharge={() => router.push("/wallet")}
         onClose={() => { setShowJoinModal(false); setIsWaitlistModal(false); setPendingJoinAction(null); }}
         onConfirm={async () => {
           if (!pendingJoinAction) return;
@@ -1582,6 +1618,101 @@ export default function JoinMatchPage() {
           }
         }}
       />
+
+      {/* Modal de confirmación cancelación con depósito */}
+      <AnimatePresence>
+        {showCancelDepositConfirm && match && (
+          <>
+            <motion.div
+              key="cancel-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowCancelDepositConfirm(false)}
+            />
+            <motion.div
+              key="cancel-sheet"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl"
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-slate-200 rounded-full" />
+              </div>
+              <div className="px-5 pt-2 pb-8">
+                {(() => {
+                  const refundable = isDepositRefundable(match.startsAt);
+                  return (
+                    <>
+                      <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <CalendarX className="w-5 h-5 text-red-500" />
+                        Cancelar asistencia
+                      </h2>
+
+                      {refundable ? (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-5">
+                          <p className="text-sm font-bold text-emerald-700 mb-1">✅ Aplica reembolso</p>
+                          <p className="text-sm text-emerald-700">
+                            Si cancelas ahora, recibirás <span className="font-bold">{formatCOP(match.deposit!)}</span> de vuelta en tu billetera.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
+                          <p className="text-sm font-bold text-red-700 mb-1">⚠️ Sin reembolso</p>
+                          <p className="text-sm text-red-700">
+                            Faltan menos de 24 horas para el partido. Si cancelas ahora, <span className="font-bold">perderás el depósito de {formatCOP(match.deposit!)}</span>.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-2">
+                        <button
+                          disabled={submitting}
+                          onClick={async () => {
+                            setSubmitting(true);
+                            try {
+                              const result = await leaveWithRefund(id);
+                              logAttendanceUnconfirmed(id);
+                              if (result.refunded) {
+                                toast.success(`Te saliste del partido. ${formatCOP(match.deposit!)} devueltos a tu billetera.`);
+                              } else {
+                                toast.success("Te saliste del partido. El depósito no fue reembolsado.");
+                              }
+                              setShowCancelDepositConfirm(false);
+                            } catch (err: unknown) {
+                              handleError(err, "Hubo un error al cancelar tu asistencia");
+                            } finally {
+                              setSubmitting(false);
+                            }
+                          }}
+                          className="w-full py-4 rounded-2xl font-bold text-base bg-red-500 text-white hover:bg-red-600 transition-all active:scale-[0.98] shadow-lg flex items-center justify-center gap-2 disabled:opacity-40"
+                        >
+                          {submitting ? (
+                            <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Cancelando...</>
+                          ) : (
+                            <><CalendarX className="w-4 h-4" /> Confirmar cancelación</>
+                          )}
+                        </button>
+                        <button
+                          disabled={submitting}
+                          onClick={() => setShowCancelDepositConfirm(false)}
+                          className="w-full py-3 rounded-2xl font-semibold text-sm text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+                        >
+                          Volver
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </main >
   );
 }

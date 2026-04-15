@@ -131,6 +131,34 @@ service cloud.firestore {
     }
 
     /* =========================
+       💰 BILLETERA
+    ========================= */
+    match /wallets/{uid} {
+      // Leer: solo el propio usuario
+      allow read: if request.auth != null && request.auth.uid == uid;
+      // Escribir: solo Cloud Functions (admin SDK)
+      allow write: if false;
+    }
+
+    /* =========================
+       💳 TRANSACCIONES WALLET
+    ========================= */
+    match /wallet_transactions/{txId} {
+      // Leer: solo el propio usuario (filtra por uid en el documento)
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      // Escribir: solo Cloud Functions (admin SDK)
+      allow write: if false;
+    }
+
+    /* =========================
+       🎟️ CÓDIGOS DE RECARGA
+    ========================= */
+    match /topup_codes/{code} {
+      // Lectura y escritura solo via Cloud Functions (admin SDK)
+      allow read, write: if false;
+    }
+
+    /* =========================
        📢 FEEDBACK
     ========================= */
     match /feedback/{feedbackId} {

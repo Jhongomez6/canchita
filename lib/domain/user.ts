@@ -70,6 +70,8 @@ export interface UserProfile {
     authAcceptedVersion?: string;      // Version of Terms/Privacy accepted at first login
     // Team Admin Application
     applyCTADismissed?: boolean;        // El usuario descartó el banner de "Aplicar como Team Admin"
+    // Feature flags
+    walletEnabled?: boolean;           // Acceso a la billetera (feature flag por usuario)
     // Soft-anonymization (set on account deletion — personal data wiped, traza conservada)
     deleted?: boolean;
     deletedAt?: string;                // ISO date of anonymization
@@ -239,6 +241,14 @@ export function isSuperAdmin(profile: UserProfile): boolean {
 }
 
 /**
+ * Verifica si el usuario tiene acceso a la billetera.
+ * Super admins siempre tienen acceso; otros usuarios requieren el flag walletEnabled.
+ */
+export function hasWalletAccess(profile: UserProfile): boolean {
+    return isSuperAdmin(profile) || profile.walletEnabled === true;
+}
+
+/**
  * Verifica si un perfil es Location Admin (dueño de cancha).
  * Puede crear partidos públicos y privados en sus locations asignadas.
  */
@@ -260,6 +270,15 @@ export function isTeamAdmin(profile: UserProfile): boolean {
  * Solo super_admin y location_admin pueden.
  */
 export function canCreatePublicMatch(profile: UserProfile): boolean {
+    return isSuperAdmin(profile) || isLocationAdmin(profile);
+}
+
+/**
+ * Verifica si un admin puede configurar depósito en sus partidos.
+ * Solo super_admin y location_admin pueden — team_admin no.
+ * El dinero de depósitos va al admin de la plataforma (cuenta Wompi centralizada).
+ */
+export function canUseDeposit(profile: UserProfile): boolean {
     return isSuperAdmin(profile) || isLocationAdmin(profile);
 }
 

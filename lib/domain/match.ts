@@ -17,6 +17,7 @@
  */
 
 import { ValidationError } from "./errors";
+import { REFUND_DEADLINE_MS } from "./wallet";
 import type { Player } from "./player";
 import type { Guest } from "./guest";
 import type { LocationSnapshot } from "./location";
@@ -59,6 +60,7 @@ export interface Match {
     remindersSent?: Record<string, boolean>; // Tracks sent notifications to avoid duplicate push dispatches
     instructions?: string; // Instrucciones libres del organizador para los jugadores (máx 500 chars)
     payments?: Record<string, boolean>; // key → hasPaid; key = uid para jugadores, "guest_{invitedBy}_{name}" para invitados
+    deposit?: number; // centavos COP; valores válidos: 500000 ($5k) o 1000000 ($10k)
 }
 
 export interface CreateMatchInput {
@@ -73,6 +75,7 @@ export interface CreateMatchInput {
     isPrivate?: boolean;
     creatorAdminType?: AdminType;
     creatorSnapshot?: { name: string; photoURL?: string; photoURLThumb?: string; phone?: string };
+    deposit?: number; // centavos COP; 500000 ($5k) o 1000000 ($10k)
 }
 
 export type MatchResult = "win" | "loss" | "draw";
@@ -251,6 +254,25 @@ export function getMatchTimelineState(
         stepIndex,
         totalSteps: TIMELINE_STEPS.length,
     };
+}
+
+// ========================
+// DEPÓSITO / REEMBOLSO
+// ========================
+
+/**
+ * Determina si el depósito de un partido es reembolsable.
+ * Regla: reembolsable si faltan más de 24 horas para el inicio.
+ * Si no hay startsAt (partido legacy), se considera reembolsable.
+ */
+export function isDepositRefundable(
+    startsAt: { seconds: number } | undefined,
+    nowMs: number = Date.now()
+): boolean {
+    if (!startsAt) return true;
+    const matchMs = startsAt.seconds * 1000;
+    const deadlineMs = matchMs - REFUND_DEADLINE_MS;
+    return nowMs < deadlineMs;
 }
 
 // ========================

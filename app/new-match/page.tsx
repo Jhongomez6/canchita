@@ -6,12 +6,27 @@ import AuthGuard from "@/components/AuthGuard";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminLocations } from "@/lib/locations";
-import { canCreatePublicMatch, isSuperAdmin } from "@/lib/domain/user";
+import { canCreatePublicMatch, isSuperAdmin, isLocationAdmin, canUseDeposit } from "@/lib/domain/user";
+import { DEFAULT_DEPOSIT_COP, VALID_DEPOSITS_COP, formatCOP } from "@/lib/domain/wallet";
 import { Timestamp } from "firebase/firestore";
 import type { Location } from "@/lib/domain/location";
 import type { MatchDuration } from "@/lib/domain/match";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import {
+  Plus,
+  Calendar,
+  MapPin,
+  Settings2,
+  Lock,
+  Globe,
+  ClipboardList,
+  XCircle,
+  CheckCircle2,
+  Banknote,
+  ChevronDown,
+  Clock,
+} from "lucide-react";
 
 export default function NewMatchPage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -26,10 +41,14 @@ export default function NewMatchPage() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [allowGuests, setAllowGuests] = useState(false);
   const [instructions, setInstructions] = useState("");
+  const [requireDeposit, setRequireDeposit] = useState(false);
+  const [depositAmount, setDepositAmount] = useState(DEFAULT_DEPOSIT_COP);
 
   const [submitting, setSubmitting] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState("");
+  const [locationSearch, setLocationSearch] = useState("");
+  const [locationOpen, setLocationOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -42,6 +61,10 @@ export default function NewMatchPage() {
     if (!canCreatePublicMatch(profile)) {
       // Usamos un timeout ligero para evitar el warning de React por setState recursivo
       setTimeout(() => setIsPrivate(true), 0);
+    }
+    // Default depósito ON para location_admin
+    if (isLocationAdmin(profile)) {
+      setTimeout(() => setRequireDeposit(true), 0);
     }
   }, [profile, authLoading]);
 
@@ -69,6 +92,12 @@ export default function NewMatchPage() {
       return;
     }
 
+    if (startsAt.toDate() < new Date()) {
+      toast.error("No puedes crear un partido en una fecha pasada");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       // Ensure maxPlayers is always even
       const finalMaxPlayers = maxPlayers % 2 !== 0 ? maxPlayers + 1 : maxPlayers;
@@ -90,6 +119,7 @@ export default function NewMatchPage() {
         isPrivate,
         allowGuests,
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+        ...(requireDeposit && profile && canUseDeposit(profile) ? { deposit: depositAmount } : {}),
       });
 
       toast.success("¡Partido creado exitosamente!");
@@ -115,10 +145,7 @@ export default function NewMatchPage() {
       <AuthGuard>
         <div className="min-h-[60vh] flex flex-col items-center justify-center p-5 text-center">
           <div className="bg-red-50 text-red-600 w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
+            <XCircle className="w-8 h-8" />
           </div>
           <h3 className="text-xl font-bold text-slate-800 mb-2">Acceso Denegado</h3>
           <p className="text-slate-600 mb-6">
@@ -144,7 +171,8 @@ export default function NewMatchPage() {
           <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] text-white p-6 pb-8 rounded-b-3xl shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
             <h2 className="text-2xl font-bold relative z-10 flex items-center gap-2">
-              ➕ <span className="text-emerald-50">Nuevo Partido</span>
+              <Plus className="w-6 h-6" />
+              <span className="text-emerald-50">Nuevo Partido</span>
             </h2>
             <p className="relative z-10 text-emerald-100 text-sm mt-1">
               Configura los detalles de tu próximo encuentro.
@@ -162,68 +190,110 @@ export default function NewMatchPage() {
                 {/* CARD: FECHA Y HORA */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                   <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg text-sm">🗓️</span>
+                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg"><Calendar className="w-4 h-4" /></span>
                     Cuándo
                   </h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-5">
+                    {/* FECHA */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Fecha</label>
-                      <input
-                        type="date"
-                        value={date}
-                        onChange={e => setDate(e.target.value)}
-                        required
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] transition-all"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Hora (12h)</label>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={timeHour}
-                          onChange={e => setTimeHour(e.target.value)}
-                          className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] text-center font-medium"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => {
-                            const hr = (i + 1).toString().padStart(2, "0");
-                            return <option key={hr} value={hr}>{hr}</option>;
-                          })}
-                        </select>
-                        <span className="text-slate-400 font-bold">:</span>
-                        <select
-                          value={timeMinute}
-                          onChange={e => setTimeMinute(e.target.value)}
-                          className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] text-center font-medium"
-                        >
-                          <option value="00">00</option>
-                          <option value="15">15</option>
-                          <option value="30">30</option>
-                          <option value="45">45</option>
-                        </select>
-                        <select
-                          value={timePeriod}
-                          onChange={e => setTimePeriod(e.target.value)}
-                          className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] text-center font-bold"
-                        >
-                          <option value="AM">AM</option>
-                          <option value="PM">PM</option>
-                        </select>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          value={date}
+                          onChange={e => setDate(e.target.value)}
+                          required
+                          min={new Date().toISOString().split("T")[0]}
+                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
+                        />
                       </div>
                     </div>
+
+                    {/* HORA */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Duración</label>
-                      <select
-                        value={duration}
-                        onChange={e => setDuration(Number(e.target.value) as MatchDuration)}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] transition-all font-medium"
-                      >
-                        <option value={30}>30 min</option>
-                        <option value={60}>1 hora</option>
-                        <option value={90}>1 hora 30 min</option>
-                        <option value={120}>2 horas</option>
-                        <option value={150}>2 horas 30 min</option>
-                        <option value={180}>3 horas</option>
-                      </select>
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <Clock className="w-3.5 h-3.5" /> Hora
+                      </label>
+                      {/* Hora + AM/PM */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="relative flex-1">
+                          <select
+                            value={timeHour}
+                            onChange={e => setTimeHour(e.target.value)}
+                            className="w-full appearance-none pl-4 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold text-center outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
+                          >
+                            {Array.from({ length: 12 }, (_, i) => {
+                              const hr = (i + 1).toString().padStart(2, "0");
+                              return <option key={hr} value={hr}>{hr}</option>;
+                            })}
+                          </select>
+                          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        </div>
+                        <span className="text-slate-300 font-bold text-xl">:</span>
+                        {/* Minutos como chips */}
+                        <div className="flex gap-1.5">
+                          {["00", "15", "30", "45"].map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setTimeMinute(m)}
+                              className={`px-3 py-3 rounded-xl text-sm font-bold transition-all ${
+                                timeMinute === m
+                                  ? "bg-[#1f7a4f] text-white shadow-md shadow-emerald-200"
+                                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                              }`}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* AM / PM segmented */}
+                      <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
+                        {["AM", "PM"].map(p => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setTimePeriod(p)}
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                              timePeriod === p
+                                ? "bg-[#1f7a4f] text-white shadow-md shadow-emerald-200"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* DURACIÓN */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Duración</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          [30, "30 min"],
+                          [60, "1 h"],
+                          [90, "1 h 30"],
+                          [120, "2 h"],
+                          [150, "2 h 30"],
+                          [180, "3 h"],
+                        ] as [MatchDuration, string][]).map(([val, label]) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setDuration(val)}
+                            className={`py-2.5 rounded-xl text-sm font-bold transition-all ${
+                              duration === val
+                                ? "bg-[#1f7a4f] text-white shadow-md shadow-emerald-200"
+                                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -231,36 +301,73 @@ export default function NewMatchPage() {
                 {/* CARD: UBICACIÓN */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                   <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg text-sm">📍</span>
+                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg"><MapPin className="w-4 h-4" /></span>
                     Dónde
                   </h3>
-                  <select
-                    value={locationId}
-                    onChange={e => setLocationId(e.target.value)}
-                    required
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] transition-all mb-3"
-                  >
-                    <option value="">Selecciona una cancha...</option>
-                    {locations.map(loc => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name}
-                      </option>
-                    ))}
-                  </select>
+                  {/* Campo oculto para validación nativa del form */}
+                  <input type="hidden" name="locationId" value={locationId} required />
+                  <div className="relative mb-3">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+                    <input
+                      type="text"
+                      placeholder="Buscar cancha..."
+                      value={locationSearch}
+                      onFocus={() => setLocationOpen(true)}
+                      onBlur={() => setTimeout(() => setLocationOpen(false), 150)}
+                      onChange={e => {
+                        setLocationSearch(e.target.value);
+                        setLocationId("");
+                        setLocationOpen(true);
+                      }}
+                      className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-700 outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
+                    />
+                    <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-transform ${locationOpen ? "rotate-180" : ""}`} />
+                    {locationOpen && (
+                      <div className="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                        {locations
+                          .filter(l => l.name.toLowerCase().includes(locationSearch.toLowerCase()))
+                          .map(loc => {
+                            const formatted = loc.name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                            return (
+                              <button
+                                key={loc.id}
+                                type="button"
+                                onMouseDown={() => {
+                                  setLocationId(loc.id);
+                                  setLocationSearch(formatted);
+                                  setLocationOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-3 text-sm transition-colors ${
+                                  locationId === loc.id
+                                    ? "bg-emerald-50 text-[#1f7a4f] font-bold"
+                                    : "text-slate-700 hover:bg-slate-50"
+                                }`}
+                              >
+                                {formatted}
+                              </button>
+                            );
+                          })}
+                        {locations.filter(l => l.name.toLowerCase().includes(locationSearch.toLowerCase())).length === 0 && (
+                          <p className="px-4 py-3 text-sm text-slate-400">Sin resultados</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {profile && isSuperAdmin(profile) && (
-                    <a
-                      href="/locations/new"
+                    <button
+                      type="button"
+                      onClick={() => router.push("/locations/new")}
                       className="inline-flex items-center gap-1.5 text-sm font-bold text-[#1f7a4f] hover:text-[#145c3a] transition-colors"
                     >
-                      ➕ Añadir nueva cancha
-                    </a>
+                      <Plus className="w-4 h-4" /> Añadir nueva cancha
+                    </button>
                   )}
                 </div>
 
                 {/* CARD: DETALLES EXTRA */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                   <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg text-sm">⚙️</span>
+                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg"><Settings2 className="w-4 h-4" /></span>
                     Configuración
                   </h3>
 
@@ -301,7 +408,7 @@ export default function NewMatchPage() {
                         <div className="flex-1">
                           <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                             Partido Privado
-                            {isPrivate ? <span className="text-xs">🔒</span> : <span className="text-xs">🌍</span>}
+                            {isPrivate ? <Lock className="w-3.5 h-3.5 text-slate-500" /> : <Globe className="w-3.5 h-3.5 text-slate-500" />}
                           </div>
                           <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
                             {isPrivate
@@ -326,7 +433,7 @@ export default function NewMatchPage() {
                         <div className="flex-1">
                           <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                             Permitir Invitados
-                            {allowGuests ? <span className="text-xs">✅</span> : <span className="text-xs">❌</span>}
+                            {allowGuests ? <CheckCircle2 className="w-3.5 h-3.5 text-[#1f7a4f]" /> : <XCircle className="w-3.5 h-3.5 text-slate-400" />}
                           </div>
                           <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
                             {allowGuests
@@ -335,6 +442,59 @@ export default function NewMatchPage() {
                           </p>
                         </div>
                       </label>
+                      {/* DEPÓSITO TOGGLE — solo super_admin y location_admin */}
+                      {profile && canUseDeposit(profile) && (
+                      <label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">
+                        <div className="relative inline-flex items-center cursor-pointer mt-0.5">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={requireDeposit}
+                            onChange={e => setRequireDeposit(e.target.checked)}
+                          />
+                          <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1f7a4f]"></div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                            Requerir Depósito
+                            <Banknote className="w-3.5 h-3.5 text-slate-500" />
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
+                            {requireDeposit
+                              ? "Los jugadores necesitan saldo en su billetera para inscribirse."
+                              : "Sin depósito — los jugadores se inscriben gratis."}
+                          </p>
+                        </div>
+                      </label>
+                      )}
+
+                      {/* MONTO DEL DEPÓSITO */}
+                      {profile && canUseDeposit(profile) && requireDeposit && (
+                        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
+                          <p className="text-xs font-bold text-slate-600">Monto del depósito</p>
+                          <div className="flex gap-3">
+                            {VALID_DEPOSITS_COP.map((amount) => (
+                              <label
+                                key={amount}
+                                className={`flex-1 text-center cursor-pointer p-3 rounded-xl border-2 font-bold transition-all ${
+                                  depositAmount === amount
+                                    ? "border-[#1f7a4f] bg-white text-[#1f7a4f] shadow-sm"
+                                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="deposit"
+                                  className="sr-only"
+                                  checked={depositAmount === amount}
+                                  onChange={() => setDepositAmount(amount)}
+                                />
+                                <span className="text-base">{formatCOP(amount)}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -342,7 +502,7 @@ export default function NewMatchPage() {
                 {/* CARD: INSTRUCCIONES */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                   <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg text-sm">📋</span>
+                    <span className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg"><ClipboardList className="w-4 h-4" /></span>
                     Instrucciones para jugadores
                     <span className="text-xs font-normal text-slate-400">(opcional)</span>
                   </h3>
@@ -373,7 +533,12 @@ export default function NewMatchPage() {
                     : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
                     }`}
                 >
-                  {submitting ? "⏳ Creando partido..." : "Crear Partido"}
+                  {submitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Creando partido...
+                    </span>
+                  ) : "Crear Partido"}
                 </button>
               </form>
             )}

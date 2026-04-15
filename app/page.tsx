@@ -24,7 +24,8 @@ import PlayerAvatars from "@/components/PlayerAvatars";
 import { logPushEnabled, logPushPromptDismissed, logApplyCTAShown, logApplyCTAClicked, logApplyCTADismissed, logHeroCardClicked, logJoinByCodeClicked, logFullHistoryClicked } from "@/lib/analytics";
 import { dismissApplyCTA } from "@/lib/users";
 import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
-import { Clock, Users, LandPlot, MapPin, Trophy, Plus, ChevronRight, Search, ArrowRight, X } from "lucide-react";
+import { Clock, Users, LandPlot, MapPin, Trophy, Plus, ChevronRight, Search, ArrowRight, X, Wallet } from "lucide-react";
+import { formatCOP } from "@/lib/domain/wallet";
 import IdentityHeader from "@/components/home/IdentityHeader";
 import QuickStats from "@/components/home/QuickStats";
 import HistoryRow from "@/components/home/HistoryRow";
@@ -117,7 +118,15 @@ export default function Home() {
   }
 
   const now = new Date().getTime();
-  const openMatches = matches.filter(m => m.status === 'open');
+
+  // Excluir partidos donde el usuario canceló (confirmed: false, no waitlist)
+  const activeUserMatches = matches.filter(m =>
+    !m.players?.some((p: { uid?: string; confirmed?: boolean; isWaitlist?: boolean }) =>
+      p.uid === user?.uid && !p.confirmed && !p.isWaitlist
+    )
+  );
+
+  const openMatches = activeUserMatches.filter(m => m.status === 'open');
 
   // Future open matches (including from the last 4 hours)
   const futureOpenMatches = openMatches.filter(m => new Date(`${m.date}T${m.time}`).getTime() >= now - 1000 * 60 * 60 * 4);
@@ -128,7 +137,7 @@ export default function Home() {
     ? [...futureOpenMatches].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())[0]
     : openMatches[0];
 
-  const upcomingMatches = matches.filter(m => m.id !== nextMatch?.id);
+  const upcomingMatches = activeUserMatches.filter(m => m.id !== nextMatch?.id);
   const activeMatches = upcomingMatches.filter(m => m.status === 'open');
   const closedMatches = upcomingMatches.filter(m => m.status === 'closed');
 
@@ -296,7 +305,7 @@ export default function Home() {
                         <MapPin size={14} className="shrink-0" />
                         <span className="truncate">{heroLocationName}</span>
                       </p>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
+                      <div className="flex items-center gap-3 mt-1 text-sm text-slate-400 flex-wrap">
                         <span className={`flex items-center gap-1 ${heroConfirmed >= nextMatch.maxPlayers ? 'text-emerald-600 font-semibold' : ''}`}>
                           <Users size={14} />
                           {heroConfirmed}/{nextMatch.maxPlayers}
@@ -305,6 +314,12 @@ export default function Home() {
                           <LandPlot size={14} />
                           {heroFormat}
                         </span>
+                        {(nextMatch.deposit ?? 0) > 0 && (
+                          <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                            <Wallet size={14} />
+                            Depósito {formatCOP(nextMatch.deposit!)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -325,9 +340,9 @@ export default function Home() {
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${
                         userConfirmed
                           ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-amber-50 text-amber-700'
+                          : 'bg-slate-100 text-slate-500'
                       }`}>
-                        {userConfirmed ? '✓ Confirmado' : 'Falta tu confirmación'}
+                        {userConfirmed ? '✓ Confirmado' : '📋 En lista de espera'}
                       </span>
                     </div>
                   )}
@@ -341,14 +356,10 @@ export default function Home() {
                   {/* CTA */}
                   <Link
                     href={nextMatchHref}
-                    onClick={() => logHeroCardClicked(nextMatch.id, userConfirmed ? "details" : "confirm")}
-                    className={`block w-full py-3 text-center rounded-xl font-bold shadow-md transition-all active:scale-[0.98] ${
-                      !userConfirmed && !isAdminUser
-                        ? 'bg-[#1f7a4f] text-white hover:bg-[#16603c]'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
+                    onClick={() => logHeroCardClicked(nextMatch.id, "details")}
+                    className="block w-full py-3 text-center rounded-xl font-bold shadow-md transition-all active:scale-[0.98] bg-slate-100 text-slate-700 hover:bg-slate-200"
                   >
-                    {!userConfirmed && !isAdminUser ? 'Confirmar asistencia' : 'Ver detalles'}
+                    Ver detalles
                   </Link>
                 </div>
               </div>

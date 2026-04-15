@@ -6,15 +6,11 @@ import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import {
   addPlayerToMatch,
-  confirmAttendance,
   updatePlayerData,
   saveTeams,
   closeMatch,
   reopenMatch,
-  unconfirmAttendance,
-  deletePlayerFromMatch,
   markPlayerAttendance,
-  approveFromWaitlist,
   moveToWaitlist,
   deleteMatch,
   confirmTeams,
@@ -54,6 +50,8 @@ import {
   logMatchInstructionsSaved,
 } from "@/lib/analytics";
 import { Lock } from "lucide-react";
+import { adminRemovePlayer, confirmFromWaitlist } from "@/lib/wallet";
+import { formatCOP } from "@/lib/domain/wallet";
 import MatchAdminSkeleton from "@/components/skeletons/MatchAdminSkeleton";
 
 // Tab components
@@ -577,7 +575,14 @@ export default function MatchDetailPage() {
 
   async function handleDeleteMatchAction() {
     try {
-      await deleteMatch(id);
+      // Incluir waitlist: también merecen notificación al cancelar
+      const notifiableCount = match
+        ? (match.players?.filter((p: Player) => !!p.uid).length ?? 0)
+        : 0;
+      await deleteMatch(id, {
+        hasDeposit: (match?.deposit ?? 0) > 0,
+        confirmedCount: notifiableCount,
+      });
       logMatchDeleted(id);
       router.push("/");
     } catch (err: unknown) {
@@ -756,13 +761,29 @@ export default function MatchDetailPage() {
               }
               onAddRegisteredPlayer={handleAddRegisteredPlayer}
               onAddManualPlayer={handleAddManualPlayer}
-              onConfirmAttendance={(name) => confirmAttendance(id, name)}
-              onUnconfirmAttendance={(name) => unconfirmAttendance(id, name)}
-              onDeletePlayer={(name) => deletePlayerFromMatch(id, name)}
+              onDeletePlayer={async (name) => {
+                try {
+                  const result = await adminRemovePlayer(id, name);
+                  if (result.refunded) {
+                    toast.success(`${name} retirado. Depósito de ${formatCOP(match.deposit!)} reembolsado a su billetera.`, { duration: 6000 });
+                  } else {
+                    toast.success(`${name} retirado del partido.`, { duration: 6000 });
+                  }
+                } catch (err: unknown) {
+                  handleError(err, "Error al retirar al jugador");
+                }
+              }}
               onUpdatePlayerData={(name, data) => updatePlayerData(id, name, data)}
               onMarkAttendance={(uid, status) => markPlayerAttendance(id, uid, status)}
               onMarkAllPresent={handleMarkAllPresent}
-              onApproveFromWaitlist={async (name) => { await approveFromWaitlist(id, name); toast.success("Suplente aceptado y confirmado"); }}
+              onApproveFromWaitlist={async (name) => {
+                try {
+                  await confirmFromWaitlist(id, name);
+                  toast.success("Suplente aceptado y confirmado");
+                } catch (err: unknown) {
+                  handleError(err, "No se pudo aceptar al suplente");
+                }
+              }}
               onMoveToWaitlist={async (name) => { await moveToWaitlist(id, name); toast.success(`${name} movido a lista de espera`); }}
               onRemoveGuest={(invitedBy, name) => removeGuestFromMatch(id, invitedBy, name)}
               onPromoteGuest={async (name, invitedBy) => { await promoteGuestToMatch(id, name, invitedBy); toast.success("Suplente aceptado y confirmado"); }}

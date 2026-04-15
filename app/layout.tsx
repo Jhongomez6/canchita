@@ -35,6 +35,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script src="https://checkout.wompi.co/widget.js" async />
+      </head>
       <body className={`${plusJakartaSans.variable} font-sans antialiased text-slate-900 bg-slate-50 min-h-screen`} suppressHydrationWarning>
         {/* Inline HTML splash — paints at TTFB, before JS hydration */}
         <div

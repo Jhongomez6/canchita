@@ -71,6 +71,38 @@ export class GuestBusinessError extends BusinessError {
 }
 
 // ========================
+// ERRORES DE BILLETERA
+// ========================
+
+export class InsufficientBalanceError extends BusinessError {
+    constructor() {
+        super("Saldo insuficiente en tu billetera");
+        this.name = "InsufficientBalanceError";
+    }
+}
+
+export class WalletNotFoundError extends BusinessError {
+    constructor() {
+        super("No se encontró la billetera del usuario");
+        this.name = "WalletNotFoundError";
+    }
+}
+
+export class CodeAlreadyRedeemedError extends BusinessError {
+    constructor() {
+        super("Este código ya fue canjeado");
+        this.name = "CodeAlreadyRedeemedError";
+    }
+}
+
+export class CodeNotFoundError extends BusinessError {
+    constructor() {
+        super("Código no válido");
+        this.name = "CodeNotFoundError";
+    }
+}
+
+// ========================
 // ERRORES DE UBICACIÓN
 // ========================
 

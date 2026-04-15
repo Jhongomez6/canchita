@@ -20,7 +20,8 @@ Permitir que el owner de un partido o un super_admin lo elimine permanentemente,
 | 2 | El botón es visible en cualquier estado del partido (abierto o cerrado) | Sin condicional de `isClosed` |
 | 3 | Requiere confirmación explícita antes de ejecutar | Diálogo modal de confirmación |
 | 4 | Tras borrar, redirige al home `/` | `router.push("/")` |
-| 5 | La operación es permanente e irreversible | No existe "soft delete" para partidos |
+| 5 | Si el partido tiene jugadores con uid (confirmados o en lista de espera), se usa `deleteMatchWithRefunds` Cloud Function que: reembolsa depósitos a jugadores con `depositPaid: true`, y envía notificaciones in-app a TODOS los jugadores con uid (confirmados + waitlist). Si no hay jugadores ni depósito, se hace `deleteDoc` directo. | `deleteMatch()` en `lib/matches.ts` + `deleteMatchWithRefunds` Cloud Function |
+| 8 | Al cancelar el partido, el modal de confirmación informa al admin que los depósitos correspondientes serán reembolsados (cuando `match.deposit > 0`). | Modal en `SettingsTab.tsx` |
 | 6 | Firestore permite el borrado solo al owner o super_admin | Actualización en `firestore.rules` |
 | 7 | No location_admin ni team_admin de otra cancha puede borrar | Solo `createdBy == auth.uid` o `isSuperAdmin()` |
 
@@ -64,7 +65,9 @@ Admin abre /match/[id]
 | Capa | Archivo | Cambio |
 |------|---------|--------|
 | Reglas | `firestore.rules` | Actualizar `allow delete` en `/matches/{matchId}` |
-| API | `lib/matches.ts` | Agregar función `deleteMatch(matchId)` |
+| API | `lib/matches.ts` | `deleteMatch(matchId, opts?: { hasDeposit?: boolean; confirmedCount?: number }): Promise<{ refundedCount: number }>` |
+| API | `lib/wallet.ts` | Wrapper `deleteMatchWithRefunds` que llama la Cloud Function via `httpsCallable` |
+| Backend | `functions/src/payments.ts` | `deleteMatchWithRefunds` Cloud Function: reembolsos + notificaciones in-app a todos los jugadores con uid |
 | UI | `app/match/[id]/page.tsx` | Agregar botón + modal de confirmación para `isOwner` |
 | Doc | `docs/DELETE_MATCH_FEATURE_SDD.md` | Este documento |
 
@@ -93,13 +96,22 @@ La función `isSuperAdmin()` ya existe en el archivo (línea 15).
 ### 3.2 `lib/matches.ts` — Función `deleteMatch`
 
 ```typescript
-import { deleteDoc, doc } from "firebase/firestore";
-
-export async function deleteMatch(matchId: string): Promise<void> {
+// In lib/matches.ts
+export async function deleteMatch(matchId: string, opts?: { hasDeposit?: boolean; confirmedCount?: number }): Promise<{ refundedCount: number }> {
+  const needsFunction = (opts?.hasDeposit ?? false) || (opts?.confirmedCount ?? 0) > 0;
+  if (needsFunction) {
+    const { deleteMatchWithRefunds } = await import("./wallet");
+    return deleteMatchWithRefunds(matchId);
+  }
   const ref = doc(db, "matches", matchId);
   await deleteDoc(ref);
+  return { refundedCount: 0 };
 }
 ```
+
+**Lógica de decisión:**
+- Si `hasDeposit || confirmedCount > 0` → llama `deleteMatchWithRefunds` Cloud Function (reembolsos + notificaciones + borrado)
+- Si no hay depósito NI jugadores con uid → `deleteDoc` directo (optimización de costos)
 
 ### 3.3 `app/match/[id]/page.tsx` — Botón + Modal
 
@@ -218,8 +230,8 @@ async function handleDeleteMatch() {
 ### AC-6: Confirmar borra y redirige
 
 **Given** el modal está abierto
-**When** el usuario toca "Sí, borrar partido"
-**Then** el partido es eliminado de Firestore y el usuario es redirigido a `/`
+**When** el usuario confirma
+**Then** si el partido tiene depósito o jugadores → Cloud Function maneja reembolsos + notificaciones + borrado; si no → delete directo en Firestore. El usuario es redirigido a `/`.
 
 ### AC-7: Seguridad en Firestore
 

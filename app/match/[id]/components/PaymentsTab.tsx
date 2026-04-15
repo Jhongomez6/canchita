@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { Search, X, DollarSign, CheckCircle2, Clock, Ban, Users, Check, Loader2 } from "lucide-react";
+import { Search, X, DollarSign, CheckCircle2, Clock, Ban, Users, Check, Loader2, Wallet } from "lucide-react";
+import { formatCOP } from "@/lib/domain/wallet";
 import type { Match } from "@/lib/domain/match";
 import type { Player } from "@/lib/domain/player";
 import type { Guest } from "@/lib/domain/guest";
@@ -19,6 +20,7 @@ interface PayableEntry {
   photoURLThumb?: string;
   attendanceLabel?: string;
   isGuest: boolean;
+  depositPaid?: boolean;
 }
 
 function guestKey(guest: Guest): string {
@@ -50,6 +52,7 @@ function getPayablePlayers(match: Match): PayableEntry[] {
           ? "no_show"
           : undefined,
       isGuest: false,
+      depositPaid: (p as { depositPaid?: boolean }).depositPaid,
     }));
 }
 
@@ -204,19 +207,27 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
               {/* Name + badge */}
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-slate-800 truncate">{entry.name}</p>
-                {(entry.attendanceLabel || entry.isGuest) && (
-                  <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                    {entry.isGuest ? (
-                      <><Users size={10} /> Invitado</>
-                    ) : (
-                      <>
-                        {entry.attendanceLabel === "present" && <><CheckCircle2 size={10} className="text-emerald-500" /> Presente</>}
-                        {entry.attendanceLabel === "late" && <><Clock size={10} className="text-amber-500" /> Tarde</>}
-                        {entry.attendanceLabel === "no_show" && <><Ban size={10} className="text-red-500" /> No show</>}
-                      </>
-                    )}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(entry.attendanceLabel || entry.isGuest) && (
+                    <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                      {entry.isGuest ? (
+                        <><Users size={10} /> Invitado</>
+                      ) : (
+                        <>
+                          {entry.attendanceLabel === "present" && <><CheckCircle2 size={10} className="text-emerald-500" /> Presente</>}
+                          {entry.attendanceLabel === "late" && <><Clock size={10} className="text-amber-500" /> Tarde</>}
+                          {entry.attendanceLabel === "no_show" && <><Ban size={10} className="text-red-500" /> No show</>}
+                        </>
+                      )}
+                    </span>
+                  )}
+                  {(match.deposit ?? 0) > 0 && !entry.isGuest && (
+                    <span className={`text-[10px] font-bold flex items-center gap-0.5 ${entry.depositPaid ? "text-emerald-600" : "text-red-500"}`}>
+                      <Wallet size={9} />
+                      {entry.depositPaid ? `Dep. ${formatCOP(match.deposit!)}` : "Sin depósito"}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Toggle button */}

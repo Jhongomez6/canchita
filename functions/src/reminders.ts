@@ -1016,3 +1016,113 @@ export const clearIOSBadge = onCall(async (request) => {
   return { success: true };
 });
 
+// ========================
+// confirmFromWaitlist — onCall
+// Acepta un suplente al partido (actualiza Firestore) y notifica al jugador
+// via in-app + push.
+// ========================
+
+export const confirmFromWaitlist = onCall(
+  { maxInstances: 10 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+    }
+
+    const callerUid = request.auth.uid;
+    const matchId = request.data.matchId as string;
+    const playerName = request.data.playerName as string;
+
+    if (!matchId || !playerName) {
+      throw new HttpsError("invalid-argument", "matchId y playerName son requeridos");
+    }
+
+    // Verificar que el llamante es admin
+    const callerDoc = await db.collection("users").doc(callerUid).get();
+    if (!callerDoc.exists) throw new HttpsError("permission-denied", "No autorizado");
+    const callerData = callerDoc.data()!;
+    const isAdmin =
+      callerData.role === "admin" ||
+      (Array.isArray(callerData.roles) && callerData.roles.includes("admin"));
+    if (!isAdmin) throw new HttpsError("permission-denied", "Solo admins pueden aceptar suplentes");
+
+    const matchRef = db.collection("matches").doc(matchId);
+
+    // Leer match para la notificación (antes de la tx)
+    const matchSnap = await matchRef.get();
+    if (!matchSnap.exists) throw new HttpsError("not-found", "El partido no existe");
+    const matchData = matchSnap.data()!;
+    const matchLabel: string = matchData.locationSnapshot?.name || "el partido";
+
+    let approvedPlayerUid: string | undefined;
+
+    await db.runTransaction(async (transaction) => {
+      const freshSnap = await transaction.get(matchRef);
+      const data = freshSnap.data()!;
+      const players: Array<{ uid?: string; name: string; confirmed?: boolean; isWaitlist?: boolean; [key: string]: unknown }> = data.players || [];
+      const maxPlayers: number = data.maxPlayers ?? Infinity;
+
+      const playerIndex = players.findIndex((p) => p.name === playerName && p.isWaitlist);
+      if (playerIndex === -1) throw new HttpsError("not-found", "Jugador no encontrado en lista de espera");
+
+      const confirmedCount = players.filter((p) => p.confirmed).length;
+      if (confirmedCount >= maxPlayers) {
+        throw new HttpsError("resource-exhausted", "El partido está lleno");
+      }
+
+      approvedPlayerUid = players[playerIndex].uid;
+
+      const updatedPlayers = [...players];
+      updatedPlayers[playerIndex] = { ...updatedPlayers[playerIndex], confirmed: true, isWaitlist: false };
+
+      const update: Record<string, unknown> = { players: updatedPlayers };
+
+      // Asignar al equipo más pequeño si existen equipos
+      if (data.teams?.A && data.teams?.B) {
+        const teamA = data.teams.A as unknown[];
+        const teamB = data.teams.B as unknown[];
+        update.teams = teamA.length <= teamB.length
+          ? { A: [...teamA, updatedPlayers[playerIndex]], B: teamB }
+          : { A: teamA, B: [...teamB, updatedPlayers[playerIndex]] };
+      }
+
+      transaction.update(matchRef, update);
+    });
+
+    // Notificaciones (best-effort, fuera de la tx)
+    if (approvedPlayerUid) {
+      const now = new Date().toISOString();
+      const expireAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + NOTIFICATION_TTL_MS));
+      const matchUrl = `/join/${matchId}`;
+
+      // In-app
+      await db.collection("notifications").doc(approvedPlayerUid).collection("items").add({
+        title: "¡Entraste al partido!",
+        body: `El organizador te aceptó en ${matchLabel}. Ya estás confirmado.`,
+        type: "waitlist_approved",
+        url: matchUrl,
+        read: false,
+        createdAt: now,
+        expireAt,
+      });
+
+      // Push
+      const userDoc = await db.collection("users").doc(approvedPlayerUid).get();
+      if (userDoc.exists) {
+        const tokens: string[] = userDoc.data()?.fcmTokens ?? [];
+        if (tokens.length > 0) {
+          const result = await safeSendPush(
+            tokens,
+            { title: "¡Entraste al partido!", body: `El organizador te aceptó en ${matchLabel}.` },
+            matchUrl,
+            "waitlist_approved"
+          );
+          await cleanupInvalidTokens(userDoc.ref, result.invalidTokens);
+        }
+      }
+    }
+
+    return { success: true };
+  }
+);
+
