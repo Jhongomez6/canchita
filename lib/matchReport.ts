@@ -14,12 +14,14 @@ import type { Match } from "./domain/match";
 import type { Guest } from "./domain/guest";
 import { guestToPlayer } from "./domain/guest";
 import { formatDateSpanish, formatTime12h, formatEndTime } from "./date";
+import { getTeamColors, TEAM_COLOR_EMOJI } from "./domain/team-colors";
 
 interface ReportMatchData {
   date?: string;
   time?: string;
   teams?: { A: Player[]; B: Player[] };
   score?: { A: number; B: number };
+  teamColors?: { A: string; B: string };
 }
 
 /**
@@ -33,6 +35,10 @@ export function buildWhatsAppReport(match: ReportMatchData): string {
   const scoreA = match.score?.A ?? 0;
   const scoreB = match.score?.B ?? 0;
 
+  const tc = getTeamColors(match.teamColors);
+  const emojiA = TEAM_COLOR_EMOJI[tc.A];
+  const emojiB = TEAM_COLOR_EMOJI[tc.B];
+
   const teamAList = A.map((p: Player, i: number) => `${i + 1}. ${p.name}`).join("\n");
   const teamBList = B.map((p: Player, i: number) => `${i + 1}. ${p.name}`).join("\n");
 
@@ -42,10 +48,10 @@ export function buildWhatsAppReport(match: ReportMatchData): string {
 📅 ${match.date}
 ⏰ ${match.time}
 
-🔴 Equipo A (${scoreA})
+${emojiA} Equipo A (${scoreA})
 ${teamAList}
 
-🔵 Equipo B (${scoreB})
+${emojiB} Equipo B (${scoreB})
 ${teamBList}
 
 🏆 Resultado final:

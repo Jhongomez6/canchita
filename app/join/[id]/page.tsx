@@ -18,6 +18,7 @@ import { isInAppBrowser } from "@/lib/browser";
 import { Guest, guestToPlayer } from "@/lib/domain/guest";
 import type { Match } from "@/lib/domain/match";
 import { isDepositRefundable } from "@/lib/domain/match";
+import { getTeamColors, TEAM_COLOR_CONFIG } from "@/lib/domain/team-colors";
 
 import { isAdmin } from "@/lib/domain/user";
 import { type Player, type Position, POSITION_ICONS } from "@/lib/domain/player";
@@ -831,6 +832,9 @@ export default function JoinMatchPage() {
             // LOGICA RESULTADO PERSONAL
             const userInTeamA = match.teams.A?.some((p: Player) => p.uid === user.uid);
             const userInTeamB = match.teams.B?.some((p: Player) => p.uid === user.uid);
+            const tc = getTeamColors(match.teamColors);
+            const cfgA = TEAM_COLOR_CONFIG[tc.A];
+            const cfgB = TEAM_COLOR_CONFIG[tc.B];
 
             const scoreA = match.score?.A ?? 0;
             const scoreB = match.score?.B ?? 0;
@@ -899,10 +903,10 @@ export default function JoinMatchPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* EQUIPO A */}
-                  <div className={`rounded-xl p-4 border ${userInTeamA ? "bg-red-100 border-red-300 ring-2 ring-red-200" : "bg-red-50 border-red-100"}`}>
-                    <h4 className="font-bold text-red-800 mb-3 text-sm uppercase tracking-wide border-b border-red-200 pb-2 flex justify-between">
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Equipo A {userInTeamA && "(Tú)"}</span>
-                      <span className="text-red-500 opacity-60 text-xs">{match.teams.A.length} jug.</span>
+                  <div className={`rounded-xl p-4 border transition-colors duration-200 ${userInTeamA ? `${cfgA.highlight} ${cfgA.highlightBorder} ring-2 ${cfgA.dotRing}` : `${cfgA.bg} ${cfgA.border}`}`}>
+                    <h4 className={`font-bold ${cfgA.text} mb-3 text-sm uppercase tracking-wide border-b ${cfgA.border} pb-2 flex justify-between`}>
+                      <span className="flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full ${cfgA.dot} shrink-0`} /> Equipo A {userInTeamA && "(Tú)"}</span>
+                      <span className={`${cfgA.subtext} opacity-60 text-xs`}>{match.teams.A.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
                       {[...match.teams.A].sort((a: Player, b: Player) => {
@@ -930,7 +934,7 @@ export default function JoinMatchPage() {
                                     className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
                                   />
                                 ) : (
-                                  <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
+                                  <div className={`w-7 h-7 rounded-full bg-white ${cfgA.text} flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ${cfgA.dotRing} shrink-0`}>
                                     {p.name.charAt(0).toUpperCase()}
                                   </div>
                                 )}
@@ -938,7 +942,7 @@ export default function JoinMatchPage() {
                                   {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                                 </div>
                               </div>
-                              <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-red-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
+                              <span className={`text-sm font-medium ${p.uid === user.uid ? `${cfgA.text} font-bold` : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                               {isMvp && <Crown className={`w-4 h-4 text-amber-500 ${votingClosed ? "" : "animate-pulse"}`} aria-label={`MVP Actual con ${votes} votos`} />}
                             </div>
                             {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
@@ -949,10 +953,10 @@ export default function JoinMatchPage() {
                   </div>
 
                   {/* EQUIPO B */}
-                  <div className={`rounded-xl p-4 border ${userInTeamB ? "bg-blue-100 border-blue-300 ring-2 ring-blue-200" : "bg-blue-50 border-blue-100"}`}>
-                    <h4 className="font-bold text-blue-800 mb-3 text-sm uppercase tracking-wide border-b border-blue-200 pb-2 flex justify-between">
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" /> Equipo B {userInTeamB && "(Tú)"}</span>
-                      <span className="text-blue-500 opacity-60 text-xs">{match.teams.B.length} jug.</span>
+                  <div className={`rounded-xl p-4 border transition-colors duration-200 ${userInTeamB ? `${cfgB.highlight} ${cfgB.highlightBorder} ring-2 ${cfgB.dotRing}` : `${cfgB.bg} ${cfgB.border}`}`}>
+                    <h4 className={`font-bold ${cfgB.text} mb-3 text-sm uppercase tracking-wide border-b ${cfgB.border} pb-2 flex justify-between`}>
+                      <span className="flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full ${cfgB.dot} shrink-0`} /> Equipo B {userInTeamB && "(Tú)"}</span>
+                      <span className={`${cfgB.subtext} opacity-60 text-xs`}>{match.teams.B.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
                       {[...match.teams.B].sort((a: Player, b: Player) => {
@@ -980,7 +984,7 @@ export default function JoinMatchPage() {
                                     className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
                                   />
                                 ) : (
-                                  <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
+                                  <div className={`w-7 h-7 rounded-full bg-white ${cfgB.text} flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ${cfgB.dotRing} shrink-0`}>
                                     {p.name.charAt(0).toUpperCase()}
                                   </div>
                                 )}
@@ -988,7 +992,7 @@ export default function JoinMatchPage() {
                                   {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                                 </div>
                               </div>
-                              <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-blue-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
+                              <span className={`text-sm font-medium ${p.uid === user.uid ? `${cfgB.text} font-bold` : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                               {isMvp && <Crown className={`w-4 h-4 text-amber-500 ${votingClosed ? "" : "animate-pulse"}`} aria-label={`MVP Actual con ${votes} votos`} />}
                             </div>
                             {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
@@ -1110,8 +1114,8 @@ export default function JoinMatchPage() {
                       ) : (
                         <div className="space-y-4">
                           {[
-                            { key: "A", title: "Equipo A", color: "bg-red-500", players: match.teams?.A || [] },
-                            { key: "B", title: "Equipo B", color: "bg-blue-500", players: match.teams?.B || [] }
+                            { key: "A", title: "Equipo A", color: cfgA.dot, players: match.teams?.A || [] },
+                            { key: "B", title: "Equipo B", color: cfgB.dot, players: match.teams?.B || [] }
                           ].map(({ key, title, color, players }) => {
                             // Convert back to MVP-eligible subset
                             const teamEligible = (players as Player[]).filter(p => p.uid !== user.uid && eligiblePlayersAndGuests.some(e => e.uid === p.uid || e.name === p.name));
@@ -1195,6 +1199,9 @@ export default function JoinMatchPage() {
           })() : match.teamsConfirmed && match.teams ? (() => {
             const userInTeamA = match.teams!.A?.some((p: Player) => p.uid === user.uid);
             const userInTeamB = match.teams!.B?.some((p: Player) => p.uid === user.uid);
+            const tc2 = getTeamColors(match.teamColors);
+            const cfgA2 = TEAM_COLOR_CONFIG[tc2.A];
+            const cfgB2 = TEAM_COLOR_CONFIG[tc2.B];
 
             return (
               <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6">
@@ -1204,10 +1211,10 @@ export default function JoinMatchPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* EQUIPO A */}
-                  <div className={`rounded-xl p-4 border ${userInTeamA ? "bg-red-100 border-red-300 ring-2 ring-red-200" : "bg-red-50 border-red-100"}`}>
-                    <h4 className="font-bold text-red-800 mb-3 text-sm uppercase tracking-wide border-b border-red-200 pb-2 flex justify-between">
+                  <div className={`rounded-xl p-4 border transition-colors duration-200 ${userInTeamA ? `${cfgA2.highlight} ${cfgA2.highlightBorder} ring-2 ${cfgA2.dotRing}` : `${cfgA2.bg} ${cfgA2.border}`}`}>
+                    <h4 className={`font-bold ${cfgA2.text} mb-3 text-sm uppercase tracking-wide border-b ${cfgA2.border} pb-2 flex justify-between`}>
                       <span>Equipo A {userInTeamA && "(Tú)"}</span>
-                      <span className="text-red-500 opacity-60 text-xs">{match.teams!.A.length} jug.</span>
+                      <span className={`${cfgA2.subtext} opacity-60 text-xs`}>{match.teams!.A.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
                       {[...match.teams!.A].sort((a: Player, b: Player) => {
@@ -1231,7 +1238,7 @@ export default function JoinMatchPage() {
                                   className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
                                 />
                               ) : (
-                                <div className="w-7 h-7 rounded-full bg-white text-red-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-red-100 shrink-0">
+                                <div className={`w-7 h-7 rounded-full bg-white ${cfgA2.text} flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ${cfgA2.dotRing} shrink-0`}>
                                   {p.name.charAt(0).toUpperCase()}
                                 </div>
                               )}
@@ -1239,7 +1246,7 @@ export default function JoinMatchPage() {
                                 {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                               </div>
                             </div>
-                            <span className={`text-sm font-medium ${p.uid === user.uid ? "text-red-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-red-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
+                            <span className={`text-sm font-medium ${p.uid === user.uid ? `${cfgA2.text} font-bold` : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                               {p.name}
                             </span>
                           </div>
@@ -1249,10 +1256,10 @@ export default function JoinMatchPage() {
                   </div>
 
                   {/* EQUIPO B */}
-                  <div className={`rounded-xl p-4 border ${userInTeamB ? "bg-blue-100 border-blue-300 ring-2 ring-blue-200" : "bg-blue-50 border-blue-100"}`}>
-                    <h4 className="font-bold text-blue-800 mb-3 text-sm uppercase tracking-wide border-b border-blue-200 pb-2 flex justify-between">
+                  <div className={`rounded-xl p-4 border transition-colors duration-200 ${userInTeamB ? `${cfgB2.highlight} ${cfgB2.highlightBorder} ring-2 ${cfgB2.dotRing}` : `${cfgB2.bg} ${cfgB2.border}`}`}>
+                    <h4 className={`font-bold ${cfgB2.text} mb-3 text-sm uppercase tracking-wide border-b ${cfgB2.border} pb-2 flex justify-between`}>
                       <span>Equipo B {userInTeamB && "(Tú)"}</span>
-                      <span className="text-blue-500 opacity-60 text-xs">{match.teams!.B.length} jug.</span>
+                      <span className={`${cfgB2.subtext} opacity-60 text-xs`}>{match.teams!.B.length} jug.</span>
                     </h4>
                     <div className="space-y-2">
                       {[...match.teams!.B].sort((a: Player, b: Player) => {
@@ -1276,7 +1283,7 @@ export default function JoinMatchPage() {
                                   className="w-7 h-7 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
                                 />
                               ) : (
-                                <div className="w-7 h-7 rounded-full bg-white text-blue-700 flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ring-blue-100 shrink-0">
+                                <div className={`w-7 h-7 rounded-full bg-white ${cfgB2.text} flex items-center justify-center text-[10px] font-black shadow-sm ring-1 ${cfgB2.dotRing} shrink-0`}>
                                   {p.name.charAt(0).toUpperCase()}
                                 </div>
                               )}
@@ -1284,7 +1291,7 @@ export default function JoinMatchPage() {
                                 {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
                               </div>
                             </div>
-                            <span className={`text-sm font-medium ${p.uid === user.uid ? "text-blue-900 font-bold" : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer active:text-blue-700" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
+                            <span className={`text-sm font-medium ${p.uid === user.uid ? `${cfgB2.text} font-bold` : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>
                               {p.name}
                             </span>
                           </div>

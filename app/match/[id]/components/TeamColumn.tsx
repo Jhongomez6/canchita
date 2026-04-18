@@ -3,7 +3,9 @@
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Player } from "@/lib/domain/player";
 import { sortTeamForDisplay } from "@/lib/domain/team";
+import { TEAM_COLOR_CONFIG, DEFAULT_TEAM_COLORS, type TeamColor } from "@/lib/domain/team-colors";
 import PlayerItem from "./PlayerItem";
+import TeamColorPicker from "./TeamColorPicker";
 import { Shield, Zap, Users } from "lucide-react";
 
 interface TeamColumnProps {
@@ -15,6 +17,10 @@ interface TeamColumnProps {
   votingClosed: boolean;
   currentMVPs: string[];
   voteCounts: Record<string, number>;
+  colorKey?: TeamColor;
+  otherColorKey?: TeamColor;
+  isOwner?: boolean;
+  onColorChange?: (color: TeamColor) => void;
 }
 
 export default function TeamColumn({
@@ -26,16 +32,17 @@ export default function TeamColumn({
   votingClosed,
   currentMVPs,
   voteCounts,
+  colorKey,
+  otherColorKey,
+  isOwner,
+  onColorChange,
 }: TeamColumnProps) {
-  const isA = team === "A";
-  const bgColor = isA ? "bg-red-50" : "bg-blue-50";
-  const borderColor = isA ? "border-red-100" : "border-blue-100";
-  const textColor = isA ? "text-red-800" : "text-blue-800";
-  const subtextColor = isA ? "text-red-600" : "text-blue-600";
+  const resolvedColor: TeamColor = colorKey ?? (team === "A" ? DEFAULT_TEAM_COLORS.A : DEFAULT_TEAM_COLORS.B);
+  const resolvedOther: TeamColor = otherColorKey ?? (team === "A" ? DEFAULT_TEAM_COLORS.B : DEFAULT_TEAM_COLORS.A);
+  const cfg = TEAM_COLOR_CONFIG[resolvedColor];
 
   const sortedPlayers = sortTeamForDisplay(players);
 
-  // Build unique IDs — deduplicate when two players share the same base id
   const idMap = new Map<Player, string>();
   const seen = new Set<string>();
   for (const p of players) {
@@ -51,12 +58,12 @@ export default function TeamColumn({
   const uniqueIds = players.map((p) => idMap.get(p)!);
 
   return (
-    <div className={`${bgColor} rounded-xl p-3 border ${borderColor} min-w-0`}>
-      <h4 className={`font-bold ${textColor} mb-1 text-sm flex items-center gap-1.5`}>
-        <Shield size={14} fill={isA ? "#ef4444" : "#3b82f6"} className={isA ? "text-red-500" : "text-blue-500"} />
+    <div className={`${cfg.bg} rounded-xl p-3 border ${cfg.border} min-w-0 transition-colors duration-200`}>
+      <h4 className={`font-bold ${cfg.text} mb-1 text-sm flex items-center gap-1.5`}>
+        <Shield size={14} fill={cfg.shieldFill} className={cfg.shieldText} />
         Equipo {team}
       </h4>
-      <div className={`text-[10px] ${subtextColor} mb-3 opacity-80 font-medium flex items-center gap-3`}>
+      <div className={`text-[10px] ${cfg.subtext} mb-2 opacity-80 font-medium flex items-center gap-3`}>
         <span className="flex items-center gap-1">
           <Zap size={10} /> <strong>{totalLevel}</strong> pts
         </span>
@@ -65,11 +72,16 @@ export default function TeamColumn({
         </span>
       </div>
 
-      <SortableContext
-        items={uniqueIds}
-        strategy={verticalListSortingStrategy}
-      >
-        <div className="space-y-1.5">
+      {isOwner && onColorChange && (
+        <TeamColorPicker
+          value={resolvedColor}
+          disabledColor={resolvedOther}
+          onChange={onColorChange}
+        />
+      )}
+
+      <div className={`space-y-1.5 ${isOwner && onColorChange ? "mt-2" : ""}`}>
+        <SortableContext items={uniqueIds} strategy={verticalListSortingStrategy}>
           {sortedPlayers.map((p: Player) => {
             const targetId = idMap.get(p) || p.id || p.uid || p.name;
             const isMvp = votingClosed && currentMVPs.includes(targetId);
@@ -91,8 +103,8 @@ export default function TeamColumn({
               />
             );
           })}
-        </div>
-      </SortableContext>
+        </SortableContext>
+      </div>
     </div>
   );
 }

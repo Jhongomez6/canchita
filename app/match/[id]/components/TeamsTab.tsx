@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/core";
 import type { Player } from "@/lib/domain/player";
 import { getTeamSummary } from "@/lib/domain/team";
+import { type TeamColor, TEAM_COLOR_CONFIG, getTeamColors } from "@/lib/domain/team-colors";
 import TeamColumn from "./TeamColumn";
 import { logMatchReportCopied, logTeamsConfirmed } from "@/lib/analytics";
 import { 
@@ -36,12 +37,14 @@ interface TeamsTabProps {
   voteCounts: Record<string, number>;
   hasTeamsSaved: boolean;
   teamsConfirmed: boolean;
+  teamColors: { A: string; B: string };
   // Actions
   onBalance: () => void;
   onDragEnd: (event: DragEndEvent) => void;
   onCopyReport: () => Promise<void>;
   onGetReportText: () => string;
   onConfirmTeams: () => Promise<void>;
+  onColorChange: (team: "A" | "B", color: string) => void;
   balancing: boolean;
 }
 
@@ -57,11 +60,13 @@ export default function TeamsTab({
   voteCounts,
   hasTeamsSaved,
   teamsConfirmed,
+  teamColors,
   onBalance,
   onDragEnd,
   onCopyReport,
   onGetReportText,
   onConfirmTeams,
+  onColorChange,
   balancing,
 }: TeamsTabProps) {
   const [copyingReport, setCopyingReport] = useState(false);
@@ -227,13 +232,17 @@ export default function TeamsTab({
       </div>
 
       {/* Collapsible position grid */}
-      {showPositionGrid && (
+      {showPositionGrid && (() => {
+        const tc = getTeamColors(teamColors);
+        const cfgA = TEAM_COLOR_CONFIG[tc.A];
+        const cfgB = TEAM_COLOR_CONFIG[tc.B];
+        return (
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 animate-in slide-in-from-top-1 fade-in duration-200">
           <div className="grid grid-cols-4 gap-2 text-center text-xs font-medium text-slate-600">
             <div className="font-bold text-slate-400 mb-1">POS</div>
-            <div className="bg-red-50 text-red-700 rounded py-1">A</div>
+            <div className={`${cfgA.bg} ${cfgA.text} rounded py-1`}>A</div>
             <div></div>
-            <div className="bg-blue-50 text-blue-700 rounded py-1">B</div>
+            <div className={`${cfgB.bg} ${cfgB.text} rounded py-1`}>B</div>
 
             <div>GK</div>
             <div>{summaryA.positionsCount.GK}</div>
@@ -256,7 +265,8 @@ export default function TeamsTab({
             <div>{summaryB.positionsCount.FWD}</div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Drag hint */}
       {isOwner && !isClosed && !isSavingTeams && (
@@ -277,6 +287,10 @@ export default function TeamsTab({
             votingClosed={votingClosed}
             currentMVPs={currentMVPs}
             voteCounts={voteCounts}
+            colorKey={teamColors.A as TeamColor}
+            otherColorKey={teamColors.B as TeamColor}
+            isOwner={isOwner}
+            onColorChange={(color) => onColorChange("A", color)}
           />
           <TeamColumn
             team="B"
@@ -287,6 +301,10 @@ export default function TeamsTab({
             votingClosed={votingClosed}
             currentMVPs={currentMVPs}
             voteCounts={voteCounts}
+            colorKey={teamColors.B as TeamColor}
+            otherColorKey={teamColors.A as TeamColor}
+            isOwner={isOwner}
+            onColorChange={(color) => onColorChange("B", color)}
           />
         </div>
       </DndContext>

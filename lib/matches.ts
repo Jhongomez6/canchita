@@ -869,6 +869,14 @@ export async function savePaymentsInBatch(
   await updateDoc(ref, updateData);
 }
 
+export async function updateTeamColors(
+  matchId: string,
+  colors: { A: string; B: string }
+): Promise<void> {
+  const ref = doc(db, "matches", matchId);
+  await updateDoc(ref, { teamColors: colors });
+}
+
 /**
  * Borra un partido.
  * - Si tiene depósito o jugadores confirmados: usa la Cloud Function

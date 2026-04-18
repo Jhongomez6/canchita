@@ -61,6 +61,7 @@ export interface Match {
     instructions?: string; // Instrucciones libres del organizador para los jugadores (máx 500 chars)
     payments?: Record<string, boolean>; // key → hasPaid; key = uid para jugadores, "guest_{invitedBy}_{name}" para invitados
     deposit?: number; // centavos COP; valores válidos: 500000 ($5k) o 1000000 ($10k)
+    teamColors?: { A: string; B: string };
 }
 
 export interface CreateMatchInput {

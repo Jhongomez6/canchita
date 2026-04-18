@@ -14,6 +14,7 @@ import {
   moveToWaitlist,
   deleteMatch,
   confirmTeams,
+  updateTeamColors,
 } from "@/lib/matches";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -48,7 +49,9 @@ import {
   logMatchReportCopied,
   logMatchSettingUpdated,
   logMatchInstructionsSaved,
+  logTeamColorChanged,
 } from "@/lib/analytics";
+import { getTeamColors, TEAM_COLOR_EMOJI } from "@/lib/domain/team-colors";
 import { Lock } from "lucide-react";
 import { adminRemovePlayer, confirmFromWaitlist } from "@/lib/wallet";
 import { formatCOP } from "@/lib/domain/wallet";
@@ -389,20 +392,24 @@ export default function MatchDetailPage() {
     const sA = match?.score?.A ?? 0;
     const sB = match?.score?.B ?? 0;
 
+    const { A: colorA, B: colorB } = getTeamColors(match?.teamColors);
+    const emojiA = TEAM_COLOR_EMOJI[colorA];
+    const emojiB = TEAM_COLOR_EMOJI[colorB];
+
     let text = match?.status === "closed"
       ? `📋 *Resumen del partido de hoy:*\n`
       : `⚽ *La titular de hoy:*\n`;
 
     text += `📅 ${formatDateSpanish(match?.date || "")}\n`;
     text += `⏰ ${formatTime12h(match?.time || "")}${match?.duration ? ` — hasta las ${formatEndTime(match.time, match.duration)}` : ""}\n\n`;
-    text += `🔴 *Equipo A*\n`;
+    text += `${emojiA} *Equipo A*\n`;
     teamA.forEach((p: Player, i: number) => { text += `${i + 1}. ${p.name} \n`; });
-    text += `\n🔵 *Equipo B*\n`;
+    text += `\n${emojiB} *Equipo B*\n`;
     teamB.forEach((p: Player, i: number) => { text += `${i + 1}. ${p.name} \n`; });
 
     if (match?.status === "closed") {
       text += `\n🏆 *Resultado Final*\n`;
-      text += `🔴 Equipo A ${sA} - ${sB} Equipo B 🔵\n`;
+      text += `${emojiA} Equipo A ${sA} - ${sB} Equipo B ${emojiB}\n`;
 
       if (match.mvpVotes) {
         const { votingClosed: vc, topMvpScore: ts, winnerNames } = calculateMvpStatus(match);
@@ -817,6 +824,7 @@ export default function MatchDetailPage() {
               voteCounts={voteCounts}
               hasTeamsSaved={Boolean(match.teams)}
               teamsConfirmed={match.teamsConfirmed ?? false}
+              teamColors={getTeamColors(match.teamColors)}
               onBalance={handleBalance}
               onDragEnd={handleDragEnd}
               onCopyReport={generateWhatsAppReport}
@@ -827,6 +835,16 @@ export default function MatchDetailPage() {
                   toast.success("Equipos confirmados y publicados");
                 } catch (err) {
                   handleError(err, "Error al confirmar equipos");
+                }
+              }}
+              onColorChange={async (team, color) => {
+                const current = getTeamColors(match.teamColors);
+                const next = { ...current, [team]: color };
+                try {
+                  await updateTeamColors(id, next);
+                  logTeamColorChanged(id, team, color);
+                } catch (err) {
+                  handleError(err, "No se pudo cambiar el color");
                 }
               }}
               balancing={balancing}

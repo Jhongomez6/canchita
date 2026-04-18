@@ -112,6 +112,10 @@ export async function logWaitlistLeft(matchId: string) {
   await trackEvent("waitlist_left", { match_id: matchId });
 }
 
+export async function logTeamColorChanged(matchId: string, team: "A" | "B", color: string) {
+  await trackEvent("team_color_changed", { match_id: matchId, team, color });
+}
+
 export async function logGuestRemoved(matchId: string) {
   await trackEvent("guest_removed", { match_id: matchId });
 }
