@@ -82,6 +82,7 @@ export default function JoinMatchPage() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [showCancelDepositConfirm, setShowCancelDepositConfirm] = useState(false);
+  const [showLeaveWaitlistConfirm, setShowLeaveWaitlistConfirm] = useState(false);
 
   const handlePlayerTap = (uid?: string) => {
     if (!uid) return;
@@ -770,18 +771,7 @@ export default function JoinMatchPage() {
                     <ClipboardList className="w-3.5 h-3.5 shrink-0" /> Estás en lista de espera
                   </div>
                   <button
-                    onClick={async () => {
-                      setSubmitting(true);
-                      try {
-                        await leaveWaitlist(id, playerName);
-                        logWaitlistLeft(id);
-                        toast.success("Has salido de la lista de espera");
-                      } catch (err: unknown) {
-                        handleError(err, "Hubo un error al salir de la lista de espera");
-                      } finally {
-                        setSubmitting(false);
-                      }
-                    }}
+                    onClick={() => setShowLeaveWaitlistConfirm(true)}
                     className="w-full py-2.5 text-slate-500 text-sm font-semibold hover:bg-slate-50 transition-colors"
                   >
                     Salir de la lista de espera
@@ -1618,6 +1608,46 @@ export default function JoinMatchPage() {
           }
         }}
       />
+
+      {/* Modal de confirmación salir de lista de espera */}
+      {showLeaveWaitlistConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-bold text-slate-800 mb-2">¿Salir de la lista de espera?</h2>
+            <p className="text-sm text-slate-500 mb-6">
+              Perderás tu lugar y tendrás que volver a anotarte si querés participar.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveWaitlistConfirm(false)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={submitting}
+                onClick={async () => {
+                  setSubmitting(true);
+                  try {
+                    await leaveWaitlist(id, playerName);
+                    logWaitlistLeft(id);
+                    setShowLeaveWaitlistConfirm(false);
+                    toast.success("Has salido de la lista de espera");
+                  } catch (err: unknown) {
+                    handleError(err, "Hubo un error al salir de la lista de espera");
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {submitting ? "Saliendo..." : "Sí, salir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmación cancelación con depósito */}
       <AnimatePresence>
