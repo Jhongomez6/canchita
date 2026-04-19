@@ -69,6 +69,7 @@ export default function JoinMatchPage() {
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittingVote, setSubmittingVote] = useState(false);
+  const [pendingVote, setPendingVote] = useState<string | null>(null);
   const [inApp, setInApp] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isCodeCopied, setIsCodeCopied] = useState(false);
@@ -438,6 +439,7 @@ export default function JoinMatchPage() {
 
   const {
     currentMVPs,
+    winnerNames,
     votingClosed,
     sortedMVPLeaderboard,
     voteCounts,
@@ -901,6 +903,12 @@ export default function JoinMatchPage() {
                   </div>
                 )}
 
+                {!votingClosed && !myVote && isClosed && (existingPlayer?.confirmed || match.createdBy === user.uid) && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 text-center flex items-center justify-center gap-1.5">
+                    <Trophy className="w-3.5 h-3.5 shrink-0" /> Vota por el MVP del partido
+                  </p>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* EQUIPO A */}
                   <div className={`rounded-xl p-4 border transition-colors duration-200 ${userInTeamA ? `${cfgA.highlight} ${cfgA.highlightBorder} ring-2 ${cfgA.dotRing}` : `${cfgA.bg} ${cfgA.border}`}`}>
@@ -922,6 +930,10 @@ export default function JoinMatchPage() {
                         const photoURL = p.photoURL || fullPlayerA?.photoURL;
                         const photoURLThumb = p.photoURLThumb || fullPlayerA?.photoURLThumb;
                         const primaryPosition = p.primaryPosition || fullPlayerA?.primaryPosition;
+                        const canVoteForThisA = isClosed && !votingClosed && !myVote &&
+                          (existingPlayer?.confirmed || match.createdBy === user.uid) &&
+                          p.uid !== user.uid &&
+                          eligiblePlayersAndGuests.some(e => e.uid === p.uid || e.name === p.name);
 
                         return (
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
@@ -944,8 +956,30 @@ export default function JoinMatchPage() {
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? `${cfgA.text} font-bold` : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                               {isMvp && <Crown className={`w-4 h-4 text-amber-500 ${votingClosed ? "" : "animate-pulse"}`} aria-label={`MVP Actual con ${votes} votos`} />}
+                              {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>}
                             </div>
-                            {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
+                            {myVote === targetId ? (
+                              <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0"><Star className="w-2.5 h-2.5" /> Tu voto</span>
+                            ) : pendingVote === targetId && canVoteForThisA ? (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button disabled={submittingVote} onClick={async () => {
+                                  setPendingVote(null);
+                                  setSubmittingVote(true);
+                                  try {
+                                    await voteForMVP(id, user.uid, targetId);
+                                    logMvpVoted(id, targetId);
+                                    toast.success("Tu voto ha sido registrado");
+                                  } catch (err: unknown) {
+                                    handleError(err, "Hubo un error al registrar tu voto");
+                                  } finally { setSubmittingVote(false); }
+                                }} className="text-[10px] font-bold text-white bg-amber-500 px-2 py-0.5 rounded-full active:scale-95 transition-transform">Sí</button>
+                                <button onClick={() => setPendingVote(null)} className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">No</button>
+                              </div>
+                            ) : canVoteForThisA ? (
+                              <button onClick={() => setPendingVote(targetId)} className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full hover:bg-amber-200 active:scale-95 transition-transform shrink-0">⭐ Votar</button>
+                            ) : votes > 0 ? (
+                              <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>
+                            ) : null}
                           </div>
                         );
                       })}
@@ -972,6 +1006,10 @@ export default function JoinMatchPage() {
                         const photoURL = p.photoURL || fullPlayerB?.photoURL;
                         const photoURLThumb = p.photoURLThumb || fullPlayerB?.photoURLThumb;
                         const primaryPosition = p.primaryPosition || fullPlayerB?.primaryPosition;
+                        const canVoteForThisB = isClosed && !votingClosed && !myVote &&
+                          (existingPlayer?.confirmed || match.createdBy === user.uid) &&
+                          p.uid !== user.uid &&
+                          eligiblePlayersAndGuests.some(e => e.uid === p.uid || e.name === p.name);
 
                         return (
                           <div key={i} className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}>
@@ -994,8 +1032,30 @@ export default function JoinMatchPage() {
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? `${cfgB.text} font-bold` : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                               {isMvp && <Crown className={`w-4 h-4 text-amber-500 ${votingClosed ? "" : "animate-pulse"}`} aria-label={`MVP Actual con ${votes} votos`} />}
+                              {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>}
                             </div>
-                            {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
+                            {myVote === targetId ? (
+                              <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0"><Star className="w-2.5 h-2.5" /> Tu voto</span>
+                            ) : pendingVote === targetId && canVoteForThisB ? (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button disabled={submittingVote} onClick={async () => {
+                                  setPendingVote(null);
+                                  setSubmittingVote(true);
+                                  try {
+                                    await voteForMVP(id, user.uid, targetId);
+                                    logMvpVoted(id, targetId);
+                                    toast.success("Tu voto ha sido registrado");
+                                  } catch (err: unknown) {
+                                    handleError(err, "Hubo un error al registrar tu voto");
+                                  } finally { setSubmittingVote(false); }
+                                }} className="text-[10px] font-bold text-white bg-amber-500 px-2 py-0.5 rounded-full active:scale-95 transition-transform">Sí</button>
+                                <button onClick={() => setPendingVote(null)} className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">No</button>
+                              </div>
+                            ) : canVoteForThisB ? (
+                              <button onClick={() => setPendingVote(targetId)} className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full hover:bg-amber-200 active:scale-95 transition-transform shrink-0">⭐ Votar</button>
+                            ) : votes > 0 ? (
+                              <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>
+                            ) : null}
                           </div>
                         );
                       })}
@@ -1004,192 +1064,95 @@ export default function JoinMatchPage() {
                 </div>
 
 
-                {/* MVP VOTING CARD - DENTRO DEL BLOQUE DE RESULTADOS */}
-                {isClosed && (existingPlayer?.confirmed || match.createdBy === user.uid) && (
-                  <div className="mt-8 p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
+                {votingClosed && winnerNames.length > 0 && (
+                  <div className="mt-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-bold">
+                    <Crown className="w-4 h-4 text-amber-500 shrink-0" />
+                    {winnerNames.length > 1
+                      ? `Empate: ${winnerNames.join(" & ")} — MVP del partido`
+                      : `${winnerNames[0]} — MVP del partido`}
+                  </div>
+                )}
+
+                {isClosed && (myVote || votingClosed) && (existingPlayer?.confirmed || match.createdBy === user.uid) && sortedMVPLeaderboard.length > 0 && (
+                  <div className="mt-6 p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
                     <div className="absolute -top-6 -right-6 opacity-10"><Crown className="w-16 h-16 text-amber-500" /></div>
                     <h4 className="font-bold text-amber-900 mb-4 flex items-center gap-2 relative z-10">
-                      {votingClosed ? <><Crown className="w-4 h-4 text-amber-500" /> MVP del Partido</> : <><Trophy className="w-4 h-4 text-amber-500" /> Elige al MVP del Partido</>}
+                      <Crown className="w-4 h-4 text-amber-500" /> MVP del Partido
                     </h4>
-
-                    {myVote && !votingClosed && (
+                    {!votingClosed && (
                       <p className="text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded mb-4 relative z-10 border border-emerald-100 flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Tu voto ha sido registrado.
                       </p>
                     )}
-
-                    {(!votingClosed && !myVote) && (
-                      <p className="text-xs text-amber-700/80 mb-4 relative z-10 font-medium">
-                        ¡Reconoce a la figura de hoy! Tu voto es <strong className="font-bold underline">definitivo</strong>.
-                      </p>
+                    {votingClosed && currentMVPs.length > 1 && (
+                      <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4 relative z-10">
+                        <Star className="w-3.5 h-3.5 shrink-0" /> ¡Empate! Hoy se comparte el podio.
+                      </div>
                     )}
-
-                    <div className="relative z-10">
-                      {(myVote || votingClosed) ? (
-                        <div className="space-y-3">
-                          {votingClosed && currentMVPs.length > 1 && (
-                            <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4">
-                              <Star className="w-3.5 h-3.5 shrink-0" /> ¡Empate! Hoy se comparte el podio.
-                            </div>
-                          )}
-                          {votingClosed && currentMVPs.length === 1 && (
-                            <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4">
-                              <Crown className="w-3.5 h-3.5 shrink-0" /> ¡Ya tenemos la figura de la canchita!
-                            </div>
-                          )}
-                          {sortedMVPLeaderboard.slice(0, 3).map(([targetId, votes]: [string, number], idx: number) => {
-                            const player = eligiblePlayersAndGuests.find(p => p.uid === targetId || p.name === targetId) as Player;
-                            if (!player) return null;
-                            const isMyVote = myVote === targetId;
-                            const isWinner = currentMVPs.includes(targetId);
-
-                            return (
-                              <div key={targetId}
-                                className={`flex items-center justify-between p-4 rounded-2xl relative overflow-hidden transition-all duration-300
-                                      ${isWinner
-                                    ? 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 ring-2 ring-yellow-400 shadow-md transform hover:scale-[1.02]'
-                                    : isMyVote
-                                      ? 'bg-amber-50 border border-amber-200 ring-1 ring-amber-300 shadow-sm'
-                                      : 'bg-white border border-slate-100 hover:border-slate-300'}`}>
-
-                                {isWinner && (
-                                  <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/10 rounded-full blur-2xl -mr-10 -mt-10 animate-pulse"></div>
-                                )}
-
-                                <div className="flex items-center gap-4 relative z-10">
-                                  <div
-                                    className={`relative z-10 ${player.uid && !player.uid.startsWith("guest_") ? "cursor-pointer" : ""}`}
-                                    onClick={() => { if (player.uid && !player.uid.startsWith("guest_")) handlePlayerTap(player.uid); }}
-                                  >
-                                    <div className="relative">
-                                      {(player.photoURLThumb ?? player.photoURL) ? (
-                                        <PlayerAvatar
-                                          src={player.photoURLThumb ?? player.photoURL!}
-                                          alt={player.name}
-                                          className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}
-                                          sizes="96px"
-                                        />
-                                      ) : (
-                                        <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-inner
-                                            ${isWinner ? 'bg-amber-100/50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}>
-                                          {isWinner ? <Crown className={`w-6 h-6 text-amber-500 ${votingClosed ? "" : "animate-bounce"}`} /> : idx + 1}
-                                        </div>
-                                      )}
-                                      <div className={`absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs shadow-md border font-bold z-10
-                                          ${isWinner ? 'border-amber-300' : 'border-slate-100'}`}>
-                                        {POSITION_ICONS[player.primaryPosition || (player.positions?.[0] as Position) || "MID"]}
-                                      </div>
+                    {votingClosed && currentMVPs.length === 1 && (
+                      <div className="bg-amber-100/50 flex items-center justify-center gap-2 border border-amber-200 text-amber-800 text-xs px-3 py-2 rounded-lg font-medium mb-4 relative z-10">
+                        <Crown className="w-3.5 h-3.5 shrink-0" /> ¡Ya tenemos la figura de la canchita!
+                      </div>
+                    )}
+                    <div className="space-y-3 relative z-10">
+                      {sortedMVPLeaderboard.slice(0, 3).map(([targetId, votes]: [string, number], idx: number) => {
+                        const player = eligiblePlayersAndGuests.find(p => p.uid === targetId || p.name === targetId) as Player;
+                        if (!player) return null;
+                        const isMyVote = myVote === targetId;
+                        const isWinner = currentMVPs.includes(targetId);
+                        return (
+                          <div key={targetId}
+                            className={`flex items-center justify-between p-4 rounded-2xl relative overflow-hidden transition-all duration-300
+                              ${isWinner
+                                ? 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 ring-2 ring-yellow-400 shadow-md'
+                                : isMyVote
+                                  ? 'bg-amber-50 border border-amber-200 ring-1 ring-amber-300 shadow-sm'
+                                  : 'bg-white border border-slate-100'}`}>
+                            {isWinner && <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/10 rounded-full blur-2xl -mr-10 -mt-10 animate-pulse" />}
+                            <div className="flex items-center gap-4 relative z-10">
+                              <div className={`relative ${player.uid && !player.uid.startsWith("guest_") ? "cursor-pointer" : ""}`}
+                                onClick={() => { if (player.uid && !player.uid.startsWith("guest_")) handlePlayerTap(player.uid); }}>
+                                <div className="relative">
+                                  {(player.photoURLThumb ?? player.photoURL) ? (
+                                    <PlayerAvatar
+                                      src={player.photoURLThumb ?? player.photoURL!}
+                                      alt={player.name}
+                                      className={`w-14 h-14 rounded-full overflow-hidden relative border-2 ${isWinner ? 'border-amber-400' : 'border-slate-200'} shadow-md`}
+                                      sizes="96px"
+                                    />
+                                  ) : (
+                                    <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-inner ${isWinner ? 'bg-amber-100/50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-400'}`}>
+                                      {isWinner ? <Crown className={`w-6 h-6 text-amber-500 ${votingClosed ? "" : "animate-bounce"}`} /> : idx + 1}
                                     </div>
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <span
-                                      className={`font-black text-lg tracking-tight ${isWinner ? 'text-amber-900' : 'text-slate-800'} ${player.uid && !player.uid.startsWith("guest_") ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`}
-                                      onClick={() => { if (player.uid && !player.uid.startsWith("guest_")) handlePlayerTap(player.uid); }}
-                                    >
-                                      {player.name} {player.uid?.startsWith("guest_") && <span className="text-xs font-medium opacity-70">(Inv)</span>}
-                                    </span>
-                                    {isMyVote && (
-                                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded flex w-fit mt-0.5 tracking-wider
-                                          ${isWinner ? 'bg-amber-200 text-amber-800' : 'bg-amber-100 text-amber-700'}`}>
-                                        Tu voto
-                                      </span>
-                                    )}
+                                  )}
+                                  <div className={`absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs shadow-md border font-bold z-10 ${isWinner ? 'border-amber-300' : 'border-slate-100'}`}>
+                                    {POSITION_ICONS[player.primaryPosition || (player.positions?.[0] as Position) || "MID"]}
                                   </div>
                                 </div>
-                                <div className={`flex flex-col items-end relative z-10 ${isWinner ? 'text-amber-900' : 'text-slate-600'}`}>
-                                  <span className="font-black text-3xl leading-none">{votes}</span>
-                                  <span className={`text-[10px] font-bold uppercase tracking-widest ${isWinner ? 'text-amber-600' : 'text-slate-400'}`}>
-                                    {votes === 1 ? 'Voto' : 'Votos'}
+                              </div>
+                              <div className="flex flex-col">
+                                <span
+                                  className={`font-black text-lg tracking-tight ${isWinner ? 'text-amber-900' : 'text-slate-800'} ${player.uid && !player.uid.startsWith("guest_") ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`}
+                                  onClick={() => { if (player.uid && !player.uid.startsWith("guest_")) handlePlayerTap(player.uid); }}
+                                >
+                                  {player.name} {player.uid?.startsWith("guest_") && <span className="text-xs font-medium opacity-70">(Inv)</span>}
+                                </span>
+                                {isMyVote && (
+                                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded flex w-fit mt-0.5 tracking-wider ${isWinner ? 'bg-amber-200 text-amber-800' : 'bg-amber-100 text-amber-700'}`}>
+                                    Tu voto
                                   </span>
-                                </div>
+                                )}
                               </div>
-                            );
-                          })}
-                          {sortedMVPLeaderboard.length === 0 && (
-                            <div className="text-center p-4 text-sm text-slate-500 bg-white/50 rounded-xl border border-slate-100">
-                              Nadie ha recibido votos aún.
                             </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {[
-                            { key: "A", title: "Equipo A", color: cfgA.dot, players: match.teams?.A || [] },
-                            { key: "B", title: "Equipo B", color: cfgB.dot, players: match.teams?.B || [] }
-                          ].map(({ key, title, color, players }) => {
-                            // Convert back to MVP-eligible subset
-                            const teamEligible = (players as Player[]).filter(p => p.uid !== user.uid && eligiblePlayersAndGuests.some(e => e.uid === p.uid || e.name === p.name));
-                            if (teamEligible.length === 0) return null;
-
-                            return (
-                              <div key={key} className="space-y-2">
-                                <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1 flex items-center gap-1.5">
-                                  <span className={`w-2 h-2 rounded-full ${color}`} />{title}
-                                </h5>
-                                <div className="grid grid-cols-2 gap-2">
-                                  {teamEligible.map(p => {
-                                    const targetId = p.uid || p.name;
-                                    const isSelected = myVote === targetId;
-                                    const fullPlayerMvp = match.players?.find((mp: Player) => mp.uid === p.uid);
-                                    const photoURL = p.photoURL || fullPlayerMvp?.photoURL;
-                                    const photoURLThumb = p.photoURLThumb || fullPlayerMvp?.photoURLThumb;
-                                    const primaryPosition = p.primaryPosition || fullPlayerMvp?.primaryPosition;
-
-                                    return (
-                                      <button
-                                        key={targetId}
-                                        disabled={votingClosed || submittingVote || !!myVote}
-                                        onClick={async () => {
-                                          if (votingClosed || myVote) return;
-                                          if (!confirm("¿Estás seguro de tu voto por " + p.name + "?\n\nSolo puedes emitir tu voto UNA vez y es definitivo.")) return;
-
-                                          setSubmittingVote(true);
-                                          try {
-                                            await voteForMVP(id, user.uid, targetId);
-                                            logMvpVoted(id, targetId);
-                                            toast.success("Tu voto ha sido registrado");
-                                          } catch (err: unknown) {
-                                            handleError(err, "Hubo un error al registrar tu voto");
-                                          } finally {
-                                            setSubmittingVote(false);
-                                          }
-                                        }}
-                                        className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all ${isSelected
-                                          ? "bg-amber-500 border-amber-600 text-white shadow-inner font-bold"
-                                          : (votingClosed || myVote)
-                                            ? "bg-white/50 border-slate-200 text-slate-400 cursor-not-allowed opacity-60"
-                                            : "bg-white border-amber-200 text-slate-700 hover:bg-amber-100 hover:scale-105 active:scale-95"
-                                          }`}
-                                      >
-                                        <div
-                                          className={`relative shrink-0 ${p.uid && !p.uid.startsWith("guest_") ? "cursor-pointer" : ""}`}
-                                          onClick={e => { e.stopPropagation(); if (p.uid && !p.uid.startsWith("guest_")) handlePlayerTap(p.uid); }}
-                                        >
-                                          {(photoURLThumb ?? photoURL) ? (
-                                            <PlayerAvatar
-                                              src={photoURLThumb ?? photoURL!}
-                                              alt={p.name}
-                                              className="w-6 h-6 rounded-full overflow-hidden relative border border-slate-200"
-                                            />
-                                          ) : (
-                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isSelected ? "bg-white text-amber-600" : "bg-slate-100 text-slate-500"}`}>
-                                              {p.name.charAt(0).toUpperCase()}
-                                            </div>
-                                          )}
-                                          <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center text-[7px] shadow-sm border border-amber-50 z-10 font-black">
-                                            {POSITION_ICONS[(primaryPosition || (p.positions?.[0] as Position) || "MID")]}
-                                          </div>
-                                        </div>
-                                        <span className="text-xs truncate">{p.name} {p.uid?.startsWith("guest_") && "(Inv)"}</span>
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                            <div className={`flex flex-col items-end relative z-10 ${isWinner ? 'text-amber-900' : 'text-slate-600'}`}>
+                              <span className="font-black text-3xl leading-none">{votes}</span>
+                              <span className={`text-[10px] font-bold uppercase tracking-widest ${isWinner ? 'text-amber-600' : 'text-slate-400'}`}>
+                                {votes === 1 ? 'Voto' : 'Votos'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
