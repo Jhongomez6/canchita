@@ -439,7 +439,6 @@ export default function JoinMatchPage() {
 
   const {
     currentMVPs,
-    winnerNames,
     votingClosed,
     sortedMVPLeaderboard,
     voteCounts,
@@ -956,7 +955,7 @@ export default function JoinMatchPage() {
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? `${cfgA.text} font-bold` : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                               {isMvp && <Crown className={`w-4 h-4 text-amber-500 ${votingClosed ? "" : "animate-pulse"}`} aria-label={`MVP Actual con ${votes} votos`} />}
-                              {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>}
+                              {votes > 0 && canVoteForThisA && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>}
                             </div>
                             {myVote === targetId ? (
                               <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0"><Star className="w-2.5 h-2.5" /> Tu voto</span>
@@ -1032,7 +1031,7 @@ export default function JoinMatchPage() {
                               </div>
                               <span className={`text-sm font-medium ${p.uid === user.uid ? `${cfgB.text} font-bold` : "text-slate-700"} ${p.uid ? "underline decoration-slate-300 underline-offset-2 cursor-pointer" : ""}`} onClick={() => handlePlayerTap(p.uid)}>{p.name}</span>
                               {isMvp && <Crown className={`w-4 h-4 text-amber-500 ${votingClosed ? "" : "animate-pulse"}`} aria-label={`MVP Actual con ${votes} votos`} />}
-                              {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>}
+                              {votes > 0 && canVoteForThisB && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>}
                             </div>
                             {myVote === targetId ? (
                               <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0"><Star className="w-2.5 h-2.5" /> Tu voto</span>
@@ -1063,15 +1062,6 @@ export default function JoinMatchPage() {
                   </div>
                 </div>
 
-
-                {votingClosed && winnerNames.length > 0 && (
-                  <div className="mt-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-bold">
-                    <Crown className="w-4 h-4 text-amber-500 shrink-0" />
-                    {winnerNames.length > 1
-                      ? `Empate: ${winnerNames.join(" & ")} — MVP del partido`
-                      : `${winnerNames[0]} — MVP del partido`}
-                  </div>
-                )}
 
                 {isClosed && (myVote || votingClosed) && (existingPlayer?.confirmed || match.createdBy === user.uid) && sortedMVPLeaderboard.length > 0 && (
                   <div className="mt-6 p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
