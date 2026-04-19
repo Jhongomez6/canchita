@@ -442,6 +442,8 @@ export default function JoinMatchPage() {
     votingClosed,
     sortedMVPLeaderboard,
     voteCounts,
+    votesCast,
+    totalEligibleVoters,
   } = calculateMvpStatus(match);
 
   const handlePromoteGuest = async (guestName: string, inviterUid: string) => {
@@ -905,6 +907,7 @@ export default function JoinMatchPage() {
                 {!votingClosed && !myVote && isClosed && (existingPlayer?.confirmed || match.createdBy === user.uid) && (
                   <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 text-center flex items-center justify-center gap-1.5">
                     <Trophy className="w-3.5 h-3.5 shrink-0" /> Vota por el MVP del partido
+                    {totalEligibleVoters > 0 && <span className="font-bold">· {votesCast} de {totalEligibleVoters} votos</span>}
                   </p>
                 )}
 
@@ -958,7 +961,10 @@ export default function JoinMatchPage() {
                               {votes > 0 && canVoteForThisA && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>}
                             </div>
                             {myVote === targetId ? (
-                              <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0"><Star className="w-2.5 h-2.5" /> Tu voto</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><Star className="w-2.5 h-2.5" /> Tu voto</span>
+                              </div>
                             ) : pendingVote === targetId && canVoteForThisA ? (
                               <div className="flex items-center gap-1 shrink-0">
                                 <button disabled={submittingVote} onClick={async () => {
@@ -1034,7 +1040,10 @@ export default function JoinMatchPage() {
                               {votes > 0 && canVoteForThisB && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{votes} v.</span>}
                             </div>
                             {myVote === targetId ? (
-                              <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0"><Star className="w-2.5 h-2.5" /> Tu voto</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {votes > 0 && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{votes} v.</span>}
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><Star className="w-2.5 h-2.5" /> Tu voto</span>
+                              </div>
                             ) : pendingVote === targetId && canVoteForThisB ? (
                               <div className="flex items-center gap-1 shrink-0">
                                 <button disabled={submittingVote} onClick={async () => {
@@ -1066,9 +1075,12 @@ export default function JoinMatchPage() {
                 {isClosed && (myVote || votingClosed) && (existingPlayer?.confirmed || match.createdBy === user.uid) && sortedMVPLeaderboard.length > 0 && (
                   <div className="mt-6 p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
                     <div className="absolute -top-6 -right-6 opacity-10"><Crown className="w-16 h-16 text-amber-500" /></div>
-                    <h4 className="font-bold text-amber-900 mb-4 flex items-center gap-2 relative z-10">
+                    <h4 className="font-bold text-amber-900 mb-1 flex items-center gap-2 relative z-10">
                       <Crown className="w-4 h-4 text-amber-500" /> MVP del Partido
                     </h4>
+                    {totalEligibleVoters > 0 && (
+                      <p className="text-xs text-amber-700/70 mb-4 relative z-10">{votesCast} de {totalEligibleVoters} votos emitidos</p>
+                    )}
                     {!votingClosed && (
                       <p className="text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded mb-4 relative z-10 border border-emerald-100 flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Tu voto ha sido registrado.

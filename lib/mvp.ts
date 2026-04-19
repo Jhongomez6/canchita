@@ -12,6 +12,8 @@ export interface MvpStatus {
     votingClosed: boolean;
     sortedMVPLeaderboard: [string, number][];
     voteCounts: Record<string, number>;
+    votesCast: number;
+    totalEligibleVoters: number;
 }
 
 export function calculateMvpStatus(match: Match | null | undefined): MvpStatus {
@@ -25,6 +27,8 @@ export function calculateMvpStatus(match: Match | null | undefined): MvpStatus {
         votingClosed: false,
         sortedMVPLeaderboard: [],
         voteCounts: {},
+        votesCast: 0,
+        totalEligibleVoters: 0,
     };
 
     if (!match) return defaultStatus;
@@ -63,10 +67,11 @@ export function calculateMvpStatus(match: Match | null | undefined): MvpStatus {
     const eligibleUIDs = new Set(
         match.players?.filter((p: Player) => p.confirmed && p.uid && !p.uid.startsWith("guest_")).map((p: Player) => p.uid as string) || []
     );
-    if (match.createdBy) eligibleUIDs.add(match.createdBy); // Admin can always vote
 
     const totalEligibleVoters = eligibleUIDs.size;
-    const votesCast = match.mvpVotes ? Object.keys(match.mvpVotes).filter(uid => eligibleUIDs.has(uid)).length : 0;
+    const confirmedVotesCast = match.mvpVotes ? Object.keys(match.mvpVotes).filter(uid => eligibleUIDs.has(uid)).length : 0;
+    const adminVotedExtra = (match.createdBy && !eligibleUIDs.has(match.createdBy) && match.mvpVotes?.[match.createdBy]) ? 1 : 0;
+    const votesCast = Math.min(confirmedVotesCast + adminVotedExtra, totalEligibleVoters);
     const remainingVotes = totalEligibleVoters - votesCast;
 
     // A player has mathematically won if their score is strictly greater than the 
@@ -96,5 +101,7 @@ export function calculateMvpStatus(match: Match | null | undefined): MvpStatus {
         votingClosed,
         sortedMVPLeaderboard,
         voteCounts,
+        votesCast,
+        totalEligibleVoters,
     };
 }
