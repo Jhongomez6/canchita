@@ -2,6 +2,7 @@
 
 import { ArrowRight, Flame, Sparkles } from "lucide-react";
 import type { UserStats } from "@/lib/domain/user";
+import { getDisplayedWeeklyStreak } from "@/lib/domain/user";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -19,16 +20,17 @@ const pulseAnimation = {
 interface QuickStatsProps {
     stats: UserStats;
     weeklyStreak?: number;
+    lastPlayedWeek?: string;
     commitmentStreak?: number;
 }
 
-export default function QuickStats({ stats, weeklyStreak, commitmentStreak }: QuickStatsProps) {
+export default function QuickStats({ stats, weeklyStreak, lastPlayedWeek, commitmentStreak }: QuickStatsProps) {
     const [tooltip, setTooltip] = useState<string | null>(null);
     const router = useRouter();
 
     if ((stats.played ?? 0) < 3) return null;
 
-    const weekly = weeklyStreak ?? 0;
+    const weekly = getDisplayedWeeklyStreak({ weeklyStreak, lastPlayedWeek });
     const commitment = commitmentStreak ?? 0;
 
     const handleNavigate = () => {

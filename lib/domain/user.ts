@@ -62,6 +62,7 @@ export interface UserProfile {
     mvpAwards?: number;
     commitmentStreak?: number;      // Racha de Compromiso: partidos consecutivos siendo puntual (sin late, sin no_show). Se resetea con cualquier falta
     weeklyStreak?: number;          // Racha Semanal: semanas consecutivas con al menos 1 partido jugado
+    lastPlayedWeek?: string;        // YYYY-MM-DD del lunes de la última semana con partido jugado
     unbeatenStreak?: number;        // Racha Invicto: partidos consecutivos sin perder (ganados + empatados)
     winStreak?: number;             // Racha de Victorias: partidos ganados consecutivos
     mvpStreak?: number;             // Racha MVP: premios MVP consecutivos
@@ -111,55 +112,116 @@ export function calcCommitmentScore(stats: Pick<UserStats, "noShows" | "lateArri
 }
 
 /**
- * Calcula racha semanal desde un array de matches cerrados.
- * Racha semanal = cantidad de semanas calendario consecutivas (hacia atrás desde hoy)
- * en las que el usuario jugó al menos 1 partido.
- *
- * @param matches - Array de matches cerrados del usuario, ordenados descendente por fecha
- * @returns Número de semanas consecutivas con al menos 1 partido
+ * Devuelve la clave YYYY-MM-DD del lunes (hora local) de la semana calendario que
+ * contiene `date`. Usa componentes locales para evitar shift de timezone UTC.
  */
-export function calcWeeklyStreak(matches: Array<{ date: string }>): number {
+export function getMonday(date: Date): string {
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(date);
+    monday.setDate(diff);
+    const y = monday.getFullYear();
+    const m = String(monday.getMonth() + 1).padStart(2, "0");
+    const d = String(monday.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
+
+/**
+ * Calcula racha semanal desde un array de matches cerrados.
+ * Racha semanal = cantidad de semanas calendario consecutivas en las que el usuario
+ * jugó al menos 1 partido, contando desde la más reciente con ventana de gracia de 1 semana
+ * (si la semana actual está vacía pero la anterior tuvo partido, la racha sigue vigente).
+ *
+ * @param matches - Array de matches cerrados del usuario (cualquier orden)
+ * @param today - Fecha de referencia (default: hoy)
+ */
+export function calcWeeklyStreak(matches: Array<{ date: string }>, today: Date = new Date()): number {
     if (matches.length === 0) return 0;
 
-    // Agrupar matches por semana calendario (lun-dom)
-    const weekMap = new Map<string, boolean>();
-
+    const weekSet = new Set<string>();
     matches.forEach(match => {
-        const date = new Date(match.date);
-        // Calcular el lunes de esa semana
-        const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Ajustar a lunes
-        const monday = new Date(date.setDate(diff));
-        const weekKey = monday.toISOString().split('T')[0]; // YYYY-MM-DD del lunes
-        weekMap.set(weekKey, true);
+        weekSet.add(getMonday(new Date(match.date + "T12:00:00")));
     });
 
-    // Obtener semanas únicas ordenadas descendente
-    const weeks = Array.from(weekMap.keys()).sort().reverse();
+    const todayMondayKey = getMonday(today);
+    const prevMondayDate = new Date(todayMondayKey + "T12:00:00");
+    prevMondayDate.setDate(prevMondayDate.getDate() - 7);
+    const prevMondayKey = getMonday(prevMondayDate);
 
-    if (weeks.length === 0) return 0;
+    let startDate: Date;
+    if (weekSet.has(todayMondayKey)) {
+        startDate = new Date(todayMondayKey + "T12:00:00");
+    } else if (weekSet.has(prevMondayKey)) {
+        startDate = prevMondayDate;
+    } else {
+        return 0;
+    }
 
-    // Contar desde la semana más reciente hacia atrás hasta encontrar un hueco
     let streak = 0;
-    const today = new Date();
-    const todayMonday = new Date(today);
-    const todayDay = todayMonday.getDay();
-    const todayDiff = todayMonday.getDate() - todayDay + (todayDay === 0 ? -6 : 1);
-    todayMonday.setDate(todayDiff);
-    // Empezar desde esta semana y contar hacia atrás
-    const currentWeekDate = new Date(todayMonday);
-
-    for (let i = 0; i < 1000; i++) { // Límite de seguridad
-        const weekKey = currentWeekDate.toISOString().split('T')[0];
-        if (weekMap.has(weekKey)) {
+    const current = new Date(startDate);
+    for (let i = 0; i < 1000; i++) {
+        const key = getMonday(current);
+        if (weekSet.has(key)) {
             streak++;
-            currentWeekDate.setDate(currentWeekDate.getDate() - 7);
+            current.setDate(current.getDate() - 7);
         } else {
             break;
         }
     }
-
     return streak;
+}
+
+/**
+ * Aplica un partido jugado al estado previo de racha semanal.
+ * Usado al cerrar un partido para actualizar weeklyStreak/lastPlayedWeek sin re-escanear historial.
+ *
+ * - Mismo lunes que lastPlayedWeek → sin cambios (segundo partido en la misma semana).
+ * - lastPlayedWeek exactamente 7 días antes → streak + 1.
+ * - Match anterior a lastPlayedWeek (cierre fuera de orden) → sin cambios (delegar a backfill).
+ * - Cualquier otro caso → reset a 1.
+ */
+export function nextWeeklyStreak(
+    prev: { weeklyStreak?: number; lastPlayedWeek?: string },
+    matchDate: string,
+): { weeklyStreak: number; lastPlayedWeek: string } {
+    const monday = getMonday(new Date(matchDate + "T12:00:00"));
+    const prevStreak = prev.weeklyStreak ?? 0;
+    const last = prev.lastPlayedWeek;
+
+    if (!last) {
+        return { weeklyStreak: 1, lastPlayedWeek: monday };
+    }
+    if (monday === last) {
+        return { weeklyStreak: prevStreak || 1, lastPlayedWeek: monday };
+    }
+    if (monday < last) {
+        return { weeklyStreak: prevStreak, lastPlayedWeek: last };
+    }
+    const expectedPrevDate = new Date(monday + "T12:00:00");
+    expectedPrevDate.setDate(expectedPrevDate.getDate() - 7);
+    const expectedPrev = getMonday(expectedPrevDate);
+    if (expectedPrev === last) {
+        return { weeklyStreak: prevStreak + 1, lastPlayedWeek: monday };
+    }
+    return { weeklyStreak: 1, lastPlayedWeek: monday };
+}
+
+/**
+ * Devuelve la racha semanal a mostrar en UI aplicando la ventana de gracia:
+ * si el último partido jugado fue hace más de una semana calendario, la racha expiró → 0.
+ */
+export function getDisplayedWeeklyStreak(
+    user: Pick<UserProfile, "weeklyStreak" | "lastPlayedWeek">,
+    today: Date = new Date(),
+): number {
+    const streak = user.weeklyStreak ?? 0;
+    if (streak <= 0 || !user.lastPlayedWeek) return 0;
+
+    const todayMondayKey = getMonday(today);
+    const prevMondayDate = new Date(todayMondayKey + "T12:00:00");
+    prevMondayDate.setDate(prevMondayDate.getDate() - 7);
+    const threshold = getMonday(prevMondayDate);
+    return user.lastPlayedWeek >= threshold ? streak : 0;
 }
 
 /**

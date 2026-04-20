@@ -32,31 +32,30 @@ function getMonday(date) {
   return `${y}-${m}-${d}`;
 }
 
-function calcWeeklyStreak(matches) {
-  if (matches.length === 0) return 0;
+function calcWeeklyStreakAndLast(matches) {
+  if (matches.length === 0) return { streak: 0, lastPlayedWeek: null };
 
-  const weekMap = new Set();
+  const weekSet = new Set();
   matches.forEach((match) => {
-    // Parsear como hora local agregando T12:00:00 para evitar shift de UTC
-    const weekKey = getMonday(new Date(match.date + "T12:00:00"));
-    weekMap.add(weekKey);
+    weekSet.add(getMonday(new Date(match.date + "T12:00:00")));
   });
 
-  const todayMonday = getMonday(new Date());
-  let streak = 0;
-  let current = new Date(todayMonday + "T12:00:00");
+  const weeksDesc = Array.from(weekSet).sort().reverse();
+  const lastPlayedWeek = weeksDesc[0];
 
-  for (let i = 0; i < 1000; i++) {
-    const weekKey = getMonday(current);
-    if (weekMap.has(weekKey)) {
+  let streak = 1;
+  let current = new Date(lastPlayedWeek + "T12:00:00");
+  for (let i = 1; i < weeksDesc.length; i++) {
+    current.setDate(current.getDate() - 7);
+    const expected = getMonday(current);
+    if (weeksDesc[i] === expected) {
       streak++;
-      current.setDate(current.getDate() - 7);
     } else {
       break;
     }
   }
 
-  return streak;
+  return { streak, lastPlayedWeek };
 }
 
 async function fetchMatchesByUser() {
@@ -88,7 +87,7 @@ async function fetchMatchesByUser() {
 
 async function runForUser(userId, userMatchesMap, verbose = false) {
   const matches = userMatchesMap.get(userId) || [];
-  const streak = calcWeeklyStreak(matches);
+  const { streak, lastPlayedWeek } = calcWeeklyStreakAndLast(matches);
 
   if (verbose) {
     console.log(`\n👤 Usuario: ${userId}`);
@@ -102,12 +101,14 @@ async function runForUser(userId, userMatchesMap, verbose = false) {
     });
     const weeks = Array.from(weekMap.entries()).sort((a, b) => b[0].localeCompare(a[0]));
     weeks.forEach(([k, count]) => console.log(`   ${k}: ${count} partido(s)`));
-    console.log(`🔥 Racha semanal: ${streak} semanas`);
+    console.log(`🔥 Racha semanal: ${streak} semanas (última: ${lastPlayedWeek ?? "—"})`);
   } else {
-    console.log(`🔥 ${userId}: ${matches.length} partidos → racha semanal = ${streak}`);
+    console.log(`🔥 ${userId}: ${matches.length} partidos → racha = ${streak}, última = ${lastPlayedWeek ?? "—"}`);
   }
 
-  await db.collection("users").doc(userId).update({ weeklyStreak: streak });
+  const update = { weeklyStreak: streak };
+  if (lastPlayedWeek) update.lastPlayedWeek = lastPlayedWeek;
+  await db.collection("users").doc(userId).update(update);
   return streak;
 }
 
@@ -136,7 +137,7 @@ async function runSingle(userId) {
 
   if (!userMatchesMap.has(userId)) {
     console.log("⚠️  El usuario no tiene partidos cerrados.");
-    await db.collection("users").doc(userId).update({ weeklyStreak: 0 });
+    await db.collection("users").doc(userId).update({ weeklyStreak: 0, lastPlayedWeek: admin.firestore.FieldValue.delete() });
     console.log("✅ weeklyStreak actualizado a 0");
     process.exit(0);
   }

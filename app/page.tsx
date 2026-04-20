@@ -476,6 +476,7 @@ export default function Home() {
                 <QuickStats
                   stats={profile.stats}
                   weeklyStreak={profile.weeklyStreak}
+                  lastPlayedWeek={profile.lastPlayedWeek}
                   commitmentStreak={profile.commitmentStreak}
                 />
               </div>

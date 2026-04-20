@@ -561,15 +561,16 @@ export default function MatchDetailPage() {
 
       // First batch: Team A stats + pending no-shows + match document update (atomic)
       // Second batch: Team B stats (atomic)
+      const matchDate = freshMatch.date;
       if (scoreA > scoreB) {
-        await updatePlayerStats(teamAWithAttendance, "win", id, previousResultA, matchData, pendingNoShows);
-        await updatePlayerStats(teamBWithAttendance, "loss", id, previousResultB);
+        await updatePlayerStats(teamAWithAttendance, "win", id, matchDate, previousResultA, matchData, pendingNoShows);
+        await updatePlayerStats(teamBWithAttendance, "loss", id, matchDate, previousResultB);
       } else if (scoreB > scoreA) {
-        await updatePlayerStats(teamAWithAttendance, "loss", id, previousResultA, matchData, pendingNoShows);
-        await updatePlayerStats(teamBWithAttendance, "win", id, previousResultB);
+        await updatePlayerStats(teamAWithAttendance, "loss", id, matchDate, previousResultA, matchData, pendingNoShows);
+        await updatePlayerStats(teamBWithAttendance, "win", id, matchDate, previousResultB);
       } else {
-        await updatePlayerStats(teamAWithAttendance, "draw", id, previousResultA, matchData, pendingNoShows);
-        await updatePlayerStats(teamBWithAttendance, "draw", id, previousResultB);
+        await updatePlayerStats(teamAWithAttendance, "draw", id, matchDate, previousResultA, matchData, pendingNoShows);
+        await updatePlayerStats(teamBWithAttendance, "draw", id, matchDate, previousResultB);
       }
 
       await closeMatch(id);
