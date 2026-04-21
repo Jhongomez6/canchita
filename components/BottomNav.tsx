@@ -31,8 +31,11 @@ export default function BottomNav() {
         }`;
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 pb-safe pt-2 px-6 h-[80px] shadow-[0_-4px_20px_rgba(0,0,0,0.05)] md:hidden">
-            <div className="flex items-center justify-between h-full pb-4">
+        <div
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 pt-2 px-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] md:hidden"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }}
+        >
+            <div className="flex items-center justify-between" style={{ height: "52px" }}>
                 {/* HOME */}
                 <Link href="/" className={navItemClass(pathname === "/")}>
                     <svg
