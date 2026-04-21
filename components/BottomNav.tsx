@@ -33,7 +33,7 @@ export default function BottomNav() {
     return (
         <div
             className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 pt-2 px-6 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] md:hidden"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }}
+            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 4px)" }}
         >
             <div className="flex items-center justify-between" style={{ height: "52px" }}>
                 {/* HOME */}
