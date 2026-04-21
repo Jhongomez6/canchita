@@ -112,3 +112,35 @@ export class DuplicateLocationError extends BusinessError {
         this.name = "DuplicateLocationError";
     }
 }
+
+// ========================
+// ERRORES DE RESERVAS
+// ========================
+
+export class SlotUnavailableError extends BusinessError {
+    constructor() {
+        super("Este horario ya no está disponible");
+        this.name = "SlotUnavailableError";
+    }
+}
+
+export class BookingExpiredError extends BusinessError {
+    constructor() {
+        super("La reserva ha expirado");
+        this.name = "BookingExpiredError";
+    }
+}
+
+export class VenueNotFoundError extends BusinessError {
+    constructor() {
+        super("La sede no existe o no está activa");
+        this.name = "VenueNotFoundError";
+    }
+}
+
+export class BookingNotFoundError extends BusinessError {
+    constructor() {
+        super("La reserva no existe");
+        this.name = "BookingNotFoundError";
+    }
+}

@@ -26,6 +26,8 @@ export type WalletTxType =
     | "deposit_debit"
     | "deposit_refund"
     | "match_refund"
+    | "booking_deposit_debit"
+    | "booking_deposit_refund"
     | "manual_credit"
     | "manual_debit";
 
@@ -47,6 +49,8 @@ export interface WalletTransaction {
     balanceAfterCOP: number;    // snapshot del balance tras esta tx (centavos)
     description: string;
     matchId?: string;
+    bookingId?: string;
+    venueId?: string;
     locationId?: string;
     wompiTransactionId?: string;
     wompiReference?: string;
@@ -140,6 +144,8 @@ export function txTypeLabel(type: WalletTxType, paymentMethod?: string): string 
         deposit_debit: "Depósito partido",
         deposit_refund: "Reembolso partido",
         match_refund: "Reembolso por cancelación",
+        booking_deposit_debit: "Depósito reserva",
+        booking_deposit_refund: "Reembolso reserva",
         manual_credit: "Crédito manual",
         manual_debit: "Débito manual",
     };

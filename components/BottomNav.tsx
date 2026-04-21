@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { isSuperAdmin as checkIsSuperAdmin } from "@/lib/domain/user";
+import { isSuperAdmin as checkIsSuperAdmin, hasBookingAccess as checkHasBookingAccess } from "@/lib/domain/user";
 import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
 
 export default function BottomNav() {
     const pathname = usePathname();
     const { user, profile } = useAuth();
     const isSuperAdminUser = profile ? checkIsSuperAdmin(profile) : false;
+    const hasBooking = profile ? checkHasBookingAccess(profile) : false;
     const [pendingApps, setPendingApps] = useState(0);
 
     useEffect(() => {
@@ -68,6 +69,28 @@ export default function BottomNav() {
                     <span className="text-[10px] font-bold tracking-wide">Buscar</span>
                 </Link>
 
+                {/* RESERVAS (behind bookingEnabled flag) */}
+                {hasBooking && !isSuperAdminUser && (
+                    <Link href="/venues" className={navItemClass(pathname.startsWith("/venues") || pathname.startsWith("/bookings"))}>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill={(pathname.startsWith("/venues") || pathname.startsWith("/bookings")) ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth={(pathname.startsWith("/venues") || pathname.startsWith("/bookings")) ? "0" : "2"}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-7 h-7"
+                        >
+                            <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                            <line x1="16" x2="16" y1="2" y2="6" />
+                            <line x1="8" x2="8" y1="2" y2="6" />
+                            <line x1="3" x2="21" y1="10" y2="10" />
+                        </svg>
+                        <span className="text-[10px] font-bold tracking-wide">Reservas</span>
+                    </Link>
+                )}
+
                 {/* HISTORY (Players) */}
                 {!isSuperAdminUser && (
                     <Link href="/history" className={navItemClass(pathname === "/history")}>
@@ -87,6 +110,28 @@ export default function BottomNav() {
                             <path d="M3 21v-5h5" />
                         </svg>
                         <span className="text-[10px] font-bold tracking-wide">Historial</span>
+                    </Link>
+                )}
+
+                {/* VENUES ADMIN (Super Admin Only) */}
+                {isSuperAdminUser && (
+                    <Link href="/venues" className={navItemClass(pathname.startsWith("/venues"))}>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill={pathname.startsWith("/venues") ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth={pathname.startsWith("/venues") ? "0" : "2"}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-7 h-7"
+                        >
+                            <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                            <line x1="16" x2="16" y1="2" y2="6" />
+                            <line x1="8" x2="8" y1="2" y2="6" />
+                            <line x1="3" x2="21" y1="10" y2="10" />
+                        </svg>
+                        <span className="text-[10px] font-bold tracking-wide">Sedes</span>
                     </Link>
                 )}
 

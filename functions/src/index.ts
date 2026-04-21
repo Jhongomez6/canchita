@@ -10,3 +10,9 @@ export * from "./payments";
 export * from "./wallet";
 export * from "./codes";
 export * from "./cleanup";
+
+// 🏟️ Exportamos las funciones de reservas
+export * from "./bookings";
+
+// 🚫 Exportamos las funciones de bloqueos (puntuales + recurrentes)
+export * from "./blocked-slots";

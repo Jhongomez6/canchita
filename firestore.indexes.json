@@ -90,6 +90,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "blocked_slots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recurrence.type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recurrence.startDate",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

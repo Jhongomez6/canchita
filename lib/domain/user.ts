@@ -73,6 +73,7 @@ export interface UserProfile {
     applyCTADismissed?: boolean;        // El usuario descartó el banner de "Aplicar como Team Admin"
     // Feature flags
     walletEnabled?: boolean;           // Acceso a la billetera (feature flag por usuario)
+    bookingEnabled?: boolean;          // Acceso al módulo de reservas (feature flag por usuario)
     // Soft-anonymization (set on account deletion — personal data wiped, traza conservada)
     deleted?: boolean;
     deletedAt?: string;                // ISO date of anonymization
@@ -308,6 +309,14 @@ export function isSuperAdmin(profile: UserProfile): boolean {
  */
 export function hasWalletAccess(profile: UserProfile): boolean {
     return isSuperAdmin(profile) || profile.walletEnabled === true;
+}
+
+/**
+ * Verifica si el usuario tiene acceso al módulo de reservas.
+ * Super admins siempre tienen acceso; otros usuarios requieren el flag bookingEnabled.
+ */
+export function hasBookingAccess(profile: UserProfile): boolean {
+    return isSuperAdmin(profile) || profile.bookingEnabled === true;
 }
 
 /**

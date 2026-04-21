@@ -395,3 +395,134 @@ export async function logMatchMapDirectionClicked(
     provider: provider,
   });
 }
+
+/* =========================
+   BOOKING / VENUES
+========================= */
+
+export async function logVenueViewed(venueId: string, venueName: string, source: "explore" | "direct_link") {
+  await trackEvent("venue_viewed", { venue_id: venueId, venue_name: venueName, source });
+}
+
+export async function logBookingFormatSelected(venueId: string, format: string) {
+  await trackEvent("booking_format_selected", { venue_id: venueId, format });
+}
+
+export async function logBookingSlotSelected(venueId: string, format: string, date: string, startTime: string) {
+  await trackEvent("booking_slot_selected", { venue_id: venueId, format, date, start_time: startTime });
+}
+
+export async function logBookingConfirmed(params: {
+  venueId: string;
+  bookingId: string;
+  format: string;
+  date: string;
+  startTime: string;
+  amountCOP: number;
+  paymentMethod: string;
+}) {
+  await trackEvent("booking_confirmed", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    format: params.format,
+    date: params.date,
+    start_time: params.startTime,
+    amount_cop: params.amountCOP.toString(),
+    payment_method: params.paymentMethod,
+  });
+}
+
+export async function logBookingCancelled(params: {
+  venueId: string;
+  bookingId: string;
+  refunded: boolean;
+  hoursBeforeStart: number;
+}) {
+  await trackEvent("booking_cancelled", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    refunded: params.refunded.toString(),
+    hours_before_start: params.hoursBeforeStart.toString(),
+  });
+}
+
+export async function logBookingRechargePrompted(venueId: string, amountRequired: number, currentBalance: number, deficit: number) {
+  await trackEvent("booking_recharge_prompted", {
+    venue_id: venueId,
+    amount_required: amountRequired.toString(),
+    current_balance: currentBalance.toString(),
+    deficit: deficit.toString(),
+  });
+}
+
+export async function logVenueAdminCourtConfigured(venueId: string, courtsCount: number, combosCount: number) {
+  await trackEvent("venue_admin_court_configured", {
+    venue_id: venueId,
+    courts_count: courtsCount.toString(),
+    combos_count: combosCount.toString(),
+  });
+}
+
+export async function logVenueAdminScheduleUpdated(venueId: string, dayOfWeek: string, slotsCount: number) {
+  await trackEvent("venue_admin_schedule_updated", {
+    venue_id: venueId,
+    day_of_week: dayOfWeek,
+    slots_count: slotsCount.toString(),
+  });
+}
+
+export async function logBlockedSlotCreated(
+  venueId: string,
+  params: {
+    isRecurring: boolean;
+    recurrenceType?: string;
+    hasEndDate: boolean;
+    hasClientName: boolean;
+    courtsCount: number;
+  },
+) {
+  await trackEvent("blocked_slot_created", {
+    venue_id: venueId,
+    is_recurring: params.isRecurring.toString(),
+    recurrence_type: params.recurrenceType ?? "none",
+    has_end_date: params.hasEndDate.toString(),
+    has_client_name: params.hasClientName.toString(),
+    courts_count: params.courtsCount.toString(),
+  });
+}
+
+export async function logBlockedSlotRecurrenceExceptionAdded(
+  venueId: string,
+  blockedSlotId: string,
+  exceptDate: string,
+) {
+  await trackEvent("blocked_slot_recurrence_exception_added", {
+    venue_id: venueId,
+    blocked_slot_id: blockedSlotId,
+    except_date: exceptDate,
+  });
+}
+
+export async function logBlockedSlotRecurrenceDeleted(
+  venueId: string,
+  blockedSlotId: string,
+) {
+  await trackEvent("blocked_slot_recurrence_deleted", {
+    venue_id: venueId,
+    blocked_slot_id: blockedSlotId,
+  });
+}
+
+export async function logBlockedSlotConflictsShown(venueId: string, conflictsCount: number) {
+  await trackEvent("blocked_slot_conflicts_shown", {
+    venue_id: venueId,
+    conflicts_count: conflictsCount.toString(),
+  });
+}
+
+export async function logBlockedSlotConflictsForced(venueId: string, conflictsCount: number) {
+  await trackEvent("blocked_slot_conflicts_forced", {
+    venue_id: venueId,
+    conflicts_count: conflictsCount.toString(),
+  });
+}

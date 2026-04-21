@@ -223,5 +223,67 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /* =========================
+       🏟️ SEDES (VENUES)
+    ========================= */
+    match /venues/{venueId} {
+      // Leer: cualquier usuario autenticado
+      allow read: if request.auth != null;
+
+      // Crear: solo super_admin
+      allow create: if request.auth != null && isSuperAdmin();
+
+      // Actualizar: super_admin o location_admin asignado
+      allow update: if request.auth != null
+        && (isSuperAdmin() || isLocationAdminFor(venueId));
+
+      // Borrar: nadie
+      allow delete: if false;
+
+      // Sub-colección: courts
+      match /courts/{courtId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+          && (isSuperAdmin() || isLocationAdminFor(venueId));
+      }
+
+      // Sub-colección: court_combos
+      match /court_combos/{comboId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+          && (isSuperAdmin() || isLocationAdminFor(venueId));
+      }
+
+      // Sub-colección: schedules
+      match /schedules/{dayOfWeek} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+          && (isSuperAdmin() || isLocationAdminFor(venueId));
+      }
+
+      // Sub-colección: blocked_slots
+      match /blocked_slots/{slotId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+          && (isSuperAdmin() || isLocationAdminFor(venueId));
+      }
+    }
+
+    /* =========================
+       📅 RESERVAS (BOOKINGS)
+    ========================= */
+    match /bookings/{bookingId} {
+      // Get individual: solo el dueño de la reserva o super_admin
+      allow get: if request.auth != null
+        && (resource.data.bookedBy == request.auth.uid || isSuperAdmin());
+
+      // List (queries): cualquier usuario autenticado
+      // Necesario para getBookingsForDate() que verifica disponibilidad de courts
+      allow list: if request.auth != null;
+
+      // Crear/Actualizar/Borrar: solo Cloud Functions (admin SDK)
+      allow create, update, delete: if false;
+    }
+
   }
 }
