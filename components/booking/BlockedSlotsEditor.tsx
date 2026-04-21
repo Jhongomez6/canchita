@@ -25,7 +25,6 @@ import ConflictsWarningModal from "./ConflictsWarningModal";
 interface BlockedSlotsEditorProps {
     venueId: string;
     courts: Court[];
-    createdBy: string;
 }
 
 function fmt12h(time: string): string {
@@ -51,7 +50,6 @@ const RECURRENCE_OPTIONS: Array<{ value: RecurrenceType; label: string }> = [
 export default function BlockedSlotsEditor({
     venueId,
     courts,
-    createdBy: _createdBy,
 }: BlockedSlotsEditorProps) {
     const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
     const [loading, setLoading] = useState(true);

@@ -9,8 +9,6 @@ import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isSuperAdmin } from "@/lib/domain/user";
 import { getAvailableFormats, getDayOfWeek, generateTimeSlots } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot } from "@/lib/domain/court-allocation";
-import { calcTotalPrice } from "@/lib/domain/booking";
-import { calcDepositCOP, calcRemainingCOP } from "@/lib/domain/venue";
 import { getVenue, getVenueCourts, getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
 import { subscribeToBookingsForDate, createBooking } from "@/lib/bookings";
 import { getWallet } from "@/lib/wallet";
@@ -51,7 +49,7 @@ function VenueDetailContent() {
     const [selectedStart, setSelectedStart] = useState<string | null>(null);
     const [selectedEnd, setSelectedEnd] = useState<string | null>(null);
     const [confirmSheetOpen, setConfirmSheetOpen] = useState(false);
-    const [bookingLoading, setBookingLoading] = useState(false);
+    const [, setBookingLoading] = useState(false);
 
     // Load venue data
     useEffect(() => {

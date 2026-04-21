@@ -336,7 +336,6 @@ function VenueAdminContent() {
                         <BlockedSlotsEditor
                             venueId={venueId}
                             courts={courts}
-                            createdBy={user.uid}
                         />
                     )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
@@ -26,9 +26,17 @@ interface BookingConfirmSheetProps {
 
 function formatDateDisplay(dateStr: string): string {
     const date = new Date(dateStr + "T12:00:00");
-    const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
+}
+
+function fmt12h(time: string): string {
+    const [hStr, mStr] = time.split(":");
+    const h = parseInt(hStr, 10);
+    const suffix = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${mStr} ${suffix}`;
 }
 
 export default function BookingConfirmSheet({
@@ -48,6 +56,14 @@ export default function BookingConfirmSheet({
     walletBalance,
 }: BookingConfirmSheetProps) {
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        window.dispatchEvent(new Event("bottomsheet:open"));
+        return () => {
+            window.dispatchEvent(new Event("bottomsheet:close"));
+        };
+    }, [open]);
 
     const depositCOP = depositRequired ? calcDepositCOP(totalPriceCOP, depositPercent) : 0;
     const remainingCOP = depositRequired ? calcRemainingCOP(totalPriceCOP, depositCOP) : totalPriceCOP;
@@ -74,7 +90,7 @@ export default function BookingConfirmSheet({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/40 z-50"
+                        className="fixed inset-0 bg-black/40 z-[60]"
                     />
 
                     {/* Sheet */}
@@ -83,9 +99,9 @@ export default function BookingConfirmSheet({
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-xl max-w-md mx-auto"
+                        className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-3xl shadow-xl max-w-md mx-auto max-h-[90vh] overflow-y-auto"
                     >
-                        <div className="p-5">
+                        <div className="p-5 pb-[calc(env(safe-area-inset-bottom,0px)+24px)] md:pb-5">
                             {/* Handle */}
                             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
 
@@ -101,7 +117,7 @@ export default function BookingConfirmSheet({
                             <div className="space-y-2 mb-5">
                                 <div className="flex items-center gap-2 text-slate-600">
                                     <span className="text-sm">
-                                        {formatDateDisplay(date)} · {startTime} - {endTime}
+                                        {formatDateDisplay(date)} · {fmt12h(startTime)} – {fmt12h(endTime)}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 text-slate-600">
