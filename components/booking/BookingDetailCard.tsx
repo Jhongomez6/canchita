@@ -21,6 +21,14 @@ const STATUS_STYLES: Record<string, string> = {
     orange: "bg-orange-50 text-orange-700 border-orange-200",
 };
 
+function fmt12h(time: string): string {
+    const [hStr, mStr] = time.split(":");
+    const h = parseInt(hStr, 10);
+    const suffix = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${mStr} ${suffix}`;
+}
+
 function formatDateDisplay(dateStr: string): string {
     const date = new Date(dateStr + "T12:00:00");
     const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -59,7 +67,7 @@ export default function BookingDetailCard({ booking, compact, onClick }: Booking
                 </div>
                 <div className="flex items-center gap-2 text-slate-500">
                     <Clock className="w-3.5 h-3.5" />
-                    <span className="text-xs">{booking.startTime} - {booking.endTime}</span>
+                    <span className="text-xs">{fmt12h(booking.startTime)} – {fmt12h(booking.endTime)}</span>
                 </div>
                 {!compact && (
                     <div className="flex items-center gap-2 text-slate-500">

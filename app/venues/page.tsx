@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, CalendarCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isSuperAdmin } from "@/lib/domain/user";
 import { getActiveVenues } from "@/lib/venues";
@@ -70,12 +70,20 @@ function VenuesContent() {
                                 {isAdmin ? "Administra y configura tus sedes" : "Encuentra y reserva tu horario"}
                             </p>
                         </div>
-                        {isAdmin && (
+                        {isAdmin ? (
                             <button
                                 onClick={() => router.push("/venues/admin/new")}
                                 className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
                             >
                                 <Plus className="w-5 h-5 text-white" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => router.push("/bookings")}
+                                className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white text-[#1f7a4f] text-sm font-bold rounded-xl shadow hover:bg-slate-50 active:scale-95 transition-all"
+                            >
+                                <CalendarCheck className="w-5 h-5" />
+                                Ver mis reservas
                             </button>
                         )}
                     </div>

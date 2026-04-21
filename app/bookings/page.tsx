@@ -89,14 +89,22 @@ function BookingsContent() {
         <div className="min-h-screen bg-slate-50 pb-24 md:pb-0">
             <div className="max-w-md mx-auto">
                 {/* Header */}
-                <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] p-6 pb-8 rounded-b-3xl shadow-lg">
-                    <h1 className="text-xl font-bold text-white">Mis reservas</h1>
-                    <p className="text-sm text-white/70 mt-1">
-                        {upcoming.length > 0
-                            ? `${upcoming.length} reserva${upcoming.length > 1 ? "s" : ""} próxima${upcoming.length > 1 ? "s" : ""}`
-                            : "Sin reservas próximas"
-                        }
-                    </p>
+                <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] p-6 pb-8 rounded-b-3xl shadow-lg flex items-start justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-bold text-white">Mis reservas</h1>
+                        <p className="text-sm text-white/70 mt-1">
+                            {upcoming.length > 0
+                                ? `${upcoming.length} reserva${upcoming.length > 1 ? "s" : ""} próxima${upcoming.length > 1 ? "s" : ""}`
+                                : "Sin reservas próximas"
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => router.push("/venues")}
+                        className="flex-shrink-0 px-4 py-2 bg-white text-[#1f7a4f] text-sm font-bold rounded-xl shadow hover:bg-slate-50 active:scale-95 transition-all"
+                    >
+                        + Reservar
+                    </button>
                 </div>
 
                 <div className="px-4 mt-5">

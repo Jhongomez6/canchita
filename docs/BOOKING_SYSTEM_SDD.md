@@ -228,6 +228,15 @@ match /bookings/{bookingId} {
 
 ## 6. UX — FLUJOS DE USUARIO
 
+### Navegación entre Reservas y Explorar Sedes
+- Tab **"Reservas"** en BottomNav apunta a `/bookings` (lista del jugador), no a `/venues`.
+- Desde `/bookings` hay un CTA blanco "+ Reservar" en el header que lleva a `/venues`.
+- Desde `/venues` hay un CTA blanco "Ver mis reservas" (icono `CalendarCheck`) que lleva a `/bookings`. Super admins no lo ven — en su lugar mantienen el botón "+" para crear sede.
+- Empty state de `/bookings` muestra "Explorar sedes" → `/venues` (redundante con "+ Reservar" para usuarios sin reservas previas).
+
+### Formato de hora
+Toda visualización de hora (slots, cards, detalle de reserva, bottom sheet de confirmación, editor de bloqueos admin) usa formato 12h AM/PM en español (`fmt12h` helper local por componente). Los valores en Firestore y domain permanecen en formato `HH:mm` 24h.
+
 ### Flujo principal: Reservar cancha (3 taps)
 
 ```

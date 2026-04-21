@@ -24,6 +24,14 @@ const STATUS_STYLES: Record<string, string> = {
     orange: "bg-orange-50 text-orange-700",
 };
 
+function fmt12h(time: string): string {
+    const [hStr, mStr] = time.split(":");
+    const h = parseInt(hStr, 10);
+    const suffix = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${mStr} ${suffix}`;
+}
+
 function formatDateFull(dateStr: string): string {
     const date = new Date(dateStr + "T12:00:00");
     const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -161,7 +169,7 @@ function BookingDetailContent() {
                             </div>
                             <div className="flex items-center gap-3 text-slate-600">
                                 <Clock className="w-4 h-4 text-slate-400" />
-                                <span className="text-sm">{booking.startTime} - {booking.endTime}</span>
+                                <span className="text-sm">{fmt12h(booking.startTime)} – {fmt12h(booking.endTime)}</span>
                             </div>
                             <div className="flex items-center gap-3 text-slate-600">
                                 <MapPin className="w-4 h-4 text-slate-400" />

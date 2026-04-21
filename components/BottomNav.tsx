@@ -71,7 +71,7 @@ export default function BottomNav() {
 
                 {/* RESERVAS (behind bookingEnabled flag) */}
                 {hasBooking && !isSuperAdminUser && (
-                    <Link href="/venues" className={navItemClass(pathname.startsWith("/venues") || pathname.startsWith("/bookings"))}>
+                    <Link href="/bookings" className={navItemClass(pathname.startsWith("/venues") || pathname.startsWith("/bookings"))}>
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 24 24"

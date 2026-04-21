@@ -19,6 +19,8 @@ import { APP_URL } from "./config";
 
 const db = admin.firestore();
 
+const NOTIFICATION_TTL_MS = 10 * 24 * 60 * 60 * 1000;
+
 // Permanently invalid FCM error codes
 const PERMANENT_ERROR_CODES = [
     "messaging/registration-token-not-registered",
@@ -83,6 +85,14 @@ const REFUND_DEADLINE_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 function nowISO(): string {
     return new Date().toISOString();
+}
+
+function fmt12h(time: string): string {
+    const [hStr, mStr] = time.split(":");
+    const h = parseInt(hStr, 10);
+    const suffix = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${mStr} ${suffix}`;
 }
 
 /**
@@ -517,17 +527,37 @@ export const createBooking = onCall(
             }
         });
 
-        // Push notification — best effort, outside transaction
+        // Notifications — best effort, outside transaction
         const formattedDate = (() => {
             const d = new Date(date + "T12:00:00");
             const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
             return `${days[d.getDay()]} ${d.getDate()}`;
         })();
 
+        const notifTitle = "Reserva confirmada";
+        const notifBody = `${venue.name} · ${formattedDate} ${fmt12h(startTime)} – ${fmt12h(endTime)}`;
+        const notifUrl = `/bookings/${bookingRef.id}`;
+
+        try {
+            await db.collection("notifications").doc(uid).collection("items").add({
+                title: notifTitle,
+                body: notifBody,
+                type: "booking_confirmed",
+                url: notifUrl,
+                read: false,
+                createdAt: now,
+                expireAt: admin.firestore.Timestamp.fromDate(
+                    new Date(Date.now() + NOTIFICATION_TTL_MS)
+                ),
+            });
+        } catch (err) {
+            console.error("[BookingNotif] failed to write in-app notification:", err);
+        }
+
         await sendBookingPush(uid, {
-            title: "Reserva confirmada",
-            body: `${venue.name} · ${formattedDate} ${startTime}-${endTime}`,
-        }, `/bookings/${bookingRef.id}`);
+            title: notifTitle,
+            body: notifBody,
+        }, notifUrl);
 
         return {
             bookingId: bookingRef.id,
@@ -667,7 +697,7 @@ export const cancelBooking = onCall(
                     read: false,
                     createdAt: now,
                     expireAt: admin.firestore.Timestamp.fromDate(
-                        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                        new Date(Date.now() + NOTIFICATION_TTL_MS)
                     ),
                 });
             }
