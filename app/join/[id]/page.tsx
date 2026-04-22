@@ -84,6 +84,7 @@ export default function JoinMatchPage() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [showCancelDepositConfirm, setShowCancelDepositConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showLeaveWaitlistConfirm, setShowLeaveWaitlistConfirm] = useState(false);
 
   const handlePlayerTap = (uid?: string) => {
@@ -796,11 +797,8 @@ export default function JoinMatchPage() {
                         if (match?.deposit && match.deposit > 0) {
                           setShowCancelDepositConfirm(true);
                         } else {
-                          setSubmitting(true);
-                          unconfirmAttendance(id, playerName)
-                            .then(() => { logAttendanceUnconfirmed(id); toast.success("Has liberado tu cupo"); })
-                            .catch((err: unknown) => handleError(err, "Hubo un error al liberar tu cupo"))
-                            .finally(() => setSubmitting(false));
+                          setShowCancelConfirm(true);
+                          window.dispatchEvent(new CustomEvent("bottomsheet:open"));
                         }
                       }}
                       disabled={submitting}
@@ -1710,6 +1708,72 @@ export default function JoinMatchPage() {
                     </>
                   );
                 })()}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal confirmación cancelar asistencia (sin depósito) */}
+      <AnimatePresence>
+        {showCancelConfirm && (
+          <>
+            <motion.div
+              key="cancel-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm"
+              onClick={() => { setShowCancelConfirm(false); window.dispatchEvent(new CustomEvent("bottomsheet:close")); }}
+            />
+            <motion.div
+              key="cancel-sheet"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-3xl shadow-2xl"
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-slate-200 rounded-full" />
+              </div>
+              <div className="px-5 pt-2 pb-8">
+                <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <CalendarX className="w-5 h-5 text-red-500" />
+                  Cancelar asistencia
+                </h2>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
+                  <p className="text-sm text-red-700">
+                    ¿Seguro que quieres salirte del partido? Tu cupo quedará disponible para otro jugador.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    disabled={submitting}
+                    onClick={() => {
+                      setSubmitting(true);
+                      unconfirmAttendance(id, playerName)
+                        .then(() => { logAttendanceUnconfirmed(id); toast.success("Has liberado tu cupo"); setShowCancelConfirm(false); window.dispatchEvent(new CustomEvent("bottomsheet:close")); })
+                        .catch((err: unknown) => handleError(err, "Hubo un error al liberar tu cupo"))
+                        .finally(() => setSubmitting(false));
+                    }}
+                    className="w-full py-4 rounded-2xl font-bold text-base bg-red-500 text-white hover:bg-red-600 transition-all active:scale-[0.98] shadow-lg flex items-center justify-center gap-2 disabled:opacity-40"
+                  >
+                    {submitting ? (
+                      <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Cancelando...</>
+                    ) : (
+                      <><CalendarX className="w-4 h-4" /> Sí, cancelar asistencia</>
+                    )}
+                  </button>
+                  <button
+                    disabled={submitting}
+                    onClick={() => { setShowCancelConfirm(false); window.dispatchEvent(new CustomEvent("bottomsheet:close")); }}
+                    className="w-full py-3 rounded-2xl font-semibold text-sm text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+                  >
+                    Volver
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
