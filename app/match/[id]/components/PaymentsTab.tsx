@@ -157,7 +157,7 @@ export default function PaymentsTab({ match, onTogglePayment }: PaymentsTabProps
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filtrar por nombre..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#1f7a4f] outline-none transition-all"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-base focus:ring-2 focus:ring-[#1f7a4f] outline-none transition-all"
           />
           {searchQuery && (
             <button
