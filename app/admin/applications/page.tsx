@@ -278,7 +278,7 @@ function ApplicationCard({
                             onChange={(e) => setRejectionReason(e.target.value)}
                             placeholder="Ej: Por ahora estamos priorizando organizadores de grupos establecidos con cancha fija..."
                             rows={4}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-slate-800 font-medium placeholder-slate-400 text-sm focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all resize-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-slate-800 font-medium placeholder-slate-400 text-base focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all resize-none"
                         />
                         <div className="flex gap-3 pt-2">
                             <button

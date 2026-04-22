@@ -515,7 +515,7 @@ export default function NewMatchPage() {
                       maxLength={500}
                       rows={3}
                       placeholder="Ej: Pago $5000 en efectivo al llegar. Lleguen 10 minutos antes."
-                      className="w-full px-3 py-2.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent"
+                      className="w-full px-3 py-2.5 text-base text-slate-700 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent"
                       onChange={(e) => setInstructions(e.target.value)}
                     />
                     <span className={`absolute bottom-2 right-3 text-[10px] ${instructions.length >= 500 ? "text-red-500" : "text-slate-400"}`}>

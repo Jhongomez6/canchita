@@ -564,7 +564,7 @@ export default function ProfilePage() {
                             value={editName}
                             onChange={e => setEditName(e.target.value)}
                             placeholder="Nombre y Apellido"
-                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
                           />
                           {editName.trim().length > 0 &&
                             (editName.trim().split(/\s+/).length < 2 || editName.trim().split(/\s+/).some(word => word.length < 2)) && (
