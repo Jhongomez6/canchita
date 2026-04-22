@@ -6,12 +6,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import {
     getBlockedSlots,
+    getAllBlockedSlots,
     createBlockedSlot,
     removeBlockedSlot,
     addBlockedSlotException,
 } from "@/lib/venues";
 import { handleError } from "@/lib/utils/error";
-import { labelForRecurrence } from "@/lib/domain/blocked-slots";
+import { labelForRecurrence, expandBlockedSlotsForDate } from "@/lib/domain/blocked-slots";
 import {
     logBlockedSlotCreated,
     logBlockedSlotRecurrenceExceptionAdded,
@@ -38,6 +39,28 @@ function fmt12h(time: string): string {
 function todayLocalISO(): string {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function toISODate(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getWeekDays(startIso: string): string[] {
+    const days: string[] = [];
+    const start = new Date(startIso + "T12:00:00");
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        days.push(toISODate(d));
+    }
+    return days;
+}
+
+function formatDayHeader(iso: string): string {
+    const d = new Date(iso + "T12:00:00");
+    const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+    return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
 const RECURRENCE_OPTIONS: Array<{ value: RecurrenceType; label: string }> = [
@@ -71,8 +94,16 @@ export default function BlockedSlotsEditor({
     const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly");
     const [endDate, setEndDate] = useState("");
 
-    // View date
+    // View mode
+    const [view, setView] = useState<"day" | "week">("day");
+
+    // View date (day mode)
     const [viewDate, setViewDate] = useState(todayLocalISO);
+
+    // Week view state
+    const [weekStart, setWeekStart] = useState(todayLocalISO);
+    const [weekSlots, setWeekSlots] = useState<Record<string, BlockedSlot[]>>({});
+    const [weekLoading, setWeekLoading] = useState(false);
 
     // Conflicts modal
     const [conflicts, setConflicts] = useState<BookingConflict[]>([]);
@@ -91,9 +122,30 @@ export default function BlockedSlotsEditor({
         }
     }, [venueId, viewDate]);
 
+    const loadWeekSlots = useCallback(async () => {
+        setWeekLoading(true);
+        try {
+            const allSlots = await getAllBlockedSlots(venueId);
+            const days = getWeekDays(weekStart);
+            const byDay: Record<string, BlockedSlot[]> = {};
+            for (const day of days) {
+                byDay[day] = expandBlockedSlotsForDate(allSlots, day);
+            }
+            setWeekSlots(byDay);
+        } catch (err) {
+            handleError(err, "Error al cargar bloqueos");
+        } finally {
+            setWeekLoading(false);
+        }
+    }, [venueId, weekStart]);
+
     useEffect(() => {
-        loadSlots();
-    }, [loadSlots]);
+        if (view === "day") loadSlots();
+    }, [view, loadSlots]);
+
+    useEffect(() => {
+        if (view === "week") loadWeekSlots();
+    }, [view, loadWeekSlots]);
 
     const resetForm = () => {
         setShowForm(false);
@@ -244,6 +296,127 @@ export default function BlockedSlotsEditor({
                 Bloquea horarios para mantenimiento, eventos privados o clientes fijos. Puedes configurar recurrencia semanal, quincenal, mensual o diaria.
             </p>
 
+            {/* View tabs */}
+            <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
+                <button
+                    onClick={() => setView("day")}
+                    className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
+                        view === "day" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    }`}
+                >
+                    Por día
+                </button>
+                <button
+                    onClick={() => setView("week")}
+                    className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
+                        view === "week" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    }`}
+                >
+                    Por semana
+                </button>
+            </div>
+
+            {/* Week view */}
+            {view === "week" && (
+                <div className="space-y-3">
+                    {/* Week navigation */}
+                    <div className="flex items-center justify-between">
+                        <button
+                            onClick={() => {
+                                const d = new Date(weekStart + "T12:00:00");
+                                d.setDate(d.getDate() - 7);
+                                setWeekStart(toISODate(d));
+                            }}
+                            className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                            ← Anterior
+                        </button>
+                        <button
+                            onClick={() => setWeekStart(todayLocalISO())}
+                            className="text-xs font-medium text-[#1f7a4f] hover:underline"
+                        >
+                            Esta semana
+                        </button>
+                        <button
+                            onClick={() => {
+                                const d = new Date(weekStart + "T12:00:00");
+                                d.setDate(d.getDate() + 7);
+                                setWeekStart(toISODate(d));
+                            }}
+                            className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                            Siguiente →
+                        </button>
+                    </div>
+
+                    {weekLoading ? (
+                        <div className="space-y-3">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {getWeekDays(weekStart).map((day) => {
+                                const daySlots = weekSlots[day] ?? [];
+                                const isToday = day === todayLocalISO();
+                                return (
+                                    <div key={day} className="border border-slate-100 rounded-xl overflow-hidden">
+                                        <div className={`flex items-center justify-between px-3 py-2 ${isToday ? "bg-[#1f7a4f]/8" : "bg-slate-50"}`}>
+                                            <span className={`text-sm font-semibold ${isToday ? "text-[#1f7a4f]" : "text-slate-700"}`}>
+                                                {formatDayHeader(day)}
+                                                {isToday && <span className="ml-1.5 text-[10px] font-bold text-[#1f7a4f] bg-[#1f7a4f]/10 px-1.5 py-0.5 rounded-full">Hoy</span>}
+                                            </span>
+                                            <button
+                                                onClick={() => { setViewDate(day); setView("day"); }}
+                                                className="text-xs text-slate-400 hover:text-[#1f7a4f] transition-colors"
+                                            >
+                                                Ver día →
+                                            </button>
+                                        </div>
+                                        {daySlots.length === 0 ? (
+                                            <p className="px-3 py-2 text-xs text-slate-400">Sin bloqueos</p>
+                                        ) : (
+                                            <div className="divide-y divide-slate-100">
+                                                {daySlots.map((slot) => {
+                                                    const isRec = !!slot.recurrence;
+                                                    return (
+                                                        <div key={slot.id} className="flex items-center gap-2 px-3 py-2">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <span className={`text-xs font-semibold ${isRec ? "text-indigo-700" : "text-red-700"}`}>
+                                                                        {fmt12h(slot.startTime)} – {fmt12h(slot.endTime)}
+                                                                    </span>
+                                                                    {isRec && (
+                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded-full text-[10px] font-semibold">
+                                                                            <Repeat className="w-2.5 h-2.5" />
+                                                                            {slot.recurrence && labelForRecurrence(slot.recurrence)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {slot.clientName && (
+                                                                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">{slot.clientName}</p>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-[10px] text-slate-400 shrink-0">
+                                                                {slot.courtIds.length === courts.length ? "Todas" : `${slot.courtIds.length} cancha${slot.courtIds.length > 1 ? "s" : ""}`}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Day view */}
+            {view === "day" && (
+            <>
             {/* View date picker */}
             <div className="flex items-center gap-3">
                 <label className="text-sm font-medium text-slate-600">Ver bloqueos del:</label>
@@ -564,6 +737,8 @@ export default function BlockedSlotsEditor({
                     submitCreate(true);
                 }}
             />
+            </>
+            )}
         </div>
     );
 }
