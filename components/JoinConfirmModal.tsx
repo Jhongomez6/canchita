@@ -99,7 +99,7 @@ export default function JoinConfirmModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -110,7 +110,7 @@ export default function JoinConfirmModal({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto"
+            className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto"
           >
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1">
