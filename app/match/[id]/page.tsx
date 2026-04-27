@@ -15,6 +15,7 @@ import {
   deleteMatch,
   confirmTeams,
   updateTeamColors,
+  updateMatchDatetime,
 } from "@/lib/matches";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -227,9 +228,9 @@ export default function MatchDetailPage() {
   // ========================
   // COMPUTED
   // ========================
+  const superAdmin = Boolean(profile && isSuperAdmin(profile));
   const isOwner = Boolean(
-    user?.uid &&
-      (user.uid === match.createdBy || (profile && isSuperAdmin(profile)))
+    user?.uid && (user.uid === match.createdBy || superAdmin)
   );
   const isClosed = match.status === "closed";
   const existingPlayers = match.players ?? [];
@@ -875,6 +876,17 @@ export default function MatchDetailPage() {
               isClosed={isClosed}
               hasScore={Boolean(match.score)}
               maxPlayersDraft={maxPlayersDraft}
+              isSuperAdmin={superAdmin}
+              onUpdateDatetime={async (date, time) => {
+                try {
+                  await updateMatchDatetime(id, date, time);
+                  logMatchSettingUpdated(id, "datetime", `${date} ${time}`);
+                  toast.success("Fecha y hora actualizadas");
+                } catch (err) {
+                  handleError(err, "No se pudo actualizar la fecha/hora.");
+                  throw err;
+                }
+              }}
               onUpdateMaxPlayers={async (value) => {
                 setMaxPlayersDraft(value);
                 await updateDoc(doc(db, "matches", id), { maxPlayers: value });

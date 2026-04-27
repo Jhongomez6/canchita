@@ -4,20 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Match, MatchDuration } from "@/lib/domain/match";
 import { formatDuration } from "@/lib/date";
-import { 
+import {
   Settings,
   Ticket,
   Clock,
-  Users, 
-  Eye, 
-  ClipboardList, 
-  Bell, 
-  RefreshCw, 
-  AlertCircle, 
-  Lock, 
-  Unlock, 
+  Users,
+  Eye,
+  ClipboardList,
+  Bell,
+  RefreshCw,
+  AlertCircle,
+  Lock,
+  Unlock,
   Trash2,
-  Loader2
+  Loader2,
+  CalendarClock,
+  ShieldCheck
 } from "lucide-react";
 
 interface SettingsTabProps {
@@ -26,6 +28,7 @@ interface SettingsTabProps {
   isClosed: boolean;
   hasScore: boolean;
   maxPlayersDraft: number | null;
+  isSuperAdmin?: boolean;
   // Actions
   onUpdateMaxPlayers: (value: number) => Promise<void>;
   onUpdateDuration: (value: MatchDuration) => Promise<void>;
@@ -35,6 +38,7 @@ interface SettingsTabProps {
   onDeleteMatch: () => Promise<void>;
   onToggleAllowGuests: (value: boolean) => Promise<void>;
   onUpdateInstructions?: (value: string) => Promise<void>;
+  onUpdateDatetime?: (date: string, time: string) => Promise<void>;
 }
 
 export default function SettingsTab({
@@ -43,6 +47,7 @@ export default function SettingsTab({
   isClosed,
   hasScore,
   maxPlayersDraft,
+  isSuperAdmin = false,
   onUpdateMaxPlayers,
   onUpdateDuration,
   onSendReminder,
@@ -51,6 +56,7 @@ export default function SettingsTab({
   onDeleteMatch,
   onToggleAllowGuests,
   onUpdateInstructions,
+  onUpdateDatetime,
 }: SettingsTabProps) {
   const [isClosing, setIsClosing] = useState(false);
   const [isReopening, setIsReopening] = useState(false);
@@ -62,6 +68,33 @@ export default function SettingsTab({
   const [localMaxPlayers, setLocalMaxPlayers] = useState(maxPlayersDraft);
   const [localInstructions, setLocalInstructions] = useState(match.instructions || "");
   const [savingInstructions, setSavingInstructions] = useState(false);
+  const [localDate, setLocalDate] = useState(match.date);
+  const [localTime, setLocalTime] = useState(match.time);
+  const [savingDatetime, setSavingDatetime] = useState(false);
+
+  const datetimeChanged = localDate !== match.date || localTime !== match.time;
+  const statsProcessed = match.statsProcessed === true;
+  const canSaveDatetime =
+    isSuperAdmin &&
+    !statsProcessed &&
+    datetimeChanged &&
+    /^\d{4}-\d{2}-\d{2}$/.test(localDate) &&
+    /^\d{2}:\d{2}$/.test(localTime);
+
+  // AM/PM time controls — store as HH:MM 24h internally
+  const [h24Str, mStr] = localTime.split(":");
+  const h24 = Number(h24Str);
+  const minute = mStr ?? "00";
+  const period: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  const hour12 = h24 % 12 === 0 ? 12 : h24 % 12;
+
+  function updateTimeParts(nextHour12: number, nextMinute: string, nextPeriod: "AM" | "PM") {
+    let h = nextHour12 % 12;
+    if (nextPeriod === "PM") h += 12;
+    const hh = String(h).padStart(2, "0");
+    const mm = nextMinute.padStart(2, "0");
+    setLocalTime(`${hh}:${mm}`);
+  }
 
   const currentMax = localMaxPlayers ?? match.maxPlayers ?? 14;
   const guestCount = match.guests?.length ?? 0;
@@ -88,6 +121,104 @@ export default function SettingsTab({
   return (
     <div role="tabpanel" id="panel-settings" className="space-y-4 animate-in fade-in duration-200">
 
+      {/* Super Admin: edit date/time */}
+      {isSuperAdmin && onUpdateDatetime && (
+        <div className="bg-white rounded-2xl shadow-sm border border-emerald-200 p-5">
+          <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+            <div className="bg-emerald-100 text-[#1f7a4f] p-1.5 rounded-lg">
+              <CalendarClock size={18} />
+            </div>
+            Fecha y hora
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1f7a4f] bg-emerald-100 px-2 py-0.5 rounded-full">
+              <ShieldCheck size={10} /> Super Admin
+            </span>
+          </h3>
+          <p className="text-[11px] text-slate-500 mb-4">
+            Corrige la fecha u hora del partido. Se actualizará también la hora de inicio para recordatorios.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 mb-3">
+            <div className="flex-1">
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Fecha</label>
+              <input
+                type="date"
+                value={localDate}
+                disabled={statsProcessed}
+                onChange={(e) => setLocalDate(e.target.value)}
+                className="w-full px-3 py-2.5 text-base text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Hora</label>
+              <div className="flex gap-2">
+                <select
+                  value={hour12}
+                  disabled={statsProcessed}
+                  onChange={(e) => updateTimeParts(Number(e.target.value), minute, period)}
+                  className="flex-1 px-2 py-2.5 text-base text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+                <select
+                  value={minute}
+                  disabled={statsProcessed}
+                  onChange={(e) => updateTimeParts(hour12, e.target.value, period)}
+                  className="flex-1 px-2 py-2.5 text-base text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {Array.from(
+                    new Set([
+                      ...Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")),
+                      minute,
+                    ])
+                  )
+                    .sort()
+                    .map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                </select>
+                <select
+                  value={period}
+                  disabled={statsProcessed}
+                  onChange={(e) => updateTimeParts(hour12, minute, e.target.value as "AM" | "PM")}
+                  className="flex-1 px-2 py-2.5 text-base text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {statsProcessed && (
+            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+              No se puede editar: las estadísticas del partido ya fueron procesadas.
+            </p>
+          )}
+
+          <button
+            onClick={async () => {
+              if (!canSaveDatetime || !onUpdateDatetime) return;
+              setSavingDatetime(true);
+              try {
+                await onUpdateDatetime(localDate, localTime);
+              } finally {
+                setSavingDatetime(false);
+              }
+            }}
+            disabled={!canSaveDatetime || savingDatetime}
+            className={`w-full py-3 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
+              !canSaveDatetime || savingDatetime
+                ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200"
+                : "bg-[#1f7a4f] text-white hover:bg-[#16603c]"
+            }`}
+          >
+            {savingDatetime && <Loader2 size={16} className="animate-spin" />}
+            {savingDatetime ? "Guardando..." : "Guardar cambios"}
+          </button>
+        </div>
+      )}
 
       {/* Match Config */}
       {isOwner && !isClosed && (

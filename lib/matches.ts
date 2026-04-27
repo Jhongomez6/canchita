@@ -877,6 +877,29 @@ export async function updateTeamColors(
   await updateDoc(ref, { teamColors: colors });
 }
 
+export async function updateMatchDatetime(
+  matchId: string,
+  date: string,
+  time: string
+): Promise<void> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new BusinessError("Fecha inválida. Formato esperado: YYYY-MM-DD");
+  }
+  if (!/^\d{2}:\d{2}$/.test(time)) {
+    throw new BusinessError("Hora inválida. Formato esperado: HH:MM");
+  }
+  const startsAt = new Date(`${date}T${time}:00-05:00`);
+  if (isNaN(startsAt.getTime())) {
+    throw new BusinessError("Fecha/hora no parseable");
+  }
+  const ref = doc(db, "matches", matchId);
+  await updateDoc(ref, {
+    date,
+    time,
+    startsAt: Timestamp.fromDate(startsAt),
+  });
+}
+
 /**
  * Borra un partido.
  * - Si tiene depósito o jugadores confirmados: usa la Cloud Function
