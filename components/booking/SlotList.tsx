@@ -4,13 +4,21 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatCOP } from "@/lib/domain/wallet";
 
-type Period = "all" | "am" | "pm";
+type Period = "all" | "day" | "afternoon" | "night";
+
+const PERIOD_LABEL: Record<Period, string> = {
+    all: "Todos",
+    day: "Día",
+    afternoon: "Tarde",
+    night: "Noche",
+};
 
 export interface SlotItem {
     startTime: string;
     endTime: string;
     priceCOP: number;
     available: boolean;
+    occupantLabels?: string[];
 }
 
 interface SlotListProps {
@@ -76,7 +84,9 @@ export default function SlotList({
     const filteredSlots = slots.filter((s) => {
         if (period === "all") return true;
         const h = parseInt(s.startTime.split(":")[0], 10);
-        return period === "am" ? h < 12 : h >= 12;
+        if (period === "day") return h < 12;
+        if (period === "afternoon") return h >= 12 && h < 18;
+        return h >= 18;
     });
 
     return (
@@ -90,7 +100,7 @@ export default function SlotList({
                 className="space-y-2"
             >
                 <div className="flex gap-1.5 mb-2 p-1 bg-slate-100 rounded-xl">
-                    {(["all", "am", "pm"] as Period[]).map((p) => (
+                    {(["all", "day", "afternoon", "night"] as Period[]).map((p) => (
                         <button
                             key={p}
                             onClick={() => setPeriod(p)}
@@ -99,7 +109,7 @@ export default function SlotList({
                                 : "text-slate-500 hover:text-slate-700"
                                 }`}
                         >
-                            {p === "all" ? "Todos" : p.toUpperCase()}
+                            {PERIOD_LABEL[p]}
                         </button>
                     ))}
                 </div>
@@ -130,11 +140,20 @@ export default function SlotList({
                                 }
                             `}
                         >
-                            <div className="flex items-center gap-3">
-                                <div className={`w-2.5 h-2.5 rounded-full ${slot.available ? "bg-emerald-500" : "bg-red-400"}`} />
-                                <span className={`text-base font-medium ${!slot.available ? "text-slate-300 line-through" : selected ? "text-[#1f7a4f]" : "text-slate-700"}`}>
-                                    {fmt12h(slot.startTime)} – {fmt12h(slot.endTime)}
-                                </span>
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${slot.available ? "bg-emerald-500" : "bg-red-400"}`} />
+                                <div className="flex flex-col items-start min-w-0 flex-1">
+                                    <span className={`text-base font-medium ${!slot.available ? "text-slate-400 line-through" : selected ? "text-[#1f7a4f]" : "text-slate-700"}`}>
+                                        {fmt12h(slot.startTime)} – {fmt12h(slot.endTime)}
+                                    </span>
+                                    {slot.occupantLabels && slot.occupantLabels.length > 0 && (
+                                        <ul className={`text-[11px] w-full text-left mt-0.5 space-y-0.5 ${slot.available ? "text-slate-400" : "text-slate-500"}`}>
+                                            {slot.occupantLabels.map((label, i) => (
+                                                <li key={i} className="truncate">{label}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
                             </div>
                             {slot.available && (
                                 <span className={`text-sm font-semibold ${selected ? "text-[#1f7a4f]" : "text-slate-500"}`}>
@@ -142,7 +161,7 @@ export default function SlotList({
                                 </span>
                             )}
                             {!slot.available && (
-                                <span className="text-xs text-slate-300 font-medium">Ocupado</span>
+                                <span className="text-xs text-slate-400 font-medium flex-shrink-0">Ocupado</span>
                             )}
                         </motion.button>
                     );

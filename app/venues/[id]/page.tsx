@@ -336,7 +336,10 @@ function VenueDetailContent() {
                     {/* TAP 2: Slot selection */}
                     {selectedFormat && (
                         <div className="mt-5">
-                            <h2 className="text-sm font-semibold text-slate-600 mb-2">Horario</h2>
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-sm font-semibold text-slate-600">Horario</h2>
+                                <p className="text-[10px] text-slate-400">Toca para reservar · varias horas seguidas se suman</p>
+                            </div>
                             <SlotList
                                 slots={slots}
                                 selectedStart={selectedStart}
@@ -348,22 +351,23 @@ function VenueDetailContent() {
                         </div>
                     )}
 
-                    {/* TAP 3: Confirm button */}
-                    {selectedStart && selectedEnd && (
-                        <div className="mt-5 mb-4">
-                            <button
-                                onClick={() => setConfirmSheetOpen(true)}
-                                className="w-full py-3.5 rounded-xl bg-[#1f7a4f] text-white text-base font-bold hover:bg-[#145c3a] active:scale-[0.98] transition-all"
-                            >
-                                Confirmar · {new Intl.NumberFormat("es-CO", {
-                                    style: "currency",
-                                    currency: "COP",
-                                    minimumFractionDigits: 0,
-                                }).format(totalPrice / 100)}
-                            </button>
-                        </div>
-                    )}
                 </div>
+
+                {/* TAP 3: Sticky confirm button */}
+                {selectedStart && selectedEnd && (
+                    <div className="sticky bottom-20 md:bottom-4 left-0 right-0 px-4 pt-3 pb-2 z-30 pointer-events-none">
+                        <button
+                            onClick={() => setConfirmSheetOpen(true)}
+                            className="pointer-events-auto w-full py-3.5 rounded-xl bg-[#1f7a4f] text-white text-base font-bold shadow-lg shadow-[#1f7a4f]/30 hover:bg-[#145c3a] active:scale-[0.98] transition-all"
+                        >
+                            Confirmar · {new Intl.NumberFormat("es-CO", {
+                                style: "currency",
+                                currency: "COP",
+                                minimumFractionDigits: 0,
+                            }).format(totalPrice / 100)}
+                        </button>
+                    </div>
+                )}
 
                 {/* Confirm bottom sheet */}
                 <BookingConfirmSheet

@@ -31,8 +31,8 @@ export default function BetaFeedbackWidget() {
     // Si no está autenticado, no mostramos el widget
     if (!user) return null;
 
-    // Ocultar en la página admin de partido (tiene su propio FAB)
-    if (pathname.startsWith("/match/")) return null;
+    // Solo visible en home y profile
+    if (pathname !== "/" && !pathname.startsWith("/profile")) return null;
 
     // Ocultar cuando hay un bottom sheet abierto
     if (hiddenByModal) return null;

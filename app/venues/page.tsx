@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Settings, CalendarCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { hasBookingAccess, isSuperAdmin } from "@/lib/domain/user";
+import { hasBookingAccess, isSuperAdmin, isLocationAdmin } from "@/lib/domain/user";
 import { getActiveVenues } from "@/lib/venues";
 import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
@@ -23,6 +23,11 @@ function VenuesContent() {
 
         if (!hasBookingAccess(profile)) {
             router.replace("/");
+            return;
+        }
+
+        if (isLocationAdmin(profile)) {
+            router.replace("/bookings");
             return;
         }
 

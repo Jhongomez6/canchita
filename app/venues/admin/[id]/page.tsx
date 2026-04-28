@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CalendarPlus, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { isSuperAdmin } from "@/lib/domain/user";
+import { isSuperAdmin, isLocationAdmin } from "@/lib/domain/user";
 import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER } from "@/lib/domain/venue";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
@@ -24,7 +25,9 @@ import AuthGuard from "@/components/AuthGuard";
 import CourtConfigEditor from "@/components/booking/CourtConfigEditor";
 import ScheduleEditor from "@/components/booking/ScheduleEditor";
 import AdminBookingCalendar from "@/components/booking/AdminBookingCalendar";
+import AdminSlotPicker from "@/components/booking/AdminSlotPicker";
 import BlockedSlotsEditor from "@/components/booking/BlockedSlotsEditor";
+import BlockedSlotForm from "@/components/booking/BlockedSlotForm";
 import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek } from "@/lib/domain/venue";
 
 type AdminTab = "courts" | "schedule" | "payments" | "blocked" | "bookings";
@@ -55,8 +58,26 @@ function VenueAdminContent() {
     const [depositRequired, setDepositRequired] = useState(false);
     const [depositPercent, setDepositPercent] = useState(30);
 
+    // Role gating
+    const isSuper = profile ? isSuperAdmin(profile) : false;
+    const visibleTabs: AdminTab[] = isSuper
+        ? ["courts", "schedule", "payments", "blocked", "bookings"]
+        : ["bookings"];
+
     // Active tab
-    const [activeTab, setActiveTab] = useState<AdminTab>("courts");
+    const [activeTab, setActiveTab] = useState<AdminTab>(isSuper ? "courts" : "bookings");
+
+    // Blocked slots drawer (location admins access blocks from bookings tab)
+    const [blockedDrawerOpen, setBlockedDrawerOpen] = useState(false);
+    const [drawerDefaults, setDrawerDefaults] = useState<{
+        date?: string;
+        startTime?: string;
+        endTime?: string;
+        courtIds?: string[];
+    }>({});
+
+    // Bookings sub-view: monthly calendar vs hourly slot picker
+    const [bookingsView, setBookingsView] = useState<"calendar" | "hourly">("calendar");
 
     // Dirty tracking
     const [dirty, setDirty] = useState(false);
@@ -94,12 +115,14 @@ function VenueAdminContent() {
 
     useEffect(() => {
         if (!profile) return;
-        if (!isSuperAdmin(profile)) {
+        const isAssignedLocationAdmin =
+            isLocationAdmin(profile) && (profile.assignedLocationIds ?? []).includes(venueId);
+        if (!isSuperAdmin(profile) && !isAssignedLocationAdmin) {
             router.replace("/");
             return;
         }
         loadData();
-    }, [profile, loadData, router]);
+    }, [profile, loadData, router, venueId]);
 
     // Save all changes
     const handleSave = async () => {
@@ -206,9 +229,10 @@ function VenueAdminContent() {
                 </div>
 
                 {/* Tabs */}
+                {visibleTabs.length > 1 && (
                 <div className="px-4 mt-4">
                     <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-                        {(Object.keys(TAB_LABELS) as AdminTab[]).map((tab) => (
+                        {visibleTabs.map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -225,6 +249,7 @@ function VenueAdminContent() {
                         ))}
                     </div>
                 </div>
+                )}
 
                 {/* Tab content */}
                 <div className="px-4 mt-5">
@@ -341,9 +366,110 @@ function VenueAdminContent() {
 
                     {/* Bookings tab */}
                     {activeTab === "bookings" && (
-                        <AdminBookingCalendar venueId={venueId} />
+                        <div className="space-y-4">
+                            {!isSuper && (
+                                <button
+                                    onClick={() => {
+                                        setDrawerDefaults({});
+                                        setBlockedDrawerOpen(true);
+                                    }}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-[#1f7a4f] rounded-xl hover:bg-[#145c3a] active:scale-[0.99] transition-all shadow-sm"
+                                >
+                                    <CalendarPlus className="w-4 h-4" />
+                                    Reserva manual
+                                </button>
+                            )}
+
+                            {/* View toggle */}
+                            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+                                <button
+                                    onClick={() => setBookingsView("calendar")}
+                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                        bookingsView === "calendar"
+                                            ? "bg-white text-[#1f7a4f] shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                >
+                                    Calendario
+                                </button>
+                                <button
+                                    onClick={() => setBookingsView("hourly")}
+                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                        bookingsView === "hourly"
+                                            ? "bg-white text-[#1f7a4f] shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                >
+                                    Por hora
+                                </button>
+                            </div>
+
+                            {bookingsView === "calendar" ? (
+                                <AdminBookingCalendar venueId={venueId} />
+                            ) : (
+                                <AdminSlotPicker
+                                    venueId={venueId}
+                                    courts={courts}
+                                    onSlotSelected={({ date, startTime, endTime, courtIds }) => {
+                                        setDrawerDefaults({ date, startTime, endTime, courtIds });
+                                        setBlockedDrawerOpen(true);
+                                    }}
+                                />
+                            )}
+                        </div>
                     )}
                 </div>
+
+                {/* Blocked slots drawer (location admin) */}
+                <AnimatePresence>
+                    {blockedDrawerOpen && (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setBlockedDrawerOpen(false)}
+                                className="fixed inset-0 bg-black/40 z-40"
+                            />
+                            <motion.div
+                                initial={{ y: "100%" }}
+                                animate={{ y: 0 }}
+                                exit={{ y: "100%" }}
+                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-xl max-w-md mx-auto max-h-[90vh] flex flex-col"
+                            >
+                                <div className="p-5 pb-3 border-b border-slate-100 flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-800">Reserva manual</h3>
+                                        <p className="text-xs text-slate-500 mt-0.5">Para clientes que no están en la app o eventos privados</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setBlockedDrawerOpen(false)}
+                                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
+                                        aria-label="Cerrar"
+                                    >
+                                        <X className="w-4 h-4 text-slate-500" />
+                                    </button>
+                                </div>
+                                <div className="overflow-y-auto p-5 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] md:pb-[calc(env(safe-area-inset-bottom,0px)+24px)]">
+                                    {user && (
+                                        <BlockedSlotForm
+                                            key={`${drawerDefaults.date ?? ""}-${drawerDefaults.startTime ?? ""}-${drawerDefaults.endTime ?? ""}-${(drawerDefaults.courtIds ?? []).join(",")}`}
+                                            venueId={venueId}
+                                            courts={courts}
+                                            defaultDate={drawerDefaults.date}
+                                            defaultStartTime={drawerDefaults.startTime}
+                                            defaultEndTime={drawerDefaults.endTime}
+                                            defaultCourtIds={drawerDefaults.courtIds}
+                                            onCreated={() => setBlockedDrawerOpen(false)}
+                                            onCancel={() => setBlockedDrawerOpen(false)}
+                                        />
+                                    )}
+                                </div>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
 
                 {/* Save button — always visible on editable tabs */}
                 {activeTab !== "bookings" && activeTab !== "blocked" && (

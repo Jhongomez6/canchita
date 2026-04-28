@@ -462,4 +462,41 @@ Antes de implementar, confirma estas decisiones:
 
 4. **`clientName` y `reason` son privados del admin.** Se filtran en la capa API antes de devolverlos a jugadores. El jugador solo ve "Ocupado". Firestore Rules siguen permitiendo lectura completa (tradeoff por simplicidad); si se requiere privacidad estricta, migrar lectura a Cloud Function.
 
+---
+
+## 12. EVOLUCIÓN POST-LANZAMIENTO (2026-04)
+
+Tras feedback de location admins, el modelo conceptual se reposicionó: un "bloqueo" en la práctica es casi siempre **una reserva para un cliente fuera de la app** (no mantenimiento). El UX se ajustó sin tocar el modelo de datos.
+
+### Cambios de copy y visual (admin)
+- "Bloqueo" / "Bloqueado" → **"Reserva manual"** en badges, CTAs y empty states de la vista admin de bookings.
+- Icono `Ban` (prohibición) → **`CalendarPlus`** en cards de la vista calendario, alineado con el CTA principal.
+- El CTA "Reserva manual" abre [BlockedSlotForm](components/booking/BlockedSlotForm.tsx) directamente, sin pasar por el editor completo.
+- BlockedSlotsEditor (super_admin) conserva la terminología técnica "Bloqueo" — UI avanzada para mantenimiento real.
+
+### Vista "Por hora" (nueva)
+- [AdminSlotPicker](components/booking/AdminSlotPicker.tsx) replica el flujo del jugador (FormatSelector + DateCarousel + SlotList) dentro del tab "Reservas" del admin.
+- Toggle "Calendario / Por hora" en el tab de reservas: vista mensual vs vista de slots por horario.
+- Click en slot → abre `BlockedSlotForm` con `defaultDate / defaultStartTime / defaultEndTime / defaultCourtIds` precargados (los courtIds vienen de `allocateCourts()` para el formato seleccionado).
+- Suscripción usa `subscribeToBlockedSlots(..., includePrivate=true)` porque el componente solo se renderiza dentro de [/venues/admin/[id]](app/venues/admin/[id]/page.tsx), ya gateado por rol.
+
+### Información de ocupantes en SlotList (admin)
+- `SlotItem.occupantLabels?: string[]` (campo opcional). El jugador no lo recibe → no se filtra info privada por canal de UI.
+- AdminSlotPicker calcula labels para todos los slots con overlap (no solo los `!available`), así un slot "verde" puede mostrar quién tiene reservada otra cancha en ese horario.
+- Formato del label: `{cliente} · {tier} ({canchas})` — ej: `Juan Perez · Cancha triple (Cancha 2, 3 y 4)`.
+
+### Helpers nuevos en [lib/domain/venue.ts](lib/domain/venue.ts)
+- `tierLabelFromCount(n)` — devuelve "Cancha sencilla/doble/triple" según cantidad de canchas (para bloqueos sin `format`).
+- `spanishJoin(items)` — `["A","B","C"]` → `"A, B y C"`.
+- `formatCourtList(names)` — compacta canchas con prefijo común: `["Cancha 1","Cancha 3","Cancha 2"]` → `"Cancha 1, 2 y 3"` (orden numérico).
+- `formatLabel(format)` reemplaza "Fútbol N" por "Cancha sencilla/doble/triple" (5v5–6v6 / 7v7–9v9 / 10v10–11v11).
+
+### AdminBookingCalendar — indicadores
+- Calendario muestra **dos puntos** por celda: verde para días con reservas, indigo para días con bloqueos. Una sola llamada `getAllBlockedSlots()` por mes; `expandBlockedSlotsForDate` resuelve recurrencias en cliente.
+
+### SlotList — filtros
+- Períodos AM/PM → **Día / Tarde / Noche** (`<12` / `12–17` / `≥18`).
+- FormatSelector pasó de scroll horizontal a `grid grid-cols-3` con label en dos líneas ("Cancha" / "sencilla").
+- CTA "Confirmar" del jugador es ahora `sticky bottom-20 md:bottom-4` para no perderse al scrollear listas largas de slots.
+
 5. **4 frecuencias soportadas en v1**: `daily`, `weekly`, `biweekly` (cada 2 semanas), `monthly` (mismo día del mes). `startDate` es la fuente de verdad del patrón — no se guarda `dayOfWeek` ni `dayOfMonth` por separado, se derivan. Para `monthly`, se limita `startDate.getDate()` a 1–28 para evitar ambigüedad en febrero.

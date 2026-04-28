@@ -320,6 +320,16 @@ export function hasBookingAccess(profile: UserProfile): boolean {
 }
 
 /**
+ * Verifica si el usuario puede crear reservas personales.
+ * Location admins gestionan sedes pero no reservan a título personal.
+ */
+export function canCreateBooking(profile: UserProfile): boolean {
+    if (!hasBookingAccess(profile)) return false;
+    if (isLocationAdmin(profile)) return false;
+    return true;
+}
+
+/**
  * Verifica si un perfil es Location Admin (dueño de cancha).
  * Puede crear partidos públicos y privados en sus locations asignadas.
  */

@@ -5,10 +5,12 @@ import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { getAllUsers, deleteUser, updateUserRoles, updateAdminType, assignLocationsToAdmin, revokeAdminRole } from "@/lib/users";
 import { getActiveLocations } from "@/lib/locations";
+import { getActiveVenues } from "@/lib/venues";
 import AuthGuard from "@/components/AuthGuard";
 import UserListSkeleton from "@/components/skeletons/UserListSkeleton";
 import type { UserProfile, UserRole, AdminType } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
+import type { Venue } from "@/lib/domain/venue";
 import { isSuperAdmin } from "@/lib/domain/user";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
@@ -18,6 +20,7 @@ export default function AdminUsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -31,6 +34,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     getActiveLocations().then(setLocations);
+    getActiveVenues().then(setVenues).catch(() => setVenues([]));
   }, []);
 
   useEffect(() => {
@@ -240,6 +244,11 @@ export default function AdminUsersPage() {
                             📍 Canchas Asignadas ({u.assignedLocationIds?.length || 0})
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "#f8fafc", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                            {locations.length > 0 && (
+                              <div style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                Canchas
+                              </div>
+                            )}
                             {locations.map(loc => {
                               const isAssigned = u.assignedLocationIds?.includes(loc.id);
                               return (
@@ -256,8 +265,31 @@ export default function AdminUsersPage() {
                                 </label>
                               )
                             })}
-                            {locations.length === 0 && (
-                              <span style={{ fontSize: 13, color: "#94a3b8" }}>No hay canchas registradas en el sistema.</span>
+
+                            {venues.length > 0 && (
+                              <div style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5, marginTop: locations.length > 0 ? 8 : 0 }}>
+                                Sedes (reservas)
+                              </div>
+                            )}
+                            {venues.map(venue => {
+                              const isAssigned = u.assignedLocationIds?.includes(venue.id);
+                              return (
+                                <label key={venue.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, cursor: "pointer" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!isAssigned}
+                                    onChange={(e) => handleToggleLocation(u, venue.id, e.target.checked)}
+                                    style={{ width: 16, height: 16, accentColor: "#1f7a4f" }}
+                                  />
+                                  <span style={{ fontWeight: isAssigned ? 600 : 400, color: isAssigned ? "#0f172a" : "#475569" }}>
+                                    {venue.name}
+                                  </span>
+                                </label>
+                              )
+                            })}
+
+                            {locations.length === 0 && venues.length === 0 && (
+                              <span style={{ fontSize: 13, color: "#94a3b8" }}>No hay canchas ni sedes registradas en el sistema.</span>
                             )}
                           </div>
                         </div>

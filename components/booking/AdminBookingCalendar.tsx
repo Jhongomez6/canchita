@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Users, Ban, Repeat } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, CalendarPlus, Repeat } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
-import { formatLabel, type Court } from "@/lib/domain/venue";
+import { formatLabel, formatCourtList, tierLabelFromCount, type Court } from "@/lib/domain/venue";
 import { bookingStatusLabel, bookingStatusColor } from "@/lib/domain/booking";
 import { labelForRecurrence } from "@/lib/domain/blocked-slots";
 import { getBookingsForDate } from "@/lib/bookings";
-import { getBlockedSlots, getVenueCourts } from "@/lib/venues";
+import { getBlockedSlots, getVenueCourts, getAllBlockedSlots } from "@/lib/venues";
+import { expandBlockedSlotsForDate } from "@/lib/domain/blocked-slots";
 import { handleError } from "@/lib/utils/error";
 import type { Booking } from "@/lib/domain/booking";
 import type { BlockedSlot } from "@/lib/domain/venue";
@@ -59,8 +60,9 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
     const [courts, setCourts] = useState<Court[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // Calendar day counts for bookings (date -> count)
+    // Calendar indicators: dates with bookings or blocks
     const [monthBookingDates, setMonthBookingDates] = useState<Set<string>>(new Set());
+    const [monthBlockDates, setMonthBlockDates] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         getVenueCourts(venueId).then(setCourts).catch(() => {});
@@ -86,31 +88,38 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
         loadDayBookings(selectedDate);
     }, [selectedDate, loadDayBookings]);
 
-    // Track which dates in the month have bookings
+    // Track which dates in the month have bookings or blocks
     useEffect(() => {
         const loadMonthIndicators = async () => {
             const year = currentMonth.getFullYear();
             const month = currentMonth.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            const dates = new Set<string>();
-            // Load a sample of dates to show indicators
             const checkDates: string[] = [];
             for (let d = 1; d <= daysInMonth; d++) {
                 checkDates.push(toISO(new Date(year, month, d)));
             }
 
-            // Load bookings for each date (in parallel, batched)
-            const results = await Promise.allSettled(
-                checkDates.map(async (date) => {
-                    const b = await getBookingsForDate(venueId, date);
-                    if (b.length > 0) dates.add(date);
-                })
-            );
+            const bookingDates = new Set<string>();
+            const blockDates = new Set<string>();
 
-            // Suppress unused warning
-            void results;
-            setMonthBookingDates(dates);
+            const [, allBlocks] = await Promise.all([
+                Promise.allSettled(
+                    checkDates.map(async (date) => {
+                        const b = await getBookingsForDate(venueId, date);
+                        if (b.length > 0) bookingDates.add(date);
+                    }),
+                ),
+                getAllBlockedSlots(venueId).catch(() => [] as BlockedSlot[]),
+            ]);
+
+            for (const date of checkDates) {
+                const expanded = expandBlockedSlotsForDate(allBlocks, date);
+                if (expanded.length > 0) blockDates.add(date);
+            }
+
+            setMonthBookingDates(bookingDates);
+            setMonthBlockDates(blockDates);
         };
 
         loadMonthIndicators().catch(() => {});
@@ -182,6 +191,7 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                     const isSelected = iso === selectedDate;
                     const isToday = isSameDay(dateObj, today);
                     const hasBookings = monthBookingDates.has(iso);
+                    const hasBlocks = monthBlockDates.has(iso);
 
                     return (
                         <button
@@ -199,8 +209,15 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                             `}
                         >
                             {day}
-                            {hasBookings && (
-                                <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? "bg-white" : "bg-[#1f7a4f]"}`} />
+                            {(hasBookings || hasBlocks) && (
+                                <span className="flex gap-0.5 mt-0.5">
+                                    {hasBookings && (
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-[#1f7a4f]"}`} />
+                                    )}
+                                    {hasBlocks && (
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-indigo-500"}`} />
+                                    )}
+                                </span>
                             )}
                         </button>
                     );
@@ -215,7 +232,7 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                     </h4>
                     <span className="text-xs text-slate-400">
                         {activeBookings.length} reserva{activeBookings.length !== 1 ? "s" : ""}
-                        {blocks.length > 0 && ` · ${blocks.length} bloqueo${blocks.length !== 1 ? "s" : ""}`}
+                        {blocks.length > 0 && ` · ${blocks.length} manual${blocks.length !== 1 ? "es" : ""}`}
                         {totalRevenue > 0 && ` · ${formatCOP(totalRevenue)}`}
                     </span>
                 </div>
@@ -227,7 +244,7 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                         ))}
                     </div>
                 ) : rows.length === 0 ? (
-                    <p className="text-sm text-slate-400 text-center py-4">Sin reservas ni bloqueos este día</p>
+                    <p className="text-sm text-slate-400 text-center py-4">Sin reservas este día</p>
                 ) : (
                     <div className="space-y-2">
                         {rows.map((row) => {
@@ -266,7 +283,7 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                                         </div>
                                         {booking.courtNames.length > 0 && (
                                             <p className="text-[10px] text-slate-400 mt-1">
-                                                {booking.courtNames.join(", ")}
+                                                {formatCourtList(booking.courtNames)}
                                             </p>
                                         )}
                                     </div>
@@ -274,7 +291,9 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                             }
 
                             const block = row.block;
-                            const courtLabels = block.courtIds.map((id) => courtNameById.get(id) || id).join(", ");
+                            const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
+                            const blockTier = tierLabelFromCount(block.courtIds.length);
+                            const blockCourtList = formatCourtList(blockCourtNames);
                             return (
                                 <div
                                     key={`bl-${block.id}`}
@@ -282,13 +301,13 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                                 >
                                     <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex items-center gap-2">
-                                            <Ban className="w-3.5 h-3.5 text-indigo-500" />
+                                            <CalendarPlus className="w-3.5 h-3.5 text-indigo-500" />
                                             <span className="text-sm font-semibold text-indigo-800">
                                                 {block.startTime} - {block.endTime}
                                             </span>
                                         </div>
                                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                                            Bloqueo
+                                            Reserva manual
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-indigo-700/80">
@@ -307,8 +326,10 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                                         )}
                                         {block.reason && <span>{block.reason}</span>}
                                     </div>
-                                    {courtLabels && (
-                                        <p className="text-[10px] text-indigo-500 mt-1">{courtLabels}</p>
+                                    {blockCourtList && (
+                                        <p className="text-[10px] text-indigo-500 mt-1">
+                                            {blockTier} ({blockCourtList})
+                                        </p>
                                     )}
                                 </div>
                             );

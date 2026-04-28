@@ -229,11 +229,58 @@ export function calcRemainingCOP(totalPriceCOP: number, depositCOP: number): num
 
 /**
  * Formatea un CourtFormat a label en español.
- * Ej: "6v6" → "Fútbol 6"
+ * Mapea el tamaño de equipo a una jerarquía de canchas:
+ *  - 5v5/6v6   → "Cancha sencilla"
+ *  - 7v7/8v8/9v9 → "Cancha doble"
+ *  - 10v10/11v11 → "Cancha triple"
  */
 export function formatLabel(format: CourtFormat): string {
     const perTeam = parseInt(format.split("v")[0], 10);
-    return `Fútbol ${perTeam}`;
+    if (perTeam <= 6) return "Cancha sencilla";
+    if (perTeam <= 9) return "Cancha doble";
+    return "Cancha triple";
+}
+
+/**
+ * Devuelve "Cancha sencilla/doble/triple" según cuántas canchas se usan.
+ * Útil para bloqueos que no tienen `format`.
+ */
+export function tierLabelFromCount(count: number): string {
+    if (count <= 1) return "Cancha sencilla";
+    if (count <= 2) return "Cancha doble";
+    return "Cancha triple";
+}
+
+/**
+ * Une items con coma + "y" final (estilo español).
+ * Ej: ["A", "B", "C"] → "A, B y C"
+ */
+export function spanishJoin(items: string[]): string {
+    if (items.length === 0) return "";
+    if (items.length === 1) return items[0];
+    return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
+/**
+ * Compacta una lista de nombres de cancha que comparten prefijo + número.
+ * Ej: ["Cancha 1", "Cancha 3", "Cancha 2"] → "Cancha 1, 2 y 3" (orden numérico)
+ * Si no comparten patrón, hace spanishJoin directo.
+ */
+export function formatCourtList(names: string[]): string {
+    if (names.length === 0) return "";
+    const matches = names.map((n) => n.match(/^(.+?)\s+(\d+)$/));
+    if (names.length > 1 && matches.every((m) => m !== null)) {
+        const prefix = matches[0]![1];
+        const allSame = matches.every((m) => m![1] === prefix);
+        if (allSame) {
+            const numbers = matches
+                .map((m) => parseInt(m![2], 10))
+                .sort((a, b) => a - b)
+                .map(String);
+            return `${prefix} ${spanishJoin(numbers)}`;
+        }
+    }
+    return spanishJoin(names);
 }
 
 // ========================
