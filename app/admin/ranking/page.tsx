@@ -7,8 +7,9 @@ import { getPlayersRanking, type PlayerRanking } from "@/lib/usersList";
 import AuthGuard from "@/components/AuthGuard";
 import RankingListSkeleton from "@/components/skeletons/RankingListSkeleton";
 import { isSuperAdmin } from "@/lib/domain/user";
+import { Flame } from "lucide-react";
 
-type SortField = "played" | "won" | "lost" | "draw";
+type SortField = "played" | "won" | "lost" | "draw" | "winRate" | "commitmentStreak" | "weeklyStreak" | "mvpAwards";
 
 export default function RankingPage() {
     const { profile } = useAuth();
@@ -190,6 +191,40 @@ export default function RankingPage() {
                                         >
                                             PP{arrow("lost")}
                                         </th>
+                                        <th
+                                            style={headerStyle("winRate")}
+                                            onClick={() => handleSort("winRate")}
+                                            title="Win Rate (PG/PJ)"
+                                        >
+                                            WR%{arrow("winRate")}
+                                        </th>
+                                        <th
+                                            style={headerStyle("commitmentStreak")}
+                                            onClick={() => handleSort("commitmentStreak")}
+                                            title="Racha de compromiso"
+                                        >
+                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                                CS <Flame size={14} style={{ color: "#ea580c" }} />
+                                            </span>
+                                            {arrow("commitmentStreak")}
+                                        </th>
+                                        <th
+                                            style={headerStyle("weeklyStreak")}
+                                            onClick={() => handleSort("weeklyStreak")}
+                                            title="Racha semanal"
+                                        >
+                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                                WS <Flame size={14} style={{ color: "#2563eb" }} />
+                                            </span>
+                                            {arrow("weeklyStreak")}
+                                        </th>
+                                        <th
+                                            style={headerStyle("mvpAwards")}
+                                            onClick={() => handleSort("mvpAwards")}
+                                            title="Premios MVP"
+                                        >
+                                            MVP{arrow("mvpAwards")}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -264,6 +299,42 @@ export default function RankingPage() {
                                                 }}
                                             >
                                                 {p.lost}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    ...cellStyle,
+                                                    fontWeight: sortField === "winRate" ? 700 : 400,
+                                                    color: sortField === "winRate" ? "#1f7a4f" : "#374151",
+                                                }}
+                                            >
+                                                {p.winRate}%
+                                            </td>
+                                            <td
+                                                style={{
+                                                    ...cellStyle,
+                                                    fontWeight: sortField === "commitmentStreak" ? 700 : 400,
+                                                    color: sortField === "commitmentStreak" ? "#ea580c" : "#374151",
+                                                }}
+                                            >
+                                                {p.commitmentStreak}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    ...cellStyle,
+                                                    fontWeight: sortField === "weeklyStreak" ? 700 : 400,
+                                                    color: sortField === "weeklyStreak" ? "#2563eb" : "#374151",
+                                                }}
+                                            >
+                                                {p.weeklyStreak}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    ...cellStyle,
+                                                    fontWeight: sortField === "mvpAwards" ? 700 : 400,
+                                                    color: sortField === "mvpAwards" ? "#ca8a04" : "#374151",
+                                                }}
+                                            >
+                                                {p.mvpAwards}
                                             </td>
                                         </tr>
                                     ))}

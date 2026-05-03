@@ -9,9 +9,9 @@ interface StatsCardProps {
     mvpAwards?: number;
 }
 
-const StatItem = ({ label, value, colorClass, icon: Icon }: { label: string, value: number, colorClass: string, icon?: LucideIcon }) => (
-    <div className="flex flex-col items-center flex-1">
-        <span className={`text-2xl font-black ${colorClass}`}>{value}</span>
+const StatItem = ({ label, value, colorClass, icon: Icon, suffix, extraPadding }: { label: string, value: number, colorClass: string, icon?: LucideIcon, suffix?: string, extraPadding?: boolean }) => (
+    <div className={`flex flex-col items-center flex-1 ${extraPadding ? "px-2" : ""}`}>
+        <span className={`text-2xl font-black ${colorClass}`}>{value}{suffix}</span>
         <div className="flex items-center gap-1">
             {Icon && <Icon size={12} className="text-slate-400" />}
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{label}</span>
@@ -27,6 +27,9 @@ function getComHeartColor(score: number): string {
 
 export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
     const commitmentScore = calcCommitmentScore(stats);
+    const played = stats.played || 0;
+    const won = stats.won || 0;
+    const winRate = played > 0 ? Math.round((won / played) * 100) : 0;
 
     return (
         <div id="statistics" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
@@ -43,6 +46,7 @@ export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
                         <div className="mb-1"><span className="font-bold text-emerald-400">PG:</span> Partidos Ganados</div>
                         <div className="mb-1"><span className="font-bold text-amber-300">PE:</span> Partidos Empatados</div>
                         <div className="mb-1"><span className="font-bold text-red-400">PP:</span> Partidos Perdidos</div>
+                        <div className="mb-1"><span className="font-bold text-emerald-400">EFE:</span> Efectividad (PG/PJ)</div>
                         <div className="mb-1"><span className="font-bold text-yellow-300">MVP:</span> Premios MVP</div>
                         <div><span className="font-bold text-blue-400">COM:</span> Compromiso (0–99)</div>
                         <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
@@ -54,6 +58,7 @@ export default function StatsCard({ stats, mvpAwards }: StatsCardProps) {
                 <StatItem label="PG" value={stats.won || 0} colorClass="text-emerald-600" />
                 <StatItem label="PE" value={stats.draw || 0} colorClass="text-slate-800" />
                 <StatItem label="PP" value={stats.lost || 0} colorClass="text-red-500" />
+                <StatItem label="EFE" value={winRate} colorClass="text-emerald-600" suffix="%" extraPadding />
                 <StatItem label="MVP" value={mvpAwards || 0} colorClass="text-emerald-600" />
                 <div className="flex flex-col items-center flex-1">
                     <span className="text-2xl font-black text-emerald-600">{commitmentScore}</span>

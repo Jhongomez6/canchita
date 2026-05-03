@@ -15,6 +15,7 @@
 
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
+import { getDisplayedWeeklyStreak } from "./domain/user";
 
 // ========================
 // TIPOS
@@ -27,6 +28,10 @@ export interface PlayerRanking {
     won: number;
     lost: number;
     draw: number;
+    winRate: number;
+    commitmentStreak: number;
+    weeklyStreak: number;
+    mvpAwards: number;
 }
 
 // ========================
@@ -44,14 +49,23 @@ export async function getPlayersRanking(): Promise<PlayerRanking[]> {
     return snapshot.docs.map((d) => {
         const data = d.data();
         const stats = data.stats ?? {};
+        const played = Math.max(0, stats.played ?? 0);
+        const won = Math.max(0, stats.won ?? 0);
 
         return {
             uid: d.id,
             name: data.name ?? "Sin nombre",
-            played: Math.max(0, stats.played ?? 0),
-            won: Math.max(0, stats.won ?? 0),
+            played,
+            won,
             lost: Math.max(0, stats.lost ?? 0),
             draw: Math.max(0, stats.draw ?? 0),
+            winRate: played > 0 ? Math.round((won / played) * 100) : 0,
+            commitmentStreak: Math.max(0, data.commitmentStreak ?? 0),
+            weeklyStreak: getDisplayedWeeklyStreak({
+                weeklyStreak: data.weeklyStreak,
+                lastPlayedWeek: data.lastPlayedWeek,
+            }),
+            mvpAwards: Math.max(0, data.mvpAwards ?? 0),
         };
     });
 }
