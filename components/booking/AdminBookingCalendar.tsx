@@ -15,6 +15,8 @@ import type { BlockedSlot } from "@/lib/domain/venue";
 
 interface AdminBookingCalendarProps {
     venueId: string;
+    onBookingClick?: (booking: Booking) => void;
+    onBlockClick?: (block: BlockedSlot, targetDate: string) => void;
 }
 
 const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -49,7 +51,15 @@ function isSameDay(a: Date, b: Date): boolean {
     return toISO(a) === toISO(b);
 }
 
-export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarProps) {
+function fmt12h(time: string): string {
+    const [hStr, mStr] = time.split(":");
+    const h = parseInt(hStr, 10);
+    const suffix = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${mStr} ${suffix}`;
+}
+
+export default function AdminBookingCalendar({ venueId, onBookingClick, onBlockClick }: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -254,16 +264,21 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                                 const dotClass = STATUS_DOT[color] || STATUS_DOT.gray;
                                 const badgeClass = STATUS_BADGE[color] || STATUS_BADGE.gray;
 
+                                const isCancellable = booking.status === "confirmed" || booking.status === "pending_payment";
+                                const clickable = !!onBookingClick && isCancellable;
                                 return (
-                                    <div
+                                    <button
                                         key={`b-${booking.id}`}
-                                        className="bg-white rounded-xl border border-slate-200 p-3"
+                                        type="button"
+                                        onClick={() => clickable && onBookingClick!(booking)}
+                                        disabled={!clickable}
+                                        className={`w-full text-left bg-white rounded-xl border border-slate-200 p-3 transition-colors ${clickable ? "hover:border-slate-300 active:scale-[0.99]" : "cursor-default"}`}
                                     >
                                         <div className="flex items-center justify-between mb-1.5">
                                             <div className="flex items-center gap-2">
                                                 <span className={`w-2 h-2 rounded-full ${dotClass}`} />
                                                 <span className="text-sm font-semibold text-slate-700">
-                                                    {booking.startTime} - {booking.endTime}
+                                                    {fmt12h(booking.startTime)} – {fmt12h(booking.endTime)}
                                                 </span>
                                             </div>
                                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badgeClass}`}>
@@ -286,7 +301,7 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                                                 {formatCourtList(booking.courtNames)}
                                             </p>
                                         )}
-                                    </div>
+                                    </button>
                                 );
                             }
 
@@ -294,16 +309,20 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                             const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
                             const blockTier = tierLabelFromCount(block.courtIds.length);
                             const blockCourtList = formatCourtList(blockCourtNames);
+                            const blockClickable = !!onBlockClick;
                             return (
-                                <div
+                                <button
                                     key={`bl-${block.id}`}
-                                    className="bg-indigo-50/60 rounded-xl border border-indigo-100 p-3"
+                                    type="button"
+                                    onClick={() => blockClickable && onBlockClick!(block, selectedDate)}
+                                    disabled={!blockClickable}
+                                    className={`w-full text-left bg-indigo-50/60 rounded-xl border border-indigo-100 p-3 transition-colors ${blockClickable ? "hover:border-indigo-200 active:scale-[0.99]" : "cursor-default"}`}
                                 >
                                     <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex items-center gap-2">
                                             <CalendarPlus className="w-3.5 h-3.5 text-indigo-500" />
                                             <span className="text-sm font-semibold text-indigo-800">
-                                                {block.startTime} - {block.endTime}
+                                                {fmt12h(block.startTime)} – {fmt12h(block.endTime)}
                                             </span>
                                         </div>
                                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
@@ -331,7 +350,7 @@ export default function AdminBookingCalendar({ venueId }: AdminBookingCalendarPr
                                             {blockTier} ({blockCourtList})
                                         </p>
                                     )}
-                                </div>
+                                </button>
                             );
                         })}
                     </div>

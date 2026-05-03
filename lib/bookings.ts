@@ -135,11 +135,11 @@ export async function createBooking(input: {
 /**
  * Cancelar una reserva (con posible reembolso de depósito).
  */
-export async function cancelBooking(bookingId: string) {
+export async function cancelBooking(bookingId: string, reason: string) {
     const fn = httpsCallable<
-        { bookingId: string },
+        { bookingId: string; reason: string },
         { refunded: boolean; refundAmount: number }
     >(functions, "cancelBooking");
-    const result = await fn({ bookingId });
+    const result = await fn({ bookingId, reason });
     return result.data;
 }

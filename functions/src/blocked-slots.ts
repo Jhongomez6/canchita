@@ -274,3 +274,102 @@ export const createBlockedSlot = onCall(async (request) => {
 
     return { id };
 });
+
+// ========================
+// deleteBlockedSlot — onCall
+// ========================
+//
+// modes:
+//   - "oneoff"     → bloqueo puntual sin recurrencia: borra el doc.
+//   - "instance"   → recurrente, cancela una fecha: arrayUnion(targetDate) en exceptDates.
+//   - "recurrence" → recurrente, termina la serie: setea endDate = targetDate - 1.
+//                    Las instancias pasadas se preservan, las futuras desaparecen.
+
+interface DeleteInput {
+    venueId: string;
+    blockedSlotId: string;
+    mode: "oneoff" | "instance" | "recurrence";
+    targetDate?: string;
+}
+
+function dayBefore(dateStr: string): string {
+    const d = parseLocalDate(dateStr);
+    d.setDate(d.getDate() - 1);
+    return toISODate(d);
+}
+
+export const deleteBlockedSlot = onCall({ maxInstances: 10 }, async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+        throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+    }
+
+    const { venueId, blockedSlotId, mode, targetDate } = request.data as DeleteInput;
+
+    if (!venueId || !blockedSlotId || !mode) {
+        throw new HttpsError("invalid-argument", "Faltan parámetros");
+    }
+    if (mode !== "oneoff" && mode !== "instance" && mode !== "recurrence") {
+        throw new HttpsError("invalid-argument", "Modo inválido");
+    }
+    if ((mode === "instance" || mode === "recurrence") && (!targetDate || !isValidDate(targetDate))) {
+        throw new HttpsError("invalid-argument", "targetDate inválido");
+    }
+
+    // ── AUTORIZACIÓN ──
+    const userDoc = await db.collection("users").doc(uid).get();
+    const userData = userDoc.data();
+    const isAdmin = userData?.adminType === "super_admin"
+        || (userData?.adminType === "location_admin"
+            && Array.isArray(userData?.assignedLocationIds)
+            && userData.assignedLocationIds.includes(venueId));
+
+    if (!isAdmin) {
+        throw new HttpsError("permission-denied", "Solo admins pueden eliminar bloqueos");
+    }
+
+    const slotRef = db.collection("venues").doc(venueId).collection("blocked_slots").doc(blockedSlotId);
+
+    await db.runTransaction(async (tx) => {
+        const snap = await tx.get(slotRef);
+        if (!snap.exists) {
+            throw new HttpsError("not-found", "El bloqueo no existe");
+        }
+        const data = snap.data()!;
+        const hasRecurrence = !!data.recurrence;
+
+        if (mode === "oneoff") {
+            if (hasRecurrence) {
+                throw new HttpsError("failed-precondition", "Este bloqueo es recurrente, usá modo 'instance' o 'recurrence'");
+            }
+            tx.delete(slotRef);
+            return;
+        }
+
+        if (!hasRecurrence) {
+            throw new HttpsError("failed-precondition", "Este bloqueo no es recurrente");
+        }
+
+        if (mode === "instance") {
+            tx.update(slotRef, {
+                exceptDates: admin.firestore.FieldValue.arrayUnion(targetDate),
+            });
+            return;
+        }
+
+        // mode === "recurrence" → truncar endDate
+        const newEndDate = dayBefore(targetDate!);
+        const currentEndDate = data.recurrence.endDate as string | undefined;
+        if (currentEndDate && currentEndDate <= newEndDate) {
+            // Ya estaba terminada antes — idempotente, no tocar
+            return;
+        }
+        tx.update(slotRef, {
+            "recurrence.endDate": newEndDate,
+            terminatedBy: uid,
+            terminatedAt: new Date().toISOString(),
+        });
+    });
+
+    return { ok: true, mode };
+});

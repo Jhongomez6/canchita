@@ -58,11 +58,15 @@ export interface Booking {
     expiresAt?: string;
     cancelledBy?: string;
     cancelledAt?: string;
+    cancelledByRole?: BookingCancelRole;
+    cancellationReason?: string;
     refundTxId?: string;
     matchId?: string;
     createdAt: string;
     updatedAt: string;
 }
+
+export type BookingCancelRole = "player" | "admin";
 
 export interface CreateBookingInput {
     venueId: string;
@@ -78,6 +82,26 @@ export interface CreateBookingInput {
 
 /** TTL de reserva pendiente de pago: 15 minutos */
 export const BOOKING_PAYMENT_TTL_MS = 15 * 60 * 1000;
+
+/** Sugerencias rápidas para cancelación del jugador. "Otro" deja el textarea vacío. */
+export const PLAYER_CANCEL_SUGGESTIONS: readonly string[] = [
+    "No puedo asistir",
+    "Cambio de planes",
+    "Encontré otro horario",
+    "Lesión o enfermedad",
+];
+
+/** Sugerencias rápidas para cancelación del admin. */
+export const ADMIN_CANCEL_SUGGESTIONS: readonly string[] = [
+    "Mantenimiento de la cancha",
+    "Evento privado",
+    "Cancha no disponible",
+    "Solicitud del cliente",
+];
+
+/** Longitud mínima del motivo de cancelación. */
+export const CANCEL_REASON_MIN_LENGTH = 5;
+export const CANCEL_REASON_MAX_LENGTH = 500;
 
 // ========================
 // HELPERS PUROS
@@ -207,5 +231,18 @@ export function validateBookingInput(data: CreateBookingInput): void {
 export function validateBookingDate(date: string, todayISO: string): void {
     if (date < todayISO) {
         throw new ValidationError("No se puede reservar en una fecha pasada");
+    }
+}
+
+/**
+ * Valida el motivo de cancelación: requerido, length entre MIN y MAX.
+ */
+export function validateCancellationReason(reason: string): void {
+    const trimmed = (reason ?? "").trim();
+    if (trimmed.length < CANCEL_REASON_MIN_LENGTH) {
+        throw new ValidationError(`El motivo debe tener al menos ${CANCEL_REASON_MIN_LENGTH} caracteres`);
+    }
+    if (trimmed.length > CANCEL_REASON_MAX_LENGTH) {
+        throw new ValidationError(`El motivo no puede superar ${CANCEL_REASON_MAX_LENGTH} caracteres`);
     }
 }

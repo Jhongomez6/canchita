@@ -437,12 +437,42 @@ export async function logBookingCancelled(params: {
   bookingId: string;
   refunded: boolean;
   hoursBeforeStart: number;
+  actorRole?: "player" | "admin";
+  reasonLength?: number;
 }) {
   await trackEvent("booking_cancelled", {
     venue_id: params.venueId,
     booking_id: params.bookingId,
     refunded: params.refunded.toString(),
     hours_before_start: params.hoursBeforeStart.toString(),
+    actor_role: params.actorRole ?? "player",
+    reason_length: (params.reasonLength ?? 0).toString(),
+  });
+}
+
+export async function logBookingCancellationStarted(params: {
+  venueId: string;
+  bookingId: string;
+  actorRole: "player" | "admin";
+}) {
+  await trackEvent("booking_cancellation_started", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    actor_role: params.actorRole,
+  });
+}
+
+export async function logBlockedSlotDeleted(params: {
+  venueId: string;
+  blockedSlotId: string;
+  mode: "oneoff" | "instance" | "recurrence";
+  isRecurring: boolean;
+}) {
+  await trackEvent("blocked_slot_deleted", {
+    venue_id: params.venueId,
+    blocked_slot_id: params.blockedSlotId,
+    mode: params.mode,
+    is_recurring: params.isRecurring.toString(),
   });
 }
 

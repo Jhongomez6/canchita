@@ -28,7 +28,12 @@ import AdminBookingCalendar from "@/components/booking/AdminBookingCalendar";
 import AdminSlotPicker from "@/components/booking/AdminSlotPicker";
 import BlockedSlotsEditor from "@/components/booking/BlockedSlotsEditor";
 import BlockedSlotForm from "@/components/booking/BlockedSlotForm";
-import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek } from "@/lib/domain/venue";
+import CancelBookingSheet from "@/components/booking/CancelBookingSheet";
+import DeleteBlockedSlotSheet from "@/components/booking/DeleteBlockedSlotSheet";
+import { cancelBooking } from "@/lib/bookings";
+import { logBookingCancelled, logBookingCancellationStarted } from "@/lib/analytics";
+import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot } from "@/lib/domain/venue";
+import type { Booking } from "@/lib/domain/booking";
 
 type AdminTab = "courts" | "schedule" | "payments" | "blocked" | "bookings";
 
@@ -78,6 +83,36 @@ function VenueAdminContent() {
 
     // Bookings sub-view: monthly calendar vs hourly slot picker
     const [bookingsView, setBookingsView] = useState<"calendar" | "hourly">("calendar");
+
+    // Cancel booking sheet (admin cancels player's booking)
+    const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
+
+    // Delete block sheet
+    const [deleteTarget, setDeleteTarget] = useState<{ slot: BlockedSlot; targetDate: string } | null>(null);
+
+    const handleAdminCancelBooking = useCallback(async (reason: string) => {
+        if (!cancelTarget) return;
+        try {
+            const result = await cancelBooking(cancelTarget.id, reason);
+            const slotMs = new Date(`${cancelTarget.date}T${cancelTarget.startTime}:00`).getTime();
+            const hoursBeforeStart = Math.max(0, Math.round((slotMs - Date.now()) / (1000 * 60 * 60)));
+            logBookingCancelled({
+                venueId: cancelTarget.venueId,
+                bookingId: cancelTarget.id,
+                refunded: result.refunded,
+                hoursBeforeStart,
+                actorRole: "admin",
+                reasonLength: reason.length,
+            });
+            toast.success(result.refunded
+                ? `Reserva cancelada · Reembolso de ${formatCOP(result.refundAmount)} al cliente`
+                : "Reserva cancelada");
+            setCancelTarget(null);
+        } catch (err) {
+            handleError(err, "Error al cancelar la reserva");
+            throw err;
+        }
+    }, [cancelTarget]);
 
     // Dirty tracking
     const [dirty, setDirty] = useState(false);
@@ -405,7 +440,20 @@ function VenueAdminContent() {
                             </div>
 
                             {bookingsView === "calendar" ? (
-                                <AdminBookingCalendar venueId={venueId} />
+                                <AdminBookingCalendar
+                                    venueId={venueId}
+                                    onBookingClick={(booking) => {
+                                        logBookingCancellationStarted({
+                                            venueId: booking.venueId,
+                                            bookingId: booking.id,
+                                            actorRole: "admin",
+                                        });
+                                        setCancelTarget(booking);
+                                    }}
+                                    onBlockClick={(slot, targetDate) => {
+                                        setDeleteTarget({ slot, targetDate });
+                                    }}
+                                />
                             ) : (
                                 <AdminSlotPicker
                                     venueId={venueId}
@@ -470,6 +518,37 @@ function VenueAdminContent() {
                         </>
                     )}
                 </AnimatePresence>
+
+                {/* Cancel booking sheet (admin) */}
+                {cancelTarget && (
+                    <CancelBookingSheet
+                        open={!!cancelTarget}
+                        onClose={() => setCancelTarget(null)}
+                        onConfirm={handleAdminCancelBooking}
+                        mode="admin"
+                        booking={{
+                            venueName: cancelTarget.venueName,
+                            date: cancelTarget.date,
+                            startTime: cancelTarget.startTime,
+                            endTime: cancelTarget.endTime,
+                            bookedByName: cancelTarget.bookedByName,
+                            depositCOP: cancelTarget.depositCOP,
+                        }}
+                        willRefund={cancelTarget.depositCOP > 0 && cancelTarget.paymentMethod === "wallet_deposit"}
+                    />
+                )}
+
+                {/* Delete blocked slot sheet */}
+                {deleteTarget && (
+                    <DeleteBlockedSlotSheet
+                        open={!!deleteTarget}
+                        onClose={() => setDeleteTarget(null)}
+                        onDeleted={() => setDeleteTarget(null)}
+                        venueId={venueId}
+                        slot={deleteTarget.slot}
+                        targetDate={deleteTarget.targetDate}
+                    />
+                )}
 
                 {/* Save button — always visible on editable tabs */}
                 {activeTab !== "bookings" && activeTab !== "blocked" && (

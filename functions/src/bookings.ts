@@ -581,15 +581,24 @@ export const cancelBooking = onCall(
 
         const uid = request.auth.uid;
         const bookingId = request.data.bookingId as string;
+        const rawReason = (request.data.reason as string | undefined) ?? "";
+        const reason = rawReason.trim();
 
         if (!bookingId) {
             throw new HttpsError("invalid-argument", "bookingId es requerido");
+        }
+        if (reason.length < 5) {
+            throw new HttpsError("invalid-argument", "El motivo debe tener al menos 5 caracteres");
+        }
+        if (reason.length > 500) {
+            throw new HttpsError("invalid-argument", "El motivo no puede superar 500 caracteres");
         }
 
         const bookingRef = db.collection("bookings").doc(bookingId);
         const now = nowISO();
         let refunded = false;
         let refundAmount = 0;
+        let actorRole: "player" | "admin" = "player";
 
         await db.runTransaction(async (transaction) => {
             // ── READS PRIMERO ──
@@ -612,6 +621,7 @@ export const cancelBooking = onCall(
                 if (!isVenueAdmin) {
                     throw new HttpsError("permission-denied", "No tienes permiso para cancelar esta reserva");
                 }
+                actorRole = "admin";
             }
 
             // Solo se puede cancelar si está confirmed o pending_payment
@@ -623,11 +633,17 @@ export const cancelBooking = onCall(
             const depositCOP: number = booking.depositCOP || 0;
             const shouldRefund = depositCOP > 0 && booking.paymentMethod === "wallet_deposit";
 
+            // Admin que cancela siempre fuerza reembolso (no es culpa del jugador).
+            // Jugador respeta regla 24h.
             let isRefundable = false;
             if (shouldRefund) {
-                const slotMs = new Date(`${booking.date}T${booking.startTime}:00`).getTime();
-                const deadlineMs = slotMs - REFUND_DEADLINE_MS;
-                isRefundable = Date.now() < deadlineMs;
+                if (actorRole === "admin") {
+                    isRefundable = true;
+                } else {
+                    const slotMs = new Date(`${booking.date}T${booking.startTime}:00`).getTime();
+                    const deadlineMs = slotMs - REFUND_DEADLINE_MS;
+                    isRefundable = Date.now() < deadlineMs;
+                }
             }
 
             // ── READS DE WALLET (si aplica) ──
@@ -641,6 +657,8 @@ export const cancelBooking = onCall(
             transaction.update(bookingRef, {
                 status: "cancelled",
                 cancelledBy: uid,
+                cancelledByRole: actorRole,
+                cancellationReason: reason,
                 cancelledAt: now,
                 updatedAt: now,
             });
@@ -682,17 +700,19 @@ export const cancelBooking = onCall(
         const booking = bookingSnap.data();
         if (booking) {
             const isSelfCancel = booking.bookedBy === uid;
-            const notifBody = refunded
-                ? `Tu reserva en ${booking.venueName} fue cancelada. Tu depósito de ${formatCOPLabel(refundAmount)} fue reembolsado.`
-                : `Tu reserva en ${booking.venueName} fue cancelada.`;
-            const notifUrl = refunded ? "/wallet" : "/bookings";
+            const refundLine = refunded
+                ? ` Tu depósito de ${formatCOPLabel(refundAmount)} fue reembolsado.`
+                : "";
+            const reasonLine = !isSelfCancel ? ` Motivo: ${reason}` : "";
+            const notifBody = `Tu reserva en ${booking.venueName} fue cancelada.${refundLine}${reasonLine}`;
+            const notifUrl = refunded ? "/wallet" : `/bookings/${bookingId}`;
 
             if (!isSelfCancel) {
                 // Admin canceló — notificación in-app
                 await db.collection("notifications").doc(booking.bookedBy).collection("items").add({
-                    title: "Reserva cancelada",
+                    title: "Reserva cancelada por admin",
                     body: notifBody,
-                    type: "booking_cancelled",
+                    type: "booking_cancelled_by_admin",
                     url: notifUrl,
                     read: false,
                     createdAt: now,
@@ -702,11 +722,15 @@ export const cancelBooking = onCall(
                 });
             }
 
-            // Push notification to booker
-            await sendBookingPush(booking.bookedBy, {
-                title: "Reserva cancelada",
-                body: notifBody,
-            }, notifUrl);
+            // Push notification to booker (best effort)
+            try {
+                await sendBookingPush(booking.bookedBy, {
+                    title: isSelfCancel ? "Reserva cancelada" : "Reserva cancelada por admin",
+                    body: notifBody,
+                }, notifUrl);
+            } catch (err) {
+                console.warn("Failed to send cancellation push", err);
+            }
         }
 
         return { refunded, refundAmount };

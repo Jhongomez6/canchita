@@ -303,6 +303,28 @@ export async function removeBlockedSlot(venueId: string, slotId: string): Promis
     await deleteDoc(doc(db, "venues", venueId, "blocked_slots", slotId));
 }
 
+export type DeleteBlockedSlotMode = "oneoff" | "instance" | "recurrence";
+
+/**
+ * Elimina/termina/cancela una instancia de un BlockedSlot vía Cloud Function.
+ * - mode="oneoff": borra el doc (solo bloqueos sin recurrencia).
+ * - mode="instance": agrega targetDate a exceptDates (cancela una sola fecha).
+ * - mode="recurrence": termina la recurrencia (endDate = targetDate-1, preserva historial).
+ */
+export async function deleteBlockedSlot(
+    venueId: string,
+    blockedSlotId: string,
+    mode: DeleteBlockedSlotMode,
+    targetDate?: string,
+): Promise<{ ok: true; mode: DeleteBlockedSlotMode }> {
+    const fn = httpsCallable<
+        { venueId: string; blockedSlotId: string; mode: DeleteBlockedSlotMode; targetDate?: string },
+        { ok: true; mode: DeleteBlockedSlotMode }
+    >(functions, "deleteBlockedSlot");
+    const res = await fn({ venueId, blockedSlotId, mode, targetDate });
+    return res.data;
+}
+
 export async function addBlockedSlotException(
     venueId: string,
     slotId: string,
