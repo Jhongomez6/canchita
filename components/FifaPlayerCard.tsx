@@ -286,7 +286,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
             {/* ========================= */}
             {/*   STATS — 1x6 ROW         */}
             {/* ========================= */}
-            <div className="flex justify-center gap-x-3 px-2 pb-0 mb-0">
+            <div className="flex justify-center gap-x-2.5 px-1 pb-0 mb-0">
               {[
                 { label: "COM", value: com },
                 { label: "TEC", value: tec },
