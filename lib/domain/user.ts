@@ -338,6 +338,14 @@ export function isLocationAdmin(profile: UserProfile): boolean {
 }
 
 /**
+ * Location admin que aún no tiene sedes asignadas por un super admin.
+ * En este estado, el usuario no puede operar — ve la pantalla "Esperando asignación".
+ */
+export function isPendingLocationAdmin(profile: UserProfile): boolean {
+    return isLocationAdmin(profile) && (profile.assignedLocationIds?.length ?? 0) === 0;
+}
+
+/**
  * Verifica si un perfil es Team Admin (organizador de equipo amateur).
  * Solo puede crear partidos privados en sus locations asignadas.
  * Puede ser Player simultáneamente.

@@ -7,6 +7,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { isInAppBrowser } from "@/lib/browser";
+import { isLocationAdmin } from "@/lib/domain/user";
 import LandingPage from "./LandingPage";
 
 export default function AuthGuard({
@@ -52,16 +53,19 @@ function AuthGuardInner({
     }
   }, [profile, pathname, router]);
 
-  // 🔹 Redirigir a /onboarding/phone si ya hizo onboarding pero no tiene teléfono
+  // 🔹 Redirigir a /onboarding/phone si necesita teléfono.
+  // Aplica a:
+  //   - Players que ya completaron onboarding pero no tienen teléfono.
+  //   - Location admins (siempre necesitan teléfono de contacto del negocio).
   useEffect(() => {
-    if (
-      profile &&
-      !profile.deleted &&
-      profile.roles.includes("player") &&
-      profile.initialRatingCalculated &&
-      !profile.phone &&
-      pathname !== "/onboarding/phone"
-    ) {
+    if (!profile || profile.deleted || profile.phone) return;
+    if (pathname === "/onboarding/phone") return;
+
+    const isPlayerNeedingPhone =
+      profile.roles.includes("player") && profile.initialRatingCalculated;
+    const isLocAdmin = isLocationAdmin(profile);
+
+    if (isPlayerNeedingPhone || isLocAdmin) {
       router.replace("/onboarding/phone");
     }
   }, [profile, pathname, router]);
@@ -162,10 +166,12 @@ function AuthGuardInner({
   if (
     profile &&
     !profile.deleted &&
-    profile.roles.includes("player") &&
-    profile.initialRatingCalculated &&
     !profile.phone &&
-    pathname !== "/onboarding/phone"
+    pathname !== "/onboarding/phone" &&
+    (
+      (profile.roles.includes("player") && profile.initialRatingCalculated) ||
+      isLocationAdmin(profile)
+    )
   ) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">

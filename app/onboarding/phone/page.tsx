@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { updateUserPhone } from "@/lib/users";
+import { isLocationAdmin } from "@/lib/domain/user";
 import { handleError } from "@/lib/utils/error";
 
 // ========================
@@ -29,10 +30,13 @@ export default function PhoneOnboardingPage() {
         try {
             await updateUserPhone(user.uid, phone);
             // Redirigir al partido si se vino desde un join link, sino al home
+            // (location admins van directo a /bookings, su landing principal)
             const returnTo = localStorage.getItem("returnToMatch");
             if (returnTo) {
                 localStorage.removeItem("returnToMatch");
                 window.location.href = `/join/${returnTo}`;
+            } else if (isLocationAdmin(profile)) {
+                window.location.href = "/bookings";
             } else {
                 window.location.href = "/";
             }

@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { hasBookingAccess, isLocationAdmin, isSuperAdmin, canCreateBooking } from "@/lib/domain/user";
+import { hasBookingAccess, isLocationAdmin, isPendingLocationAdmin, isSuperAdmin, canCreateBooking } from "@/lib/domain/user";
 import { getUserBookings } from "@/lib/bookings";
 import { getActiveVenues } from "@/lib/venues";
 import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import BookingDetailCard from "@/components/booking/BookingDetailCard";
+import PendingAssignmentEmptyState from "@/components/booking/PendingAssignmentEmptyState";
 import type { Booking } from "@/lib/domain/booking";
 import type { Venue } from "@/lib/domain/venue";
 import type { DocumentSnapshot } from "firebase/firestore";
@@ -29,6 +30,13 @@ function BookingsContent() {
 
         if (!hasBookingAccess(profile)) {
             router.replace("/");
+            return;
+        }
+
+        // Location admin sin sedes asignadas: mostramos pantalla de espera,
+        // no tiene sentido pedir bookings ni venues.
+        if (isPendingLocationAdmin(profile)) {
+            setLoading(false);
             return;
         }
 
@@ -76,6 +84,10 @@ function BookingsContent() {
     const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     const upcoming = bookings.filter((b) => b.date >= todayISO && b.status !== "cancelled" && b.status !== "expired");
     const past = bookings.filter((b) => b.date < todayISO || b.status === "cancelled" || b.status === "expired");
+
+    if (profile && isPendingLocationAdmin(profile)) {
+        return <PendingAssignmentEmptyState />;
+    }
 
     if (loading) {
         return (

@@ -7,7 +7,7 @@ import { logout } from "@/lib/auth";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
-import { isSuperAdmin, hasWalletAccess } from "@/lib/domain/user";
+import { isSuperAdmin, isLocationAdmin, hasWalletAccess } from "@/lib/domain/user";
 import { logNotificationsOpened, logTooltipOpened } from "@/lib/analytics";
 import { subscribeToWallet } from "@/lib/wallet";
 import { formatCOP } from "@/lib/domain/wallet";
@@ -25,6 +25,7 @@ export default function Header() {
 
   const isAdmin = profile?.roles?.includes("admin") ?? false;
   const isSuperAdminUser = profile ? isSuperAdmin(profile) : false;
+  const isLocationAdminUser = profile ? isLocationAdmin(profile) : false;
 
   const getAdminBadge = () => {
     if (!isAdmin) return null;
@@ -159,41 +160,45 @@ export default function Header() {
             fontSize: 14,
           }}
         >
-          <Link
-            href="/"
-            className="hidden md:block"
-            style={{
-              color: "#e6f6ed",
-              textDecoration: "none",
-              fontWeight: 500,
-            }}
-          >
-            Partidos
-          </Link>
+          {!isLocationAdminUser && (
+            <>
+              <Link
+                href="/"
+                className="hidden md:block"
+                style={{
+                  color: "#e6f6ed",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
+                Partidos
+              </Link>
 
-          <Link
-            href="/explore"
-            className="hidden md:block"
-            style={{
-              color: "#e6f6ed",
-              textDecoration: "none",
-              fontWeight: 500,
-            }}
-          >
-            Explorar
-          </Link>
+              <Link
+                href="/explore"
+                className="hidden md:block"
+                style={{
+                  color: "#e6f6ed",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
+                Explorar
+              </Link>
 
-          <Link
-            href="/profile"
-            className="hidden md:block"
-            style={{
-              color: "#e6f6ed",
-              textDecoration: "none",
-              fontWeight: 500,
-            }}
-          >
-            Perfil
-          </Link>
+              <Link
+                href="/profile"
+                className="hidden md:block"
+                style={{
+                  color: "#e6f6ed",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
+                Perfil
+              </Link>
+            </>
+          )}
 
           {isSuperAdminUser && (
             <>

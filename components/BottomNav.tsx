@@ -4,14 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { isSuperAdmin as checkIsSuperAdmin, hasBookingAccess as checkHasBookingAccess } from "@/lib/domain/user";
+import { isSuperAdmin as checkIsSuperAdmin, isLocationAdmin as checkIsLocationAdmin, hasBookingAccess as checkHasBookingAccess } from "@/lib/domain/user";
 import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
 
 export default function BottomNav() {
     const pathname = usePathname();
     const { user, profile } = useAuth();
     const isSuperAdminUser = profile ? checkIsSuperAdmin(profile) : false;
+    const isLocationAdminUser = profile ? checkIsLocationAdmin(profile) : false;
     const hasBooking = profile ? checkHasBookingAccess(profile) : false;
+    const isPlayer = profile?.roles?.includes("player") ?? false;
     const [pendingApps, setPendingApps] = useState(0);
 
     useEffect(() => {
@@ -36,7 +38,8 @@ export default function BottomNav() {
             style={{ paddingBottom: "max(env(safe-area-inset-bottom), 4px)" }}
         >
             <div className="flex items-center justify-between" style={{ height: "52px" }}>
-                {/* HOME */}
+                {/* HOME (Players + Super Admin) */}
+                {(isPlayer || isSuperAdminUser) && (
                 <Link href="/" className={navItemClass(pathname === "/")}>
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -53,8 +56,10 @@ export default function BottomNav() {
                     </svg>
                     <span className="text-[10px] font-bold tracking-wide">Inicio</span>
                 </Link>
+                )}
 
-                {/* EXPLORE (Buscar Partidos) */}
+                {/* EXPLORE (Players + Super Admin) */}
+                {(isPlayer || isSuperAdminUser) && (
                 <Link href="/explore" className={navItemClass(pathname === "/explore")}>
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -71,6 +76,7 @@ export default function BottomNav() {
                     </svg>
                     <span className="text-[10px] font-bold tracking-wide">Buscar</span>
                 </Link>
+                )}
 
                 {/* RESERVAS (behind bookingEnabled flag) */}
                 {hasBooking && !isSuperAdminUser && (
@@ -94,8 +100,8 @@ export default function BottomNav() {
                     </Link>
                 )}
 
-                {/* HISTORY (Players) */}
-                {!isSuperAdminUser && (
+                {/* HISTORY (Players only — no super admin, no admin-sin-player) */}
+                {!isSuperAdminUser && isPlayer && (
                     <Link href="/history" className={navItemClass(pathname === "/history")}>
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -210,7 +216,8 @@ export default function BottomNav() {
                     </Link>
                 )}
 
-                {/* PROFILE */}
+                {/* PROFILE (oculto para location admin — su flujo no incluye perfil de jugador) */}
+                {!isLocationAdminUser && (
                 <Link href="/profile" className={navItemClass(pathname === "/profile")}>
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -227,6 +234,7 @@ export default function BottomNav() {
                     </svg>
                     <span className="text-[10px] font-bold tracking-wide">Perfil</span>
                 </Link>
+                )}
             </div>
         </div>
     );

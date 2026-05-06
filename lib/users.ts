@@ -31,11 +31,14 @@ function isStorageURL(url?: string | null): boolean {
   return !!url?.includes("firebasestorage.googleapis.com");
 }
 
+export type SignupIntent = "location_admin";
+
 export async function ensureUserProfile(
   uid: string,
   name: string,
   email?: string | null,
-  photoURL?: string | null
+  photoURL?: string | null,
+  signupIntent?: SignupIntent | null
 ): Promise<{ isNewUser: boolean }> {
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
@@ -45,10 +48,19 @@ export async function ensureUserProfile(
       name,
       originalGoogleName: name,
       positions: [],
-      roles: ["player"],
       createdAt: new Date().toISOString(),
       authAcceptedVersion: APP_LEGAL_CONSTANTS.CURRENT_TERMS_VERSION,
     };
+
+    if (signupIntent === "location_admin") {
+      data.roles = ["admin"];
+      data.adminType = "location_admin";
+      data.assignedLocationIds = [];
+      data.bookingEnabled = true;
+    } else {
+      data.roles = ["player"];
+    }
+
     if (email) data.email = email;
     // Solo guardar photoURL si ya está en Storage (no URLs de Google)
     if (isStorageURL(photoURL)) data.photoURL = photoURL;

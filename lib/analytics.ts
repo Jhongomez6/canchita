@@ -88,6 +88,14 @@ export async function logUserRegistered() {
   await trackEvent("user_registered");
 }
 
+export async function logLocationAdminSignupStarted() {
+  await trackEvent("location_admin_signup_started");
+}
+
+export async function logLocationAdminSignupCompleted() {
+  await trackEvent("location_admin_signup_completed");
+}
+
 export async function logOnboardingCompleted() {
   await trackEvent("onboarding_completed");
 }

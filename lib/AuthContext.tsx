@@ -5,7 +5,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "./auth";
 import { db } from "./firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-import { ensureUserProfile } from "@/lib/users";
+import { ensureUserProfile, type SignupIntent } from "@/lib/users";
 import { migrateGooglePhotoToStorage, generateThumbFromStorageURL } from "@/lib/avatarMigration";
 import { listenToPushMessages } from "./firebase-messaging";
 import { useTokenRefresh } from "./hooks/useTokenRefresh";
@@ -14,7 +14,21 @@ import {
   identifyUser,
   setAnalyticsUserProperties,
   logUserRegistered,
+  logLocationAdminSignupCompleted,
 } from "@/lib/analytics";
+
+const SIGNUP_INTENT_KEY = "signupIntent";
+
+function consumeSignupIntent(): SignupIntent | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(SIGNUP_INTENT_KEY);
+    if (raw) window.sessionStorage.removeItem(SIGNUP_INTENT_KEY);
+    return raw === "location_admin" ? "location_admin" : null;
+  } catch {
+    return null;
+  }
+}
 import type { UserProfile } from "@/lib/domain/user";
 
 type AuthContextType = {
@@ -84,16 +98,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         identifyUser(currentUser.uid);
 
         // 👤 Asegurar perfil (solo crea si no existe o actualiza email/foto faltante)
+        const signupIntent = consumeSignupIntent();
         const { isNewUser } = await ensureUserProfile(
           currentUser.uid,
           currentUser.displayName || "Jugador",
           currentUser.email,
-          currentUser.photoURL
+          currentUser.photoURL,
+          signupIntent
         );
 
         // 📊 Log registro de usuario nuevo
         if (isNewUser) {
           logUserRegistered();
+          if (signupIntent === "location_admin") {
+            logLocationAdminSignupCompleted();
+          }
         }
 
         // ✅ Marca login reciente (se consume en la UI)
