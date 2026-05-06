@@ -22,6 +22,9 @@ interface Recurrence {
     endDate?: string;
 }
 
+type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid";
+const MANUAL_RESERVATION_STATUSES: ManualReservationStatus[] = ["pending", "confirmed", "played", "paid"];
+
 interface CreateInput {
     date: string | null;
     startTime: string;
@@ -29,6 +32,9 @@ interface CreateInput {
     courtIds: string[];
     reason?: string;
     clientName?: string;
+    clientPhone?: string;
+    priceCOP?: number;
+    status?: ManualReservationStatus;
     recurrence?: Recurrence;
 }
 
@@ -149,6 +155,17 @@ export const createBlockedSlot = onCall(async (request) => {
     const reason = typeof input.reason === "string"
         ? input.reason.trim().slice(0, 200)
         : undefined;
+    const clientPhoneRaw = typeof input.clientPhone === "string" ? input.clientPhone.trim() : "";
+    const clientPhone = clientPhoneRaw.length > 0 ? clientPhoneRaw : undefined;
+    if (clientPhone && !/^3\d{9}$/.test(clientPhone)) {
+        throw new HttpsError("invalid-argument", "Celular inválido (formato: 10 dígitos empezando en 3)");
+    }
+    const priceCOP = typeof input.priceCOP === "number" && Number.isFinite(input.priceCOP) && input.priceCOP >= 0
+        ? Math.round(input.priceCOP)
+        : 0;
+    const status: ManualReservationStatus = input.status && MANUAL_RESERVATION_STATUSES.includes(input.status)
+        ? input.status
+        : "pending";
 
     // ── VALIDACIÓN: RECURRENCIA vs PUNTUAL ──
     let normalizedDate: string | null = null;
@@ -263,11 +280,14 @@ export const createBlockedSlot = onCall(async (request) => {
         startTime: input.startTime,
         endTime: input.endTime,
         courtIds: input.courtIds,
+        priceCOP,
+        status,
         createdBy: uid,
         createdAt: nowISO,
     };
     if (clientName) docData.clientName = clientName;
     if (reason) docData.reason = reason;
+    if (clientPhone) docData.clientPhone = clientPhone;
     if (normalizedRecurrence) docData.recurrence = normalizedRecurrence;
 
     await venueRef.collection("blocked_slots").doc(id).set(docData);

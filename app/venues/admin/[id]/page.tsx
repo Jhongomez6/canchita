@@ -30,9 +30,19 @@ import BlockedSlotsEditor from "@/components/booking/BlockedSlotsEditor";
 import BlockedSlotForm from "@/components/booking/BlockedSlotForm";
 import CancelBookingSheet from "@/components/booking/CancelBookingSheet";
 import DeleteBlockedSlotSheet from "@/components/booking/DeleteBlockedSlotSheet";
+import HourDetailDrawer from "@/components/booking/HourDetailDrawer";
 import { cancelBooking } from "@/lib/bookings";
-import { logBookingCancelled, logBookingCancellationStarted } from "@/lib/analytics";
-import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot } from "@/lib/domain/venue";
+import { updateManualReservationStatus } from "@/lib/venues";
+import { getBlockedSlotStatus, getNextStatus } from "@/lib/domain/venue";
+import {
+    logBookingCancelled,
+    logBookingCancellationStarted,
+    logAdminHourDetailOpened,
+    logAdminHourDetailCreateClicked,
+    logManualReservationStatusChanged,
+    logManualReservationQuickDeleteOpened,
+} from "@/lib/analytics";
+import type { Venue, Court, CourtCombo, CourtFormat, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
 
 type AdminTab = "courts" | "schedule" | "payments" | "blocked" | "bookings";
@@ -79,16 +89,90 @@ function VenueAdminContent() {
         startTime?: string;
         endTime?: string;
         courtIds?: string[];
+        format?: CourtFormat;
     }>({});
 
+    // Hour detail drawer (vista por hora → tap en una hora)
+    const [hourDetail, setHourDetail] = useState<{
+        date: string;
+        startTime: string;
+        endTime: string;
+        format: CourtFormat;
+        courtIds: string[];
+        bookings: Booking[];
+        blocks: BlockedSlot[];
+    } | null>(null);
+
     // Bookings sub-view: monthly calendar vs hourly slot picker
-    const [bookingsView, setBookingsView] = useState<"calendar" | "hourly">("calendar");
+    const [bookingsView, setBookingsView] = useState<"calendar" | "hourly">("hourly");
 
     // Cancel booking sheet (admin cancels player's booking)
     const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
 
     // Delete block sheet
     const [deleteTarget, setDeleteTarget] = useState<{ slot: BlockedSlot; targetDate: string } | null>(null);
+
+    // Optimistic update del status en hourDetail (snapshot, no escucha realtime).
+    const patchHourDetailBlockStatus = useCallback((slotId: string, newStatus: ManualReservationStatus) => {
+        setHourDetail((prev) => {
+            if (!prev) return prev;
+            const next = prev.blocks.map((b) =>
+                b.id === slotId ? { ...b, status: newStatus } : b,
+            );
+            return { ...prev, blocks: next };
+        });
+    }, []);
+
+    const handleAdvanceBlockStatus = useCallback(async (slot: BlockedSlot) => {
+        const current = getBlockedSlotStatus(slot);
+        const next = getNextStatus(current);
+        if (!next) return;
+        // Optimistic: actualizar UI inmediatamente
+        patchHourDetailBlockStatus(slot.id, next);
+        try {
+            await updateManualReservationStatus(venueId, slot.id, next);
+            logManualReservationStatusChanged({
+                venueId,
+                slotId: slot.id,
+                fromStatus: current,
+                toStatus: next,
+                via: "quick",
+            });
+        } catch (err) {
+            // Revertir en caso de error
+            patchHourDetailBlockStatus(slot.id, current);
+            handleError(err, "No pudimos actualizar el estado");
+        }
+    }, [venueId, patchHourDetailBlockStatus]);
+
+    const handlePickBlockStatus = useCallback(async (slot: BlockedSlot, newStatus: ManualReservationStatus) => {
+        const current = getBlockedSlotStatus(slot);
+        if (current === newStatus) return;
+        // Optimistic
+        patchHourDetailBlockStatus(slot.id, newStatus);
+        try {
+            await updateManualReservationStatus(venueId, slot.id, newStatus);
+            logManualReservationStatusChanged({
+                venueId,
+                slotId: slot.id,
+                fromStatus: current,
+                toStatus: newStatus,
+                via: "popover",
+            });
+        } catch (err) {
+            patchHourDetailBlockStatus(slot.id, current);
+            handleError(err, "No pudimos actualizar el estado");
+        }
+    }, [venueId, patchHourDetailBlockStatus]);
+
+    const handleQuickDeleteBlock = useCallback((slot: BlockedSlot, targetDate: string) => {
+        logManualReservationQuickDeleteOpened({
+            venueId,
+            slotId: slot.id,
+            wasRecurring: !!slot.recurrence,
+        });
+        setDeleteTarget({ slot, targetDate });
+    }, [venueId]);
 
     const handleAdminCancelBooking = useCallback(async (reason: string) => {
         if (!cancelTarget) return;
@@ -418,16 +502,6 @@ function VenueAdminContent() {
                             {/* View toggle */}
                             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
                                 <button
-                                    onClick={() => setBookingsView("calendar")}
-                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                        bookingsView === "calendar"
-                                            ? "bg-white text-[#1f7a4f] shadow-sm"
-                                            : "text-slate-500 hover:text-slate-700"
-                                    }`}
-                                >
-                                    Calendario
-                                </button>
-                                <button
                                     onClick={() => setBookingsView("hourly")}
                                     className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
                                         bookingsView === "hourly"
@@ -436,6 +510,16 @@ function VenueAdminContent() {
                                     }`}
                                 >
                                     Por hora
+                                </button>
+                                <button
+                                    onClick={() => setBookingsView("calendar")}
+                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                        bookingsView === "calendar"
+                                            ? "bg-white text-[#1f7a4f] shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    }`}
+                                >
+                                    Calendario
                                 </button>
                             </div>
 
@@ -453,14 +537,24 @@ function VenueAdminContent() {
                                     onBlockClick={(slot, targetDate) => {
                                         setDeleteTarget({ slot, targetDate });
                                     }}
+                                    onAdvanceBlockStatus={handleAdvanceBlockStatus}
+                                    onPickBlockStatus={handlePickBlockStatus}
+                                    onQuickDeleteBlock={handleQuickDeleteBlock}
                                 />
                             ) : (
                                 <AdminSlotPicker
                                     venueId={venueId}
                                     courts={courts}
-                                    onSlotSelected={({ date, startTime, endTime, courtIds }) => {
-                                        setDrawerDefaults({ date, startTime, endTime, courtIds });
-                                        setBlockedDrawerOpen(true);
+                                    onHourTapped={({ date, startTime, endTime, courtIds, format, bookings, blocks }) => {
+                                        setHourDetail({ date, startTime, endTime, courtIds, format, bookings, blocks });
+                                        logAdminHourDetailOpened({
+                                            venueId,
+                                            date,
+                                            startTime,
+                                            endTime,
+                                            bookingsCount: bookings.length,
+                                            blocksCount: blocks.length,
+                                        });
                                     }}
                                 />
                             )}
@@ -505,10 +599,12 @@ function VenueAdminContent() {
                                             key={`${drawerDefaults.date ?? ""}-${drawerDefaults.startTime ?? ""}-${drawerDefaults.endTime ?? ""}-${(drawerDefaults.courtIds ?? []).join(",")}`}
                                             venueId={venueId}
                                             courts={courts}
+                                            combos={combos}
                                             defaultDate={drawerDefaults.date}
                                             defaultStartTime={drawerDefaults.startTime}
                                             defaultEndTime={drawerDefaults.endTime}
                                             defaultCourtIds={drawerDefaults.courtIds}
+                                            defaultFormat={drawerDefaults.format}
                                             onCreated={() => setBlockedDrawerOpen(false)}
                                             onCancel={() => setBlockedDrawerOpen(false)}
                                         />
@@ -518,6 +614,52 @@ function VenueAdminContent() {
                         </>
                     )}
                 </AnimatePresence>
+
+                {/* Hour detail drawer (vista por hora). Va ANTES que los sheets para que
+                    cuando un sheet se abra desde dentro, quede por encima en el orden DOM. */}
+                <HourDetailDrawer
+                    open={!!hourDetail}
+                    onClose={() => setHourDetail(null)}
+                    date={hourDetail?.date ?? ""}
+                    startTime={hourDetail?.startTime ?? ""}
+                    endTime={hourDetail?.endTime ?? ""}
+                    bookings={hourDetail?.bookings ?? []}
+                    blocks={hourDetail?.blocks ?? []}
+                    courts={courts}
+                    onBookingClick={(booking) => {
+                        logBookingCancellationStarted({
+                            venueId,
+                            bookingId: booking.id,
+                            actorRole: "admin",
+                        });
+                        setCancelTarget(booking);
+                    }}
+                    onBlockClick={(slot, targetDate) => {
+                        setDeleteTarget({ slot, targetDate });
+                    }}
+                    onAdvanceBlockStatus={handleAdvanceBlockStatus}
+                    onPickBlockStatus={handlePickBlockStatus}
+                    onQuickDeleteBlock={handleQuickDeleteBlock}
+                    onCreateManual={() => {
+                        if (!hourDetail) return;
+                        logAdminHourDetailCreateClicked({
+                            venueId,
+                            date: hourDetail.date,
+                            startTime: hourDetail.startTime,
+                            endTime: hourDetail.endTime,
+                            hadOverlaps: hourDetail.bookings.length > 0 || hourDetail.blocks.length > 0,
+                        });
+                        setDrawerDefaults({
+                            date: hourDetail.date,
+                            startTime: hourDetail.startTime,
+                            endTime: hourDetail.endTime,
+                            courtIds: hourDetail.courtIds,
+                            format: hourDetail.format,
+                        });
+                        setHourDetail(null);
+                        setBlockedDrawerOpen(true);
+                    }}
+                />
 
                 {/* Cancel booking sheet (admin) */}
                 {cancelTarget && (
@@ -543,7 +685,16 @@ function VenueAdminContent() {
                     <DeleteBlockedSlotSheet
                         open={!!deleteTarget}
                         onClose={() => setDeleteTarget(null)}
-                        onDeleted={() => setDeleteTarget(null)}
+                        onDeleted={() => {
+                            setHourDetail((prev) => {
+                                if (!prev || !deleteTarget) return prev;
+                                return {
+                                    ...prev,
+                                    blocks: prev.blocks.filter((b) => b.id !== deleteTarget.slot.id),
+                                };
+                            });
+                            setDeleteTarget(null);
+                        }}
                         venueId={venueId}
                         slot={deleteTarget.slot}
                         targetDate={deleteTarget.targetDate}

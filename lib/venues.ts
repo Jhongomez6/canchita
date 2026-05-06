@@ -23,11 +23,12 @@ import {
     writeBatch,
     updateDoc,
     arrayUnion,
+    runTransaction,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
 import { expandBlockedSlotsForDate } from "./domain/blocked-slots";
-import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput } from "./domain/venue";
+import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus } from "./domain/venue";
 
 // ========================
 // VENUES
@@ -274,6 +275,9 @@ export interface CreateBlockedSlotInput {
     courtIds: string[];
     reason?: string;
     clientName?: string;
+    clientPhone?: string;
+    priceCOP?: number;
+    status?: BlockedSlot["status"];
     recurrence?: BlockedSlot["recurrence"];
 }
 
@@ -301,6 +305,28 @@ export async function createBlockedSlot(
 
 export async function removeBlockedSlot(venueId: string, slotId: string): Promise<void> {
     await deleteDoc(doc(db, "venues", venueId, "blocked_slots", slotId));
+}
+
+/**
+ * Cambia el status de una reserva manual. Cualquier transición es válida (incluye rollback).
+ * Usa transacción para atomicidad: si el doc fue eliminado en paralelo, falla con error.
+ */
+export async function updateManualReservationStatus(
+    venueId: string,
+    slotId: string,
+    newStatus: ManualReservationStatus,
+): Promise<void> {
+    const ref = doc(db, "venues", venueId, "blocked_slots", slotId);
+    await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) {
+            throw new Error("La reserva ya no existe");
+        }
+        tx.update(ref, {
+            status: newStatus,
+            updatedAt: new Date().toISOString(),
+        });
+    });
 }
 
 export type DeleteBlockedSlotMode = "oneoff" | "instance" | "recurrence";

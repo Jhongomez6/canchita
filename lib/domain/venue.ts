@@ -111,19 +111,74 @@ export interface BlockedSlotRecurrence {
     endDate?: string;             // YYYY-MM-DD (opcional, indefinido si falta)
 }
 
+export type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid";
+
+export const MANUAL_RESERVATION_STATUS_ORDER: ManualReservationStatus[] = [
+    "pending", "confirmed", "played", "paid",
+];
+
 export interface BlockedSlot {
     id: string;
     date: string | null;           // null si es recurrente
     startTime: string;
     endTime: string;
     courtIds: string[];
-    reason?: string;
-    clientName?: string;           // solo visible al admin
+    reason?: string;               // visible como "Información adicional" en UI
+    clientName?: string;           // solo visible al admin (obligatorio en escritura desde el SDD de mejoras)
+    clientPhone?: string;          // opcional. PII solo para admin de la sede.
+    priceCOP?: number;             // calculado al crear desde el schedule
+    status?: ManualReservationStatus; // default `pending` si falta (docs viejos)
     recurrence?: BlockedSlotRecurrence;
     exceptDates?: string[];        // YYYY-MM-DD instancias canceladas
     createdBy: string;
     createdAt: string;
     updatedAt?: string;
+}
+
+/**
+ * Status efectivo de una reserva manual (con default para docs viejos).
+ */
+export function getBlockedSlotStatus(slot: BlockedSlot): ManualReservationStatus {
+    return slot.status ?? "pending";
+}
+
+/**
+ * Próximo status en el orden lineal. Devuelve null si ya está en el último (paid).
+ */
+export function getNextStatus(current: ManualReservationStatus): ManualReservationStatus | null {
+    const idx = MANUAL_RESERVATION_STATUS_ORDER.indexOf(current);
+    if (idx < 0 || idx >= MANUAL_RESERVATION_STATUS_ORDER.length - 1) return null;
+    return MANUAL_RESERVATION_STATUS_ORDER[idx + 1];
+}
+
+/**
+ * Label + clases tailwind para renderizar el badge de status.
+ */
+export function statusBadge(status: ManualReservationStatus): { label: string; classes: string } {
+    switch (status) {
+        case "pending":
+            return { label: "Pendiente", classes: "bg-amber-50 text-amber-700" };
+        case "confirmed":
+            return { label: "Confirmado", classes: "bg-blue-50 text-blue-700" };
+        case "played":
+            return { label: "Jugado", classes: "bg-slate-100 text-slate-700" };
+        case "paid":
+            return { label: "Pagado", classes: "bg-emerald-50 text-emerald-700" };
+    }
+}
+
+/**
+ * Label corto para el botón quick-advance (texto del próximo estado).
+ */
+export function nextStatusActionLabel(current: ManualReservationStatus): string | null {
+    const next = getNextStatus(current);
+    if (!next) return null;
+    switch (next) {
+        case "confirmed": return "Confirmar";
+        case "played": return "Marcar jugado";
+        case "paid": return "Marcar pagado";
+        default: return null;
+    }
 }
 
 export interface BookingConflict {

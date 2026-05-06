@@ -1,22 +1,25 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Users, CalendarPlus, Repeat } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
-import { formatLabel, formatCourtList, tierLabelFromCount, type Court } from "@/lib/domain/venue";
-import { bookingStatusLabel, bookingStatusColor } from "@/lib/domain/booking";
-import { labelForRecurrence } from "@/lib/domain/blocked-slots";
+import { type Court } from "@/lib/domain/venue";
 import { getBookingsForDate } from "@/lib/bookings";
 import { getBlockedSlots, getVenueCourts, getAllBlockedSlots } from "@/lib/venues";
 import { expandBlockedSlotsForDate } from "@/lib/domain/blocked-slots";
 import { handleError } from "@/lib/utils/error";
+import AdminBookingCard from "./AdminBookingCard";
+import AdminBlockCard from "./AdminBlockCard";
 import type { Booking } from "@/lib/domain/booking";
-import type { BlockedSlot } from "@/lib/domain/venue";
+import type { BlockedSlot, ManualReservationStatus } from "@/lib/domain/venue";
 
 interface AdminBookingCalendarProps {
     venueId: string;
     onBookingClick?: (booking: Booking) => void;
     onBlockClick?: (block: BlockedSlot, targetDate: string) => void;
+    onAdvanceBlockStatus?: (block: BlockedSlot) => void;
+    onPickBlockStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
+    onQuickDeleteBlock?: (block: BlockedSlot, targetDate: string) => void;
 }
 
 const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -24,24 +27,6 @@ const MONTH_NAMES = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
-
-const STATUS_DOT: Record<string, string> = {
-    yellow: "bg-amber-400",
-    green: "bg-emerald-500",
-    blue: "bg-blue-500",
-    red: "bg-red-400",
-    gray: "bg-slate-300",
-    orange: "bg-orange-400",
-};
-
-const STATUS_BADGE: Record<string, string> = {
-    yellow: "bg-amber-50 text-amber-700",
-    green: "bg-emerald-50 text-emerald-700",
-    blue: "bg-blue-50 text-blue-700",
-    red: "bg-red-50 text-red-700",
-    gray: "bg-slate-100 text-slate-500",
-    orange: "bg-orange-50 text-orange-700",
-};
 
 function toISO(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -51,15 +36,14 @@ function isSameDay(a: Date, b: Date): boolean {
     return toISO(a) === toISO(b);
 }
 
-function fmt12h(time: string): string {
-    const [hStr, mStr] = time.split(":");
-    const h = parseInt(hStr, 10);
-    const suffix = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${mStr} ${suffix}`;
-}
-
-export default function AdminBookingCalendar({ venueId, onBookingClick, onBlockClick }: AdminBookingCalendarProps) {
+export default function AdminBookingCalendar({
+    venueId,
+    onBookingClick,
+    onBlockClick,
+    onAdvanceBlockStatus,
+    onPickBlockStatus,
+    onQuickDeleteBlock,
+}: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -152,7 +136,6 @@ export default function AdminBookingCalendar({ venueId, onBookingClick, onBlockC
     const activeBookings = bookings.filter((b) => b.status !== "cancelled" && b.status !== "expired");
     const totalRevenue = activeBookings.reduce((sum, b) => sum + b.totalPriceCOP, 0);
 
-    const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
     type Row =
         | { kind: "booking"; startTime: string; booking: Booking }
         | { kind: "block"; startTime: string; block: BlockedSlot };
@@ -225,7 +208,7 @@ export default function AdminBookingCalendar({ venueId, onBookingClick, onBlockC
                                         <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-[#1f7a4f]"}`} />
                                     )}
                                     {hasBlocks && (
-                                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-indigo-500"}`} />
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-slate-500"}`} />
                                     )}
                                 </span>
                             )}
@@ -259,98 +242,25 @@ export default function AdminBookingCalendar({ venueId, onBookingClick, onBlockC
                     <div className="space-y-2">
                         {rows.map((row) => {
                             if (row.kind === "booking") {
-                                const booking = row.booking;
-                                const color = bookingStatusColor(booking.status);
-                                const dotClass = STATUS_DOT[color] || STATUS_DOT.gray;
-                                const badgeClass = STATUS_BADGE[color] || STATUS_BADGE.gray;
-
-                                const isCancellable = booking.status === "confirmed" || booking.status === "pending_payment";
-                                const clickable = !!onBookingClick && isCancellable;
                                 return (
-                                    <button
-                                        key={`b-${booking.id}`}
-                                        type="button"
-                                        onClick={() => clickable && onBookingClick!(booking)}
-                                        disabled={!clickable}
-                                        className={`w-full text-left bg-white rounded-xl border border-slate-200 p-3 transition-colors ${clickable ? "hover:border-slate-300 active:scale-[0.99]" : "cursor-default"}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-1.5">
-                                            <div className="flex items-center gap-2">
-                                                <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-                                                <span className="text-sm font-semibold text-slate-700">
-                                                    {fmt12h(booking.startTime)} – {fmt12h(booking.endTime)}
-                                                </span>
-                                            </div>
-                                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badgeClass}`}>
-                                                {bookingStatusLabel(booking.status)}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                                <Users className="w-3 h-3" />
-                                                <span>{booking.bookedByName}</span>
-                                                <span className="text-slate-300">·</span>
-                                                <span>{formatLabel(booking.format)}</span>
-                                            </div>
-                                            <span className="text-xs font-semibold text-slate-600">
-                                                {formatCOP(booking.totalPriceCOP)}
-                                            </span>
-                                        </div>
-                                        {booking.courtNames.length > 0 && (
-                                            <p className="text-[10px] text-slate-400 mt-1">
-                                                {formatCourtList(booking.courtNames)}
-                                            </p>
-                                        )}
-                                    </button>
+                                    <AdminBookingCard
+                                        key={`b-${row.booking.id}`}
+                                        booking={row.booking}
+                                        onClick={onBookingClick}
+                                    />
                                 );
                             }
-
-                            const block = row.block;
-                            const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
-                            const blockTier = tierLabelFromCount(block.courtIds.length);
-                            const blockCourtList = formatCourtList(blockCourtNames);
-                            const blockClickable = !!onBlockClick;
                             return (
-                                <button
-                                    key={`bl-${block.id}`}
-                                    type="button"
-                                    onClick={() => blockClickable && onBlockClick!(block, selectedDate)}
-                                    disabled={!blockClickable}
-                                    className={`w-full text-left bg-indigo-50/60 rounded-xl border border-indigo-100 p-3 transition-colors ${blockClickable ? "hover:border-indigo-200 active:scale-[0.99]" : "cursor-default"}`}
-                                >
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <div className="flex items-center gap-2">
-                                            <CalendarPlus className="w-3.5 h-3.5 text-indigo-500" />
-                                            <span className="text-sm font-semibold text-indigo-800">
-                                                {fmt12h(block.startTime)} – {fmt12h(block.endTime)}
-                                            </span>
-                                        </div>
-                                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                                            Reserva manual
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-indigo-700/80">
-                                        {block.recurrence && (
-                                            <>
-                                                <Repeat className="w-3 h-3" />
-                                                <span>{labelForRecurrence(block.recurrence)}</span>
-                                                <span className="text-indigo-300">·</span>
-                                            </>
-                                        )}
-                                        {block.clientName && (
-                                            <>
-                                                <span className="font-medium">{block.clientName}</span>
-                                                {block.reason && <span className="text-indigo-300">·</span>}
-                                            </>
-                                        )}
-                                        {block.reason && <span>{block.reason}</span>}
-                                    </div>
-                                    {blockCourtList && (
-                                        <p className="text-[10px] text-indigo-500 mt-1">
-                                            {blockTier} ({blockCourtList})
-                                        </p>
-                                    )}
-                                </button>
+                                <AdminBlockCard
+                                    key={`bl-${row.block.id}`}
+                                    block={row.block}
+                                    courts={courts}
+                                    targetDate={selectedDate}
+                                    onClick={onBlockClick}
+                                    onAdvanceStatus={onAdvanceBlockStatus}
+                                    onPickStatus={onPickBlockStatus}
+                                    onQuickDelete={onQuickDeleteBlock}
+                                />
                             );
                         })}
                     </div>

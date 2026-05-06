@@ -1,29 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Repeat } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
-import { createBlockedSlot } from "@/lib/venues";
+import { createBlockedSlot, getVenueSchedule } from "@/lib/venues";
 import { handleError } from "@/lib/utils/error";
 import {
     logBlockedSlotCreated,
     logBlockedSlotConflictsShown,
     logBlockedSlotConflictsForced,
 } from "@/lib/analytics";
-import type { BookingConflict, Court, RecurrenceType } from "@/lib/domain/venue";
+import { formatCOP } from "@/lib/domain/wallet";
+import { getDayOfWeek } from "@/lib/domain/venue";
+import { calculateManualReservationPrice } from "@/lib/domain/manual-reservation-pricing";
+import type { BookingConflict, Court, CourtCombo, CourtFormat, DaySchedule, RecurrenceType } from "@/lib/domain/venue";
 import ConflictsWarningModal from "./ConflictsWarningModal";
 
 interface BlockedSlotFormProps {
     venueId: string;
     courts: Court[];
+    /** Combos del venue. Necesario para inferir el formato cuando se seleccionan múltiples canchas. */
+    combos?: CourtCombo[];
     defaultDate?: string;
     defaultStartTime?: string;
     defaultEndTime?: string;
     defaultCourtIds?: string[];
+    /** Formato de la reserva (5v5, 7v7, etc.). Si no se pasa, se infiere de las canchas. */
+    defaultFormat?: CourtFormat;
     onCreated?: () => void;
     onCancel?: () => void;
 }
+
+function inferFormatFromCourts(
+    selectedCourtIds: string[],
+    courts: Court[],
+    combos: CourtCombo[],
+): CourtFormat | null {
+    if (selectedCourtIds.length === 0) return null;
+    if (selectedCourtIds.length === 1) {
+        const court = courts.find((c) => c.id === selectedCourtIds[0]);
+        return court?.baseFormat ?? null;
+    }
+    // Multi-cancha: buscar un combo activo que matchee exactamente.
+    const selSet = new Set(selectedCourtIds);
+    const combo = combos.find(
+        (c) => c.active
+            && c.courtIds.length === selectedCourtIds.length
+            && c.courtIds.every((id) => selSet.has(id)),
+    );
+    return combo?.resultingFormat ?? null;
+}
+
+const PHONE_REGEX = /^3\d{9}$/;
 
 function todayLocalISO(): string {
     const d = new Date();
@@ -40,10 +69,12 @@ const RECURRENCE_OPTIONS: Array<{ value: RecurrenceType; label: string }> = [
 export default function BlockedSlotForm({
     venueId,
     courts,
+    combos = [],
     defaultDate,
     defaultStartTime,
     defaultEndTime,
     defaultCourtIds,
+    defaultFormat,
     onCreated,
     onCancel,
 }: BlockedSlotFormProps) {
@@ -53,6 +84,7 @@ export default function BlockedSlotForm({
     const [selectedCourtIds, setSelectedCourtIds] = useState<string[]>(defaultCourtIds ?? []);
     const [reason, setReason] = useState("");
     const [clientName, setClientName] = useState("");
+    const [clientPhone, setClientPhone] = useState("");
 
     const [isRecurring, setIsRecurring] = useState(false);
     const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly");
@@ -62,6 +94,27 @@ export default function BlockedSlotForm({
     const [confirming, setConfirming] = useState(false);
     const [conflicts, setConflicts] = useState<BookingConflict[]>([]);
     const [conflictsOpen, setConflictsOpen] = useState(false);
+
+    // Schedule del día seleccionado, para calcular el precio en vivo.
+    const [schedule, setSchedule] = useState<DaySchedule | null>(null);
+    useEffect(() => {
+        if (!venueId || !date) return;
+        let cancelled = false;
+        const dayOfWeek = getDayOfWeek(date);
+        getVenueSchedule(venueId, dayOfWeek)
+            .then((s) => { if (!cancelled) setSchedule(s); })
+            .catch(() => { if (!cancelled) setSchedule(null); });
+        return () => { cancelled = true; };
+    }, [venueId, date]);
+
+    const effectiveFormat = defaultFormat ?? inferFormatFromCourts(selectedCourtIds, courts, combos);
+    const priceCOP = calculateManualReservationPrice(schedule, effectiveFormat, startTime, endTime);
+    const priceCalculable = priceCOP > 0;
+
+    const phoneTrimmed = clientPhone.trim();
+    const phoneValid = phoneTrimmed.length === 0 || PHONE_REGEX.test(phoneTrimmed);
+    const nameValid = clientName.trim().length > 0;
+    const canSubmit = nameValid && phoneValid && selectedCourtIds.length > 0 && !adding;
 
     const submitCreate = async (force: boolean) => {
         if (!date || !startTime || !endTime) {
@@ -74,6 +127,14 @@ export default function BlockedSlotForm({
         }
         if (selectedCourtIds.length === 0) {
             toast.error("Selecciona al menos una cancha");
+            return;
+        }
+        if (!nameValid) {
+            toast.error("El nombre del cliente es obligatorio");
+            return;
+        }
+        if (!phoneValid) {
+            toast.error("Celular inválido (10 dígitos empezando en 3)");
             return;
         }
         if (isRecurring && recurrenceType === "monthly") {
@@ -95,7 +156,10 @@ export default function BlockedSlotForm({
                     endTime,
                     courtIds: selectedCourtIds,
                     reason: reason.trim() || undefined,
-                    clientName: clientName.trim() || undefined,
+                    clientName: clientName.trim(),
+                    clientPhone: phoneTrimmed || undefined,
+                    priceCOP,
+                    status: "pending",
                     recurrence: isRecurring
                         ? {
                             type: recurrenceType,
@@ -114,19 +178,22 @@ export default function BlockedSlotForm({
                 return;
             }
 
-            toast.success(isRecurring ? "Bloqueo recurrente creado" : "Bloqueo creado");
+            toast.success(isRecurring ? "Reserva recurrente creada" : "Reserva creada");
             logBlockedSlotCreated(venueId, {
                 isRecurring,
                 recurrenceType: isRecurring ? recurrenceType : undefined,
                 hasEndDate: isRecurring && !!endDate,
                 hasClientName: !!clientName.trim(),
+                hasPhone: !!phoneTrimmed,
+                priceCOP,
+                priceCalculable,
                 courtsCount: selectedCourtIds.length,
             });
             setConflictsOpen(false);
             setConflicts([]);
             onCreated?.();
         } catch (err) {
-            handleError(err, "Error al crear bloqueo");
+            handleError(err, "Error al crear la reserva");
         } finally {
             setAdding(false);
             setConfirming(false);
@@ -192,13 +259,13 @@ export default function BlockedSlotForm({
             <div className="bg-white rounded-lg p-3 border border-slate-200">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Repeat className="w-4 h-4 text-indigo-500" />
+                        <Repeat className="w-4 h-4 text-slate-500" />
                         <span className="text-sm font-medium text-slate-700">Se repite</span>
                     </div>
                     <button
                         type="button"
                         onClick={() => setIsRecurring(!isRecurring)}
-                        className={`w-11 h-6 rounded-full transition-colors relative ${isRecurring ? "bg-indigo-500" : "bg-slate-300"}`}
+                        className={`w-11 h-6 rounded-full transition-colors relative ${isRecurring ? "bg-slate-500" : "bg-slate-300"}`}
                     >
                         <span
                             className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isRecurring ? "left-[22px]" : "left-0.5"}`}
@@ -247,7 +314,7 @@ export default function BlockedSlotForm({
             {/* Court selection */}
             <div>
                 <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs text-slate-500">Canchas a bloquear</label>
+                    <label className="text-xs text-slate-500">Canchas a reservar</label>
                     <button
                         onClick={selectAllCourts}
                         className="text-xs text-[#1f7a4f] font-medium hover:underline"
@@ -264,7 +331,7 @@ export default function BlockedSlotForm({
                             onClick={() => toggleCourtId(court.id)}
                             className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                                 selectedCourtIds.includes(court.id)
-                                    ? "bg-red-500 text-white border-red-500"
+                                    ? "bg-[#1f7a4f] text-white border-[#1f7a4f]"
                                     : "bg-white text-slate-600 border-slate-200"
                             }`}
                         >
@@ -274,22 +341,62 @@ export default function BlockedSlotForm({
                 </div>
             </div>
 
-            {/* Client name */}
+            {/* Client name (obligatorio) */}
             <div>
-                <label className="text-xs text-slate-500 mb-1 block">Cliente (opcional, solo visible para admin)</label>
+                <label className="text-xs text-slate-500 mb-1 block">
+                    Cliente <span className="text-red-500">*</span>
+                </label>
                 <input
                     type="text"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     placeholder="Ej: Juan Pérez"
                     maxLength={80}
-                    className="w-full px-3 py-2 text-base border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30"
+                    className={`w-full px-3 py-2 text-base border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 ${
+                        clientName.length > 0 && !nameValid
+                            ? "border-red-400"
+                            : "border-slate-200"
+                    }`}
                 />
             </div>
 
-            {/* Reason */}
+            {/* Client phone (opcional) */}
             <div>
-                <label className="text-xs text-slate-500 mb-1 block">Motivo (opcional)</label>
+                <label className="text-xs text-slate-500 mb-1 block">Celular (opcional)</label>
+                <div className="flex relative items-center">
+                    <span className="absolute left-3 text-slate-400 text-sm select-none">+57</span>
+                    <input
+                        type="tel"
+                        value={clientPhone}
+                        onChange={(e) => {
+                            const v = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setClientPhone(v);
+                        }}
+                        placeholder="3001234567"
+                        className={`w-full pl-12 pr-3 py-2 text-base border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 ${
+                            !phoneValid ? "border-red-400" : "border-slate-200"
+                        }`}
+                    />
+                </div>
+                {!phoneValid && (
+                    <p className="text-[10px] text-red-500 mt-1">Debe tener 10 dígitos y empezar con 3.</p>
+                )}
+            </div>
+
+            {/* Price display (auto-calculado, solo lectura) */}
+            <div>
+                <label className="text-xs text-slate-500 mb-1 block">Precio</label>
+                <div className="w-full px-3 py-2 text-base border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold">
+                    {priceCalculable ? formatCOP(priceCOP) : "—"}
+                </div>
+                {!priceCalculable && (
+                    <p className="text-[10px] text-slate-400 mt-1">No se pudo calcular para este horario; se guardará en 0.</p>
+                )}
+            </div>
+
+            {/* Información adicional (campo `reason` en Firestore) */}
+            <div>
+                <label className="text-xs text-slate-500 mb-1 block">Información adicional (opcional)</label>
                 <input
                     type="text"
                     value={reason}
@@ -312,8 +419,8 @@ export default function BlockedSlotForm({
                 )}
                 <button
                     onClick={() => submitCreate(false)}
-                    disabled={adding}
-                    className="flex-1 py-2.5 text-sm font-bold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:bg-red-300 flex items-center justify-center gap-1.5"
+                    disabled={!canSubmit}
+                    className="flex-1 py-2.5 text-sm font-bold text-white bg-[#1f7a4f] rounded-lg hover:bg-[#16603c] transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                 >
                     {adding && !confirming ? (
                         <>
@@ -321,7 +428,7 @@ export default function BlockedSlotForm({
                             Creando...
                         </>
                     ) : (
-                        "Bloquear"
+                        "Reservar"
                     )}
                 </button>
             </div>

@@ -214,6 +214,9 @@ export default function BlockedSlotsEditor({
                 recurrenceType: isRecurring ? recurrenceType : undefined,
                 hasEndDate: isRecurring && !!endDate,
                 hasClientName: !!clientName.trim(),
+                hasPhone: false,
+                priceCOP: 0,
+                priceCalculable: false,
                 courtsCount: selectedCourtIds.length,
             });
             setConflictsOpen(false);
@@ -384,11 +387,11 @@ export default function BlockedSlotsEditor({
                                                         <div key={slot.id} className="flex items-center gap-2 px-3 py-2">
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                                                    <span className={`text-xs font-semibold ${isRec ? "text-indigo-700" : "text-red-700"}`}>
+                                                                    <span className={`text-xs font-semibold ${isRec ? "text-slate-700" : "text-red-700"}`}>
                                                                         {fmt12h(slot.startTime)} – {fmt12h(slot.endTime)}
                                                                     </span>
                                                                     {isRec && (
-                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded-full text-[10px] font-semibold">
+                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-semibold">
                                                                             <Repeat className="w-2.5 h-2.5" />
                                                                             {slot.recurrence && labelForRecurrence(slot.recurrence)}
                                                                         </span>
@@ -449,28 +452,28 @@ export default function BlockedSlotsEditor({
                                 key={slot.id}
                                 className={`relative flex items-start gap-3 px-4 py-3 border rounded-xl ${
                                     isRec
-                                        ? "bg-indigo-50 border-indigo-200"
+                                        ? "bg-slate-50 border-slate-200"
                                         : "bg-red-50 border-red-200"
                                 }`}
                             >
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <span className={`text-sm font-semibold ${isRec ? "text-indigo-700" : "text-red-700"}`}>
+                                        <span className={`text-sm font-semibold ${isRec ? "text-slate-700" : "text-red-700"}`}>
                                             {fmt12h(slot.startTime)} – {fmt12h(slot.endTime)}
                                         </span>
                                         {isRec && (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-semibold">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-semibold">
                                                 <Repeat className="w-3 h-3" />
                                                 {slot.recurrence && labelForRecurrence(slot.recurrence)}
                                             </span>
                                         )}
                                     </div>
                                     {slot.clientName && (
-                                        <p className={`text-xs font-medium mt-0.5 ${isRec ? "text-indigo-600" : "text-red-600"}`}>
+                                        <p className={`text-xs font-medium mt-0.5 ${isRec ? "text-slate-600" : "text-red-600"}`}>
                                             {slot.clientName}
                                         </p>
                                     )}
-                                    <p className={`text-xs mt-0.5 ${isRec ? "text-indigo-500" : "text-red-500"}`}>
+                                    <p className={`text-xs mt-0.5 ${isRec ? "text-slate-500" : "text-red-500"}`}>
                                         {slot.courtIds
                                             .map((id) => courts.find((c) => c.id === id)?.name || id)
                                             .join(", ")}
@@ -488,7 +491,7 @@ export default function BlockedSlotsEditor({
                                         }}
                                         disabled={removing === slot.id}
                                         className={`p-1.5 transition-colors disabled:opacity-50 ${
-                                            isRec ? "text-indigo-400 hover:text-indigo-600" : "text-red-400 hover:text-red-600"
+                                            isRec ? "text-slate-400 hover:text-slate-600" : "text-red-400 hover:text-red-600"
                                         }`}
                                     >
                                         {removing === slot.id ? (
@@ -589,13 +592,13 @@ export default function BlockedSlotsEditor({
                     <div className="bg-white rounded-lg p-3 border border-slate-200">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Repeat className="w-4 h-4 text-indigo-500" />
+                                <Repeat className="w-4 h-4 text-slate-500" />
                                 <span className="text-sm font-medium text-slate-700">Se repite</span>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setIsRecurring(!isRecurring)}
-                                className={`w-11 h-6 rounded-full transition-colors relative ${isRecurring ? "bg-indigo-500" : "bg-slate-300"}`}
+                                className={`w-11 h-6 rounded-full transition-colors relative ${isRecurring ? "bg-slate-500" : "bg-slate-300"}`}
                             >
                                 <span
                                     className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isRecurring ? "left-[22px]" : "left-0.5"}`}

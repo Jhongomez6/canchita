@@ -15,9 +15,11 @@ interface FormatSelectorProps {
     formats: FormatOption[];
     selected: CourtFormat | null;
     onSelect: (format: CourtFormat) => void;
+    /** Si true, oculta el precio bajo cada formato. Útil en vistas admin donde el precio no aporta. */
+    hidePrice?: boolean;
 }
 
-export default function FormatSelector({ formats, selected, onSelect }: FormatSelectorProps) {
+export default function FormatSelector({ formats, selected, onSelect, hidePrice = false }: FormatSelectorProps) {
     return (
         <div className="grid grid-cols-3 gap-2">
             {formats.map(({ format, priceCOP, available }) => {
@@ -50,9 +52,11 @@ export default function FormatSelector({ formats, selected, onSelect }: FormatSe
                                 </>
                             )}
                         </span>
-                        <span className={`text-xs mt-1 ${isSelected ? "text-white/80" : "text-slate-400"}`}>
-                            {formatCOP(priceCOP)}
-                        </span>
+                        {!hidePrice && (
+                            <span className={`text-xs mt-1 ${isSelected ? "text-white/80" : "text-slate-400"}`}>
+                                {formatCOP(priceCOP)}
+                            </span>
+                        )}
                     </motion.button>
                 );
             })}

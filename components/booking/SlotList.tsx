@@ -28,6 +28,11 @@ interface SlotListProps {
     onSelect: (startTime: string, endTime: string) => void;
     onExtend: (endTime: string) => void;
     dateKey: string;
+    /** Si true, oculta el precio y la etiqueta "Ocupado". Útil en vistas admin donde el precio no aporta. */
+    hidePrice?: boolean;
+    /** Si está presente, sobreescribe el flujo de selección/extensión interno y se llama
+     * en cualquier slot (libre u ocupado). Permite usar el SlotList como mero selector de "qué hora tocó". */
+    onSlotTap?: (slot: SlotItem) => void;
 }
 
 function isConsecutive(currentEnd: string, nextStart: string): boolean {
@@ -49,8 +54,16 @@ export default function SlotList({
     onSelect,
     onExtend,
     dateKey,
+    hidePrice = false,
+    onSlotTap,
 }: SlotListProps) {
     const handleTap = (slot: SlotItem) => {
+        // Modo "tap libre": el padre decide qué hacer con cualquier slot.
+        if (onSlotTap) {
+            onSlotTap(slot);
+            return;
+        }
+
         if (!slot.available) return;
 
         if (!selectedStart) {
@@ -123,12 +136,13 @@ export default function SlotList({
 
                 {filteredSlots.map((slot) => {
                     const selected = isInRange(slot);
+                    const tappable = slot.available || !!onSlotTap;
                     return (
                         <motion.button
                             key={slot.startTime}
-                            whileTap={slot.available ? { scale: 0.98 } : undefined}
+                            whileTap={tappable ? { scale: 0.98 } : undefined}
                             onClick={() => handleTap(slot)}
-                            disabled={!slot.available}
+                            disabled={!tappable}
                             className={`
                                 w-full flex items-center justify-between
                                 px-4 py-3.5 rounded-xl border transition-all
@@ -136,14 +150,16 @@ export default function SlotList({
                                     ? "bg-[#1f7a4f]/10 border-[#1f7a4f] ring-1 ring-[#1f7a4f]/20"
                                     : slot.available
                                         ? "bg-white border-slate-200 hover:border-slate-300"
-                                        : "bg-slate-50 border-slate-100 cursor-not-allowed"
+                                        : tappable
+                                            ? "bg-slate-50 border-slate-100 hover:border-slate-200"
+                                            : "bg-slate-50 border-slate-100 cursor-not-allowed"
                                 }
                             `}
                         >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${slot.available ? "bg-emerald-500" : "bg-red-400"}`} />
                                 <div className="flex flex-col items-start min-w-0 flex-1">
-                                    <span className={`text-base font-medium ${!slot.available ? "text-slate-400 line-through" : selected ? "text-[#1f7a4f]" : "text-slate-700"}`}>
+                                    <span className={`text-base font-medium ${!slot.available ? (tappable ? "text-slate-500" : "text-slate-400 line-through") : selected ? "text-[#1f7a4f]" : "text-slate-700"}`}>
                                         {fmt12h(slot.startTime)} – {fmt12h(slot.endTime)}
                                     </span>
                                     {slot.occupantLabels && slot.occupantLabels.length > 0 && (
@@ -155,12 +171,12 @@ export default function SlotList({
                                     )}
                                 </div>
                             </div>
-                            {slot.available && (
+                            {!hidePrice && slot.available && (
                                 <span className={`text-sm font-semibold ${selected ? "text-[#1f7a4f]" : "text-slate-500"}`}>
                                     {formatCOP(slot.priceCOP)}
                                 </span>
                             )}
-                            {!slot.available && (
+                            {!hidePrice && !slot.available && (
                                 <span className="text-xs text-slate-400 font-medium flex-shrink-0">Ocupado</span>
                             )}
                         </motion.button>

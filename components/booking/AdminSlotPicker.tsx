@@ -17,11 +17,14 @@ import type { SlotItem } from "./SlotList";
 interface AdminSlotPickerProps {
     venueId: string;
     courts: Court[];
-    onSlotSelected: (data: {
+    onHourTapped: (data: {
         date: string;
         startTime: string;
         endTime: string;
         courtIds: string[];
+        format: CourtFormat;
+        bookings: Booking[];
+        blocks: BlockedSlot[];
     }) => void;
 }
 
@@ -31,7 +34,7 @@ function todayLocalISO(): string {
 }
 
 
-export default function AdminSlotPicker({ venueId, courts, onSlotSelected }: AdminSlotPickerProps) {
+export default function AdminSlotPicker({ venueId, courts, onHourTapped }: AdminSlotPickerProps) {
     const [combos, setCombos] = useState<CourtCombo[]>([]);
     const [schedule, setSchedule] = useState<DaySchedule | null>(null);
     const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
@@ -92,8 +95,9 @@ export default function AdminSlotPicker({ venueId, courts, onSlotSelected }: Adm
 
     const timeSlots = useCallback((): SlotItem[] => {
         if (!schedule || !selectedFormat) return [];
-        const nowISO = new Date().toISOString();
-        const slots = generateTimeSlots(schedule, selectedDate, nowISO);
+        // Admin ve todos los slots (incluso los que ya pasaron) para gestionar reservas
+        // retroactivas y cambiar status de slots ya jugados.
+        const slots = generateTimeSlots(schedule, selectedDate);
         return slots.flatMap((schedSlot) => {
             const formatPricing = schedSlot.formats.find((f: FormatPricing) => f.format === selectedFormat);
             if (!formatPricing) return [];
@@ -127,7 +131,12 @@ export default function AdminSlotPicker({ venueId, courts, onSlotSelected }: Adm
                     entries.push(where ? `${who} · ${tier} (${where})` : `${who} · ${tier}`);
                 }
                 for (const b of overlappingBlocks) {
-                    const who = b.clientName || b.reason || "Reserva manual";
+                    let who = b.clientName || b.reason || "Reserva manual";
+                    if (b.clientName && b.clientPhone) {
+                        who = `${b.clientName} ${b.clientPhone}`;
+                    } else if (!b.clientName && b.clientPhone) {
+                        who = b.clientPhone;
+                    }
                     const tier = tierLabelFromCount(b.courtIds.length);
                     const where = courtListFor(b.courtIds);
                     entries.push(where ? `${who} · ${tier} (${where})` : `${who} · ${tier}`);
@@ -148,14 +157,16 @@ export default function AdminSlotPicker({ venueId, courts, onSlotSelected }: Adm
         });
     }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos]);
 
-    const handleSlotSelect = (startTime: string, endTime: string) => {
+    const handleSlotTap = (slot: SlotItem) => {
         if (!selectedFormat) return;
-        const occupiedCourtIds = existingBookings
-            .filter((b) => b.startTime < endTime && b.endTime > startTime)
-            .flatMap((b) => b.courtIds);
-        const blockedCourtIds = blockedSlots
-            .filter((b) => b.startTime < endTime && b.endTime > startTime)
-            .flatMap((b) => b.courtIds);
+        const overlappingBookings = existingBookings.filter(
+            (b) => b.startTime < slot.endTime && b.endTime > slot.startTime,
+        );
+        const overlappingBlocks = blockedSlots.filter(
+            (b) => b.startTime < slot.endTime && b.endTime > slot.startTime,
+        );
+        const occupiedCourtIds = overlappingBookings.flatMap((b) => b.courtIds);
+        const blockedCourtIds = overlappingBlocks.flatMap((b) => b.courtIds);
 
         const allocation = allocateCourts({
             requestedFormat: selectedFormat,
@@ -165,11 +176,14 @@ export default function AdminSlotPicker({ venueId, courts, onSlotSelected }: Adm
             blockedCourtIds,
         });
 
-        onSlotSelected({
+        onHourTapped({
             date: selectedDate,
-            startTime,
-            endTime,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
             courtIds: allocation?.courtIds ?? [],
+            format: selectedFormat,
+            bookings: overlappingBookings,
+            blocks: overlappingBlocks,
         });
     };
 
@@ -184,6 +198,7 @@ export default function AdminSlotPicker({ venueId, courts, onSlotSelected }: Adm
                     formats={formats}
                     selected={selectedFormat}
                     onSelect={(f) => setSelectedFormat(f)}
+                    hidePrice
                 />
             </div>
 
@@ -199,7 +214,7 @@ export default function AdminSlotPicker({ venueId, courts, onSlotSelected }: Adm
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <h2 className="text-sm font-semibold text-slate-600">Horario</h2>
-                        <p className="text-[10px] text-slate-400">Toca un horario libre para reservar</p>
+                        <p className="text-[10px] text-slate-400">Toca un horario para ver detalle</p>
                     </div>
                     {slots.length === 0 ? (
                         <p className="text-sm text-slate-400 text-center py-6">
@@ -210,9 +225,11 @@ export default function AdminSlotPicker({ venueId, courts, onSlotSelected }: Adm
                             slots={slots}
                             selectedStart={null}
                             selectedEnd={null}
-                            onSelect={handleSlotSelect}
+                            onSelect={() => {}}
                             onExtend={() => {}}
                             dateKey={`${selectedDate}-${selectedFormat}`}
+                            hidePrice
+                            onSlotTap={handleSlotTap}
                         />
                     )}
                 </div>

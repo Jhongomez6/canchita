@@ -516,6 +516,9 @@ export async function logBlockedSlotCreated(
     recurrenceType?: string;
     hasEndDate: boolean;
     hasClientName: boolean;
+    hasPhone: boolean;
+    priceCOP: number;
+    priceCalculable: boolean;
     courtsCount: number;
   },
 ) {
@@ -525,7 +528,38 @@ export async function logBlockedSlotCreated(
     recurrence_type: params.recurrenceType ?? "none",
     has_end_date: params.hasEndDate.toString(),
     has_client_name: params.hasClientName.toString(),
+    has_phone: params.hasPhone.toString(),
+    price_cop: String(params.priceCOP),
+    price_calculable: params.priceCalculable.toString(),
     courts_count: params.courtsCount.toString(),
+  });
+}
+
+export async function logManualReservationStatusChanged(params: {
+  venueId: string;
+  slotId: string;
+  fromStatus: string;
+  toStatus: string;
+  via: "quick" | "popover";
+}) {
+  await trackEvent("manual_reservation_status_changed", {
+    venue_id: params.venueId,
+    slot_id: params.slotId,
+    from_status: params.fromStatus,
+    to_status: params.toStatus,
+    via: params.via,
+  });
+}
+
+export async function logManualReservationQuickDeleteOpened(params: {
+  venueId: string;
+  slotId: string;
+  wasRecurring: boolean;
+}) {
+  await trackEvent("manual_reservation_quick_delete_opened", {
+    venue_id: params.venueId,
+    slot_id: params.slotId,
+    was_recurring: params.wasRecurring.toString(),
   });
 }
 
@@ -555,6 +589,40 @@ export async function logBlockedSlotConflictsShown(venueId: string, conflictsCou
   await trackEvent("blocked_slot_conflicts_shown", {
     venue_id: venueId,
     conflicts_count: conflictsCount.toString(),
+  });
+}
+
+export async function logAdminHourDetailOpened(params: {
+  venueId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  bookingsCount: number;
+  blocksCount: number;
+}) {
+  await trackEvent("admin_hour_detail_opened", {
+    venue_id: params.venueId,
+    date: params.date,
+    start_time: params.startTime,
+    end_time: params.endTime,
+    bookings_count: String(params.bookingsCount),
+    blocks_count: String(params.blocksCount),
+  });
+}
+
+export async function logAdminHourDetailCreateClicked(params: {
+  venueId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  hadOverlaps: boolean;
+}) {
+  await trackEvent("admin_hour_detail_create_clicked", {
+    venue_id: params.venueId,
+    date: params.date,
+    start_time: params.startTime,
+    end_time: params.endTime,
+    had_overlaps: String(params.hadOverlaps),
   });
 }
 

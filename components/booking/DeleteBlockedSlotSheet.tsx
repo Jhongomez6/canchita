@@ -112,11 +112,11 @@ export default function DeleteBlockedSlotSheet({
 
                         <div className="overflow-y-auto p-5 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] md:pb-[calc(env(safe-area-inset-bottom,0px)+24px)] space-y-3">
                             {(slot.clientName || slot.reason) && (
-                                <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3 text-sm text-indigo-800">
+                                <div className="bg-slate-50/60 border border-slate-100 rounded-xl p-3 text-sm text-slate-800">
                                     {slot.clientName && <p className="font-semibold">{slot.clientName}</p>}
-                                    {slot.reason && <p className="text-xs text-indigo-700/80 mt-0.5">{slot.reason}</p>}
+                                    {slot.reason && <p className="text-xs text-slate-700/80 mt-0.5">{slot.reason}</p>}
                                     {isRecurring && slot.recurrence && (
-                                        <p className="text-[11px] text-indigo-600 mt-1">
+                                        <p className="text-[11px] text-slate-600 mt-1">
                                             Se repite: {labelForRecurrence(slot.recurrence)}
                                         </p>
                                     )}
