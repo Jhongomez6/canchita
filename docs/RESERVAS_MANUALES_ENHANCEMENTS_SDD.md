@@ -14,8 +14,8 @@ Tras el rebrand `bloqueos → reservas manuales` (commit `076b722`), la entidad 
 ### Reglas de Negocio
 | # | Regla | Impacto UI |
 |---|-------|------------|
-| 1 | Toda reserva manual tiene un `status: ManualReservationStatus` con valores ordenados: `pending → confirmed → played → paid`. Reservas viejas sin status se leen como `pending`. | Badge de estado en cards |
-| 2 | El status puede cambiar a **cualquier valor** (adelante o atrás). El happy path es avanzar al siguiente vía el quick button; corregir errores se hace tapeando el badge para abrir un selector de 4 opciones. La transacción no enforza orden, solo que el doc exista. | Quick button "Avanzar" + badge tappable que abre popover con las 4 opciones |
+| 1 | Toda reserva manual tiene un `status: ManualReservationStatus`. Estados: `pending → confirmed → played → paid` (ruta lineal) + `no_show` y `free` como estados terminales paralelos. Reservas viejas sin status se leen como `pending`. | Badge de estado en cards |
+| 2 | El status puede cambiar a **cualquier valor** (adelante o atrás). El happy path es avanzar por la ruta lineal vía el quick button; corregir errores o asignar estados terminales (`no_show`, `free`) se hace tapeando el badge para abrir un selector con todas las opciones. La transacción no enforza orden, solo que el doc exista. | Quick button "Avanzar" (solo ruta lineal) + badge tappable que abre popover con todos los estados |
 | 3 | El campo `clientName` ahora es **obligatorio** al crear una reserva manual. Reservas viejas sin nombre quedan tal cual (no rompen). | El form valida; sin nombre, el botón "Reservar" queda deshabilitado |
 | 4 | Nuevo campo `clientPhone: string` **opcional**. Si se ingresa, se valida con regex de 10 dígitos (mismo formato que `/onboarding/phone`). Si está vacío, se omite del documento. | Input opcional en el form, validación inline solo si tiene valor |
 | 5 | Nuevo campo `priceCOP: number` (precio total de la reserva). Calculado automáticamente al crear desde el schedule del venue (precio del slot del formato más cercano × duración × cantidad de canchas seleccionadas) y **se persiste tal cual al crear** — **no editable** por el admin. Si no se puede calcular (ej. venue sin schedule para ese día/hora/formato), se persiste `0` y la card lo muestra como "—". | El form muestra el precio calculado en modo solo-lectura (display), no input |
@@ -30,10 +30,21 @@ Tras el rebrand `bloqueos → reservas manuales` (commit `076b722`), la entidad 
 - No introducir un sistema de "pago en línea" para reservas manuales — `paid` es solo un marcador que pone el admin manualmente.
 - No exponer el teléfono del cliente fuera del admin (no aparece en flujos públicos).
 - No agregar status a `Booking` online (ya tienen su propio estado distinto).
-- No hacer migración de datos viejos (ausencia de `status/clientPhone/priceCOP/clientName`). Backward compat 100% por código.
 - No renombrar el campo `reason` en Firestore — solo cambio visual de label.
 - No permitir editar el precio de una reserva manual ya creada — si el cliente paga otra cosa, se reflejará en `paid` pero `priceCOP` queda como referencia del cálculo del schedule.
 - No agregar histórico de cambios de status (audit log) — si después se necesita, se agrega.
+
+### Adiciones post-implementación
+| # | Adición | Descripción |
+|---|---------|-------------|
+| A1 | **Estados terminales `no_show` y `free`** | `no_show` ("No asistió") para clientes que no aparecieron; `free` ("Gratis") para cortesías. Ambos aparecen en el popover del badge pero NO en la ruta de avance lineal del quick button. Badge rojo para `no_show`, morado para `free`. |
+| A2 | **Validación de canchas ocupadas en el form** | `BlockedSlotForm` recibe `occupiedCourtIds?: string[]`. Canchas ya ocupadas se muestran como chips tachados/deshabilitados. El admin no las puede seleccionar. |
+| A3 | **CTA deshabilitado cuando todas las canchas están ocupadas** | En `HourDetailDrawer`, el botón "Crear reserva manual" queda disabled (gris, texto "Sin canchas disponibles") si todos los courts activos del venue están ocupados por bookings o blocks en ese horario. |
+| A4 | **Botón "Crear reserva manual" en vista calendario** | `AdminBookingCalendar` expone prop `onCreateManual?: (date: string) => void`. Al seleccionar un día, aparece el botón debajo de las reservas. Abre el form con la fecha pre-llenada (sin hora ni canchas, el admin las elige). |
+| A5 | **Fix de cálculo de precio para combos multi-cancha** | `BlockedSlotForm` ahora infiere el formato desde las canchas seleccionadas primero (`inferFormatFromCourts`) y solo usa `defaultFormat` como fallback. Si no hay combo exacto para las canchas seleccionadas, el precio es la suma de cada cancha individual (en lugar de usar el formato de la vista por hora). |
+| A6 | **Label de tier para 4+ canchas** | `tierLabelFromCount` ahora devuelve "Múltiples canchas" para 4+ courts (antes quedaba en "Cancha triple"). |
+| A7 | **Script de migración de precios** | `scripts/backfill-manual-reservation-prices.js` — recalcula `priceCOP` en docs existentes con el algoritmo corregido. Soporta `--dry-run`. |
+| A8 | **Realtime subscription en `AdminBookingCalendar`** | Los blocks del calendario ahora usan `subscribeToBlockedSlots` (onSnapshot) en lugar de fetch one-shot, para que cambios de estado se reflejen automáticamente. |
 
 ---
 
@@ -148,7 +159,9 @@ El quick button no agrega un modal nuevo: solo evita el extra-tap de abrir el de
 | Card normal (`pending`) | Badge amarillo "Pendiente" + cliente + teléfono (si hay) + precio (o "—") + canchas + botones quick |
 | Card `confirmed` | Badge azul "Confirmado" |
 | Card `played` | Badge slate "Jugado" |
-| Card `paid` | Badge verde "Pagado" + sin botón quick-status (último estado) |
+| Card `paid` | Badge verde "Pagado" + sin botón quick-status (último estado lineal) |
+| Card `no_show` | Badge rojo "No asistió" + sin botón quick-status |
+| Card `free` | Badge morado "Gratis" + sin botón quick-status |
 | Form sin cliente | Botón Reservar disabled, mensaje inline junto al input de cliente |
 | Form con celular mal formado | Botón Reservar disabled, mensaje inline junto al input de celular |
 | Form con precio no calculable | Display "Precio no calculable para este horario", se persistirá `0` |
@@ -220,11 +233,13 @@ El quick button no agrega un modal nuevo: solo evita el extra-tap de abrir el de
 
 `lib/domain/venue.ts`:
 ```typescript
-export type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid";
+export type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid" | "no_show" | "free";
 
 export const MANUAL_RESERVATION_STATUS_ORDER: ManualReservationStatus[] = [
-    "pending", "confirmed", "played", "paid",
+    "pending", "confirmed", "played", "paid", "no_show", "free",
 ];
+// Ruta lineal para quick-advance (no_show y free son terminales paralelos):
+const ADVANCE_ORDER = ["pending", "confirmed", "played", "paid"];
 
 export interface BlockedSlot {
     id: string;
@@ -311,10 +326,11 @@ export interface BlockedSlot {
 | `lib/analytics.ts` | Eventos nuevos `manual_reservation_status_changed` (con `via: "quick" \| "popover"`), `manual_reservation_quick_delete_opened`; props extra en `blocked_slot_created` |
 | `components/booking/BlockedSlotForm.tsx` | Input `clientName` (obligatorio), `clientPhone` (opcional), display de `priceCOP` (solo lectura, calculado); relabel `Motivo` → `Información adicional` (sin cambiar el nombre del campo); reordering |
 | `components/booking/AdminBlockCard.tsx` | Layout nuevo con badge, teléfono, precio, info adicional, dos quick buttons |
-| `components/booking/HourDetailDrawer.tsx` | Pasa handlers `onAdvanceStatus`, `onQuickDelete` |
-| `components/booking/AdminBookingCalendar.tsx` | Pasa handlers idem |
-| `app/venues/admin/[id]/page.tsx` | Orquesta los handlers; el quick delete reutiliza el state `deleteTarget` y el `DeleteBlockedSlotSheet` ya montado |
+| `components/booking/HourDetailDrawer.tsx` | Pasa handlers; CTA deshabilitado si todas las canchas están ocupadas |
+| `components/booking/AdminBookingCalendar.tsx` | Pasa handlers; realtime subscription para blocks; botón "Crear reserva manual" por día |
+| `app/venues/admin/[id]/page.tsx` | Orquesta handlers; `occupiedCourtIds` pasados al form desde `HourDetailDrawer` |
 | `firestore.rules` | Verificar que update de `BlockedSlot` siga restricto a admin de la sede; sin cambios mecánicos |
+| `scripts/backfill-manual-reservation-prices.js` | **Nuevo** — migración one-time de `priceCOP` en docs existentes |
 
 ---
 

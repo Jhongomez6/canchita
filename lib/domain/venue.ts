@@ -310,7 +310,8 @@ export function formatLabel(format: CourtFormat): string {
 export function tierLabelFromCount(count: number): string {
     if (count <= 1) return "Cancha sencilla";
     if (count <= 2) return "Cancha doble";
-    return "Cancha triple";
+    if (count <= 3) return "Cancha triple";
+    return "Múltiples canchas";
 }
 
 /**

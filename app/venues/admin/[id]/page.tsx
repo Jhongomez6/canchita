@@ -541,6 +541,10 @@ function VenueAdminContent() {
                                     onAdvanceBlockStatus={handleAdvanceBlockStatus}
                                     onPickBlockStatus={handlePickBlockStatus}
                                     onQuickDeleteBlock={handleQuickDeleteBlock}
+                                    onCreateManual={(date) => {
+                                        setDrawerDefaults({ date });
+                                        setBlockedDrawerOpen(true);
+                                    }}
                                 />
                             ) : (
                                 <AdminSlotPicker

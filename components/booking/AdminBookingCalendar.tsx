@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { type Court } from "@/lib/domain/venue";
 import { getBookingsForDate } from "@/lib/bookings";
@@ -20,6 +20,7 @@ interface AdminBookingCalendarProps {
     onAdvanceBlockStatus?: (block: BlockedSlot) => void;
     onPickBlockStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
     onQuickDeleteBlock?: (block: BlockedSlot, targetDate: string) => void;
+    onCreateManual?: (date: string) => void;
 }
 
 const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -43,6 +44,7 @@ export default function AdminBookingCalendar({
     onAdvanceBlockStatus,
     onPickBlockStatus,
     onQuickDeleteBlock,
+    onCreateManual,
 }: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();
@@ -265,6 +267,16 @@ export default function AdminBookingCalendar({
                             );
                         })}
                     </div>
+                )}
+
+                {onCreateManual && (
+                    <button
+                        onClick={() => onCreateManual(selectedDate)}
+                        className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#1f7a4f] hover:bg-[#16603c] text-white font-bold text-sm transition-all active:scale-[0.99]"
+                    >
+                        <CalendarPlus className="w-4 h-4" />
+                        Crear reserva manual
+                    </button>
                 )}
             </div>
         </div>

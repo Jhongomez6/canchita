@@ -110,8 +110,16 @@ export default function BlockedSlotForm({
         return () => { cancelled = true; };
     }, [venueId, date]);
 
-    const effectiveFormat = defaultFormat ?? inferFormatFromCourts(selectedCourtIds, courts, combos);
-    const priceCOP = calculateManualReservationPrice(schedule, effectiveFormat, startTime, endTime);
+    const effectiveFormat = inferFormatFromCourts(selectedCourtIds, courts, combos) ?? defaultFormat ?? null;
+    // Si no hay combo exacto y hay múltiples canchas, sumar precio sencilla de cada una.
+    const priceCOP = effectiveFormat
+        ? calculateManualReservationPrice(schedule, effectiveFormat, startTime, endTime)
+        : selectedCourtIds.length > 1
+            ? selectedCourtIds.reduce((sum, courtId) => {
+                const court = courts.find((c) => c.id === courtId);
+                return sum + calculateManualReservationPrice(schedule, court?.baseFormat ?? null, startTime, endTime);
+            }, 0)
+            : 0;
     const priceCalculable = priceCOP > 0;
 
     const phoneTrimmed = clientPhone.trim();
