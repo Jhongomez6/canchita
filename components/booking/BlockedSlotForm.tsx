@@ -28,6 +28,8 @@ interface BlockedSlotFormProps {
     defaultCourtIds?: string[];
     /** Formato de la reserva (5v5, 7v7, etc.). Si no se pasa, se infiere de las canchas. */
     defaultFormat?: CourtFormat;
+    /** IDs de canchas ya ocupadas por bookings o blocks existentes en el mismo horario. Se muestran deshabilitadas. */
+    occupiedCourtIds?: string[];
     onCreated?: () => void;
     onCancel?: () => void;
 }
@@ -75,6 +77,7 @@ export default function BlockedSlotForm({
     defaultEndTime,
     defaultCourtIds,
     defaultFormat,
+    occupiedCourtIds = [],
     onCreated,
     onCancel,
 }: BlockedSlotFormProps) {
@@ -200,7 +203,10 @@ export default function BlockedSlotForm({
         }
     };
 
+    const occupiedSet = new Set(occupiedCourtIds);
+
     const toggleCourtId = (courtId: string) => {
+        if (occupiedSet.has(courtId)) return;
         setSelectedCourtIds((prev) =>
             prev.includes(courtId)
                 ? prev.filter((id) => id !== courtId)
@@ -209,11 +215,11 @@ export default function BlockedSlotForm({
     };
 
     const selectAllCourts = () => {
-        const activeCourts = courts.filter((c) => c.active);
-        if (selectedCourtIds.length === activeCourts.length) {
+        const availableCourts = courts.filter((c) => c.active && !occupiedSet.has(c.id));
+        if (selectedCourtIds.length === availableCourts.length) {
             setSelectedCourtIds([]);
         } else {
-            setSelectedCourtIds(activeCourts.map((c) => c.id));
+            setSelectedCourtIds(availableCourts.map((c) => c.id));
         }
     };
 
@@ -319,26 +325,37 @@ export default function BlockedSlotForm({
                         onClick={selectAllCourts}
                         className="text-xs text-[#1f7a4f] font-medium hover:underline"
                     >
-                        {selectedCourtIds.length === courts.filter((c) => c.active).length
+                        {selectedCourtIds.length === courts.filter((c) => c.active && !occupiedSet.has(c.id)).length
                             ? "Deseleccionar todas"
                             : "Seleccionar todas"}
                     </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    {courts.filter((c) => c.active).map((court) => (
-                        <button
-                            key={court.id}
-                            onClick={() => toggleCourtId(court.id)}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                                selectedCourtIds.includes(court.id)
-                                    ? "bg-[#1f7a4f] text-white border-[#1f7a4f]"
-                                    : "bg-white text-slate-600 border-slate-200"
-                            }`}
-                        >
-                            {court.name}
-                        </button>
-                    ))}
+                    {courts.filter((c) => c.active).map((court) => {
+                        const isOccupied = occupiedSet.has(court.id);
+                        const isSelected = selectedCourtIds.includes(court.id);
+                        return (
+                            <button
+                                key={court.id}
+                                onClick={() => toggleCourtId(court.id)}
+                                disabled={isOccupied}
+                                title={isOccupied ? "Cancha ocupada en este horario" : undefined}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                                    isOccupied
+                                        ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through"
+                                        : isSelected
+                                            ? "bg-[#1f7a4f] text-white border-[#1f7a4f]"
+                                            : "bg-white text-slate-600 border-slate-200"
+                                }`}
+                            >
+                                {court.name}
+                            </button>
+                        );
+                    })}
                 </div>
+                {occupiedSet.size > 0 && (
+                    <p className="text-[10px] text-slate-400 mt-1.5">Las canchas tachadas ya están ocupadas en este horario.</p>
+                )}
             </div>
 
             {/* Client name (obligatorio) */}

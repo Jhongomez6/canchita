@@ -57,6 +57,13 @@ export default function HourDetailDrawer({
 }: HourDetailDrawerProps) {
     const isEmpty = bookings.length === 0 && blocks.length === 0;
 
+    const occupiedCourtIds = new Set([
+        ...bookings.flatMap((b) => b.courtIds),
+        ...blocks.flatMap((b) => b.courtIds),
+    ]);
+    const activeCourts = courts.filter((c) => c.active);
+    const allCourtsOccupied = activeCourts.length > 0 && activeCourts.every((c) => occupiedCourtIds.has(c.id));
+
     return (
         <AnimatePresence>
             {open && (
@@ -153,10 +160,12 @@ export default function HourDetailDrawer({
 
                             <button
                                 onClick={onCreateManual}
-                                className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1f7a4f] hover:bg-[#16603c] text-white font-bold text-sm shadow-lg shadow-emerald-900/20 active:scale-[0.99] transition-all"
+                                disabled={allCourtsOccupied}
+                                title={allCourtsOccupied ? "Todas las canchas están ocupadas en este horario" : undefined}
+                                className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm transition-all disabled:cursor-not-allowed bg-[#1f7a4f] hover:bg-[#16603c] shadow-lg shadow-emerald-900/20 active:scale-[0.99] disabled:bg-slate-300 disabled:shadow-none disabled:active:scale-100"
                             >
                                 <CalendarPlus className="w-4 h-4" />
-                                Crear reserva manual
+                                {allCourtsOccupied ? "Sin canchas disponibles" : "Crear reserva manual"}
                             </button>
                         </div>
                     </motion.div>

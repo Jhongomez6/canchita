@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { type Court } from "@/lib/domain/venue";
 import { getBookingsForDate } from "@/lib/bookings";
-import { getBlockedSlots, getVenueCourts, getAllBlockedSlots } from "@/lib/venues";
+import { subscribeToBlockedSlots, getVenueCourts, getAllBlockedSlots } from "@/lib/venues";
 import { expandBlockedSlotsForDate } from "@/lib/domain/blocked-slots";
 import { handleError } from "@/lib/utils/error";
 import AdminBookingCard from "./AdminBookingCard";
@@ -65,12 +65,8 @@ export default function AdminBookingCalendar({
     const loadDayBookings = useCallback(async (date: string) => {
         setLoading(true);
         try {
-            const [results, blockedResults] = await Promise.all([
-                getBookingsForDate(venueId, date),
-                getBlockedSlots(venueId, date, true),
-            ]);
+            const results = await getBookingsForDate(venueId, date);
             setBookings(results);
-            setBlocks(blockedResults);
         } catch (err) {
             handleError(err, "Error al cargar reservas del día");
         } finally {
@@ -81,6 +77,11 @@ export default function AdminBookingCalendar({
     useEffect(() => {
         loadDayBookings(selectedDate);
     }, [selectedDate, loadDayBookings]);
+
+    useEffect(() => {
+        const unsub = subscribeToBlockedSlots(venueId, selectedDate, setBlocks, true);
+        return unsub;
+    }, [venueId, selectedDate]);
 
     // Track which dates in the month have bookings or blocks
     useEffect(() => {

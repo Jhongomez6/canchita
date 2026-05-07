@@ -111,11 +111,14 @@ export interface BlockedSlotRecurrence {
     endDate?: string;             // YYYY-MM-DD (opcional, indefinido si falta)
 }
 
-export type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid";
+export type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid" | "no_show" | "free";
 
 export const MANUAL_RESERVATION_STATUS_ORDER: ManualReservationStatus[] = [
-    "pending", "confirmed", "played", "paid",
+    "pending", "confirmed", "played", "paid", "no_show", "free",
 ];
+
+// Orden lineal para el quick-advance (no incluye no_show, que es un estado terminal paralelo).
+const ADVANCE_ORDER: ManualReservationStatus[] = ["pending", "confirmed", "played", "paid"];
 
 export interface BlockedSlot {
     id: string;
@@ -146,9 +149,9 @@ export function getBlockedSlotStatus(slot: BlockedSlot): ManualReservationStatus
  * Próximo status en el orden lineal. Devuelve null si ya está en el último (paid).
  */
 export function getNextStatus(current: ManualReservationStatus): ManualReservationStatus | null {
-    const idx = MANUAL_RESERVATION_STATUS_ORDER.indexOf(current);
-    if (idx < 0 || idx >= MANUAL_RESERVATION_STATUS_ORDER.length - 1) return null;
-    return MANUAL_RESERVATION_STATUS_ORDER[idx + 1];
+    const idx = ADVANCE_ORDER.indexOf(current);
+    if (idx < 0 || idx >= ADVANCE_ORDER.length - 1) return null;
+    return ADVANCE_ORDER[idx + 1];
 }
 
 /**
@@ -164,6 +167,10 @@ export function statusBadge(status: ManualReservationStatus): { label: string; c
             return { label: "Jugado", classes: "bg-slate-100 text-slate-700" };
         case "paid":
             return { label: "Pagado", classes: "bg-emerald-50 text-emerald-700" };
+        case "no_show":
+            return { label: "No asistió", classes: "bg-red-50 text-red-600" };
+        case "free":
+            return { label: "Gratis", classes: "bg-purple-50 text-purple-600" };
     }
 }
 

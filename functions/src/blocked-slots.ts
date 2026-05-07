@@ -22,8 +22,8 @@ interface Recurrence {
     endDate?: string;
 }
 
-type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid";
-const MANUAL_RESERVATION_STATUSES: ManualReservationStatus[] = ["pending", "confirmed", "played", "paid"];
+type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid" | "no_show" | "free";
+const MANUAL_RESERVATION_STATUSES: ManualReservationStatus[] = ["pending", "confirmed", "played", "paid", "no_show", "free"];
 
 interface CreateInput {
     date: string | null;

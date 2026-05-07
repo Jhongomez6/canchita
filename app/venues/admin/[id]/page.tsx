@@ -90,6 +90,7 @@ function VenueAdminContent() {
         endTime?: string;
         courtIds?: string[];
         format?: CourtFormat;
+        occupiedCourtIds?: string[];
     }>({});
 
     // Hour detail drawer (vista por hora → tap en una hora)
@@ -605,6 +606,7 @@ function VenueAdminContent() {
                                             defaultEndTime={drawerDefaults.endTime}
                                             defaultCourtIds={drawerDefaults.courtIds}
                                             defaultFormat={drawerDefaults.format}
+                                            occupiedCourtIds={drawerDefaults.occupiedCourtIds}
                                             onCreated={() => setBlockedDrawerOpen(false)}
                                             onCancel={() => setBlockedDrawerOpen(false)}
                                         />
@@ -649,12 +651,17 @@ function VenueAdminContent() {
                             endTime: hourDetail.endTime,
                             hadOverlaps: hourDetail.bookings.length > 0 || hourDetail.blocks.length > 0,
                         });
+                        const occupiedCourtIds = [
+                            ...hourDetail.bookings.flatMap((b) => b.courtIds),
+                            ...hourDetail.blocks.flatMap((b) => b.courtIds),
+                        ];
                         setDrawerDefaults({
                             date: hourDetail.date,
                             startTime: hourDetail.startTime,
                             endTime: hourDetail.endTime,
                             courtIds: hourDetail.courtIds,
                             format: hourDetail.format,
+                            occupiedCourtIds,
                         });
                         setHourDetail(null);
                         setBlockedDrawerOpen(true);
