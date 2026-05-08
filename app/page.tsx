@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState } from "react";
 import { getMyMatches, getAllMatches } from "@/lib/matches";
-import { isSuperAdmin, isAdmin } from "@/lib/domain/user";
+import { isSuperAdmin, isAdmin, isLocationAdmin } from "@/lib/domain/user";
 import AuthGuard from "@/components/AuthGuard";
 
 import Link from "next/link";
@@ -51,6 +51,12 @@ export default function Home() {
       setShowPushPrompt(true);
     }
   }, [justLoggedIn, profile]);
+
+  useEffect(() => {
+    if (!authLoading && profile && isLocationAdmin(profile)) {
+      router.replace("/bookings");
+    }
+  }, [authLoading, profile, router]);
 
   useEffect(() => {
     if (authLoading) return;

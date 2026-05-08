@@ -108,9 +108,12 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
             const overlappingBlocks = blockedSlots.filter(
                 (b) => b.startTime < schedSlot.endTime && b.endTime > schedSlot.startTime,
             );
+            const activeBlocks = overlappingBlocks.filter((b) => b.status !== "cancelled");
+            const cancelledBlocks = overlappingBlocks.filter((b) => b.status === "cancelled");
 
             const occupiedCourtIds = overlappingBookings.flatMap((b) => b.courtIds);
-            const blockedCourtIds = overlappingBlocks.flatMap((b) => b.courtIds);
+            // Solo los bloques activos ocupan canchas; los cancelados no bloquean disponibilidad.
+            const blockedCourtIds = activeBlocks.flatMap((b) => b.courtIds);
 
             const availableFormats = getAvailableFormatsForSlot(
                 courts, combos, occupiedCourtIds, blockedCourtIds,
@@ -118,33 +121,39 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
             const isAvailable = availableFormats.includes(selectedFormat);
 
             let occupantLabels: string[] | undefined;
+            let cancelledLabels: string[] | undefined;
+
             if (overlappingBookings.length > 0 || overlappingBlocks.length > 0) {
                 const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
                 const courtListFor = (ids: string[]) =>
                     formatCourtList(ids.map((id) => courtNameById.get(id) ?? id));
 
-                const entries: string[] = [];
+                const blockLabel = (b: typeof overlappingBlocks[0]) => {
+                    let who = b.clientName || b.reason || "Reserva manual";
+                    if (b.clientName && b.clientPhone) who = `${b.clientName} ${b.clientPhone}`;
+                    else if (!b.clientName && b.clientPhone) who = b.clientPhone;
+                    const tier = tierLabelFromCount(b.courtIds.length);
+                    const where = courtListFor(b.courtIds);
+                    return where ? `${who} · ${tier} (${where})` : `${who} · ${tier}`;
+                };
+
+                const activeEntries: string[] = [];
                 for (const b of overlappingBookings) {
                     const who = b.bookedByName || "Reservado";
                     const tier = formatLabel(b.format);
                     const where = courtListFor(b.courtIds);
-                    entries.push(where ? `${who} · ${tier} (${where})` : `${who} · ${tier}`);
+                    activeEntries.push(where ? `${who} · ${tier} (${where})` : `${who} · ${tier}`);
                 }
-                for (const b of overlappingBlocks) {
-                    let who = b.clientName || b.reason || "Reserva manual";
-                    if (b.clientName && b.clientPhone) {
-                        who = `${b.clientName} ${b.clientPhone}`;
-                    } else if (!b.clientName && b.clientPhone) {
-                        who = b.clientPhone;
-                    }
-                    const tier = tierLabelFromCount(b.courtIds.length);
-                    const where = courtListFor(b.courtIds);
-                    entries.push(where ? `${who} · ${tier} (${where})` : `${who} · ${tier}`);
+                for (const b of activeBlocks) {
+                    activeEntries.push(blockLabel(b));
                 }
-                const unique = Array.from(new Set(entries));
-                if (unique.length > 0) {
-                    occupantLabels = unique;
-                }
+
+                const cancelledEntries = cancelledBlocks.map(blockLabel);
+
+                const uniqueActive = Array.from(new Set(activeEntries));
+                const uniqueCancelled = Array.from(new Set(cancelledEntries));
+                if (uniqueActive.length > 0) occupantLabels = uniqueActive;
+                if (uniqueCancelled.length > 0) cancelledLabels = uniqueCancelled;
             }
 
             return [{
@@ -153,6 +162,7 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
                 priceCOP: formatPricing.priceCOP,
                 available: isAvailable,
                 occupantLabels,
+                cancelledLabels,
             }];
         });
     }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos]);
@@ -165,8 +175,9 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
         const overlappingBlocks = blockedSlots.filter(
             (b) => b.startTime < slot.endTime && b.endTime > slot.startTime,
         );
+        const activeBlocks = overlappingBlocks.filter((b) => b.status !== "cancelled");
         const occupiedCourtIds = overlappingBookings.flatMap((b) => b.courtIds);
-        const blockedCourtIds = overlappingBlocks.flatMap((b) => b.courtIds);
+        const blockedCourtIds = activeBlocks.flatMap((b) => b.courtIds);
 
         const allocation = allocateCourts({
             requestedFormat: selectedFormat,

@@ -30,9 +30,10 @@ import BlockedSlotsEditor from "@/components/booking/BlockedSlotsEditor";
 import BlockedSlotForm from "@/components/booking/BlockedSlotForm";
 import CancelBookingSheet from "@/components/booking/CancelBookingSheet";
 import DeleteBlockedSlotSheet from "@/components/booking/DeleteBlockedSlotSheet";
+import CancelManualReservationSheet from "@/components/booking/CancelManualReservationSheet";
 import HourDetailDrawer from "@/components/booking/HourDetailDrawer";
-import { cancelBooking } from "@/lib/bookings";
 import { updateManualReservationStatus } from "@/lib/venues";
+import { cancelBooking } from "@/lib/bookings";
 import { getBlockedSlotStatus, getNextStatus } from "@/lib/domain/venue";
 import {
     logBookingCancelled,
@@ -40,7 +41,6 @@ import {
     logAdminHourDetailOpened,
     logAdminHourDetailCreateClicked,
     logManualReservationStatusChanged,
-    logManualReservationQuickDeleteOpened,
 } from "@/lib/analytics";
 import type { Venue, Court, CourtCombo, CourtFormat, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
@@ -110,8 +110,11 @@ function VenueAdminContent() {
     // Cancel booking sheet (admin cancels player's booking)
     const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
 
-    // Delete block sheet
+    // Delete block sheet (super admin hard delete)
     const [deleteTarget, setDeleteTarget] = useState<{ slot: BlockedSlot; targetDate: string } | null>(null);
+
+    // Cancel manual reservation sheet
+    const [cancelManualTarget, setCancelManualTarget] = useState<{ slot: BlockedSlot; targetDate: string } | null>(null);
 
     // Optimistic update del status en hourDetail (snapshot, no escucha realtime).
     const patchHourDetailBlockStatus = useCallback((slotId: string, newStatus: ManualReservationStatus) => {
@@ -166,14 +169,9 @@ function VenueAdminContent() {
         }
     }, [venueId, patchHourDetailBlockStatus]);
 
-    const handleQuickDeleteBlock = useCallback((slot: BlockedSlot, targetDate: string) => {
-        logManualReservationQuickDeleteOpened({
-            venueId,
-            slotId: slot.id,
-            wasRecurring: !!slot.recurrence,
-        });
-        setDeleteTarget({ slot, targetDate });
-    }, [venueId]);
+    const handleCancelBlock = useCallback((slot: BlockedSlot, targetDate: string) => {
+        setCancelManualTarget({ slot, targetDate });
+    }, []);
 
     const handleAdminCancelBooking = useCallback(async (reason: string) => {
         if (!cancelTarget) return;
@@ -540,7 +538,7 @@ function VenueAdminContent() {
                                     }}
                                     onAdvanceBlockStatus={handleAdvanceBlockStatus}
                                     onPickBlockStatus={handlePickBlockStatus}
-                                    onQuickDeleteBlock={handleQuickDeleteBlock}
+                                    onCancelBlock={handleCancelBlock}
                                     onCreateManual={(date) => {
                                         setDrawerDefaults({ date });
                                         setBlockedDrawerOpen(true);
@@ -645,7 +643,7 @@ function VenueAdminContent() {
                     }}
                     onAdvanceBlockStatus={handleAdvanceBlockStatus}
                     onPickBlockStatus={handlePickBlockStatus}
-                    onQuickDeleteBlock={handleQuickDeleteBlock}
+                    onCancelBlock={handleCancelBlock}
                     onCreateManual={() => {
                         if (!hourDetail) return;
                         logAdminHourDetailCreateClicked({
@@ -691,7 +689,22 @@ function VenueAdminContent() {
                     />
                 )}
 
-                {/* Delete blocked slot sheet */}
+                {/* Cancel manual reservation sheet */}
+                {cancelManualTarget && (
+                    <CancelManualReservationSheet
+                        open={!!cancelManualTarget}
+                        onClose={() => setCancelManualTarget(null)}
+                        onCancelled={() => {
+                            patchHourDetailBlockStatus(cancelManualTarget.slot.id, "cancelled");
+                            setCancelManualTarget(null);
+                        }}
+                        venueId={venueId}
+                        slot={cancelManualTarget.slot}
+                        targetDate={cancelManualTarget.targetDate}
+                    />
+                )}
+
+                {/* Delete blocked slot sheet (super admin hard delete) */}
                 {deleteTarget && (
                     <DeleteBlockedSlotSheet
                         open={!!deleteTarget}

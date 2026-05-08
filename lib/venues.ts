@@ -12,6 +12,7 @@
 
 import {
     doc,
+    addDoc,
     getDoc,
     setDoc,
     deleteDoc,
@@ -305,6 +306,78 @@ export async function createBlockedSlot(
 
 export async function removeBlockedSlot(venueId: string, slotId: string): Promise<void> {
     await deleteDoc(doc(db, "venues", venueId, "blocked_slots", slotId));
+}
+
+export type CancelManualReservationScope = "non_recurring" | "single" | "future" | "all";
+
+/**
+ * Cancela una reserva manual según el scope:
+ * - non_recurring / single: marca el doc (o instancia one-off) como "cancelled" conservando historial.
+ * - future: acorta la recurrencia + crea doc one-off cancelado para targetDate.
+ * - all: hard delete del doc recurrente (sin historial — pide doble confirmación en UI).
+ */
+export async function cancelManualReservation(
+    venueId: string,
+    slot: BlockedSlot,
+    reason: string | undefined,
+    scope: CancelManualReservationScope,
+    targetDate: string,
+): Promise<void> {
+    const slotsCol = collection(db, "venues", venueId, "blocked_slots");
+    const slotRef = doc(slotsCol, slot.id);
+    const now = new Date().toISOString();
+    const cancelFields = {
+        status: "cancelled" as const,
+        ...(reason?.trim() ? { cancellationReason: reason.trim() } : {}),
+        cancelledAt: now,
+        updatedAt: now,
+    };
+
+    if (scope === "non_recurring") {
+        await runTransaction(db, async (tx) => {
+            const snap = await tx.get(slotRef);
+            if (!snap.exists()) throw new Error("La reserva ya no existe");
+            tx.update(slotRef, cancelFields);
+        });
+        return;
+    }
+
+    if (scope === "all") {
+        await deleteDoc(slotRef);
+        return;
+    }
+
+    // scope === "single" | "future": crear doc one-off cancelado para targetDate
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, recurrence: _rec, exceptDates: _ex, ...slotBase } = slot;
+    const oneOffDoc = {
+        ...slotBase,
+        date: targetDate,
+        recurrence: undefined,
+        exceptDates: undefined,
+        ...cancelFields,
+    };
+    // Eliminar campos undefined para Firestore
+    (Object.keys(oneOffDoc) as (keyof typeof oneOffDoc)[]).forEach((k) => {
+        if (oneOffDoc[k] === undefined) delete oneOffDoc[k];
+    });
+
+    if (scope === "single") {
+        await Promise.all([
+            updateDoc(slotRef, { exceptDates: arrayUnion(targetDate), updatedAt: now }),
+            addDoc(slotsCol, oneOffDoc),
+        ]);
+        return;
+    }
+
+    // scope === "future": acortar recurrencia
+    const prev = new Date(targetDate + "T12:00:00");
+    prev.setDate(prev.getDate() - 1);
+    const endDate = prev.toISOString().slice(0, 10);
+    await Promise.all([
+        updateDoc(slotRef, { "recurrence.endDate": endDate, updatedAt: now }),
+        addDoc(slotsCol, oneOffDoc),
+    ]);
 }
 
 /**

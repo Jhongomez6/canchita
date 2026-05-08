@@ -9,6 +9,7 @@ import {
     tierLabelFromCount,
     getBlockedSlotStatus,
     getNextStatus,
+    isCancelled,
     statusBadge,
     nextStatusActionLabel,
     MANUAL_RESERVATION_STATUS_ORDER,
@@ -33,7 +34,7 @@ interface AdminBlockCardProps {
     onClick?: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceStatus?: (block: BlockedSlot) => void;
     onPickStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
-    onQuickDelete?: (block: BlockedSlot, targetDate: string) => void;
+    onCancelBlock?: (block: BlockedSlot, targetDate: string) => void;
 }
 
 export default function AdminBlockCard({
@@ -43,7 +44,7 @@ export default function AdminBlockCard({
     onClick,
     onAdvanceStatus,
     onPickStatus,
-    onQuickDelete,
+    onCancelBlock,
 }: AdminBlockCardProps) {
     const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
     const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
@@ -52,6 +53,7 @@ export default function AdminBlockCard({
     const clickable = !!onClick;
 
     const status = getBlockedSlotStatus(block);
+    const cancelled = isCancelled(block);
     const badge = statusBadge(status);
     const nextStatus = getNextStatus(status);
     const nextLabel = nextStatusActionLabel(status);
@@ -79,8 +81,10 @@ export default function AdminBlockCard({
 
     return (
         <div
-            className={`relative w-full text-left bg-slate-50/60 rounded-xl border border-slate-100 p-3 transition-colors ${
-                clickable ? "hover:border-slate-200" : ""
+            className={`relative w-full text-left rounded-xl border p-3 transition-colors ${
+                cancelled
+                    ? "bg-slate-50/40 border-slate-100 opacity-60"
+                    : `bg-slate-50/60 border-slate-100 ${clickable ? "hover:border-slate-200" : ""}`
             }`}
         >
             {/* Header: hora + badge tappable */}
@@ -92,7 +96,7 @@ export default function AdminBlockCard({
                     className={`flex items-center gap-2 ${clickable ? "" : "cursor-default"}`}
                 >
                     <CalendarPlus className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="text-sm font-semibold text-slate-800">
+                    <span className={`text-sm font-semibold ${cancelled ? "text-slate-400 line-through" : "text-slate-800"}`}>
                         {fmt12h(block.startTime)} – {fmt12h(block.endTime)}
                     </span>
                 </button>
@@ -166,7 +170,7 @@ export default function AdminBlockCard({
                         </>
                     )}
                     {block.clientName && (
-                        <span className="font-medium">{block.clientName}</span>
+                        <span className={`font-medium ${cancelled ? "line-through" : ""}`}>{block.clientName}</span>
                     )}
                     {block.clientPhone ? (
                         <>
@@ -207,8 +211,15 @@ export default function AdminBlockCard({
                 </div>
             </button>
 
-            {/* Footer: quick actions */}
-            {(onAdvanceStatus || onQuickDelete) && (
+            {/* Motivo de cancelación */}
+            {cancelled && block.cancellationReason && (
+                <p className="text-[11px] text-slate-400 italic mt-1">
+                    Motivo: {block.cancellationReason}
+                </p>
+            )}
+
+            {/* Footer: quick actions (oculto si está cancelada) */}
+            {!cancelled && (onAdvanceStatus || onCancelBlock) && (
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                     {onAdvanceStatus && nextStatus && nextLabel && (
                         <button
@@ -223,14 +234,14 @@ export default function AdminBlockCard({
                             <ChevronRight className="w-3 h-3" />
                         </button>
                     )}
-                    {onQuickDelete && (
+                    {onCancelBlock && (
                         <button
                             type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onQuickDelete(block, targetDate);
+                                onCancelBlock(block, targetDate);
                             }}
-                            aria-label="Eliminar reserva"
+                            aria-label="Cancelar reserva"
                             className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                         >
                             <Trash2 className="w-4 h-4" />

@@ -35,7 +35,7 @@ interface HourDetailDrawerProps {
     onBlockClick: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus: (block: BlockedSlot) => void;
     onPickBlockStatus: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
-    onQuickDeleteBlock: (block: BlockedSlot, targetDate: string) => void;
+    onCancelBlock: (block: BlockedSlot, targetDate: string) => void;
     onCreateManual: () => void;
 }
 
@@ -52,14 +52,21 @@ export default function HourDetailDrawer({
     onBlockClick,
     onAdvanceBlockStatus,
     onPickBlockStatus,
-    onQuickDeleteBlock,
+    onCancelBlock,
     onCreateManual,
 }: HourDetailDrawerProps) {
     const isEmpty = bookings.length === 0 && blocks.length === 0;
 
+    // Canceladas al final
+    const sortedBlocks = [...blocks].sort((a, b) => {
+        const aCancelled = a.status === "cancelled" ? 1 : 0;
+        const bCancelled = b.status === "cancelled" ? 1 : 0;
+        return aCancelled - bCancelled;
+    });
+
     const occupiedCourtIds = new Set([
         ...bookings.flatMap((b) => b.courtIds),
-        ...blocks.flatMap((b) => b.courtIds),
+        ...blocks.filter((b) => b.status !== "cancelled").flatMap((b) => b.courtIds),
     ]);
     const activeCourts = courts.filter((c) => c.active);
     const allCourtsOccupied = activeCourts.length > 0 && activeCourts.every((c) => occupiedCourtIds.has(c.id));
@@ -140,7 +147,7 @@ export default function HourDetailDrawer({
                                                 Reservas manuales ({blocks.length})
                                             </h4>
                                             <div className="space-y-2">
-                                                {blocks.map((b) => (
+                                                {sortedBlocks.map((b) => (
                                                     <AdminBlockCard
                                                         key={b.id}
                                                         block={b}
@@ -149,7 +156,7 @@ export default function HourDetailDrawer({
                                                         onClick={onBlockClick}
                                                         onAdvanceStatus={onAdvanceBlockStatus}
                                                         onPickStatus={onPickBlockStatus}
-                                                        onQuickDelete={onQuickDeleteBlock}
+                                                        onCancelBlock={onCancelBlock}
                                                     />
                                                 ))}
                                             </div>

@@ -111,8 +111,9 @@ export interface BlockedSlotRecurrence {
     endDate?: string;             // YYYY-MM-DD (opcional, indefinido si falta)
 }
 
-export type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid" | "no_show" | "free";
+export type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid" | "no_show" | "free" | "cancelled";
 
+// Excluye "cancelled" — no aparece en el popover del badge (solo se llega desde el sheet de cancelación).
 export const MANUAL_RESERVATION_STATUS_ORDER: ManualReservationStatus[] = [
     "pending", "confirmed", "played", "paid", "no_show", "free",
 ];
@@ -131,11 +132,17 @@ export interface BlockedSlot {
     clientPhone?: string;          // opcional. PII solo para admin de la sede.
     priceCOP?: number;             // calculado al crear desde el schedule
     status?: ManualReservationStatus; // default `pending` si falta (docs viejos)
+    cancellationReason?: string;   // motivo al cancelar (opcional)
+    cancelledAt?: string;          // ISO timestamp del momento de cancelación
     recurrence?: BlockedSlotRecurrence;
     exceptDates?: string[];        // YYYY-MM-DD instancias canceladas
     createdBy: string;
     createdAt: string;
     updatedAt?: string;
+}
+
+export function isCancelled(slot: BlockedSlot): boolean {
+    return slot.status === "cancelled";
 }
 
 /**
@@ -171,6 +178,10 @@ export function statusBadge(status: ManualReservationStatus): { label: string; c
             return { label: "No asistió", classes: "bg-red-50 text-red-600" };
         case "free":
             return { label: "Gratis", classes: "bg-purple-50 text-purple-600" };
+        case "cancelled":
+            return { label: "Cancelada", classes: "bg-slate-100 text-slate-500" };
+        default:
+            return { label: "Pendiente", classes: "bg-amber-50 text-amber-700" };
     }
 }
 

@@ -563,6 +563,22 @@ export async function logManualReservationQuickDeleteOpened(params: {
   });
 }
 
+export async function logManualReservationCancelled(params: {
+  venueId: string;
+  slotId: string;
+  hadReason: boolean;
+  scope: "non_recurring" | "single" | "future" | "all";
+  wasRecurring: boolean;
+}) {
+  await trackEvent("manual_reservation_cancelled", {
+    venue_id: params.venueId,
+    slot_id: params.slotId,
+    had_reason: params.hadReason.toString(),
+    scope: params.scope,
+    was_recurring: params.wasRecurring.toString(),
+  });
+}
+
 export async function logBlockedSlotRecurrenceExceptionAdded(
   venueId: string,
   blockedSlotId: string,

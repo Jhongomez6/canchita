@@ -19,6 +19,7 @@ export interface SlotItem {
     priceCOP: number;
     available: boolean;
     occupantLabels?: string[];
+    cancelledLabels?: string[];
 }
 
 interface SlotListProps {
@@ -162,10 +163,13 @@ export default function SlotList({
                                     <span className={`text-base font-medium ${!slot.available ? (tappable ? "text-slate-500" : "text-slate-400 line-through") : selected ? "text-[#1f7a4f]" : "text-slate-700"}`}>
                                         {fmt12h(slot.startTime)} – {fmt12h(slot.endTime)}
                                     </span>
-                                    {slot.occupantLabels && slot.occupantLabels.length > 0 && (
+                                    {((slot.occupantLabels && slot.occupantLabels.length > 0) || (slot.cancelledLabels && slot.cancelledLabels.length > 0)) && (
                                         <ul className={`text-[11px] w-full text-left mt-0.5 space-y-0.5 ${slot.available ? "text-slate-400" : "text-slate-500"}`}>
-                                            {slot.occupantLabels.map((label, i) => (
-                                                <li key={i} className="truncate">{label}</li>
+                                            {slot.occupantLabels?.map((label, i) => (
+                                                <li key={`o-${i}`} className="truncate">{label}</li>
+                                            ))}
+                                            {slot.cancelledLabels?.map((label, i) => (
+                                                <li key={`c-${i}`} className="truncate line-through text-slate-300">{label}</li>
                                             ))}
                                         </ul>
                                     )}

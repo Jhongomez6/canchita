@@ -19,7 +19,7 @@ interface AdminBookingCalendarProps {
     onBlockClick?: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus?: (block: BlockedSlot) => void;
     onPickBlockStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
-    onQuickDeleteBlock?: (block: BlockedSlot, targetDate: string) => void;
+    onCancelBlock?: (block: BlockedSlot, targetDate: string) => void;
     onCreateManual?: (date: string) => void;
 }
 
@@ -43,7 +43,7 @@ export default function AdminBookingCalendar({
     onBlockClick,
     onAdvanceBlockStatus,
     onPickBlockStatus,
-    onQuickDeleteBlock,
+    onCancelBlock,
     onCreateManual,
 }: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
@@ -145,7 +145,13 @@ export default function AdminBookingCalendar({
     const rows: Row[] = [
         ...bookings.map<Row>((b) => ({ kind: "booking", startTime: b.startTime, booking: b })),
         ...blocks.map<Row>((b) => ({ kind: "block", startTime: b.startTime, block: b })),
-    ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    ].sort((a, b) => {
+        // Canceladas al final
+        const aCancelled = a.kind === "block" && a.block.status === "cancelled" ? 1 : 0;
+        const bCancelled = b.kind === "block" && b.block.status === "cancelled" ? 1 : 0;
+        if (aCancelled !== bCancelled) return aCancelled - bCancelled;
+        return a.startTime.localeCompare(b.startTime);
+    });
 
     return (
         <div className="space-y-4">
@@ -262,7 +268,7 @@ export default function AdminBookingCalendar({
                                     onClick={onBlockClick}
                                     onAdvanceStatus={onAdvanceBlockStatus}
                                     onPickStatus={onPickBlockStatus}
-                                    onQuickDelete={onQuickDeleteBlock}
+                                    onCancelBlock={onCancelBlock}
                                 />
                             );
                         })}
