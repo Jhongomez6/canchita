@@ -665,7 +665,7 @@ function VenueAdminContent() {
                         });
                         const occupiedCourtIds = [
                             ...hourDetail.bookings.flatMap((b) => b.courtIds),
-                            ...hourDetail.blocks.flatMap((b) => b.courtIds),
+                            ...hourDetail.blocks.filter((b) => b.status !== "cancelled").flatMap((b) => b.courtIds),
                         ];
                         setDrawerDefaults({
                             date: hourDetail.date,
