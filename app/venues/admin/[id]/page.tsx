@@ -733,14 +733,8 @@ function VenueAdminContent() {
                         open={!!deleteTarget}
                         onClose={() => setDeleteTarget(null)}
                         onDeleted={() => {
-                            setHourDetail((prev) => {
-                                if (!prev || !deleteTarget) return prev;
-                                return {
-                                    ...prev,
-                                    blocks: prev.blocks.filter((b) => b.id !== deleteTarget.slot.id),
-                                };
-                            });
                             setDeleteTarget(null);
+                            setHourDetail(null);
                         }}
                         venueId={venueId}
                         slot={deleteTarget.slot}
