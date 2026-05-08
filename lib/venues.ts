@@ -25,6 +25,7 @@ import {
     updateDoc,
     arrayUnion,
     runTransaction,
+    deleteField,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
@@ -280,6 +281,7 @@ export interface CreateBlockedSlotInput {
     priceCOP?: number;
     status?: BlockedSlot["status"];
     recurrence?: BlockedSlot["recurrence"];
+    isMonthly?: boolean;
 }
 
 export interface CreateBlockedSlotResult {
@@ -309,6 +311,19 @@ export async function removeBlockedSlot(venueId: string, slotId: string): Promis
 }
 
 export type CancelManualReservationScope = "non_recurring" | "single" | "future" | "all";
+
+export async function updateManualReservation(
+    venueId: string,
+    slotId: string,
+    updates: { clientName?: string; clientPhone?: string; reason?: string; isMonthly?: boolean },
+): Promise<void> {
+    const ref = doc(db, "venues", venueId, "blocked_slots", slotId);
+    const payload: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+        payload[key] = value === undefined ? deleteField() : value;
+    }
+    await updateDoc(ref, payload);
+}
 
 /**
  * Cancela una reserva manual según el scope:

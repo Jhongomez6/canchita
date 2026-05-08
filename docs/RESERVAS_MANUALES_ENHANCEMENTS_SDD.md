@@ -45,6 +45,8 @@ Tras el rebrand `bloqueos → reservas manuales` (commit `076b722`), la entidad 
 | A6 | **Label de tier para 4+ canchas** | `tierLabelFromCount` ahora devuelve "Múltiples canchas" para 4+ courts (antes quedaba en "Cancha triple"). |
 | A7 | **Script de migración de precios** | `scripts/backfill-manual-reservation-prices.js` — recalcula `priceCOP` en docs existentes con el algoritmo corregido. Soporta `--dry-run`. |
 | A8 | **Realtime subscription en `AdminBookingCalendar`** | Los blocks del calendario ahora usan `subscribeToBlockedSlots` (onSnapshot) en lugar de fetch one-shot, para que cambios de estado se reflejen automáticamente. |
+| A9 | **Edición de campos de reserva manual** | Nuevo `EditManualReservationSheet` permite editar `clientName`, `clientPhone` y `reason` de una reserva existente. Un botón `Pencil` en el footer de `AdminBlockCard` abre el sheet. `hasChanges` guard deshabilita "Guardar" hasta que haya cambios reales. Al guardar, se cierra también el `HourDetailDrawer` para que el usuario vea la info fresca al reabrir (Firestore ya actualizó). `updateDoc` directo (sin transacción) ya que estos campos no son estado compartido. Se usa `deleteField()` cuando el usuario borra un campo — Firestore no acepta `undefined` en `updateDoc`. |
+| A10 | **Campo `isMonthly` para reservas recurrentes** | Nuevo boolean `isMonthly` en `BlockedSlot`. Solo se persiste en Firestore si la reserva tiene `recurrence` (Cloud Function `createBlockedSlot` lo descarta para puntuales). Al crear: toggle "Pago mensual" visible únicamente en la sección de recurrencia de `BlockedSlotForm`. Al editar: toggle "Pago mensual" en `EditManualReservationSheet` (solo para recurrentes); los cambios aplican a todas las instancias. En la card: el badge "Mensualidad" (violeta) reemplaza el precio en la fila de precio — si `isMonthly` es true, no se muestra el importe numérico. El toggle es verde (`#1f7a4f`) en ambos forms. |
 
 ---
 
@@ -285,8 +287,9 @@ export interface BlockedSlot {
 
 ### Capa de API (`lib/`)
 - **`lib/venues.ts`**:
-  - `createBlockedSlot(...)`: aceptar nuevos campos `clientPhone` (opcional, omitir si vacío) y `priceCOP` (calculado). Mantener `reason` tal como está. Setear `status: "pending"`.
-  - **Nueva**: `updateManualReservationStatus(venueId: string, slotId: string, newStatus: ManualReservationStatus)`. Internamente usa `runTransaction` para garantizar atomicidad y fallar con `not-found` si el doc fue eliminado. **No** valida orden — cualquier transición es válida.
+  - `createBlockedSlot(...)`: aceptar nuevos campos `clientPhone` (opcional, omitir si vacío), `priceCOP` (calculado) e `isMonthly` (solo si recurrente). Mantener `reason` tal como está. Setear `status: "pending"`.
+  - **Nueva**: `updateManualReservationStatus(venueId, slotId, newStatus)`. Usa `runTransaction` para atomicidad. Cualquier transición es válida.
+  - **Nueva**: `updateManualReservation(venueId, slotId, { clientName?, clientPhone?, reason?, isMonthly? })`. `updateDoc` directo (no transacción — sin race condition para metadatos). Campos con valor `undefined` se borran de Firestore via `deleteField()` (Firestore no acepta `undefined` en `updateDoc`).
 
 ### Componentes UI (`app/`)
 - Listado en sección 7. Sin nuevas páginas.
@@ -331,6 +334,8 @@ export interface BlockedSlot {
 | `app/venues/admin/[id]/page.tsx` | Orquesta handlers; `occupiedCourtIds` pasados al form desde `HourDetailDrawer` |
 | `firestore.rules` | Verificar que update de `BlockedSlot` siga restricto a admin de la sede; sin cambios mecánicos |
 | `scripts/backfill-manual-reservation-prices.js` | **Nuevo** — migración one-time de `priceCOP` en docs existentes |
+| `components/booking/EditManualReservationSheet.tsx` | **Nuevo** — sheet de edición de `clientName`, `clientPhone`, `reason`, `isMonthly` (solo recurrentes) |
+| `functions/src/blocked-slots.ts` | Acepta `isMonthly` en `CreateInput`; persiste solo cuando `normalizedRecurrence` existe |
 
 ---
 

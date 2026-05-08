@@ -20,6 +20,7 @@ interface AdminBookingCalendarProps {
     onAdvanceBlockStatus?: (block: BlockedSlot) => void;
     onPickBlockStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
     onCancelBlock?: (block: BlockedSlot, targetDate: string) => void;
+    onEditBlock?: (block: BlockedSlot) => void;
     onCreateManual?: (date: string) => void;
 }
 
@@ -44,6 +45,7 @@ export default function AdminBookingCalendar({
     onAdvanceBlockStatus,
     onPickBlockStatus,
     onCancelBlock,
+    onEditBlock,
     onCreateManual,
 }: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
@@ -268,6 +270,7 @@ export default function AdminBookingCalendar({
                                     onClick={onBlockClick}
                                     onAdvanceStatus={onAdvanceBlockStatus}
                                     onPickStatus={onPickBlockStatus}
+                                    onEdit={onEditBlock}
                                     onCancelBlock={onCancelBlock}
                                 />
                             );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { CalendarPlus, Repeat, Trash2, Check, ChevronRight } from "lucide-react";
+import { CalendarPlus, Repeat, Trash2, Check, ChevronRight, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
@@ -35,6 +35,7 @@ interface AdminBlockCardProps {
     onAdvanceStatus?: (block: BlockedSlot) => void;
     onPickStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
     onCancelBlock?: (block: BlockedSlot, targetDate: string) => void;
+    onEdit?: (block: BlockedSlot) => void;
 }
 
 export default function AdminBlockCard({
@@ -45,6 +46,7 @@ export default function AdminBlockCard({
     onAdvanceStatus,
     onPickStatus,
     onCancelBlock,
+    onEdit,
 }: AdminBlockCardProps) {
     const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
     const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
@@ -199,7 +201,11 @@ export default function AdminBlockCard({
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                         Precio
                     </span>
-                    {showPrice ? (
+                    {block.isMonthly ? (
+                        <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100">
+                            Mensualidad
+                        </span>
+                    ) : showPrice ? (
                         <span className="text-sm font-bold text-[#1f7a4f]">
                             {formatCOP(block.priceCOP as number)}
                         </span>
@@ -219,7 +225,7 @@ export default function AdminBlockCard({
             )}
 
             {/* Footer: quick actions (oculto si está cancelada) */}
-            {!cancelled && (onAdvanceStatus || onCancelBlock) && (
+            {!cancelled && (onAdvanceStatus || onEdit || onCancelBlock) && (
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                     {onAdvanceStatus && nextStatus && nextLabel && (
                         <button
@@ -232,6 +238,19 @@ export default function AdminBlockCard({
                         >
                             {nextLabel}
                             <ChevronRight className="w-3 h-3" />
+                        </button>
+                    )}
+                    {onEdit && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(block);
+                            }}
+                            aria-label="Editar reserva"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-[#1f7a4f] hover:bg-emerald-50 transition-colors"
+                        >
+                            <Pencil className="w-4 h-4" />
                         </button>
                     )}
                     {onCancelBlock && (

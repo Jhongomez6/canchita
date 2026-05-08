@@ -135,6 +135,7 @@ export interface BlockedSlot {
     cancellationReason?: string;   // motivo al cancelar (opcional)
     cancelledAt?: string;          // ISO timestamp del momento de cancelación
     recurrence?: BlockedSlotRecurrence;
+    isMonthly?: boolean;           // true si el cliente paga mensualidad
     exceptDates?: string[];        // YYYY-MM-DD instancias canceladas
     createdBy: string;
     createdAt: string;

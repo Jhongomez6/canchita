@@ -31,6 +31,7 @@ import BlockedSlotForm from "@/components/booking/BlockedSlotForm";
 import CancelBookingSheet from "@/components/booking/CancelBookingSheet";
 import DeleteBlockedSlotSheet from "@/components/booking/DeleteBlockedSlotSheet";
 import CancelManualReservationSheet from "@/components/booking/CancelManualReservationSheet";
+import EditManualReservationSheet from "@/components/booking/EditManualReservationSheet";
 import HourDetailDrawer from "@/components/booking/HourDetailDrawer";
 import { updateManualReservationStatus } from "@/lib/venues";
 import { cancelBooking } from "@/lib/bookings";
@@ -116,6 +117,9 @@ function VenueAdminContent() {
     // Cancel manual reservation sheet
     const [cancelManualTarget, setCancelManualTarget] = useState<{ slot: BlockedSlot; targetDate: string } | null>(null);
 
+    // Edit manual reservation sheet
+    const [editManualTarget, setEditManualTarget] = useState<BlockedSlot | null>(null);
+
     // Optimistic update del status en hourDetail (snapshot, no escucha realtime).
     const patchHourDetailBlockStatus = useCallback((slotId: string, newStatus: ManualReservationStatus) => {
         setHourDetail((prev) => {
@@ -171,6 +175,10 @@ function VenueAdminContent() {
 
     const handleCancelBlock = useCallback((slot: BlockedSlot, targetDate: string) => {
         setCancelManualTarget({ slot, targetDate });
+    }, []);
+
+    const handleEditBlock = useCallback((slot: BlockedSlot) => {
+        setEditManualTarget(slot);
     }, []);
 
     const handleAdminCancelBooking = useCallback(async (reason: string) => {
@@ -538,6 +546,7 @@ function VenueAdminContent() {
                                     }}
                                     onAdvanceBlockStatus={handleAdvanceBlockStatus}
                                     onPickBlockStatus={handlePickBlockStatus}
+                                    onEditBlock={handleEditBlock}
                                     onCancelBlock={handleCancelBlock}
                                     onCreateManual={(date) => {
                                         setDrawerDefaults({ date });
@@ -643,6 +652,7 @@ function VenueAdminContent() {
                     }}
                     onAdvanceBlockStatus={handleAdvanceBlockStatus}
                     onPickBlockStatus={handlePickBlockStatus}
+                    onEditBlock={handleEditBlock}
                     onCancelBlock={handleCancelBlock}
                     onCreateManual={() => {
                         if (!hourDetail) return;
@@ -701,6 +711,19 @@ function VenueAdminContent() {
                         venueId={venueId}
                         slot={cancelManualTarget.slot}
                         targetDate={cancelManualTarget.targetDate}
+                    />
+                )}
+
+                {/* Edit manual reservation sheet */}
+                {editManualTarget && (
+                    <EditManualReservationSheet
+                        open={!!editManualTarget}
+                        onClose={() => {
+                            setEditManualTarget(null);
+                            setHourDetail(null);
+                        }}
+                        venueId={venueId}
+                        slot={editManualTarget}
                     />
                 )}
 

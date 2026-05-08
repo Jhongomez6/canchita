@@ -92,6 +92,7 @@ export default function BlockedSlotForm({
     const [isRecurring, setIsRecurring] = useState(false);
     const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly");
     const [endDate, setEndDate] = useState("");
+    const [isMonthly, setIsMonthly] = useState(false);
 
     const [adding, setAdding] = useState(false);
     const [confirming, setConfirming] = useState(false);
@@ -178,6 +179,7 @@ export default function BlockedSlotForm({
                             ...(endDate ? { endDate } : {}),
                         }
                         : undefined,
+                    isMonthly: isRecurring && isMonthly ? true : undefined,
                 },
                 force,
             );
@@ -307,6 +309,18 @@ export default function BlockedSlotForm({
                                         ))}
                                     </select>
                                 </div>
+                                {/* Pago mensual */}
+                                <div className="flex items-center justify-between py-1">
+                                    <span className="text-sm font-medium text-slate-700">Pago mensual</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsMonthly((v) => !v)}
+                                        className={`w-11 h-6 rounded-full transition-colors relative ${isMonthly ? "bg-[#1f7a4f]" : "bg-slate-300"}`}
+                                    >
+                                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isMonthly ? "left-[22px]" : "left-0.5"}`} />
+                                    </button>
+                                </div>
+
                                 <div>
                                     <label className="text-xs text-slate-500 mb-1 block">Hasta (opcional)</label>
                                     <input

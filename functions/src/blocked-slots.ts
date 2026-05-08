@@ -36,6 +36,7 @@ interface CreateInput {
     priceCOP?: number;
     status?: ManualReservationStatus;
     recurrence?: Recurrence;
+    isMonthly?: boolean;
 }
 
 interface BookingConflict {
@@ -289,6 +290,7 @@ export const createBlockedSlot = onCall(async (request) => {
     if (reason) docData.reason = reason;
     if (clientPhone) docData.clientPhone = clientPhone;
     if (normalizedRecurrence) docData.recurrence = normalizedRecurrence;
+    if (normalizedRecurrence && input.isMonthly === true) docData.isMonthly = true;
 
     await venueRef.collection("blocked_slots").doc(id).set(docData);
 

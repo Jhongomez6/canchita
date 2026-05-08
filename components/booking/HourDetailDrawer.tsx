@@ -36,6 +36,7 @@ interface HourDetailDrawerProps {
     onAdvanceBlockStatus: (block: BlockedSlot) => void;
     onPickBlockStatus: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
     onCancelBlock: (block: BlockedSlot, targetDate: string) => void;
+    onEditBlock: (block: BlockedSlot) => void;
     onCreateManual: () => void;
 }
 
@@ -53,6 +54,7 @@ export default function HourDetailDrawer({
     onAdvanceBlockStatus,
     onPickBlockStatus,
     onCancelBlock,
+    onEditBlock,
     onCreateManual,
 }: HourDetailDrawerProps) {
     const isEmpty = bookings.length === 0 && blocks.length === 0;
@@ -156,6 +158,7 @@ export default function HourDetailDrawer({
                                                         onClick={onBlockClick}
                                                         onAdvanceStatus={onAdvanceBlockStatus}
                                                         onPickStatus={onPickBlockStatus}
+                                                        onEdit={onEditBlock}
                                                         onCancelBlock={onCancelBlock}
                                                     />
                                                 ))}
