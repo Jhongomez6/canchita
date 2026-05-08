@@ -12,7 +12,7 @@ import SlotList from "./SlotList";
 import type { Court, CourtCombo, DaySchedule, CourtFormat, FormatPricing } from "@/lib/domain/venue";
 import type { BlockedSlot } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
-import type { SlotItem } from "./SlotList";
+import type { SlotItem, OccupantLabel } from "./SlotList";
 
 interface AdminSlotPickerProps {
     venueId: string;
@@ -120,29 +120,29 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
             );
             const isAvailable = availableFormats.includes(selectedFormat);
 
-            let occupantLabels: string[] | undefined;
-            let cancelledLabels: string[] | undefined;
+            let occupantLabels: OccupantLabel[] | undefined;
+            let cancelledLabels: OccupantLabel[] | undefined;
 
             if (overlappingBookings.length > 0 || overlappingBlocks.length > 0) {
                 const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
                 const courtListFor = (ids: string[]) =>
                     formatCourtList(ids.map((id) => courtNameById.get(id) ?? id));
 
-                const blockLabel = (b: typeof overlappingBlocks[0]) => {
+                const blockLabel = (b: typeof overlappingBlocks[0]): OccupantLabel => {
                     let who = b.clientName || b.reason || "Reserva manual";
-                    if (b.clientName && b.clientPhone) who = `${b.clientName} ${b.clientPhone}`;
+                    if (b.clientName && b.clientPhone) who = `${b.clientName} · ${b.clientPhone}`;
                     else if (!b.clientName && b.clientPhone) who = b.clientPhone;
                     const tier = tierLabelFromCount(b.courtIds.length);
                     const where = courtListFor(b.courtIds);
-                    return where ? `${who} · ${tier} (${where})` : `${who} · ${tier}`;
+                    return { who, detail: where ? `${tier} · ${where}` : tier };
                 };
 
-                const activeEntries: string[] = [];
+                const activeEntries: OccupantLabel[] = [];
                 for (const b of overlappingBookings) {
                     const who = b.bookedByName || "Reservado";
                     const tier = formatLabel(b.format);
                     const where = courtListFor(b.courtIds);
-                    activeEntries.push(where ? `${who} · ${tier} (${where})` : `${who} · ${tier}`);
+                    activeEntries.push({ who, detail: where ? `${tier} · ${where}` : tier });
                 }
                 for (const b of activeBlocks) {
                     activeEntries.push(blockLabel(b));
@@ -150,10 +150,8 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
 
                 const cancelledEntries = cancelledBlocks.map(blockLabel);
 
-                const uniqueActive = Array.from(new Set(activeEntries));
-                const uniqueCancelled = Array.from(new Set(cancelledEntries));
-                if (uniqueActive.length > 0) occupantLabels = uniqueActive;
-                if (uniqueCancelled.length > 0) cancelledLabels = uniqueCancelled;
+                if (activeEntries.length > 0) occupantLabels = activeEntries;
+                if (cancelledEntries.length > 0) cancelledLabels = cancelledEntries;
             }
 
             return [{

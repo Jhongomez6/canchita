@@ -13,13 +13,18 @@ const PERIOD_LABEL: Record<Period, string> = {
     night: "Noche",
 };
 
+export interface OccupantLabel {
+    who: string;
+    detail: string;
+}
+
 export interface SlotItem {
     startTime: string;
     endTime: string;
     priceCOP: number;
     available: boolean;
-    occupantLabels?: string[];
-    cancelledLabels?: string[];
+    occupantLabels?: OccupantLabel[];
+    cancelledLabels?: OccupantLabel[];
 }
 
 interface SlotListProps {
@@ -138,6 +143,10 @@ export default function SlotList({
                 {filteredSlots.map((slot) => {
                     const selected = isInRange(slot);
                     const tappable = slot.available || !!onSlotTap;
+                    const activeCount = slot.occupantLabels?.length ?? 0;
+                    const cancelledCount = slot.cancelledLabels?.length ?? 0;
+                    const hasOccupants = activeCount > 0 || cancelledCount > 0;
+
                     return (
                         <motion.button
                             key={slot.startTime}
@@ -145,8 +154,7 @@ export default function SlotList({
                             onClick={() => handleTap(slot)}
                             disabled={!tappable}
                             className={`
-                                w-full flex items-center justify-between
-                                px-4 py-3.5 rounded-xl border transition-all
+                                w-full text-left px-4 py-3 rounded-xl border transition-all
                                 ${selected
                                     ? "bg-[#1f7a4f]/10 border-[#1f7a4f] ring-1 ring-[#1f7a4f]/20"
                                     : slot.available
@@ -157,31 +165,68 @@ export default function SlotList({
                                 }
                             `}
                         >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${slot.available ? "bg-emerald-500" : "bg-red-400"}`} />
-                                <div className="flex flex-col items-start min-w-0 flex-1">
-                                    <span className={`text-base font-medium ${!slot.available ? (tappable ? "text-slate-500" : "text-slate-400 line-through") : selected ? "text-[#1f7a4f]" : "text-slate-700"}`}>
+                            {/* Fila de hora */}
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${slot.available ? "bg-emerald-500" : "bg-red-400"}`} />
+                                    <span className={`text-base font-semibold leading-tight ${!slot.available ? (tappable ? "text-slate-500" : "text-slate-400") : selected ? "text-[#1f7a4f]" : "text-slate-700"}`}>
                                         {fmt12h(slot.startTime)} – {fmt12h(slot.endTime)}
                                     </span>
-                                    {((slot.occupantLabels && slot.occupantLabels.length > 0) || (slot.cancelledLabels && slot.cancelledLabels.length > 0)) && (
-                                        <ul className={`text-[11px] w-full text-left mt-0.5 space-y-0.5 ${slot.available ? "text-slate-400" : "text-slate-500"}`}>
-                                            {slot.occupantLabels?.map((label, i) => (
-                                                <li key={`o-${i}`} className="truncate">{label}</li>
+                                </div>
+                                {!hidePrice && slot.available && (
+                                    <span className={`text-sm font-semibold flex-shrink-0 ${selected ? "text-[#1f7a4f]" : "text-slate-400"}`}>
+                                        {formatCOP(slot.priceCOP)}
+                                    </span>
+                                )}
+                                {!hidePrice && !slot.available && (
+                                    <span className="text-xs text-slate-400 font-medium flex-shrink-0">Ocupado</span>
+                                )}
+                            </div>
+
+                            {/* Badges de conteo + labels de detalle */}
+                            {hasOccupants && (
+                                <div className="mt-2 ml-[18px] space-y-1.5">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        {activeCount > 0 && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-slate-500 inline-block" />
+                                                {activeCount} reserva{activeCount !== 1 ? "s" : ""}
+                                            </span>
+                                        )}
+                                        {cancelledCount > 0 && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-200">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />
+                                                {cancelledCount} cancelada{cancelledCount !== 1 ? "s" : ""}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {activeCount > 0 && (
+                                        <ul className="space-y-1">
+                                            {slot.occupantLabels!.map((label, i) => (
+                                                <li key={`o-${i}`} className="flex items-baseline gap-1.5 min-w-0">
+                                                    <span className="text-xs font-semibold text-slate-700 truncate min-w-0">{label.who}</span>
+                                                    {label.detail && (
+                                                        <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">{label.detail}</span>
+                                                    )}
+                                                </li>
                                             ))}
-                                            {slot.cancelledLabels?.map((label, i) => (
-                                                <li key={`c-${i}`} className="truncate line-through text-slate-300">{label}</li>
+                                        </ul>
+                                    )}
+
+                                    {cancelledCount > 0 && (
+                                        <ul className="space-y-1">
+                                            {slot.cancelledLabels!.map((label, i) => (
+                                                <li key={`c-${i}`} className="flex items-baseline gap-1.5 min-w-0">
+                                                    <span className="text-xs font-medium text-slate-400 line-through truncate min-w-0">{label.who}</span>
+                                                    {label.detail && (
+                                                        <span className="text-[11px] text-slate-300 whitespace-nowrap flex-shrink-0 line-through">{label.detail}</span>
+                                                    )}
+                                                </li>
                                             ))}
                                         </ul>
                                     )}
                                 </div>
-                            </div>
-                            {!hidePrice && slot.available && (
-                                <span className={`text-sm font-semibold ${selected ? "text-[#1f7a4f]" : "text-slate-500"}`}>
-                                    {formatCOP(slot.priceCOP)}
-                                </span>
-                            )}
-                            {!hidePrice && !slot.available && (
-                                <span className="text-xs text-slate-400 font-medium flex-shrink-0">Ocupado</span>
                             )}
                         </motion.button>
                     );
