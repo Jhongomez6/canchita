@@ -52,10 +52,10 @@ export default function AdminBlockCard({
     const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
     const blockTier = tierLabelFromCount(block.courtIds.length);
     const blockCourtList = formatCourtList(blockCourtNames);
-    const clickable = !!onClick;
-
     const status = getBlockedSlotStatus(block);
     const cancelled = isCancelled(block);
+
+    const clickable = !!onClick && cancelled;
     const badge = statusBadge(status);
     const nextStatus = getNextStatus(status);
     const nextLabel = nextStatusActionLabel(status);
