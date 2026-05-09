@@ -154,7 +154,8 @@ export default function SlotList({
                             onClick={() => handleTap(slot)}
                             disabled={!tappable}
                             className={`
-                                w-full text-left px-4 py-3 rounded-xl border transition-all
+                                w-full text-left px-4 rounded-xl border transition-all
+                                ${hasOccupants ? "py-3" : "py-2"}
                                 ${selected
                                     ? "bg-[#1f7a4f]/10 border-[#1f7a4f] ring-1 ring-[#1f7a4f]/20"
                                     : slot.available
@@ -183,9 +184,9 @@ export default function SlotList({
                                 )}
                             </div>
 
-                            {/* Badges de conteo + labels de detalle */}
+                            {/* Labels de ocupantes */}
                             {hasOccupants && (
-                                <div className="mt-2 ml-[18px] space-y-1.5">
+                                <div className="mt-1.5 ml-[18px] space-y-1">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         {activeCount > 0 && (
                                             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
@@ -202,10 +203,10 @@ export default function SlotList({
                                     </div>
 
                                     {activeCount > 0 && (
-                                        <ul className="space-y-1">
+                                        <ul className="space-y-0.5">
                                             {slot.occupantLabels!.map((label, i) => (
                                                 <li key={`o-${i}`} className="flex items-baseline gap-1.5 min-w-0">
-                                                    <span className="text-xs font-semibold text-slate-700 truncate min-w-0">{label.who}</span>
+                                                    <span className="text-sm font-semibold text-slate-800 truncate min-w-0">{label.who}</span>
                                                     {label.detail && (
                                                         <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">{label.detail}</span>
                                                     )}
@@ -215,7 +216,7 @@ export default function SlotList({
                                     )}
 
                                     {cancelledCount > 0 && (
-                                        <ul className="space-y-1">
+                                        <ul className="space-y-0.5">
                                             {slot.cancelledLabels!.map((label, i) => (
                                                 <li key={`c-${i}`} className="flex items-baseline gap-1.5 min-w-0">
                                                     <span className="text-xs font-medium text-slate-400 line-through truncate min-w-0">{label.who}</span>

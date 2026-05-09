@@ -30,7 +30,8 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
 import { expandBlockedSlotsForDate } from "./domain/blocked-slots";
-import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus } from "./domain/venue";
+import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus, ManualReservationPayment } from "./domain/venue";
+import { buildPaymentId, validatePaymentAmounts } from "./domain/payments";
 
 // ========================
 // VENUES
@@ -459,4 +460,180 @@ export async function updateBlockedSlot(
         ...changes,
         updatedAt: new Date().toISOString(),
     });
+}
+
+// ========================
+// MANUAL RESERVATION PAYMENTS
+// ========================
+
+/**
+ * Error que indica que ya existe un pago para el par (reservationId, date).
+ * La UI debe capturarlo y abrir el sheet en modo edit con el pago existente.
+ */
+export class PaymentAlreadyExistsError extends Error {
+    public readonly paymentId: string;
+    constructor(paymentId: string) {
+        super("Ya existe un pago para esta reserva en esta fecha");
+        this.name = "PaymentAlreadyExistsError";
+        this.paymentId = paymentId;
+    }
+}
+
+/**
+ * Registra un pago para una reserva manual en una fecha concreta.
+ * Operación atómica: crea el doc en `payments` y, si el slot es puntual (no recurrente),
+ * actualiza su status a "paid". Para recurrentes el doc maestro no se toca — el pago
+ * por instancia se deriva de la existencia del payment doc.
+ *
+ * Falla con `PaymentAlreadyExistsError` si ya hay pago registrado para el mismo
+ * par (reservationId, targetDate) — la UI redirecciona a edit.
+ */
+export async function registerManualReservationPayment(
+    venueId: string,
+    slot: BlockedSlot,
+    targetDate: string,
+    cashCOP: number,
+    transferCOP: number,
+    registeredBy: string,
+): Promise<{ id: string }> {
+    validatePaymentAmounts(cashCOP, transferCOP);
+
+    const paymentId = buildPaymentId(slot.id, targetDate);
+    const slotRef = doc(db, "venues", venueId, "blocked_slots", slot.id);
+    const paymentRef = doc(db, "venues", venueId, "payments", paymentId);
+    const now = new Date().toISOString();
+    const totalCOP = cashCOP + transferCOP;
+    const isRecurring = !!slot.recurrence;
+
+    await runTransaction(db, async (tx) => {
+        const slotSnap = await tx.get(slotRef);
+        if (!slotSnap.exists()) {
+            throw new Error("La reserva ya no existe");
+        }
+        const existing = await tx.get(paymentRef);
+        if (existing.exists()) {
+            throw new PaymentAlreadyExistsError(paymentId);
+        }
+
+        const slotData = slotSnap.data() as Omit<BlockedSlot, "id">;
+        const payment: Omit<ManualReservationPayment, "id"> = {
+            reservationId: slot.id,
+            date: targetDate,
+            cashCOP,
+            transferCOP,
+            totalCOP,
+            startTime: slotData.startTime,
+            endTime: slotData.endTime,
+            courtIds: slotData.courtIds,
+            ...(slotData.clientName ? { clientName: slotData.clientName } : {}),
+            ...(typeof slotData.priceCOP === "number" ? { priceCOP: slotData.priceCOP } : {}),
+            registeredBy,
+            registeredAt: now,
+        };
+        tx.set(paymentRef, payment);
+
+        if (!isRecurring) {
+            tx.update(slotRef, { status: "paid", updatedAt: now });
+        }
+    });
+
+    return { id: paymentId };
+}
+
+/**
+ * Actualiza los montos de un pago existente. Atómica vía transacción para evitar
+ * last-write-wins entre dos admins editando simultáneamente.
+ */
+export async function updateManualReservationPayment(
+    venueId: string,
+    paymentId: string,
+    cashCOP: number,
+    transferCOP: number,
+): Promise<void> {
+    validatePaymentAmounts(cashCOP, transferCOP);
+
+    const paymentRef = doc(db, "venues", venueId, "payments", paymentId);
+    const now = new Date().toISOString();
+    const totalCOP = cashCOP + transferCOP;
+
+    await runTransaction(db, async (tx) => {
+        const snap = await tx.get(paymentRef);
+        if (!snap.exists()) {
+            throw new Error("El pago ya no existe");
+        }
+        tx.update(paymentRef, {
+            cashCOP,
+            transferCOP,
+            totalCOP,
+            updatedAt: now,
+        });
+    });
+}
+
+/**
+ * Elimina un pago. Si la reserva asociada es puntual y está en `paid`, revierte
+ * su status a `played` para que el flujo "Marcar pagado" vuelva a estar disponible.
+ * En recurrentes el doc maestro no se toca.
+ */
+export async function deleteManualReservationPayment(
+    venueId: string,
+    paymentId: string,
+): Promise<void> {
+    const paymentRef = doc(db, "venues", venueId, "payments", paymentId);
+
+    await runTransaction(db, async (tx) => {
+        const paymentSnap = await tx.get(paymentRef);
+        if (!paymentSnap.exists()) {
+            // Idempotente: ya estaba borrado.
+            return;
+        }
+        const payment = paymentSnap.data() as Omit<ManualReservationPayment, "id">;
+        const slotRef = doc(db, "venues", venueId, "blocked_slots", payment.reservationId);
+        const slotSnap = await tx.get(slotRef);
+
+        tx.delete(paymentRef);
+
+        if (slotSnap.exists()) {
+            const slot = slotSnap.data() as Omit<BlockedSlot, "id">;
+            const isRecurring = !!slot.recurrence;
+            if (!isRecurring && slot.status === "paid") {
+                tx.update(slotRef, {
+                    status: "played",
+                    updatedAt: new Date().toISOString(),
+                });
+            }
+        }
+    });
+}
+
+/**
+ * Suscripción reactiva a los pagos de una fecha concreta para un venue.
+ * Una sola query: `where("date", "==", date)` sobre `venues/{venueId}/payments`.
+ */
+export function subscribeDailyPayments(
+    venueId: string,
+    date: string,
+    callback: (payments: ManualReservationPayment[]) => void,
+): () => void {
+    const col = collection(db, "venues", venueId, "payments");
+    const q = query(col, where("date", "==", date));
+    return onSnapshot(q, (snap) => {
+        const payments = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ManualReservationPayment);
+        callback(payments);
+    });
+}
+
+/**
+ * Obtiene el pago de una reserva en una fecha concreta (si existe).
+ * Útil para la card: necesita saber si renderizar el chip resumen o el botón "Marcar pagado".
+ */
+export async function getManualReservationPayment(
+    venueId: string,
+    reservationId: string,
+    date: string,
+): Promise<ManualReservationPayment | null> {
+    const paymentId = buildPaymentId(reservationId, date);
+    const snap = await getDoc(doc(db, "venues", venueId, "payments", paymentId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as ManualReservationPayment;
 }

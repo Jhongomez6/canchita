@@ -5,13 +5,13 @@ import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { type Court } from "@/lib/domain/venue";
 import { getBookingsForDate } from "@/lib/bookings";
-import { subscribeToBlockedSlots, getVenueCourts, getAllBlockedSlots } from "@/lib/venues";
+import { subscribeToBlockedSlots, subscribeDailyPayments, getVenueCourts, getAllBlockedSlots } from "@/lib/venues";
 import { expandBlockedSlotsForDate } from "@/lib/domain/blocked-slots";
 import { handleError } from "@/lib/utils/error";
 import AdminBookingCard from "./AdminBookingCard";
 import AdminBlockCard from "./AdminBlockCard";
 import type { Booking } from "@/lib/domain/booking";
-import type { BlockedSlot, ManualReservationStatus } from "@/lib/domain/venue";
+import type { BlockedSlot, ManualReservationStatus, ManualReservationPayment } from "@/lib/domain/venue";
 
 interface AdminBookingCalendarProps {
     venueId: string;
@@ -21,6 +21,11 @@ interface AdminBookingCalendarProps {
     onPickBlockStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
     onCancelBlock?: (block: BlockedSlot, targetDate: string) => void;
     onEditBlock?: (block: BlockedSlot) => void;
+    onRegisterPayment?: (
+        block: BlockedSlot,
+        targetDate: string,
+        existingPayment: ManualReservationPayment | null,
+    ) => void;
     onCreateManual?: (date: string) => void;
 }
 
@@ -46,6 +51,7 @@ export default function AdminBookingCalendar({
     onPickBlockStatus,
     onCancelBlock,
     onEditBlock,
+    onRegisterPayment,
     onCreateManual,
 }: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
@@ -55,6 +61,7 @@ export default function AdminBookingCalendar({
     const [selectedDate, setSelectedDate] = useState<string>(toISO(new Date()));
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [blocks, setBlocks] = useState<BlockedSlot[]>([]);
+    const [payments, setPayments] = useState<ManualReservationPayment[]>([]);
     const [courts, setCourts] = useState<Court[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -86,6 +93,18 @@ export default function AdminBookingCalendar({
         const unsub = subscribeToBlockedSlots(venueId, selectedDate, setBlocks, true);
         return unsub;
     }, [venueId, selectedDate]);
+
+    // Suscripción reactiva a los pagos del día seleccionado para mostrar el chip resumen
+    // en cada AdminBlockCard pagada.
+    useEffect(() => {
+        const unsub = subscribeDailyPayments(venueId, selectedDate, setPayments);
+        return unsub;
+    }, [venueId, selectedDate]);
+
+    // Lookup O(1) por reservationId (todos los pagos del map ya son del selectedDate).
+    const paymentByReservationId = new Map<string, ManualReservationPayment>(
+        payments.map((p) => [p.reservationId, p]),
+    );
 
     // Track which dates in the month have bookings or blocks
     useEffect(() => {
@@ -272,6 +291,8 @@ export default function AdminBookingCalendar({
                                     onPickStatus={onPickBlockStatus}
                                     onEdit={onEditBlock}
                                     onCancelBlock={onCancelBlock}
+                                    existingPayment={paymentByReservationId.get(row.block.id) ?? null}
+                                    onRegisterPayment={onRegisterPayment}
                                 />
                             );
                         })}

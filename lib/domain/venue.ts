@@ -209,6 +209,33 @@ export interface BookingConflict {
     bookedByName: string;
 }
 
+/**
+ * Pago registrado contra una reserva manual (BlockedSlot) en una fecha concreta.
+ * Vive en `venues/{venueId}/payments`. El id es determinístico
+ * (`payment_${reservationId}_${date}`) para garantizar unicidad por par
+ * (reserva, fecha) — clave para reservas recurrentes con un pago por instancia.
+ */
+export interface ManualReservationPayment {
+    id: string;
+    reservationId: string;       // BlockedSlot.id
+    date: string;                // YYYY-MM-DD (la instancia)
+
+    cashCOP: number;             // centavos, >= 0
+    transferCOP: number;         // centavos, >= 0
+    totalCOP: number;            // cashCOP + transferCOP (denormalizado)
+
+    // Snapshot denormalizado para el balance (evita N+1 reads)
+    startTime: string;
+    endTime: string;
+    courtIds: string[];
+    clientName?: string;
+    priceCOP?: number;
+
+    registeredBy: string;
+    registeredAt: string;
+    updatedAt?: string;
+}
+
 // ========================
 // INPUT TYPES
 // ========================

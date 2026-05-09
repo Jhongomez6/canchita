@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, CalendarPlus, X } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
@@ -18,6 +19,7 @@ import {
     saveVenueCourts,
     saveVenueCombos,
     saveVenueFullSchedule,
+    subscribeDailyPayments,
 } from "@/lib/venues";
 import { handleError } from "@/lib/utils/error";
 import { logVenueAdminCourtConfigured, logVenueAdminScheduleUpdated } from "@/lib/analytics";
@@ -32,6 +34,8 @@ import CancelBookingSheet from "@/components/booking/CancelBookingSheet";
 import DeleteBlockedSlotSheet from "@/components/booking/DeleteBlockedSlotSheet";
 import CancelManualReservationSheet from "@/components/booking/CancelManualReservationSheet";
 import EditManualReservationSheet from "@/components/booking/EditManualReservationSheet";
+import RegisterPaymentSheet from "@/components/booking/RegisterPaymentSheet";
+import DailyBalanceView from "@/components/booking/DailyBalanceView";
 import HourDetailDrawer from "@/components/booking/HourDetailDrawer";
 import { updateManualReservationStatus } from "@/lib/venues";
 import { cancelBooking } from "@/lib/bookings";
@@ -43,10 +47,10 @@ import {
     logAdminHourDetailCreateClicked,
     logManualReservationStatusChanged,
 } from "@/lib/analytics";
-import type { Venue, Court, CourtCombo, CourtFormat, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus } from "@/lib/domain/venue";
+import type { Venue, Court, CourtCombo, CourtFormat, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus, ManualReservationPayment } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
 
-type AdminTab = "courts" | "schedule" | "payments" | "blocked" | "bookings";
+type AdminTab = "courts" | "schedule" | "payments" | "blocked" | "bookings" | "balance";
 
 const TAB_LABELS: Record<AdminTab, string> = {
     courts: "Canchas",
@@ -54,6 +58,16 @@ const TAB_LABELS: Record<AdminTab, string> = {
     payments: "Pagos",
     blocked: "Bloqueos",
     bookings: "Reservas",
+    balance: "Balance",
+};
+
+const TAB_ICONS: Record<AdminTab, LucideIcon> = {
+    courts: LayoutGrid,
+    schedule: Clock,
+    payments: CreditCard,
+    blocked: Ban,
+    bookings: CalendarDays,
+    balance: Receipt,
 };
 
 function VenueAdminContent() {
@@ -77,8 +91,8 @@ function VenueAdminContent() {
     // Role gating
     const isSuper = profile ? isSuperAdmin(profile) : false;
     const visibleTabs: AdminTab[] = isSuper
-        ? ["courts", "schedule", "payments", "blocked", "bookings"]
-        : ["bookings"];
+        ? ["courts", "schedule", "payments", "blocked", "bookings", "balance"]
+        : ["bookings", "balance"];
 
     // Active tab
     const [activeTab, setActiveTab] = useState<AdminTab>(isSuper ? "courts" : "bookings");
@@ -119,6 +133,33 @@ function VenueAdminContent() {
 
     // Edit manual reservation sheet
     const [editManualTarget, setEditManualTarget] = useState<BlockedSlot | null>(null);
+
+    // Payments del día actualmente abierto en HourDetailDrawer (subscripción reactiva).
+    const [drawerPayments, setDrawerPayments] = useState<ManualReservationPayment[]>([]);
+
+    // Register payment sheet (registrar / editar pago)
+    const [paymentTarget, setPaymentTarget] = useState<{
+        slot: BlockedSlot;
+        targetDate: string;
+        existingPayment: ManualReservationPayment | null;
+    } | null>(null);
+
+    // Suscripción a pagos del día abierto en el drawer. Solo activo cuando hay drawer.
+    useEffect(() => {
+        if (!hourDetail) {
+            setDrawerPayments([]);
+            return;
+        }
+        const unsub = subscribeDailyPayments(venueId, hourDetail.date, setDrawerPayments);
+        return () => unsub();
+    }, [venueId, hourDetail]);
+
+    const handleRegisterPayment = useCallback(
+        (slot: BlockedSlot, targetDate: string, existingPayment: ManualReservationPayment | null) => {
+            setPaymentTarget({ slot, targetDate, existingPayment });
+        },
+        [],
+    );
 
     // Optimistic update del status en hourDetail (snapshot, no escucha realtime).
     const patchHourDetailBlockStatus = useCallback((slotId: string, newStatus: ManualReservationStatus) => {
@@ -358,21 +399,25 @@ function VenueAdminContent() {
                 {visibleTabs.length > 1 && (
                 <div className="px-4 mt-4">
                     <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-                        {visibleTabs.map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`
-                                    flex-1 py-2 text-xs font-semibold rounded-lg transition-colors
-                                    ${activeTab === tab
-                                        ? "bg-white text-[#1f7a4f] shadow-sm"
-                                        : "text-slate-500 hover:text-slate-700"
-                                    }
-                                `}
-                            >
-                                {TAB_LABELS[tab]}
-                            </button>
-                        ))}
+                        {visibleTabs.map((tab) => {
+                            const Icon = TAB_ICONS[tab];
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`
+                                        flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors
+                                        ${activeTab === tab
+                                            ? "bg-white text-[#1f7a4f] shadow-sm"
+                                            : "text-slate-500 hover:text-slate-700"
+                                        }
+                                    `}
+                                >
+                                    <Icon className="w-3.5 h-3.5" />
+                                    {TAB_LABELS[tab]}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
                 )}
@@ -493,41 +538,42 @@ function VenueAdminContent() {
                     {/* Bookings tab */}
                     {activeTab === "bookings" && (
                         <div className="space-y-4">
-                            {!isSuper && (
-                                <button
-                                    onClick={() => {
-                                        setDrawerDefaults({});
-                                        setBlockedDrawerOpen(true);
-                                    }}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-[#1f7a4f] rounded-xl hover:bg-[#145c3a] active:scale-[0.99] transition-all shadow-sm"
-                                >
-                                    <CalendarPlus className="w-4 h-4" />
-                                    Reserva manual
-                                </button>
-                            )}
-
-                            {/* View toggle */}
-                            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-                                <button
-                                    onClick={() => setBookingsView("hourly")}
-                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                        bookingsView === "hourly"
-                                            ? "bg-white text-[#1f7a4f] shadow-sm"
-                                            : "text-slate-500 hover:text-slate-700"
-                                    }`}
-                                >
-                                    Por hora
-                                </button>
-                                <button
-                                    onClick={() => setBookingsView("calendar")}
-                                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                                        bookingsView === "calendar"
-                                            ? "bg-white text-[#1f7a4f] shadow-sm"
-                                            : "text-slate-500 hover:text-slate-700"
-                                    }`}
-                                >
-                                    Calendario
-                                </button>
+                            {/* View toggle + CTA en una sola fila */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 flex gap-1 bg-slate-100 rounded-xl p-1">
+                                    <button
+                                        onClick={() => setBookingsView("hourly")}
+                                        className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                            bookingsView === "hourly"
+                                                ? "bg-white text-[#1f7a4f] shadow-sm"
+                                                : "text-slate-500 hover:text-slate-700"
+                                        }`}
+                                    >
+                                        Por hora
+                                    </button>
+                                    <button
+                                        onClick={() => setBookingsView("calendar")}
+                                        className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                            bookingsView === "calendar"
+                                                ? "bg-white text-[#1f7a4f] shadow-sm"
+                                                : "text-slate-500 hover:text-slate-700"
+                                        }`}
+                                    >
+                                        Calendario
+                                    </button>
+                                </div>
+                                {!isSuper && (
+                                    <button
+                                        onClick={() => {
+                                            setDrawerDefaults({});
+                                            setBlockedDrawerOpen(true);
+                                        }}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-[#1f7a4f] rounded-xl hover:bg-[#145c3a] active:scale-[0.99] transition-all shadow-sm shrink-0"
+                                    >
+                                        <CalendarPlus className="w-3.5 h-3.5" />
+                                        Nueva
+                                    </button>
+                                )}
                             </div>
 
                             {bookingsView === "calendar" ? (
@@ -548,6 +594,7 @@ function VenueAdminContent() {
                                     onPickBlockStatus={handlePickBlockStatus}
                                     onEditBlock={handleEditBlock}
                                     onCancelBlock={handleCancelBlock}
+                                    onRegisterPayment={handleRegisterPayment}
                                     onCreateManual={(date) => {
                                         setDrawerDefaults({ date });
                                         setBlockedDrawerOpen(true);
@@ -570,6 +617,16 @@ function VenueAdminContent() {
                                     }}
                                 />
                             )}
+                        </div>
+                    )}
+
+                    {/* Balance tab */}
+                    {activeTab === "balance" && (
+                        <div className="space-y-4">
+                            <p className="text-xs text-slate-500">
+                                Total de ingresos del día por método de pago. Tap en una fila para editar.
+                            </p>
+                            <DailyBalanceView venueId={venueId} />
                         </div>
                     )}
                 </div>
@@ -654,6 +711,8 @@ function VenueAdminContent() {
                     onPickBlockStatus={handlePickBlockStatus}
                     onEditBlock={handleEditBlock}
                     onCancelBlock={handleCancelBlock}
+                    payments={drawerPayments}
+                    onRegisterPayment={handleRegisterPayment}
                     onCreateManual={() => {
                         if (!hourDetail) return;
                         logAdminHourDetailCreateClicked({
@@ -727,6 +786,33 @@ function VenueAdminContent() {
                     />
                 )}
 
+                {/* Register/edit payment sheet */}
+                {paymentTarget && user && (
+                    <RegisterPaymentSheet
+                        open={!!paymentTarget}
+                        onClose={() => setPaymentTarget(null)}
+                        venueId={venueId}
+                        slot={paymentTarget.slot}
+                        targetDate={paymentTarget.targetDate}
+                        existingPayment={paymentTarget.existingPayment}
+                        registeredBy={user.uid}
+                        onSaved={() => {
+                            // Optimistic: marca el status del slot en el drawer si es puntual.
+                            if (!paymentTarget.slot.recurrence) {
+                                patchHourDetailBlockStatus(paymentTarget.slot.id, "paid");
+                            }
+                            setPaymentTarget(null);
+                        }}
+                        onDeleted={() => {
+                            // Si era puntual y estaba paid, el backend la dejó en played.
+                            if (!paymentTarget.slot.recurrence) {
+                                patchHourDetailBlockStatus(paymentTarget.slot.id, "played");
+                            }
+                            setPaymentTarget(null);
+                        }}
+                    />
+                )}
+
                 {/* Delete blocked slot sheet (super admin hard delete) */}
                 {deleteTarget && (
                     <DeleteBlockedSlotSheet
@@ -743,7 +829,7 @@ function VenueAdminContent() {
                 )}
 
                 {/* Save button — always visible on editable tabs */}
-                {activeTab !== "bookings" && activeTab !== "blocked" && (
+                {activeTab !== "bookings" && activeTab !== "blocked" && activeTab !== "balance" && (
                     <div className="px-4 mt-6 mb-28">
                         <button
                             onClick={handleSave}

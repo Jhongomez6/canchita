@@ -267,6 +267,42 @@ service cloud.firestore {
         allow write: if request.auth != null
           && (isSuperAdmin() || isLocationAdminFor(venueId));
       }
+
+      // Sub-colección: payments — pagos de reservas manuales
+      // Solo super_admin o location_admin asignado al venue: contiene info financiera
+      // operativa (montos por reserva). Se valida la invariante totalCOP === cash + transfer.
+      match /payments/{paymentId} {
+        allow read: if request.auth != null
+          && (isSuperAdmin() || isLocationAdminFor(venueId));
+
+        allow create: if request.auth != null
+          && (isSuperAdmin() || isLocationAdminFor(venueId))
+          && request.resource.data.cashCOP is int
+          && request.resource.data.cashCOP >= 0
+          && request.resource.data.transferCOP is int
+          && request.resource.data.transferCOP >= 0
+          && (request.resource.data.cashCOP + request.resource.data.transferCOP) > 0
+          && request.resource.data.totalCOP == request.resource.data.cashCOP + request.resource.data.transferCOP
+          && request.resource.data.registeredBy == request.auth.uid
+          && request.resource.data.date is string
+          && request.resource.data.reservationId is string;
+
+        allow update: if request.auth != null
+          && (isSuperAdmin() || isLocationAdminFor(venueId))
+          && request.resource.data.cashCOP is int
+          && request.resource.data.cashCOP >= 0
+          && request.resource.data.transferCOP is int
+          && request.resource.data.transferCOP >= 0
+          && (request.resource.data.cashCOP + request.resource.data.transferCOP) > 0
+          && request.resource.data.totalCOP == request.resource.data.cashCOP + request.resource.data.transferCOP
+          // Inmutables: no se puede cambiar reservationId, date, registeredBy
+          && request.resource.data.reservationId == resource.data.reservationId
+          && request.resource.data.date == resource.data.date
+          && request.resource.data.registeredBy == resource.data.registeredBy;
+
+        allow delete: if request.auth != null
+          && (isSuperAdmin() || isLocationAdminFor(venueId));
+      }
     }
 
     /* =========================

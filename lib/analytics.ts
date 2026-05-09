@@ -579,6 +579,98 @@ export async function logManualReservationCancelled(params: {
   });
 }
 
+export async function logManualReservationPaymentRegistered(params: {
+  venueId: string;
+  slotId: string;
+  date: string;
+  cashCOP: number;
+  transferCOP: number;
+  totalCOP: number;
+  priceCOP: number;
+  diffCOP: number;
+  isRecurringInstance: boolean;
+}) {
+  await trackEvent("manual_reservation_payment_registered", {
+    venue_id: params.venueId,
+    slot_id: params.slotId,
+    date: params.date,
+    cash_cop: String(params.cashCOP),
+    transfer_cop: String(params.transferCOP),
+    total_cop: String(params.totalCOP),
+    price_cop: String(params.priceCOP),
+    diff_cop: String(params.diffCOP),
+    is_recurring_instance: params.isRecurringInstance.toString(),
+  });
+}
+
+export async function logManualReservationPaymentEdited(params: {
+  venueId: string;
+  paymentId: string;
+  previousCashCOP: number;
+  newCashCOP: number;
+  previousTransferCOP: number;
+  newTransferCOP: number;
+  totalCOP: number;
+}) {
+  await trackEvent("manual_reservation_payment_edited", {
+    venue_id: params.venueId,
+    payment_id: params.paymentId,
+    previous_cash_cop: String(params.previousCashCOP),
+    new_cash_cop: String(params.newCashCOP),
+    previous_transfer_cop: String(params.previousTransferCOP),
+    new_transfer_cop: String(params.newTransferCOP),
+    total_cop: String(params.totalCOP),
+  });
+}
+
+export async function logManualReservationPaymentDeleted(params: {
+  venueId: string;
+  paymentId: string;
+  slotId: string;
+  cashCOP: number;
+  transferCOP: number;
+  totalCOP: number;
+}) {
+  await trackEvent("manual_reservation_payment_deleted", {
+    venue_id: params.venueId,
+    payment_id: params.paymentId,
+    slot_id: params.slotId,
+    cash_cop: String(params.cashCOP),
+    transfer_cop: String(params.transferCOP),
+    total_cop: String(params.totalCOP),
+  });
+}
+
+export async function logDailyBalanceViewed(params: {
+  venueId: string;
+  date: string;
+  paymentsCount: number;
+  cashCOP: number;
+  transferCOP: number;
+  totalCOP: number;
+}) {
+  await trackEvent("daily_balance_viewed", {
+    venue_id: params.venueId,
+    date: params.date,
+    payments_count: params.paymentsCount.toString(),
+    cash_cop: String(params.cashCOP),
+    transfer_cop: String(params.transferCOP),
+    total_cop: String(params.totalCOP),
+  });
+}
+
+export async function logDailyBalanceDateChanged(params: {
+  venueId: string;
+  previousDate: string;
+  newDate: string;
+}) {
+  await trackEvent("daily_balance_date_changed", {
+    venue_id: params.venueId,
+    previous_date: params.previousDate,
+    new_date: params.newDate,
+  });
+}
+
 export async function logBlockedSlotRecurrenceExceptionAdded(
   venueId: string,
   blockedSlotId: string,

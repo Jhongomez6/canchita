@@ -200,48 +200,37 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
     const slots = timeSlots();
 
     return (
-        <div className="space-y-5">
-            <div>
-                <h2 className="text-sm font-semibold text-slate-600 mb-2">Formato</h2>
-                <FormatSelector
-                    formats={formats}
-                    selected={selectedFormat}
-                    onSelect={(f) => setSelectedFormat(f)}
-                    hidePrice
-                />
-            </div>
+        <div className="space-y-4">
+            <FormatSelector
+                formats={formats}
+                selected={selectedFormat}
+                onSelect={(f) => setSelectedFormat(f)}
+                hidePrice
+                compact
+            />
 
-            <div>
-                <h2 className="text-sm font-semibold text-slate-600 mb-2">Fecha</h2>
-                <DateCarousel
-                    selectedDate={selectedDate}
-                    onSelect={setSelectedDate}
-                />
-            </div>
+            <DateCarousel
+                selectedDate={selectedDate}
+                onSelect={setSelectedDate}
+            />
 
             {selectedFormat && (
-                <div>
-                    <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-sm font-semibold text-slate-600">Horario</h2>
-                        <p className="text-[10px] text-slate-400">Toca un horario para ver detalle</p>
-                    </div>
-                    {slots.length === 0 ? (
-                        <p className="text-sm text-slate-400 text-center py-6">
-                            Sin horarios configurados para este día
-                        </p>
-                    ) : (
-                        <SlotList
-                            slots={slots}
-                            selectedStart={null}
-                            selectedEnd={null}
-                            onSelect={() => {}}
-                            onExtend={() => {}}
-                            dateKey={`${selectedDate}-${selectedFormat}`}
-                            hidePrice
-                            onSlotTap={handleSlotTap}
-                        />
-                    )}
-                </div>
+                slots.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-6">
+                        Sin horarios configurados para este día
+                    </p>
+                ) : (
+                    <SlotList
+                        slots={slots}
+                        selectedStart={null}
+                        selectedEnd={null}
+                        onSelect={() => {}}
+                        onExtend={() => {}}
+                        dateKey={`${selectedDate}-${selectedFormat}`}
+                        hidePrice
+                        onSlotTap={handleSlotTap}
+                    />
+                )
             )}
         </div>
     );

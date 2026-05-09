@@ -52,7 +52,7 @@ export default function DateCarousel({ selectedDate, onSelect, daysAhead = 14 }:
                             w-[60px] py-2.5 rounded-xl transition-colors
                             ${isSelected
                                 ? "bg-[#1f7a4f] text-white shadow-md"
-                                : "bg-white text-slate-600 hover:bg-slate-50"
+                                : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300 shadow-sm"
                             }
                         `}
                     >

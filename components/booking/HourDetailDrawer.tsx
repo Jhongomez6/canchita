@@ -5,7 +5,7 @@ import { X, CalendarPlus, Clock4 } from "lucide-react";
 import AdminBookingCard from "./AdminBookingCard";
 import AdminBlockCard from "./AdminBlockCard";
 import type { Booking } from "@/lib/domain/booking";
-import type { BlockedSlot, Court, ManualReservationStatus } from "@/lib/domain/venue";
+import type { BlockedSlot, Court, ManualReservationStatus, ManualReservationPayment } from "@/lib/domain/venue";
 
 function fmt12h(time: string): string {
     const [hStr, mStr] = time.split(":");
@@ -38,6 +38,13 @@ interface HourDetailDrawerProps {
     onCancelBlock: (block: BlockedSlot, targetDate: string) => void;
     onEditBlock: (block: BlockedSlot) => void;
     onCreateManual: () => void;
+    /** Pagos registrados para `date`. Se usan para mostrar el chip resumen en cards pagas. */
+    payments?: ManualReservationPayment[];
+    onRegisterPayment?: (
+        block: BlockedSlot,
+        targetDate: string,
+        existingPayment: ManualReservationPayment | null,
+    ) => void;
 }
 
 export default function HourDetailDrawer({
@@ -56,7 +63,14 @@ export default function HourDetailDrawer({
     onCancelBlock,
     onEditBlock,
     onCreateManual,
+    payments,
+    onRegisterPayment,
 }: HourDetailDrawerProps) {
+    // Map<reservationId, payment> para el `date` actual del drawer.
+    // Lookup O(1) cuando renderizamos cada card.
+    const paymentByReservationId = new Map<string, ManualReservationPayment>(
+        (payments ?? []).map((p) => [p.reservationId, p]),
+    );
     const isEmpty = bookings.length === 0 && blocks.length === 0;
 
     // Canceladas al final
@@ -160,6 +174,8 @@ export default function HourDetailDrawer({
                                                         onPickStatus={onPickBlockStatus}
                                                         onEdit={onEditBlock}
                                                         onCancelBlock={onCancelBlock}
+                                                        existingPayment={paymentByReservationId.get(b.id) ?? null}
+                                                        onRegisterPayment={onRegisterPayment}
                                                     />
                                                 ))}
                                             </div>

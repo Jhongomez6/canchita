@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { CalendarPlus, Repeat, Trash2, Check, ChevronRight, Pencil } from "lucide-react";
+import { CalendarPlus, Repeat, Trash2, Check, ChevronRight, Pencil, Banknote, Landmark } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
@@ -16,8 +16,9 @@ import {
     type Court,
     type ManualReservationStatus,
 } from "@/lib/domain/venue";
+import { isReservationPayable } from "@/lib/domain/payments";
 import { labelForRecurrence } from "@/lib/domain/blocked-slots";
-import type { BlockedSlot } from "@/lib/domain/venue";
+import type { BlockedSlot, ManualReservationPayment } from "@/lib/domain/venue";
 
 function fmt12h(time: string): string {
     const [hStr, mStr] = time.split(":");
@@ -36,6 +37,16 @@ interface AdminBlockCardProps {
     onPickStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
     onCancelBlock?: (block: BlockedSlot, targetDate: string) => void;
     onEdit?: (block: BlockedSlot) => void;
+    /** Pago registrado de la instancia (si existe). Cuando está presente, la card
+     * muestra el chip resumen en lugar del botón "Marcar pagado". */
+    existingPayment?: ManualReservationPayment | null;
+    /** Callback para abrir el sheet de pago (en lugar de avanzar status directo a "paid").
+     *  Recibe el pago existente para que el caller no tenga que volver a buscarlo. */
+    onRegisterPayment?: (
+        block: BlockedSlot,
+        targetDate: string,
+        existingPayment: ManualReservationPayment | null,
+    ) => void;
 }
 
 export default function AdminBlockCard({
@@ -47,6 +58,8 @@ export default function AdminBlockCard({
     onPickStatus,
     onCancelBlock,
     onEdit,
+    existingPayment,
+    onRegisterPayment,
 }: AdminBlockCardProps) {
     const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
     const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
@@ -136,7 +149,13 @@ export default function AdminBlockCard({
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setPopoverOpen(false);
-                                                if (!isCurrent) onPickStatus(block, s);
+                                                if (!isCurrent) {
+                                                    if (s === "paid" && onRegisterPayment && isReservationPayable(block)) {
+                                                        onRegisterPayment(block, targetDate, existingPayment ?? null);
+                                                    } else {
+                                                        onPickStatus(block, s);
+                                                    }
+                                                }
                                             }}
                                             className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium transition-colors ${
                                                 isCurrent ? "bg-slate-50 text-slate-400 cursor-default" : "hover:bg-slate-50 text-slate-700"
@@ -225,14 +244,47 @@ export default function AdminBlockCard({
             )}
 
             {/* Footer: quick actions (oculto si está cancelada) */}
-            {!cancelled && (onAdvanceStatus || onEdit || onCancelBlock) && (
+            {!cancelled && (onAdvanceStatus || onEdit || onCancelBlock || existingPayment) && (
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
-                    {onAdvanceStatus && nextStatus && nextLabel && (
+                    {/* Chip resumen de pago: cuando hay un pago registrado, reemplaza el botón de avance. */}
+                    {existingPayment && onRegisterPayment ? (
                         <button
                             type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onAdvanceStatus(block);
+                                onRegisterPayment(block, targetDate, existingPayment);
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors text-xs font-semibold text-emerald-800"
+                            aria-label="Editar pago"
+                        >
+                            {existingPayment.cashCOP > 0 && (
+                                <span className="flex items-center gap-0.5">
+                                    <Banknote className="w-3 h-3" />
+                                    {formatCOP(existingPayment.cashCOP)}
+                                </span>
+                            )}
+                            {existingPayment.cashCOP > 0 && existingPayment.transferCOP > 0 && (
+                                <span className="text-emerald-400">+</span>
+                            )}
+                            {existingPayment.transferCOP > 0 && (
+                                <span className="flex items-center gap-0.5">
+                                    <Landmark className="w-3 h-3" />
+                                    {formatCOP(existingPayment.transferCOP)}
+                                </span>
+                            )}
+                        </button>
+                    ) : onAdvanceStatus && nextStatus && nextLabel && isReservationPayable(block) && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // Interceptar la transición a "paid": en lugar de cambiar status directo,
+                                // abrir el sheet de pago para capturar montos por método.
+                                if (nextStatus === "paid" && onRegisterPayment) {
+                                    onRegisterPayment(block, targetDate, existingPayment ?? null);
+                                } else {
+                                    onAdvanceStatus(block);
+                                }
                             }}
                             className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-[#1f7a4f]/10 text-[#1f7a4f] text-xs font-semibold hover:bg-[#1f7a4f]/15 transition-colors"
                         >
