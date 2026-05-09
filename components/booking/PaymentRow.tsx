@@ -9,6 +9,7 @@ import type { Court, ManualReservationPayment } from "@/lib/domain/venue";
 interface PaymentRowProps {
     payment: ManualReservationPayment;
     courts: Court[];
+    cancelled?: boolean;
     onTap?: (payment: ManualReservationPayment) => void;
 }
 
@@ -18,7 +19,7 @@ function fmt12h(time: string): string {
     return `${h % 12 || 12}:${mStr} ${h >= 12 ? "PM" : "AM"}`;
 }
 
-export default function PaymentRow({ payment, courts, onTap }: PaymentRowProps) {
+export default function PaymentRow({ payment, courts, cancelled, onTap }: PaymentRowProps) {
     const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
     const courtNames = payment.courtIds.map((id) => courtNameById.get(id) || id);
     const courtList = formatCourtList(courtNames);
@@ -32,13 +33,20 @@ export default function PaymentRow({ payment, courts, onTap }: PaymentRowProps) 
             layout
             type="button"
             onClick={() => onTap?.(payment)}
-            className="w-full text-left bg-white rounded-xl border border-slate-100 p-3 hover:border-slate-200 active:scale-[0.99] transition-all"
+            className={`w-full text-left bg-white rounded-xl border p-3 hover:border-slate-200 active:scale-[0.99] transition-all ${cancelled ? "border-rose-100" : "border-slate-100"}`}
         >
             {/* Header: hora + total */}
             <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-slate-800">
-                    {fmt12h(payment.startTime)} – {fmt12h(payment.endTime)}
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-800">
+                        {fmt12h(payment.startTime)} – {fmt12h(payment.endTime)}
+                    </span>
+                    {cancelled && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500">
+                            Cancelada
+                        </span>
+                    )}
+                </div>
                 <span className="text-sm font-bold text-slate-900">
                     {formatCOP(payment.totalCOP)}
                 </span>
