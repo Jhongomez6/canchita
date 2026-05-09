@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, LayoutGroup } from "framer-motion";
 import { Banknote, Landmark, Receipt } from "lucide-react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import { subscribeDailyPayments, getVenueCourts } from "@/lib/venues";
 import { sumPayments } from "@/lib/domain/payments";
@@ -49,9 +47,8 @@ export default function DailyBalanceView({ venueId }: DailyBalanceViewProps) {
     const { user } = useAuth();
     const [selectedDate, setSelectedDate] = useState(() => todayLocalISO());
     const [payments, setPayments] = useState<ManualReservationPayment[] | null>(null);
-    const [courts, setCourts] = useState<Court[]>([]);
+    const [courts, setCourts] = useState<Court[] | null>(null);
     const [editTarget, setEditTarget] = useState<ManualReservationPayment | null>(null);
-    const [cancelledIds, setCancelledIds] = useState<Set<string>>(new Set());
 
     // Cargar courts una vez por venue (para mostrar nombres de canchas en las rows).
     useEffect(() => {
@@ -67,31 +64,12 @@ export default function DailyBalanceView({ venueId }: DailyBalanceViewProps) {
     // Suscripción reactiva a los pagos del día.
     useEffect(() => {
         setPayments(null);
-        setCancelledIds(new Set());
         const unsub = subscribeDailyPayments(venueId, selectedDate, (list) => {
             const sorted = [...list].sort((a, b) => a.startTime.localeCompare(b.startTime));
             setPayments(sorted);
         });
         return () => unsub();
     }, [venueId, selectedDate]);
-
-    // Cuando cambian los pagos, verifica qué reservaciones están canceladas.
-    useEffect(() => {
-        if (!payments || payments.length === 0) return;
-        let stale = false;
-        const reservationIds = [...new Set(payments.map((p) => p.reservationId))];
-        Promise.all(
-            reservationIds.map((id) =>
-                getDoc(doc(db, "venues", venueId, "blocked_slots", id))
-                    .then((snap) => (snap.exists() && snap.data()?.status === "cancelled" ? id : null))
-                    .catch(() => null)
-            )
-        ).then((results) => {
-            if (stale) return;
-            setCancelledIds(new Set(results.filter(Boolean) as string[]));
-        });
-        return () => { stale = true; };
-    }, [venueId, payments]);
 
     const totals = useMemo(() => {
         if (!payments) return { cashCOP: 0, transferCOP: 0, totalCOP: 0, count: 0 };
@@ -120,7 +98,7 @@ export default function DailyBalanceView({ venueId }: DailyBalanceViewProps) {
         setSelectedDate(newDate);
     };
 
-    if (payments === null) {
+    if (payments === null || courts === null) {
         return <DailyBalanceSkeleton />;
     }
 
@@ -209,7 +187,6 @@ export default function DailyBalanceView({ venueId }: DailyBalanceViewProps) {
                                 key={p.id}
                                 payment={p}
                                 courts={courts}
-                                cancelled={cancelledIds.has(p.reservationId)}
                                 onTap={(payment) => setEditTarget(payment)}
                             />
                         ))}

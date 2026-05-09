@@ -350,12 +350,16 @@ export async function cancelManualReservation(
         updatedAt: now,
     };
 
+    const paymentRef = doc(db, "venues", venueId, "payments", buildPaymentId(slot.id, targetDate));
+
     if (scope === "non_recurring") {
         await runTransaction(db, async (tx) => {
             const snap = await tx.get(slotRef);
             if (!snap.exists()) throw new Error("La reserva ya no existe");
             tx.update(slotRef, cancelFields);
         });
+        // Denormaliza en el payment doc si existe (fire-and-forget, no bloquea)
+        updateDoc(paymentRef, { slotStatus: "cancelled" }).catch(() => undefined);
         return;
     }
 
@@ -384,6 +388,7 @@ export async function cancelManualReservation(
             updateDoc(slotRef, { exceptDates: arrayUnion(targetDate), updatedAt: now }),
             addDoc(slotsCol, oneOffDoc),
         ]);
+        updateDoc(paymentRef, { slotStatus: "cancelled" }).catch(() => undefined);
         return;
     }
 
@@ -395,6 +400,7 @@ export async function cancelManualReservation(
         updateDoc(slotRef, { "recurrence.endDate": endDate, updatedAt: now }),
         addDoc(slotsCol, oneOffDoc),
     ]);
+    updateDoc(paymentRef, { slotStatus: "cancelled" }).catch(() => undefined);
 }
 
 /**

@@ -235,6 +235,7 @@ export interface ManualReservationPayment {
     registeredBy: string;
     registeredAt: string;
     updatedAt?: string;
+    slotStatus?: ManualReservationStatus; // denormalizado: "cancelled" si la reserva fue cancelada
 }
 
 // ========================

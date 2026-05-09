@@ -9,7 +9,6 @@ import type { Court, ManualReservationPayment } from "@/lib/domain/venue";
 interface PaymentRowProps {
     payment: ManualReservationPayment;
     courts: Court[];
-    cancelled?: boolean;
     onTap?: (payment: ManualReservationPayment) => void;
 }
 
@@ -19,7 +18,8 @@ function fmt12h(time: string): string {
     return `${h % 12 || 12}:${mStr} ${h >= 12 ? "PM" : "AM"}`;
 }
 
-export default function PaymentRow({ payment, courts, cancelled, onTap }: PaymentRowProps) {
+export default function PaymentRow({ payment, courts, onTap }: PaymentRowProps) {
+    const cancelled = payment.slotStatus === "cancelled";
     const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
     const courtNames = payment.courtIds.map((id) => courtNameById.get(id) || id);
     const courtList = formatCourtList(courtNames);
