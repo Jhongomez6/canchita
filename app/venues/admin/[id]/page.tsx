@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
@@ -21,6 +21,7 @@ import {
     saveVenueFullSchedule,
     subscribeDailyPayments,
 } from "@/lib/venues";
+import { uploadVenueImage } from "@/lib/storage";
 import { handleError } from "@/lib/utils/error";
 import { logVenueAdminCourtConfigured, logVenueAdminScheduleUpdated } from "@/lib/analytics";
 import AuthGuard from "@/components/AuthGuard";
@@ -50,9 +51,10 @@ import {
 import type { Venue, Court, CourtCombo, CourtFormat, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus, ManualReservationPayment } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
 
-type AdminTab = "courts" | "schedule" | "payments" | "blocked" | "bookings" | "balance";
+type AdminTab = "info" | "courts" | "schedule" | "payments" | "blocked" | "bookings" | "balance";
 
 const TAB_LABELS: Record<AdminTab, string> = {
+    info: "Sede",
     courts: "Canchas",
     schedule: "Horarios",
     payments: "Pagos",
@@ -62,6 +64,7 @@ const TAB_LABELS: Record<AdminTab, string> = {
 };
 
 const TAB_ICONS: Record<AdminTab, LucideIcon> = {
+    info: Store,
     courts: LayoutGrid,
     schedule: Clock,
     payments: CreditCard,
@@ -88,14 +91,26 @@ function VenueAdminContent() {
     const [depositRequired, setDepositRequired] = useState(false);
     const [depositPercent, setDepositPercent] = useState(30);
 
+    // Venue info (tab "info", super admin only)
+    const [venueName, setVenueName] = useState("");
+    const [venueAddress, setVenueAddress] = useState("");
+    const [venuePhone, setVenuePhone] = useState("");
+    const [venueDescription, setVenueDescription] = useState("");
+    const [venueImageURL, setVenueImageURL] = useState("");
+    const [venueIcon, setVenueIcon] = useState("");
+    const [venueActive, setVenueActive] = useState(true);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     // Role gating
     const isSuper = profile ? isSuperAdmin(profile) : false;
     const visibleTabs: AdminTab[] = isSuper
-        ? ["courts", "schedule", "payments", "blocked", "bookings", "balance"]
+        ? ["info", "courts", "schedule", "payments", "blocked", "bookings", "balance"]
         : ["bookings", "balance"];
 
     // Active tab
-    const [activeTab, setActiveTab] = useState<AdminTab>(isSuper ? "courts" : "bookings");
+    const [activeTab, setActiveTab] = useState<AdminTab>(isSuper ? "info" : "bookings");
 
     // Blocked slots drawer (location admins access blocks from bookings tab)
     const [blockedDrawerOpen, setBlockedDrawerOpen] = useState(false);
@@ -273,6 +288,14 @@ function VenueAdminContent() {
             setSchedules(sched);
             setDepositRequired(v.depositRequired);
             setDepositPercent(v.depositPercent);
+            setVenueName(v.name ?? "");
+            setVenueAddress(v.address ?? "");
+            setVenuePhone(v.phone ?? "");
+            setVenueDescription(v.description ?? "");
+            setVenueImageURL(v.imageURL ?? "");
+            setVenueIcon(v.icon ?? "");
+            setVenueActive(v.active);
+            setImagePreview(null);
         } catch (err) {
             handleError(err, "Error al cargar datos de la sede");
         } finally {
@@ -291,6 +314,25 @@ function VenueAdminContent() {
         loadData();
     }, [profile, loadData, router, venueId]);
 
+    const handleVenueImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            toast.error("El archivo debe ser una imagen");
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("La imagen no puede superar 5 MB");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            setImagePreview(ev.target?.result as string);
+            markDirty();
+        };
+        reader.readAsDataURL(file);
+    };
+
     // Save all changes
     const handleSave = async () => {
         if (!venue) return;
@@ -302,8 +344,27 @@ function VenueAdminContent() {
                 return existing || { dayOfWeek: day, enabled: false, slots: [] };
             });
 
+            let finalImageURL = venueImageURL;
+            if (imagePreview) {
+                setUploadingImage(true);
+                finalImageURL = await uploadVenueImage(venueId, imagePreview);
+                setVenueImageURL(finalImageURL);
+                setImagePreview(null);
+                setUploadingImage(false);
+            }
+
             await Promise.all([
-                updateVenueSettings(venueId, { depositRequired, depositPercent }),
+                updateVenueSettings(venueId, {
+                    depositRequired,
+                    depositPercent,
+                    name: venueName,
+                    address: venueAddress,
+                    phone: venuePhone || undefined,
+                    description: venueDescription || undefined,
+                    imageURL: finalImageURL || undefined,
+                    icon: venueIcon || undefined,
+                    active: venueActive,
+                }),
                 saveVenueCourts(venueId, courts),
                 saveVenueCombos(venueId, combos),
                 saveVenueFullSchedule(venueId, fullSchedules),
@@ -320,6 +381,7 @@ function VenueAdminContent() {
                 }
             }
         } catch (err) {
+            setUploadingImage(false);
             handleError(err, "Error al guardar");
         } finally {
             setSaving(false);
@@ -397,33 +459,196 @@ function VenueAdminContent() {
 
                 {/* Tabs */}
                 {visibleTabs.length > 1 && (
-                <div className="px-4 mt-4">
-                    <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-                        {visibleTabs.map((tab) => {
-                            const Icon = TAB_ICONS[tab];
-                            return (
+                    isSuper ? (
+                        /* Super admin: scroll horizontal sin iconos */
+                        <div className="mt-4 flex gap-1.5 overflow-x-auto scrollbar-hide px-4 pb-1">
+                            {visibleTabs.map((tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`
-                                        flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors
-                                        ${activeTab === tab
-                                            ? "bg-white text-[#1f7a4f] shadow-sm"
-                                            : "text-slate-500 hover:text-slate-700"
-                                        }
-                                    `}
+                                    className={`flex-shrink-0 px-3.5 py-2 text-xs font-semibold rounded-xl transition-colors ${
+                                        activeTab === tab
+                                            ? "bg-[#1f7a4f] text-white shadow-sm"
+                                            : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                                    }`}
                                 >
-                                    <Icon className="w-3.5 h-3.5" />
                                     {TAB_LABELS[tab]}
                                 </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        /* Location admin: segmented control con iconos */
+                        <div className="px-4 mt-4">
+                            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+                                {visibleTabs.map((tab) => {
+                                    const Icon = TAB_ICONS[tab];
+                                    return (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setActiveTab(tab)}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                                                activeTab === tab
+                                                    ? "bg-white text-[#1f7a4f] shadow-sm"
+                                                    : "text-slate-500 hover:text-slate-700"
+                                            }`}
+                                        >
+                                            <Icon className="w-3.5 h-3.5" />
+                                            {TAB_LABELS[tab]}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )
                 )}
 
                 {/* Tab content */}
                 <div className="px-4 mt-5">
+                    {/* Info tab */}
+                    {activeTab === "info" && (
+                        <div className="space-y-5">
+                            {/* Foto de portada */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                                    Foto de portada
+                                </label>
+                                <div
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 border-2 border-dashed border-slate-200 cursor-pointer hover:border-[#1f7a4f]/40 transition-colors"
+                                >
+                                    {(imagePreview || venueImageURL) ? (
+                                        <img
+                                            src={imagePreview || venueImageURL}
+                                            alt="portada"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full gap-2">
+                                            <ImageIcon className="w-8 h-8 text-slate-300" />
+                                            <span className="text-xs text-slate-400">Toca para subir foto</span>
+                                        </div>
+                                    )}
+                                    {uploadingImage && (
+                                        <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                                            <Loader2 className="w-6 h-6 animate-spin text-[#1f7a4f]" />
+                                        </div>
+                                    )}
+                                </div>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleVenueImageChange}
+                                />
+                                {imagePreview && (
+                                    <p className="text-[11px] text-amber-600 mt-1">Se subirá al guardar cambios</p>
+                                )}
+                            </div>
+
+                            {/* Nombre */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                    Nombre
+                                </label>
+                                <input
+                                    type="text"
+                                    value={venueName}
+                                    onChange={(e) => { setVenueName(e.target.value); markDirty(); }}
+                                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]"
+                                    placeholder="Nombre de la sede"
+                                />
+                            </div>
+
+                            {/* Dirección */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                    Dirección
+                                </label>
+                                <input
+                                    type="text"
+                                    value={venueAddress}
+                                    onChange={(e) => { setVenueAddress(e.target.value); markDirty(); }}
+                                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]"
+                                    placeholder="Dirección de la sede"
+                                />
+                            </div>
+
+                            {/* Teléfono */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                    Teléfono
+                                </label>
+                                <input
+                                    type="tel"
+                                    inputMode="tel"
+                                    value={venuePhone}
+                                    onChange={(e) => { setVenuePhone(e.target.value); markDirty(); }}
+                                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]"
+                                    placeholder="+57 300 000 0000"
+                                />
+                            </div>
+
+                            {/* Descripción */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                    Descripción
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={venueDescription}
+                                    onChange={(e) => { setVenueDescription(e.target.value); markDirty(); }}
+                                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f] resize-none"
+                                    placeholder="Descripción breve de la sede"
+                                />
+                            </div>
+
+                            {/* Emoji icono */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                                    Ícono de sede
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {["⚽","🏟️","🏃","🎯","🏆","🥅","🎽","🏋️","🤸","🏊","🎾","🏸","🏐","🏀","🎱","🥊","⛳","🎳","🏓","📍"].map((emoji) => (
+                                        <button
+                                            key={emoji}
+                                            type="button"
+                                            onClick={() => { setVenueIcon(venueIcon === emoji ? "" : emoji); markDirty(); }}
+                                            className={`w-10 h-10 text-xl flex items-center justify-center rounded-xl border-2 transition-colors ${
+                                                venueIcon === emoji
+                                                    ? "border-[#1f7a4f] bg-[#1f7a4f]/10"
+                                                    : "border-slate-200 bg-white hover:border-slate-300"
+                                            }`}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                                {venueIcon && (
+                                    <p className="text-[11px] text-slate-400 mt-1.5">
+                                        Seleccionado: {venueIcon} · Toca de nuevo para quitar
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Sede activa toggle */}
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-700">Sede activa</p>
+                                    <p className="text-xs text-slate-400">Los jugadores pueden ver y reservar esta sede</p>
+                                </div>
+                                <button
+                                    onClick={() => { setVenueActive(!venueActive); markDirty(); }}
+                                    className={`w-12 h-7 rounded-full transition-colors relative ${venueActive ? "bg-[#1f7a4f]" : "bg-slate-300"}`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${venueActive ? "left-[22px]" : "left-0.5"}`}
+                                    />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Courts tab */}
                     {activeTab === "courts" && (
                         <CourtConfigEditor

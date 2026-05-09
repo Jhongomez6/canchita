@@ -206,6 +206,7 @@ export async function createVenue(input: CreateVenueInput): Promise<string> {
         phone: input.phone || undefined,
         description: input.description || undefined,
         imageURL: input.imageURL || undefined,
+        icon: input.icon || undefined,
         createdAt: now,
         updatedAt: now,
     };
@@ -219,7 +220,7 @@ export async function createVenue(input: CreateVenueInput): Promise<string> {
 
 export async function updateVenueSettings(
     venueId: string,
-    data: Partial<Pick<Venue, "depositRequired" | "depositPercent" | "name" | "address" | "phone" | "description" | "active">>,
+    data: Partial<Pick<Venue, "depositRequired" | "depositPercent" | "name" | "address" | "phone" | "description" | "active" | "imageURL" | "icon">>,
 ): Promise<void> {
     await updateDoc(doc(db, "venues", venueId), {
         ...data,

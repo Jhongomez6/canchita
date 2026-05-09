@@ -47,6 +47,7 @@ function NewVenueContent() {
     const [phone, setPhone] = useState("");
     const [description, setDescription] = useState("");
     const [imageURL, setImageURL] = useState("");
+    const [icon, setIcon] = useState("");
     const [depositRequired, setDepositRequired] = useState(true);
     const [depositPercent, setDepositPercent] = useState(30);
     const [saving, setSaving] = useState(false);
@@ -109,6 +110,7 @@ function NewVenueContent() {
                 phone: phone.trim() || undefined,
                 description: description.trim() || undefined,
                 imageURL: imageURL.trim() || undefined,
+                icon: icon || undefined,
             });
 
             toast.success("Sede creada correctamente");
@@ -207,6 +209,34 @@ function NewVenueContent() {
                             placeholder="https://..."
                             className="w-full px-4 py-3 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30"
                         />
+                    </div>
+
+                    {/* Emoji icono */}
+                    <div>
+                        <label className="text-sm font-semibold text-slate-600 mb-2 block">
+                            Ícono de sede (opcional)
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {["⚽","🏟️","🏃","🎯","🏆","🥅","🎽","🏋️","🤸","🏊","🎾","🏸","🏐","🏀","🎱","🥊","⛳","🎳","🏓","📍"].map((emoji) => (
+                                <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => setIcon(icon === emoji ? "" : emoji)}
+                                    className={`w-10 h-10 text-xl flex items-center justify-center rounded-xl border-2 transition-colors ${
+                                        icon === emoji
+                                            ? "border-[#1f7a4f] bg-[#1f7a4f]/10"
+                                            : "border-slate-200 bg-white hover:border-slate-300"
+                                    }`}
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
+                        {icon && (
+                            <p className="text-[11px] text-slate-400 mt-1.5">
+                                Seleccionado: {icon} · Toca de nuevo para quitar
+                            </p>
+                        )}
                     </div>
 
                     {/* Deposit config */}

@@ -38,3 +38,9 @@ export async function uploadAvatarBothSizes(
 
   return { largeURL, thumbURL };
 }
+
+export async function uploadVenueImage(venueId: string, dataUrl: string): Promise<string> {
+  const storageRef = ref(storage, `venues/${venueId}/cover.webp`);
+  await uploadString(storageRef, dataUrl, 'data_url', { contentType: 'image/webp' });
+  return await getDownloadURL(storageRef);
+}

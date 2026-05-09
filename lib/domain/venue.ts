@@ -64,6 +64,7 @@ export interface Venue {
     depositRequired: boolean;
     depositPercent: number;
     imageURL?: string;
+    icon?: string;
     phone?: string;
     description?: string;
     createdAt: string;
@@ -252,6 +253,7 @@ export interface CreateVenueInput {
     phone?: string;
     description?: string;
     imageURL?: string;
+    icon?: string;
 }
 
 // ========================
