@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, AlertCircle, Download, ChevronDown, Tag } from "lucide-react";
+import { Plus, Trash2, AlertCircle, Download, ChevronDown, Tag, Pencil, Check, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { SPORT_TYPES, SPORT_LABELS, validateVenueFormat } from "@/lib/domain/venue";
 import type { VenueFormat, VenueFormatDurationTier, SportType, Court, CourtCombo, DaySchedule } from "@/lib/domain/venue";
@@ -45,6 +45,8 @@ export default function VenueFormatEditor({
     onFormatsChange,
 }: VenueFormatEditorProps) {
     const [expandedTiers, setExpandedTiers] = useState<Set<string>>(new Set());
+    const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+    const [editingLabelValue, setEditingLabelValue] = useState("");
 
     const toggleTiers = (formatId: string) => {
         setExpandedTiers((prev) => {
@@ -76,6 +78,22 @@ export default function VenueFormatEditor({
             formats.map((f) => (f.id === formatId ? { ...f, durationTiers: tiers.length > 0 ? tiers : undefined } : f)),
         );
     };
+
+    const startEditLabel = (f: VenueFormat) => {
+        setEditingLabelId(f.id);
+        setEditingLabelValue(f.label);
+    };
+
+    const commitEditLabel = () => {
+        if (!editingLabelId) return;
+        const trimmed = editingLabelValue.trim();
+        if (trimmed) {
+            onFormatsChange(formats.map((f) => (f.id === editingLabelId ? { ...f, label: trimmed } : f)));
+        }
+        setEditingLabelId(null);
+    };
+
+    const cancelEditLabel = () => setEditingLabelId(null);
 
     // Formatos legacy en uso (canchas/combos/schedule) que no existen en el catálogo actual.
     // El id se preserva tal cual (ej. "5v5") para que las referencias existentes no se rompan.
@@ -233,14 +251,54 @@ export default function VenueFormatEditor({
                                     <div className="flex items-center gap-3 px-3 py-2.5">
                                         <SportBadge sport={f.sport} iconOnly />
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-semibold text-slate-800 truncate">
-                                                    {f.label}
-                                                </span>
-                                                <span className="text-[11px] text-slate-400 font-mono">
-                                                    {f.id}
-                                                </span>
-                                            </div>
+                                            {editingLabelId === f.id ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <input
+                                                        autoFocus
+                                                        type="text"
+                                                        value={editingLabelValue}
+                                                        onChange={(e) => setEditingLabelValue(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") commitEditLabel();
+                                                            if (e.key === "Escape") cancelEditLabel();
+                                                        }}
+                                                        className="flex-1 min-w-0 text-sm font-semibold text-slate-800 border border-[#1f7a4f]/50 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 bg-white"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={commitEditLabel}
+                                                        className="p-1 text-[#1f7a4f] hover:bg-emerald-50 rounded-md transition-colors"
+                                                        aria-label="Guardar"
+                                                    >
+                                                        <Check className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={cancelEditLabel}
+                                                        className="p-1 text-slate-400 hover:bg-slate-100 rounded-md transition-colors"
+                                                        aria-label="Cancelar"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-semibold text-slate-800 truncate">
+                                                        {f.label}
+                                                    </span>
+                                                    <span className="text-[11px] text-slate-400 font-mono">
+                                                        {f.id}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => startEditLabel(f)}
+                                                        className="p-0.5 text-slate-300 hover:text-slate-600 transition-colors"
+                                                        aria-label="Editar label"
+                                                    >
+                                                        <Pencil className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            )}
                                             <div className="text-[11px] text-slate-400 mt-0.5">
                                                 {f.playersPerTeam}v{f.playersPerTeam}
                                                 {refs > 0 && (
@@ -250,13 +308,15 @@ export default function VenueFormatEditor({
                                                 )}
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => removeFormat(f.id)}
-                                            className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
-                                            aria-label="Eliminar formato"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        {editingLabelId !== f.id && (
+                                            <button
+                                                onClick={() => removeFormat(f.id)}
+                                                className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                                                aria-label="Eliminar formato"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
                                     </div>
                                     <button
                                         type="button"

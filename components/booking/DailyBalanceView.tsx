@@ -109,12 +109,14 @@ export default function DailyBalanceView({ venueId }: DailyBalanceViewProps) {
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
                     Fecha
                 </label>
-                <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => handleDateChange(e.target.value)}
-                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50"
-                />
+                <div className="overflow-hidden rounded-xl">
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => handleDateChange(e.target.value)}
+                        className="w-full min-w-0 px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50"
+                    />
+                </div>
             </div>
 
             {/* Cards de totales */}
