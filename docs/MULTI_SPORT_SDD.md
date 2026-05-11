@@ -24,6 +24,11 @@ Actualmente `CourtFormat` es un enum de fútbol: `"5v5" | "6v6" | "7v7" | "8v8" 
 | 7 | Los formatos de fútbol legacy (`"5v5"` … `"11v11"`) se siguen mostrando con sus labels actuales en bookings históricos | `formatLabel()` mantiene su lógica actual como fallback |
 | 8 | El jugador ve el label `VenueFormat.label` (ej. "Fútbol 5", "Volley 6v6") en lugar de "Cancha sencilla/doble/triple" cuando la sede tiene formatos multi-deporte | Actualizar `FormatSelector` y `BookingDetailCard` |
 | 9 | Sedes con un solo deporte (fútbol) siguen funcionando igual; el admin no necesita configurar `VenueFormat` si no quiere | Migración transparente |
+| 10 | En la vista por hora del admin, al seleccionar un formato (ej. Volley), los labels de "Reservado por…" muestran solo reservas online de ese mismo formato | `AdminSlotPicker.timeSlots()` filtra `overlappingBookings` por `b.format === selectedFormat` antes de armar `occupantLabels` |
+| 11 | Las reservas manuales (blocks) aparecen en la vista del formato F solo si tocan al menos una cancha que pueda usarse para F (base o combo) | `AdminSlotPicker.blockTouchesFormat(b)` con `relevantCourtIds = courts.baseFormat==F ∪ combos.resultingFormat==F` |
+| 12 | El botón "Crear reserva manual" del `HourDetailDrawer` se deshabilita cuando todas las canchas relevantes al formato están ocupadas, o cuando no hay canchas configuradas para ese deporte. Las canchas de otros deportes **no** cuentan | Mensajes diferenciados: "Sin canchas para este deporte" vs "Sin canchas disponibles" |
+| 13 | En `BlockedSlotForm`, los chips de canchas incompatibles con el `defaultFormat` se muestran tachados y deshabilitados (junto con las ya ocupadas). "Seleccionar todas" solo aplica a canchas compatibles y libres | Tooltip diferenciado por motivo (ocupada vs. otro deporte) |
+| 14 | El cálculo de disponibilidad (`isAvailable`) sigue usando **todas** las reservas/blocks cross-formato porque una cancha combo ocupada por fútbol tampoco puede usarse para volley | `allocateCourts()` sin cambio |
 
 ---
 
@@ -413,6 +418,58 @@ Durante el período de coexistencia, algunos campos de la sede pueden tener valo
 
 ---
 
+## 10.bis. FILTRADO POR FORMATO EN LA VISTA POR HORA DEL ADMIN
+
+Cuando una sede opera con múltiples deportes, la vista por hora (`AdminSlotPicker` + `HourDetailDrawer`) muestra solo lo relevante al formato seleccionado, evitando ruido cross-deporte.
+
+### Conjunto de canchas relevantes al formato
+
+Dado un `selectedFormat: string`, el conjunto de canchas "relevantes" se compone de:
+
+```typescript
+relevantCourtIds = {
+    ...courts.filter(c => c.baseFormat === selectedFormat).map(c => c.id),
+    ...combos
+        .filter(combo => combo.resultingFormat === selectedFormat)
+        .flatMap(combo => combo.courtIds),
+}
+```
+
+### Política de visibilidad
+
+| Elemento UI | Política |
+|-------------|----------|
+| `occupantLabels` de bookings online | Solo bookings con `b.format === selectedFormat` |
+| `occupantLabels` de reservas manuales (blocks) | Solo blocks cuyo `courtIds ∩ relevantCourtIds ≠ ∅` (el bloque toca al menos una cancha del deporte) |
+| `cancelledLabels` | Mismo filtro que blocks activos |
+| Slot `isAvailable` | **NO se filtra**: se considera toda ocupación (cross-formato incluido), porque una cancha combo ocupada por fútbol bloquea volley físicamente |
+| Drawer "Reservas online" | Solo bookings del mismo formato (recibe lista ya filtrada) |
+| Drawer "Reservas manuales" | Solo blocks que tocan canchas relevantes (recibe lista ya filtrada) |
+| Botón "Crear reserva manual" | Deshabilitado si `relevantCourtIds = ∅` ("Sin canchas para este deporte") o si todas las relevantes están ocupadas por cualquier reserva/block ("Sin canchas disponibles") |
+
+### `BlockedSlotForm` (creación de reserva manual)
+
+Cuando el form recibe `defaultFormat`, computa `compatibleCourtIds` con la misma fórmula que `relevantCourtIds`. Los chips de canchas se renderizan así:
+
+| Estado | Visual | Habilitado |
+|--------|--------|-----------|
+| Compatible y libre | Chip blanco/verde | Sí |
+| Compatible y ocupada | Tachado, gris | No |
+| Incompatible (otro deporte) | Tachado, gris | No |
+| Compatible, seleccionada | Verde sólido | Sí (toggle off) |
+
+Tooltips:
+- Ocupada: "Cancha ocupada en este horario"
+- Incompatible: "Esta cancha no aplica al deporte seleccionado"
+
+### Justificación
+
+- **Reducir ruido cognitivo**: el admin de volley no necesita ver reservas de fútbol que no afectan sus canchas
+- **Preservar precisión técnica**: la disponibilidad sigue siendo correcta porque considera toda ocupación física (combos compartidos)
+- **Comunicar capacidad real**: el botón "Crear reserva manual" refleja si hay canchas del deporte actual disponibles, no si la sede tiene alguna cancha libre
+
+---
+
 ## 11. CRITERIOS DE ACEPTACIÓN
 
 - [ ] Una sede nueva puede configurar `VenueFormat[]` con deportes distintos (volley, basket, etc.) desde el tab "Canchas"
@@ -425,6 +482,10 @@ Durante el período de coexistencia, algunos campos de la sede pueden tener valo
 - [ ] No se puede guardar un `ScheduleSlot` con `FormatPricing.format` que no exista en `venue.formats` (si la sede tiene formats configurados)
 - [ ] `court-allocation.ts` `allocateCourts()` sigue funcionando correctamente con `VenueFormat.id`s en lugar de `CourtFormat` strings
 - [ ] `validateScheduleSlot()` en `lib/domain/venue.ts` acepta `VenueFormat.id`s cuando se le pasa el catálogo de la sede
+- [ ] En la vista por hora con volley seleccionado, las reservas de fútbol no aparecen como occupant labels ni en las cards del drawer
+- [ ] El botón "Crear reserva manual" del drawer está deshabilitado si no hay canchas de volley libres, sin importar el estado de las canchas de fútbol
+- [ ] En `BlockedSlotForm` con `defaultFormat="volleyball_6v6"`, las canchas que son `football_5v5` puras aparecen tachadas y no se seleccionan
+- [ ] El `isAvailable` de un slot considera bookings cross-formato sobre canchas combo (no se rompe la integridad física)
 
 ---
 
@@ -442,8 +503,10 @@ Durante el período de coexistencia, algunos campos de la sede pueden tener valo
 | `components/booking/CourtConfigEditor.tsx` | Prop `venueFormats: VenueFormat[]`. Select de formato usa `venueFormats`. |
 | `components/booking/ScheduleEditor.tsx` | Prop `venueFormats: VenueFormat[]`. Selector de formatos usa `venueFormats`. |
 | `components/booking/FormatSelector.tsx` | `FormatOption.format: string`, `onSelect: (format: string) => void`. |
-| `components/booking/AdminSlotPicker.tsx` | `selectedFormat: string | null`. Construye `FormatOption[]` desde `venueFormats`. |
-| `components/booking/VenueFormatEditor.tsx` | **Nuevo**. Gestiona `VenueFormat[]` de la sede. |
+| `components/booking/AdminSlotPicker.tsx` | `selectedFormat: string | null`. Construye `FormatOption[]` desde `venueFormats`. Computa `relevantCourtIds` y `blockTouchesFormat()` para filtrar labels y blocks; calcula `unavailableRelevantCourtIds` y lo pasa al drawer vía `onHourTapped`. |
+| `components/booking/HourDetailDrawer.tsx` | Recibe `relevantCourtIds` y `unavailableRelevantCourtIds`. El botón "Crear reserva manual" se deshabilita con mensajes diferenciados ("Sin canchas para este deporte" vs "Sin canchas disponibles"). |
+| `components/booking/BlockedSlotForm.tsx` | Computa `compatibleCourtIds` desde `defaultFormat` + combos. Tachado y disabled de canchas incompatibles. "Seleccionar todas" excluye ocupadas e incompatibles. |
+| `components/booking/VenueFormatEditor.tsx` | **Nuevo**. Gestiona `VenueFormat[]` de la sede. Edición inline del label vía icono lápiz. |
 | `components/booking/SportBadge.tsx` | **Nuevo**. Chip visual por deporte. |
 | `components/booking/BookingDetailCard.tsx` | `formatLabel(format, venueFormats)` con catálogo. |
 | `components/booking/AdminBookingCard.tsx` | Idem. |

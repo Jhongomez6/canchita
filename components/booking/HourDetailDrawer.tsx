@@ -32,6 +32,10 @@ interface HourDetailDrawerProps {
     blocks: BlockedSlot[];
     courts: Court[];
     venueFormats?: VenueFormat[];
+    /** Canchas que pueden usarse para el formato seleccionado. Habilitan el botón "Crear reserva manual". */
+    relevantCourtIds?: string[];
+    /** Subconjunto de relevantCourtIds que ya está ocupado por bookings o blocks. */
+    unavailableRelevantCourtIds?: string[];
     onBookingClick: (booking: Booking) => void;
     onBlockClick: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus: (block: BlockedSlot) => void;
@@ -67,6 +71,8 @@ export default function HourDetailDrawer({
     onCreateManual,
     payments,
     onRegisterPayment,
+    relevantCourtIds,
+    unavailableRelevantCourtIds,
 }: HourDetailDrawerProps) {
     // Map<reservationId, payment> para el `date` actual del drawer.
     // Lookup O(1) cuando renderizamos cada card.
@@ -82,12 +88,21 @@ export default function HourDetailDrawer({
         return aCancelled - bCancelled;
     });
 
-    const occupiedCourtIds = new Set([
-        ...bookings.flatMap((b) => b.courtIds),
-        ...blocks.filter((b) => b.status !== "cancelled").flatMap((b) => b.courtIds),
-    ]);
-    const activeCourts = courts.filter((c) => c.active);
-    const allCourtsOccupied = activeCourts.length > 0 && activeCourts.every((c) => occupiedCourtIds.has(c.id));
+    // Si recibimos relevantCourtIds, usamos esa lista (canchas del deporte actual).
+    // Si no, fallback al cálculo legacy sobre todas las canchas activas.
+    const noRelevantCourts = relevantCourtIds !== undefined && relevantCourtIds.length === 0;
+    const allRelevantOccupied =
+        relevantCourtIds !== undefined && unavailableRelevantCourtIds !== undefined
+            ? relevantCourtIds.length > 0 && unavailableRelevantCourtIds.length >= relevantCourtIds.length
+            : (() => {
+                const occupiedCourtIds = new Set([
+                    ...bookings.flatMap((b) => b.courtIds),
+                    ...blocks.filter((b) => b.status !== "cancelled").flatMap((b) => b.courtIds),
+                ]);
+                const activeCourts = courts.filter((c) => c.active);
+                return activeCourts.length > 0 && activeCourts.every((c) => occupiedCourtIds.has(c.id));
+            })();
+    const allCourtsOccupied = noRelevantCourts || allRelevantOccupied;
 
     return (
         <AnimatePresence>
@@ -190,11 +205,21 @@ export default function HourDetailDrawer({
                             <button
                                 onClick={onCreateManual}
                                 disabled={allCourtsOccupied}
-                                title={allCourtsOccupied ? "Todas las canchas están ocupadas en este horario" : undefined}
+                                title={
+                                    noRelevantCourts
+                                        ? "No hay canchas configuradas para este deporte"
+                                        : allCourtsOccupied
+                                            ? "Todas las canchas de este deporte están ocupadas en este horario"
+                                            : undefined
+                                }
                                 className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm transition-all disabled:cursor-not-allowed bg-[#1f7a4f] hover:bg-[#16603c] shadow-lg shadow-emerald-900/20 active:scale-[0.99] disabled:bg-slate-300 disabled:shadow-none disabled:active:scale-100"
                             >
                                 <CalendarPlus className="w-4 h-4" />
-                                {allCourtsOccupied ? "Sin canchas disponibles" : "Crear reserva manual"}
+                                {noRelevantCourts
+                                    ? "Sin canchas para este deporte"
+                                    : allCourtsOccupied
+                                        ? "Sin canchas disponibles"
+                                        : "Crear reserva manual"}
                             </button>
                         </div>
                     </motion.div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { getAvailableFormats, getDayOfWeek, generateTimeSlots, formatLabel, tierLabelFromCount, formatCourtList } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot, allocateCourts } from "@/lib/domain/court-allocation";
 import { getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
@@ -26,6 +26,10 @@ interface AdminSlotPickerProps {
         format: string;
         bookings: Booking[];
         blocks: BlockedSlot[];
+        /** Ids de canchas que pueden usarse para este formato (base + combos). */
+        relevantCourtIds: string[];
+        /** Ids de canchas relevantes que están ocupadas en este horario (por cualquier reserva/block). */
+        unavailableRelevantCourtIds: string[];
     }) => void;
 }
 
@@ -94,6 +98,29 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
         }
     }, [formatOptions, selectedFormat]);
 
+    // Conjunto de courtIds que pueden usarse para el formato seleccionado
+    // (canchas con baseFormat coincidente + canchas que participan en combos que producen el formato).
+    // Sirve para filtrar reservas manuales — un block que no toca ninguna de estas canchas
+    // es irrelevante para la vista de este formato.
+    const relevantCourtIds = useMemo(() => {
+        if (!selectedFormat) return new Set<string>();
+        const ids = new Set<string>();
+        for (const c of courts) {
+            if (c.baseFormat === selectedFormat) ids.add(c.id);
+        }
+        for (const combo of combos) {
+            if (combo.resultingFormat === selectedFormat) {
+                for (const id of combo.courtIds) ids.add(id);
+            }
+        }
+        return ids;
+    }, [courts, combos, selectedFormat]);
+
+    const blockTouchesFormat = useCallback(
+        (b: BlockedSlot) => b.courtIds.some((id) => relevantCourtIds.has(id)),
+        [relevantCourtIds],
+    );
+
     const timeSlots = useCallback((): SlotItem[] => {
         if (!schedule || !selectedFormat) return [];
         // Admin ve todos los slots (incluso los que ya pasaron) para gestionar reservas
@@ -139,17 +166,16 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                 };
 
                 const activeEntries: OccupantLabel[] = [];
-                for (const b of overlappingBookings) {
+                for (const b of overlappingBookings.filter((b) => b.format === selectedFormat)) {
                     const who = b.bookedByName || "Reservado";
-                    const tier = formatLabel(b.format, venueFormats);
                     const where = courtListFor(b.courtIds);
-                    activeEntries.push({ who, detail: where ? `${tier} · ${where}` : tier });
+                    activeEntries.push({ who, detail: where || undefined });
                 }
-                for (const b of activeBlocks) {
+                for (const b of activeBlocks.filter(blockTouchesFormat)) {
                     activeEntries.push(blockLabel(b));
                 }
 
-                const cancelledEntries = cancelledBlocks.map(blockLabel);
+                const cancelledEntries = cancelledBlocks.filter(blockTouchesFormat).map(blockLabel);
 
                 if (activeEntries.length > 0) occupantLabels = activeEntries;
                 if (cancelledEntries.length > 0) cancelledLabels = cancelledEntries;
@@ -164,7 +190,7 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                 cancelledLabels,
             }];
         });
-    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, venueFormats]);
+    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, venueFormats, blockTouchesFormat]);
 
     const handleSlotTap = (slot: SlotItem) => {
         if (!selectedFormat) return;
@@ -186,14 +212,22 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
             blockedCourtIds,
         });
 
+        // Canchas relevantes ocupadas considerando TODAS las reservas (cross-formato cuenta:
+        // una cancha de combo ocupada por fútbol no puede usarse para volley).
+        const occupiedSet = new Set<string>([...occupiedCourtIds, ...blockedCourtIds]);
+        const relevantIds = [...relevantCourtIds];
+        const unavailableRelevantCourtIds = relevantIds.filter((id) => occupiedSet.has(id));
+
         onHourTapped({
             date: selectedDate,
             startTime: slot.startTime,
             endTime: slot.endTime,
             courtIds: allocation?.courtIds ?? [],
             format: selectedFormat,
-            bookings: overlappingBookings,
-            blocks: overlappingBlocks,
+            bookings: overlappingBookings.filter((b) => b.format === selectedFormat),
+            blocks: overlappingBlocks.filter(blockTouchesFormat),
+            relevantCourtIds: relevantIds,
+            unavailableRelevantCourtIds,
         });
     };
 

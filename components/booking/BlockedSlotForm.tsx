@@ -116,6 +116,23 @@ export default function BlockedSlotForm({
 
     const effectiveFormat = inferFormatFromCourts(selectedCourtIds, courts, combos) ?? defaultFormat ?? null;
 
+    // Canchas compatibles con el formato por defecto (canchas con baseFormat coincidente +
+    // canchas que participan en combos que producen el formato). Las canchas fuera de este
+    // set se muestran tachadas — pertenecen a otro deporte.
+    const compatibleCourtIds = (() => {
+        if (!defaultFormat) return null;
+        const ids = new Set<string>();
+        for (const c of courts) {
+            if (c.baseFormat === defaultFormat) ids.add(c.id);
+        }
+        for (const combo of combos) {
+            if (combo.resultingFormat === defaultFormat) {
+                for (const id of combo.courtIds) ids.add(id);
+            }
+        }
+        return ids;
+    })();
+
     // Desglose con tier aplicado si corresponde. Si no hay combo exacto y hay múltiples canchas,
     // sumar precio sencilla de cada una (sin tier en ese fallback — caso poco común).
     const priceBreakdown = effectiveFormat
@@ -239,7 +256,9 @@ export default function BlockedSlotForm({
     };
 
     const selectAllCourts = () => {
-        const availableCourts = courts.filter((c) => c.active && !occupiedSet.has(c.id));
+        const availableCourts = courts.filter(
+            (c) => c.active && !occupiedSet.has(c.id) && (compatibleCourtIds === null || compatibleCourtIds.has(c.id)),
+        );
         if (selectedCourtIds.length === availableCourts.length) {
             setSelectedCourtIds([]);
         } else {
@@ -361,7 +380,7 @@ export default function BlockedSlotForm({
                         onClick={selectAllCourts}
                         className="text-xs text-[#1f7a4f] font-medium hover:underline"
                     >
-                        {selectedCourtIds.length === courts.filter((c) => c.active && !occupiedSet.has(c.id)).length
+                        {selectedCourtIds.length === courts.filter((c) => c.active && !occupiedSet.has(c.id) && (compatibleCourtIds === null || compatibleCourtIds.has(c.id))).length
                             ? "Deseleccionar todas"
                             : "Seleccionar todas"}
                     </button>
@@ -369,15 +388,22 @@ export default function BlockedSlotForm({
                 <div className="flex flex-wrap gap-2">
                     {courts.filter((c) => c.active).map((court) => {
                         const isOccupied = occupiedSet.has(court.id);
+                        const isIncompatible = compatibleCourtIds !== null && !compatibleCourtIds.has(court.id);
                         const isSelected = selectedCourtIds.includes(court.id);
+                        const disabled = isOccupied || isIncompatible;
+                        const title = isOccupied
+                            ? "Cancha ocupada en este horario"
+                            : isIncompatible
+                                ? "Esta cancha no aplica al deporte seleccionado"
+                                : undefined;
                         return (
                             <button
                                 key={court.id}
                                 onClick={() => toggleCourtId(court.id)}
-                                disabled={isOccupied}
-                                title={isOccupied ? "Cancha ocupada en este horario" : undefined}
+                                disabled={disabled}
+                                title={title}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                                    isOccupied
+                                    disabled
                                         ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through"
                                         : isSelected
                                             ? "bg-[#1f7a4f] text-white border-[#1f7a4f]"
@@ -389,8 +415,8 @@ export default function BlockedSlotForm({
                         );
                     })}
                 </div>
-                {occupiedSet.size > 0 && (
-                    <p className="text-[10px] text-slate-400 mt-1.5">Las canchas tachadas ya están ocupadas en este horario.</p>
+                {(occupiedSet.size > 0 || (compatibleCourtIds && courts.some((c) => c.active && !compatibleCourtIds.has(c.id)))) && (
+                    <p className="text-[10px] text-slate-400 mt-1.5">Las canchas tachadas no están disponibles para este horario o deporte.</p>
                 )}
             </div>
 

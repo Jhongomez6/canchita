@@ -134,6 +134,8 @@ function VenueAdminContent() {
         courtIds: string[];
         bookings: Booking[];
         blocks: BlockedSlot[];
+        relevantCourtIds: string[];
+        unavailableRelevantCourtIds: string[];
     } | null>(null);
 
     // Bookings sub-view: monthly calendar vs hourly slot picker
@@ -848,8 +850,8 @@ function VenueAdminContent() {
                                     venueId={venueId}
                                     courts={courts}
                                     venueFormats={venueFormats}
-                                    onHourTapped={({ date, startTime, endTime, courtIds, format, bookings, blocks }) => {
-                                        setHourDetail({ date, startTime, endTime, courtIds, format, bookings, blocks });
+                                    onHourTapped={({ date, startTime, endTime, courtIds, format, bookings, blocks, relevantCourtIds, unavailableRelevantCourtIds }) => {
+                                        setHourDetail({ date, startTime, endTime, courtIds, format, bookings, blocks, relevantCourtIds, unavailableRelevantCourtIds });
                                         logAdminHourDetailOpened({
                                             venueId,
                                             date,
@@ -942,6 +944,8 @@ function VenueAdminContent() {
                     blocks={hourDetail?.blocks ?? []}
                     courts={courts}
                     venueFormats={venueFormats}
+                    relevantCourtIds={hourDetail?.relevantCourtIds ?? []}
+                    unavailableRelevantCourtIds={hourDetail?.unavailableRelevantCourtIds ?? []}
                     onBookingClick={(booking) => {
                         logBookingCancellationStarted({
                             venueId,
