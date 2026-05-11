@@ -27,6 +27,7 @@ import { logVenueAdminCourtConfigured, logVenueAdminScheduleUpdated } from "@/li
 import AuthGuard from "@/components/AuthGuard";
 import CourtConfigEditor from "@/components/booking/CourtConfigEditor";
 import ScheduleEditor from "@/components/booking/ScheduleEditor";
+import VenueFormatEditor from "@/components/booking/VenueFormatEditor";
 import AdminBookingCalendar from "@/components/booking/AdminBookingCalendar";
 import AdminSlotPicker from "@/components/booking/AdminSlotPicker";
 import BlockedSlotsEditor from "@/components/booking/BlockedSlotsEditor";
@@ -48,7 +49,7 @@ import {
     logAdminHourDetailCreateClicked,
     logManualReservationStatusChanged,
 } from "@/lib/analytics";
-import type { Venue, Court, CourtCombo, CourtFormat, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus, ManualReservationPayment } from "@/lib/domain/venue";
+import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
 
 type AdminTab = "info" | "courts" | "schedule" | "payments" | "blocked" | "bookings" | "balance";
@@ -84,6 +85,7 @@ function VenueAdminContent() {
     const [courts, setCourts] = useState<Court[]>([]);
     const [combos, setCombos] = useState<CourtCombo[]>([]);
     const [schedules, setSchedules] = useState<DaySchedule[]>([]);
+    const [venueFormats, setVenueFormats] = useState<VenueFormat[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -119,7 +121,7 @@ function VenueAdminContent() {
         startTime?: string;
         endTime?: string;
         courtIds?: string[];
-        format?: CourtFormat;
+        format?: string;
         occupiedCourtIds?: string[];
     }>({});
 
@@ -128,7 +130,7 @@ function VenueAdminContent() {
         date: string;
         startTime: string;
         endTime: string;
-        format: CourtFormat;
+        format: string;
         courtIds: string[];
         bookings: Booking[];
         blocks: BlockedSlot[];
@@ -286,6 +288,7 @@ function VenueAdminContent() {
             setCourts(c);
             setCombos(co);
             setSchedules(sched);
+            setVenueFormats(v.formats ?? []);
             setDepositRequired(v.depositRequired);
             setDepositPercent(v.depositPercent);
             setVenueName(v.name ?? "");
@@ -364,6 +367,7 @@ function VenueAdminContent() {
                     imageURL: finalImageURL || undefined,
                     icon: venueIcon || undefined,
                     active: venueActive,
+                    formats: venueFormats.length > 0 ? venueFormats : undefined,
                 }),
                 saveVenueCourts(venueId, courts),
                 saveVenueCombos(venueId, combos),
@@ -651,12 +655,24 @@ function VenueAdminContent() {
 
                     {/* Courts tab */}
                     {activeTab === "courts" && (
-                        <CourtConfigEditor
-                            courts={courts}
-                            combos={combos}
-                            onCourtsChange={handleCourtsChange}
-                            onCombosChange={handleCombosChange}
-                        />
+                        <div className="space-y-6">
+                            <VenueFormatEditor
+                                formats={venueFormats}
+                                courts={courts}
+                                combos={combos}
+                                schedules={schedules}
+                                onFormatsChange={(f) => { setVenueFormats(f); markDirty(); }}
+                            />
+                            <div className="border-t border-slate-100 pt-6">
+                                <CourtConfigEditor
+                                    courts={courts}
+                                    combos={combos}
+                                    venueFormats={venueFormats}
+                                    onCourtsChange={handleCourtsChange}
+                                    onCombosChange={handleCombosChange}
+                                />
+                            </div>
+                        </div>
                     )}
 
                     {/* Schedule tab */}
@@ -667,6 +683,7 @@ function VenueAdminContent() {
                             </p>
                             <ScheduleEditor
                                 schedules={schedules}
+                                venueFormats={venueFormats}
                                 onScheduleChange={handleScheduleChange}
                             />
                         </div>
@@ -804,6 +821,7 @@ function VenueAdminContent() {
                             {bookingsView === "calendar" ? (
                                 <AdminBookingCalendar
                                     venueId={venueId}
+                                    venueFormats={venueFormats}
                                     onBookingClick={(booking) => {
                                         logBookingCancellationStarted({
                                             venueId: booking.venueId,
@@ -829,6 +847,7 @@ function VenueAdminContent() {
                                 <AdminSlotPicker
                                     venueId={venueId}
                                     courts={courts}
+                                    venueFormats={venueFormats}
                                     onHourTapped={({ date, startTime, endTime, courtIds, format, bookings, blocks }) => {
                                         setHourDetail({ date, startTime, endTime, courtIds, format, bookings, blocks });
                                         logAdminHourDetailOpened({
@@ -894,6 +913,7 @@ function VenueAdminContent() {
                                             venueId={venueId}
                                             courts={courts}
                                             combos={combos}
+                                            venueFormats={venueFormats}
                                             defaultDate={drawerDefaults.date}
                                             defaultStartTime={drawerDefaults.startTime}
                                             defaultEndTime={drawerDefaults.endTime}
@@ -921,6 +941,7 @@ function VenueAdminContent() {
                     bookings={hourDetail?.bookings ?? []}
                     blocks={hourDetail?.blocks ?? []}
                     courts={courts}
+                    venueFormats={venueFormats}
                     onBookingClick={(booking) => {
                         logBookingCancellationStarted({
                             venueId,

@@ -7,6 +7,8 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel } from "@/lib/domain/venue";
+import type { VenueFormat } from "@/lib/domain/venue";
+import { getVenue } from "@/lib/venues";
 import { isBookingRefundable, bookingStatusLabel, bookingStatusColor } from "@/lib/domain/booking";
 import { subscribeToBooking, cancelBooking } from "@/lib/bookings";
 import { handleError } from "@/lib/utils/error";
@@ -46,6 +48,7 @@ function BookingDetailContent() {
     const bookingId = params.id as string;
 
     const [booking, setBooking] = useState<Booking | null>(null);
+    const [venueFormats, setVenueFormats] = useState<VenueFormat[] | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
     const [cancelling, setCancelling] = useState(false);
@@ -58,6 +61,16 @@ function BookingDetailContent() {
         });
         return () => unsub();
     }, [bookingId]);
+
+    // Carga el catálogo multi-deporte de la sede para resolver el label del formato.
+    useEffect(() => {
+        if (!booking?.venueId) return;
+        let cancelled = false;
+        getVenue(booking.venueId)
+            .then((v) => { if (!cancelled) setVenueFormats(v?.formats); })
+            .catch(() => { if (!cancelled) setVenueFormats(undefined); });
+        return () => { cancelled = true; };
+    }, [booking?.venueId]);
 
     const refundable = booking
         ? isBookingRefundable(booking.date, booking.startTime)
@@ -165,7 +178,7 @@ function BookingDetailContent() {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
                         {/* Status + format */}
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-slate-800">{formatLabel(booking.format)}</h2>
+                            <h2 className="text-lg font-bold text-slate-800">{formatLabel(booking.format, venueFormats)}</h2>
                             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusStyle}`}>
                                 {bookingStatusLabel(booking.status)}
                             </span>
@@ -192,10 +205,27 @@ function BookingDetailContent() {
 
                         {/* Pricing breakdown */}
                         <div className="border-t border-slate-100 pt-4 space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">Precio cancha</span>
-                                <span className="font-semibold text-slate-700">{formatCOP(booking.totalPriceCOP)}</span>
-                            </div>
+                            {booking.tierApplied && booking.tierApplied.discountCOP > 0 ? (
+                                <>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Subtotal</span>
+                                        <span className="text-slate-600">{formatCOP(booking.totalPriceCOP + booking.tierApplied.discountCOP)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-emerald-600">Tarifa especial</span>
+                                        <span className="text-emerald-600 font-medium">−{formatCOP(booking.tierApplied.discountCOP)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Precio cancha</span>
+                                        <span className="font-semibold text-slate-700">{formatCOP(booking.totalPriceCOP)}</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-500">Precio cancha</span>
+                                    <span className="font-semibold text-slate-700">{formatCOP(booking.totalPriceCOP)}</span>
+                                </div>
+                            )}
                             {booking.depositCOP > 0 && (
                                 <>
                                     <div className="flex justify-between text-sm">

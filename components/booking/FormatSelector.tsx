@@ -2,26 +2,29 @@
 
 import { motion } from "framer-motion";
 import { formatCOP } from "@/lib/domain/wallet";
-import type { CourtFormat } from "@/lib/domain/venue";
 import { formatLabel } from "@/lib/domain/venue";
+import type { VenueFormat } from "@/lib/domain/venue";
 
 interface FormatOption {
-    format: CourtFormat;
+    /** VenueFormat.id o legacy CourtFormat string. */
+    format: string;
     priceCOP: number;
     available: boolean;
 }
 
 interface FormatSelectorProps {
     formats: FormatOption[];
-    selected: CourtFormat | null;
-    onSelect: (format: CourtFormat) => void;
+    selected: string | null;
+    onSelect: (format: string) => void;
     /** Si true, oculta el precio bajo cada formato. */
     hidePrice?: boolean;
     /** Si true, renderiza como segmented control compacto en lugar de cards grandes. */
     compact?: boolean;
+    /** Catálogo multi-deporte de la sede (para resolver labels). */
+    venueFormats?: VenueFormat[];
 }
 
-export default function FormatSelector({ formats, selected, onSelect, hidePrice = false, compact = false }: FormatSelectorProps) {
+export default function FormatSelector({ formats, selected, onSelect, hidePrice = false, compact = false, venueFormats }: FormatSelectorProps) {
     if (compact) {
         return (
             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
@@ -41,7 +44,7 @@ export default function FormatSelector({ formats, selected, onSelect, hidePrice 
                                         : "text-slate-300 cursor-not-allowed"
                             }`}
                         >
-                            {formatLabel(format)}
+                            {formatLabel(format, venueFormats)}
                         </motion.button>
                     );
                 })}
@@ -53,7 +56,7 @@ export default function FormatSelector({ formats, selected, onSelect, hidePrice 
         <div className="grid grid-cols-3 gap-2">
             {formats.map(({ format, priceCOP, available }) => {
                 const isSelected = selected === format;
-                const label = formatLabel(format);
+                const label = formatLabel(format, venueFormats);
                 const [firstWord, ...rest] = label.split(" ");
                 return (
                     <motion.button

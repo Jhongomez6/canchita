@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Trash2, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { COURT_FORMATS, DAY_OF_WEEK_ORDER, DAY_OF_WEEK_LABELS } from "@/lib/domain/venue";
-import type { DaySchedule, ScheduleSlot, FormatPricing, CourtFormat, DayOfWeek } from "@/lib/domain/venue";
+import type { DaySchedule, ScheduleSlot, FormatPricing, DayOfWeek, VenueFormat } from "@/lib/domain/venue";
 
 interface ScheduleEditorProps {
     schedules: DaySchedule[];
+    /** Catálogo multi-deporte de la sede. Si vacío/undefined, usa COURT_FORMATS legacy. */
+    venueFormats?: VenueFormat[];
     onScheduleChange: (day: DayOfWeek, schedule: DaySchedule) => void;
+}
+
+interface FormatOption {
+    value: string;
+    label: string;
 }
 
 const EMPTY_DAY = (day: DayOfWeek): DaySchedule => ({
@@ -69,8 +76,22 @@ function generateSlots(
 
 export default function ScheduleEditor({
     schedules,
+    venueFormats,
     onScheduleChange,
 }: ScheduleEditorProps) {
+    const hasVenueFormats = !!venueFormats && venueFormats.length > 0;
+
+    const formatOptions: FormatOption[] = useMemo(() => {
+        if (hasVenueFormats) {
+            return venueFormats!.map((f) => ({ value: f.id, label: f.label }));
+        }
+        return (COURT_FORMATS as readonly string[]).map((f) => ({ value: f, label: f }));
+    }, [hasVenueFormats, venueFormats]);
+
+    const knownFormatIds = useMemo(() => new Set(formatOptions.map((o) => o.value)), [formatOptions]);
+
+    const defaultFormat: string = formatOptions[0]?.value ?? "6v6";
+
     const [expandedDay, setExpandedDay] = useState<DayOfWeek | null>(null);
     const [showQuickSetup, setShowQuickSetup] = useState(
         () => schedules.every((s) => !s.enabled || s.slots.length === 0),
@@ -84,7 +105,7 @@ export default function ScheduleEditor({
     const [qsEndTime, setQsEndTime] = useState("22:00");
     const [qsDuration, setQsDuration] = useState(60);
     const [qsFormats, setQsFormats] = useState<FormatPricing[]>([
-        { format: "6v6", priceCOP: 15000000 },
+        { format: defaultFormat, priceCOP: 15000000 },
     ]);
 
     const getSchedule = (day: DayOfWeek): DaySchedule => {
@@ -103,10 +124,10 @@ export default function ScheduleEditor({
     };
 
     const addQsFormat = () => {
-        const used = qsFormats.map((f) => f.format);
-        const next = COURT_FORMATS.find((f) => !used.includes(f));
+        const used = new Set(qsFormats.map((f) => f.format));
+        const next = formatOptions.find((o) => !used.has(o.value));
         if (!next) return;
-        setQsFormats([...qsFormats, { format: next, priceCOP: 15000000 }]);
+        setQsFormats([...qsFormats, { format: next.value, priceCOP: 15000000 }]);
     };
 
     const removeQsFormat = (index: number) => {
@@ -158,7 +179,7 @@ export default function ScheduleEditor({
 
         const lastFormats = lastSlot
             ? lastSlot.formats.map((f) => ({ ...f }))
-            : [{ format: "6v6" as CourtFormat, priceCOP: 15000000 }];
+            : [{ format: defaultFormat, priceCOP: 15000000 }];
 
         const newSlot: ScheduleSlot = {
             startTime,
@@ -197,13 +218,13 @@ export default function ScheduleEditor({
     const addFormatToSlot = (day: DayOfWeek, slotIndex: number) => {
         const current = getSchedule(day);
         const slot = current.slots[slotIndex];
-        const usedFormats = slot.formats.map((f) => f.format);
-        const nextFormat = COURT_FORMATS.find((f) => !usedFormats.includes(f));
+        const usedFormats = new Set(slot.formats.map((f) => f.format));
+        const nextFormat = formatOptions.find((o) => !usedFormats.has(o.value));
         if (!nextFormat) return;
 
         const updated = current.slots.map((s, i) =>
             i === slotIndex
-                ? { ...s, formats: [...s.formats, { format: nextFormat, priceCOP: 15000000 }] }
+                ? { ...s, formats: [...s.formats, { format: nextFormat.value, priceCOP: 15000000 }] }
                 : s,
         );
         onScheduleChange(day, { ...current, slots: updated });
@@ -332,15 +353,20 @@ export default function ScheduleEditor({
                     <div className="mb-5">
                         <label className="text-xs font-semibold text-slate-500 mb-2 block">Formatos y precios</label>
                         <div className="space-y-2">
-                            {qsFormats.map((fp, fi) => (
+                            {qsFormats.map((fp, fi) => {
+                                const isUnknown = hasVenueFormats && !knownFormatIds.has(fp.format);
+                                return (
                                 <div key={fi} className="flex items-center gap-2">
                                     <select
                                         value={fp.format}
-                                        onChange={(e) => updateQsFormat(fi, "format", e.target.value as CourtFormat)}
-                                        className="px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none"
+                                        onChange={(e) => updateQsFormat(fi, "format", e.target.value)}
+                                        className={`px-3 py-2.5 text-base border rounded-xl bg-white focus:outline-none ${isUnknown ? "border-red-300 text-red-600" : "border-slate-200"}`}
                                     >
-                                        {COURT_FORMATS.map((f) => (
-                                            <option key={f} value={f}>{f}</option>
+                                        {isUnknown && (
+                                            <option value={fp.format}>⚠ {fp.format} (no encontrado)</option>
+                                        )}
+                                        {formatOptions.map((o) => (
+                                            <option key={o.value} value={o.value}>{o.label}</option>
                                         ))}
                                     </select>
                                     <div className="flex items-center gap-1 flex-1">
@@ -364,9 +390,10 @@ export default function ScheduleEditor({
                                         </button>
                                     )}
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
-                        {qsFormats.length < COURT_FORMATS.length && (
+                        {qsFormats.length < formatOptions.length && (
                             <button
                                 onClick={addQsFormat}
                                 className="mt-2 text-xs text-[#1f7a4f] font-semibold hover:underline"
@@ -462,6 +489,9 @@ export default function ScheduleEditor({
                                         <SlotEditor
                                             key={si}
                                             slot={slot}
+                                            formatOptions={formatOptions}
+                                            knownFormatIds={knownFormatIds}
+                                            hasVenueFormats={hasVenueFormats}
                                             onUpdateTime={(field, value) =>
                                                 updateSlotTime(day, si, field, value)
                                             }
@@ -506,6 +536,9 @@ export default function ScheduleEditor({
 
 interface SlotEditorProps {
     slot: ScheduleSlot;
+    formatOptions: FormatOption[];
+    knownFormatIds: Set<string>;
+    hasVenueFormats: boolean;
     onUpdateTime: (field: "startTime" | "endTime", value: string) => void;
     onAddFormat: () => void;
     onRemoveFormat: (formatIndex: number) => void;
@@ -515,6 +548,9 @@ interface SlotEditorProps {
 
 function SlotEditor({
     slot,
+    formatOptions,
+    knownFormatIds,
+    hasVenueFormats,
     onUpdateTime,
     onAddFormat,
     onRemoveFormat,
@@ -548,18 +584,23 @@ function SlotEditor({
 
             {/* Format pricings */}
             <div className="space-y-2">
-                {slot.formats.map((fp, fi) => (
+                {slot.formats.map((fp, fi) => {
+                    const isUnknown = hasVenueFormats && !knownFormatIds.has(fp.format);
+                    return (
                     <div key={fi} className="flex items-center gap-2">
                         <select
                             value={fp.format}
                             onChange={(e) =>
-                                onUpdateFormat(fi, "format", e.target.value as CourtFormat)
+                                onUpdateFormat(fi, "format", e.target.value)
                             }
-                            className="px-2 py-1.5 text-base border border-slate-200 rounded-lg bg-white focus:outline-none"
+                            className={`px-2 py-1.5 text-base border rounded-lg bg-white focus:outline-none ${isUnknown ? "border-red-300 text-red-600" : "border-slate-200"}`}
                         >
-                            {COURT_FORMATS.map((f) => (
-                                <option key={f} value={f}>
-                                    {f}
+                            {isUnknown && (
+                                <option value={fp.format}>⚠ {fp.format} (no encontrado)</option>
+                            )}
+                            {formatOptions.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                    {o.label}
                                 </option>
                             ))}
                         </select>
@@ -593,10 +634,11 @@ function SlotEditor({
                             </button>
                         )}
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
-            {slot.formats.length < COURT_FORMATS.length && (
+            {slot.formats.length < formatOptions.length && (
                 <button
                     onClick={onAddFormat}
                     className="mt-2 text-xs text-[#1f7a4f] font-medium hover:underline"

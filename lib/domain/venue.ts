@@ -27,6 +27,65 @@ export type DayOfWeek = "monday" | "tuesday" | "wednesday" | "thursday" | "frida
 
 export const COURT_FORMATS: CourtFormat[] = ["5v5", "6v6", "7v7", "8v8", "9v9", "10v10", "11v11"];
 
+// ========================
+// MULTI-DEPORTE
+// ========================
+
+/**
+ * Tipos de deporte soportados. Determina ícono y label visible.
+ */
+export type SportType =
+    | "football"
+    | "volleyball"
+    | "basketball"
+    | "tennis"
+    | "padel"
+    | "other";
+
+export const SPORT_TYPES: SportType[] = [
+    "football", "volleyball", "basketball", "tennis", "padel", "other",
+];
+
+export const SPORT_LABELS: Record<SportType, string> = {
+    football: "Fútbol",
+    volleyball: "Voleibol",
+    basketball: "Baloncesto",
+    tennis: "Tenis",
+    padel: "Pádel",
+    other: "Otro",
+};
+
+/**
+ * Tier de tarifa por duración. EXACTAMENTE UNO de los dos valores
+ * (percentOff o flatPriceCOP) está presente — el otro debe ser undefined.
+ *
+ * - `percentOff`: descuento % sobre el subtotal (suma de slots). 0.01–99.99 con máx 2 decimales.
+ * - `flatPriceCOP`: precio total flat en centavos (override completo del subtotal). Entero ≥ 0.
+ */
+export type VenueFormatDurationTier =
+    | {
+        minMinutes: number;
+        percentOff: number;
+        flatPriceCOP?: undefined;
+    }
+    | {
+        minMinutes: number;
+        percentOff?: undefined;
+        flatPriceCOP: number;
+    };
+
+/**
+ * Formato configurable por sede. Reemplaza el union CourtFormat hardcoded.
+ * El id es un slug único por sede (ej. "football_5v5", "volleyball_6v6").
+ */
+export interface VenueFormat {
+    id: string;             // slug único por sede
+    sport: SportType;
+    label: string;          // label visible (2–50 chars)
+    playersPerTeam: number; // 1–20
+    durationTiers?: VenueFormatDurationTier[];
+}
+
 export const DAY_OF_WEEK_ORDER: DayOfWeek[] = [
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
 ];
@@ -67,6 +126,8 @@ export interface Venue {
     icon?: string;
     phone?: string;
     description?: string;
+    /** Catálogo multi-deporte de la sede. undefined o vacío = modo legacy football-only. */
+    formats?: VenueFormat[];
     createdAt: string;
     updatedAt: string;
 }
@@ -74,7 +135,8 @@ export interface Venue {
 export interface Court {
     id: string;
     name: string;
-    baseFormat: CourtFormat;
+    /** Antes: CourtFormat. Ahora: VenueFormat.id o legacy CourtFormat string. */
+    baseFormat: string;
     active: boolean;
     sortOrder: number;
 }
@@ -83,7 +145,8 @@ export interface CourtCombo {
     id: string;
     name: string;
     courtIds: string[];
-    resultingFormat: CourtFormat;
+    /** Antes: CourtFormat. Ahora: VenueFormat.id o legacy CourtFormat string. */
+    resultingFormat: string;
     active: boolean;
 }
 
@@ -100,7 +163,8 @@ export interface ScheduleSlot {
 }
 
 export interface FormatPricing {
-    format: CourtFormat;
+    /** Antes: CourtFormat. Ahora: VenueFormat.id o legacy CourtFormat string. */
+    format: string;
     priceCOP: number;
 }
 
@@ -303,9 +367,12 @@ export function getDayOfWeek(dateStr: string): DayOfWeek {
 /**
  * Obtiene los formatos disponibles en un venue basándose en sus courts y combos.
  * Un formato está disponible si hay al menos un court base o combo activo que lo provea.
+ *
+ * Devuelve `string[]` para soportar tanto valores legacy `CourtFormat` como `VenueFormat.id`s.
+ * Si todos los formatos son valores legacy (`"5v5"`…`"11v11"`), preserva el orden de `COURT_FORMATS`.
  */
-export function getAvailableFormats(courts: Court[], combos: CourtCombo[]): CourtFormat[] {
-    const formats = new Set<CourtFormat>();
+export function getAvailableFormats(courts: Court[], combos: CourtCombo[]): string[] {
+    const formats = new Set<string>();
 
     for (const court of courts) {
         if (court.active) formats.add(court.baseFormat);
@@ -314,7 +381,80 @@ export function getAvailableFormats(courts: Court[], combos: CourtCombo[]): Cour
         if (combo.active) formats.add(combo.resultingFormat);
     }
 
-    return COURT_FORMATS.filter((f) => formats.has(f));
+    const legacyOrdered = COURT_FORMATS.filter((f) => formats.has(f));
+    const nonLegacy = [...formats].filter((f) => !(COURT_FORMATS as string[]).includes(f));
+    return [...legacyOrdered, ...nonLegacy];
+}
+
+/**
+ * Filtra el catálogo `VenueFormat[]` de la sede dejando solo los formatos que
+ * tienen al menos un court base o combo activo asociado.
+ */
+export function getAvailableVenueFormats(
+    courts: Court[],
+    combos: CourtCombo[],
+    venueFormats: VenueFormat[],
+): VenueFormat[] {
+    const ids = new Set<string>();
+    for (const court of courts) {
+        if (court.active) ids.add(court.baseFormat);
+    }
+    for (const combo of combos) {
+        if (combo.active) ids.add(combo.resultingFormat);
+    }
+    return venueFormats.filter((f) => ids.has(f.id));
+}
+
+/**
+ * Devuelve el tier de tarifa aplicable a una duración dada.
+ * Es el tier con mayor `minMinutes` cuyo umbral se cumple (`duración ≥ minMinutes`).
+ * Devuelve null si no hay tiers o ninguno aplica.
+ */
+export function findApplicableTier(
+    durationMinutes: number,
+    tiers?: VenueFormatDurationTier[],
+): VenueFormatDurationTier | null {
+    if (!tiers || tiers.length === 0) return null;
+    const eligible = tiers.filter((t) => durationMinutes >= t.minMinutes);
+    if (eligible.length === 0) return null;
+    return eligible.reduce((best, t) => (t.minMinutes > best.minMinutes ? t : best));
+}
+
+export interface DurationTierBreakdown {
+    subtotalCOP: number;
+    discountCOP: number;            // subtotal − final, siempre presente (0 si no aplica)
+    finalCOP: number;
+    appliedTier: VenueFormatDurationTier | null;
+}
+
+/**
+ * Aplica el tier de tarifa (percent o flat) a un subtotal y devuelve la desagregación.
+ * Si el tier es percent, el final = subtotal − (subtotal × percentOff / 100).
+ * Si el tier es flat, el final = flatPriceCOP (override completo).
+ * `discountCOP` siempre se computa como `subtotal − final` para unificar el display.
+ */
+export function applyDurationTier(
+    subtotalCOP: number,
+    durationMinutes: number,
+    tiers?: VenueFormatDurationTier[],
+): DurationTierBreakdown {
+    const tier = findApplicableTier(durationMinutes, tiers);
+    if (!tier) {
+        return { subtotalCOP, discountCOP: 0, finalCOP: subtotalCOP, appliedTier: null };
+    }
+    let finalCOP: number;
+    if (tier.percentOff !== undefined) {
+        const reduction = Math.round(subtotalCOP * tier.percentOff / 100);
+        finalCOP = subtotalCOP - reduction;
+    } else {
+        finalCOP = tier.flatPriceCOP;
+    }
+    return {
+        subtotalCOP,
+        discountCOP: subtotalCOP - finalCOP,
+        finalCOP,
+        appliedTier: tier,
+    };
 }
 
 /**
@@ -338,11 +478,22 @@ export function calcRemainingCOP(totalPriceCOP: number, depositCOP: number): num
  *  - 7v7/8v8/9v9 → "Cancha doble"
  *  - 10v10/11v11 → "Cancha triple"
  */
-export function formatLabel(format: CourtFormat): string {
-    const perTeam = parseInt(format.split("v")[0], 10);
-    if (perTeam <= 6) return "Cancha sencilla";
-    if (perTeam <= 9) return "Cancha doble";
-    return "Cancha triple";
+export function formatLabel(format: string, venueFormats?: VenueFormat[]): string {
+    // 1. Catálogo multi-deporte de la sede
+    if (venueFormats && venueFormats.length > 0) {
+        const vf = venueFormats.find((f) => f.id === format);
+        if (vf) return vf.label;
+    }
+    // 2. Fallback legacy: strings tipo "XvX" → jerarquía sencilla/doble/triple
+    const match = format.match(/^(\d+)v\d+$/);
+    if (match) {
+        const perTeam = parseInt(match[1], 10);
+        if (perTeam <= 6) return "Cancha sencilla";
+        if (perTeam <= 9) return "Cancha doble";
+        return "Cancha triple";
+    }
+    // 3. Último recurso: mostrar el id crudo
+    return format;
 }
 
 /**
@@ -442,11 +593,73 @@ export function validateScheduleSlot(slot: ScheduleSlot): void {
     }
 
     for (const fp of slot.formats) {
-        if (!COURT_FORMATS.includes(fp.format)) {
+        if (typeof fp.format !== "string" || fp.format.length === 0) {
             throw new ValidationError(`Formato inválido: ${fp.format}`);
         }
         if (typeof fp.priceCOP !== "number" || fp.priceCOP < 0) {
             throw new ValidationError("El precio debe ser un número positivo en centavos COP");
         }
+    }
+}
+
+// ========================
+// VALIDACIONES MULTI-DEPORTE
+// ========================
+
+export function validateVenueFormat(f: VenueFormat): void {
+    if (!f.id || /\s/.test(f.id)) {
+        throw new ValidationError("El id del formato es obligatorio y no puede tener espacios");
+    }
+    if (!SPORT_TYPES.includes(f.sport)) {
+        throw new ValidationError(`Deporte inválido: ${f.sport}`);
+    }
+    if (!f.label || f.label.trim().length < 2 || f.label.length > 50) {
+        throw new ValidationError("El label debe tener entre 2 y 50 caracteres");
+    }
+    if (!Number.isInteger(f.playersPerTeam) || f.playersPerTeam < 1 || f.playersPerTeam > 20) {
+        throw new ValidationError("Jugadores por equipo debe ser un entero entre 1 y 20");
+    }
+    if (f.durationTiers) {
+        const seen = new Set<number>();
+        for (const t of f.durationTiers) {
+            if (!Number.isInteger(t.minMinutes) || t.minMinutes <= 0 || t.minMinutes > 1440) {
+                throw new ValidationError("minMinutes debe ser entero entre 1 y 1440");
+            }
+            if (seen.has(t.minMinutes)) {
+                throw new ValidationError(`minMinutes duplicado en tiers: ${t.minMinutes}`);
+            }
+            seen.add(t.minMinutes);
+
+            const hasPercent = typeof t.percentOff === "number";
+            const hasFlat = typeof t.flatPriceCOP === "number";
+            if (hasPercent === hasFlat) {
+                throw new ValidationError(
+                    "Cada tier debe tener exactamente uno de percentOff o flatPriceCOP",
+                );
+            }
+            if (hasPercent) {
+                if (t.percentOff! < 0.01 || t.percentOff! > 99.99) {
+                    throw new ValidationError("percentOff debe estar entre 0.01 y 99.99");
+                }
+                if (Math.round(t.percentOff! * 100) / 100 !== t.percentOff) {
+                    throw new ValidationError("percentOff admite máximo 2 decimales");
+                }
+            } else {
+                if (!Number.isInteger(t.flatPriceCOP) || t.flatPriceCOP! < 0) {
+                    throw new ValidationError("flatPriceCOP debe ser entero ≥ 0 en centavos");
+                }
+            }
+        }
+    }
+}
+
+export function validateVenueFormats(formats: VenueFormat[]): void {
+    const ids = new Set<string>();
+    for (const f of formats) {
+        validateVenueFormat(f);
+        if (ids.has(f.id)) {
+            throw new ValidationError(`Id de formato duplicado: ${f.id}`);
+        }
+        ids.add(f.id);
     }
 }

@@ -428,6 +428,10 @@ export async function logBookingConfirmed(params: {
   startTime: string;
   amountCOP: number;
   paymentMethod: string;
+  tierApplied?: boolean;
+  tierType?: "percent" | "flat";
+  tierMinMinutes?: number;
+  tierDiscountCOP?: number;
 }) {
   await trackEvent("booking_confirmed", {
     venue_id: params.venueId,
@@ -437,6 +441,42 @@ export async function logBookingConfirmed(params: {
     start_time: params.startTime,
     amount_cop: params.amountCOP.toString(),
     payment_method: params.paymentMethod,
+    ...(params.tierApplied !== undefined && { tier_applied: params.tierApplied.toString() }),
+    ...(params.tierType && { tier_type: params.tierType }),
+    ...(params.tierMinMinutes !== undefined && { tier_min_minutes: params.tierMinMinutes.toString() }),
+    ...(params.tierDiscountCOP !== undefined && { tier_discount_cop: params.tierDiscountCOP.toString() }),
+  });
+}
+
+export async function logVenueFormatTierAdded(params: {
+  venueId: string;
+  formatId: string;
+  minMinutes: number;
+  tierType: "percent" | "flat";
+  value: number;
+}) {
+  await trackEvent("venue_format_tier_added", {
+    venue_id: params.venueId,
+    format_id: params.formatId,
+    min_minutes: params.minMinutes.toString(),
+    tier_type: params.tierType,
+    value: params.value.toString(),
+  });
+}
+
+export async function logVenueFormatTierRemoved(params: {
+  venueId: string;
+  formatId: string;
+  minMinutes: number;
+  tierType: "percent" | "flat";
+  value: number;
+}) {
+  await trackEvent("venue_format_tier_removed", {
+    venue_id: params.venueId,
+    format_id: params.formatId,
+    min_minutes: params.minMinutes.toString(),
+    tier_type: params.tierType,
+    value: params.value.toString(),
   });
 }
 

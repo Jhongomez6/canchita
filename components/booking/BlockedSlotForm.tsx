@@ -13,8 +13,8 @@ import {
 } from "@/lib/analytics";
 import { formatCOP } from "@/lib/domain/wallet";
 import { getDayOfWeek } from "@/lib/domain/venue";
-import { calculateManualReservationPrice } from "@/lib/domain/manual-reservation-pricing";
-import type { BookingConflict, Court, CourtCombo, CourtFormat, DaySchedule, RecurrenceType } from "@/lib/domain/venue";
+import { calculateManualReservationPriceBreakdown } from "@/lib/domain/manual-reservation-pricing";
+import type { BookingConflict, Court, CourtCombo, DaySchedule, RecurrenceType, VenueFormat } from "@/lib/domain/venue";
 import ConflictsWarningModal from "./ConflictsWarningModal";
 
 interface BlockedSlotFormProps {
@@ -26,8 +26,10 @@ interface BlockedSlotFormProps {
     defaultStartTime?: string;
     defaultEndTime?: string;
     defaultCourtIds?: string[];
-    /** Formato de la reserva (5v5, 7v7, etc.). Si no se pasa, se infiere de las canchas. */
-    defaultFormat?: CourtFormat;
+    /** Formato de la reserva (VenueFormat.id o legacy "5v5"…). Si no se pasa, se infiere de las canchas. */
+    defaultFormat?: string;
+    /** Catálogo multi-deporte de la sede. Habilita tiers de duración en el cálculo de precio. */
+    venueFormats?: VenueFormat[];
     /** IDs de canchas ya ocupadas por bookings o blocks existentes en el mismo horario. Se muestran deshabilitadas. */
     occupiedCourtIds?: string[];
     onCreated?: () => void;
@@ -38,7 +40,7 @@ function inferFormatFromCourts(
     selectedCourtIds: string[],
     courts: Court[],
     combos: CourtCombo[],
-): CourtFormat | null {
+): string | null {
     if (selectedCourtIds.length === 0) return null;
     if (selectedCourtIds.length === 1) {
         const court = courts.find((c) => c.id === selectedCourtIds[0]);
@@ -77,6 +79,7 @@ export default function BlockedSlotForm({
     defaultEndTime,
     defaultCourtIds,
     defaultFormat,
+    venueFormats,
     occupiedCourtIds = [],
     onCreated,
     onCancel,
@@ -112,15 +115,26 @@ export default function BlockedSlotForm({
     }, [venueId, date]);
 
     const effectiveFormat = inferFormatFromCourts(selectedCourtIds, courts, combos) ?? defaultFormat ?? null;
-    // Si no hay combo exacto y hay múltiples canchas, sumar precio sencilla de cada una.
-    const priceCOP = effectiveFormat
-        ? calculateManualReservationPrice(schedule, effectiveFormat, startTime, endTime)
+
+    // Desglose con tier aplicado si corresponde. Si no hay combo exacto y hay múltiples canchas,
+    // sumar precio sencilla de cada una (sin tier en ese fallback — caso poco común).
+    const priceBreakdown = effectiveFormat
+        ? calculateManualReservationPriceBreakdown(schedule, effectiveFormat, startTime, endTime, venueFormats)
         : selectedCourtIds.length > 1
-            ? selectedCourtIds.reduce((sum, courtId) => {
-                const court = courts.find((c) => c.id === courtId);
-                return sum + calculateManualReservationPrice(schedule, court?.baseFormat ?? null, startTime, endTime);
-            }, 0)
-            : 0;
+            ? {
+                subtotalCOP: selectedCourtIds.reduce((sum, courtId) => {
+                    const court = courts.find((c) => c.id === courtId);
+                    return sum + calculateManualReservationPriceBreakdown(schedule, court?.baseFormat ?? null, startTime, endTime, venueFormats).finalCOP;
+                }, 0),
+                discountCOP: 0,
+                finalCOP: selectedCourtIds.reduce((sum, courtId) => {
+                    const court = courts.find((c) => c.id === courtId);
+                    return sum + calculateManualReservationPriceBreakdown(schedule, court?.baseFormat ?? null, startTime, endTime, venueFormats).finalCOP;
+                }, 0),
+                appliedTier: null,
+            }
+            : { subtotalCOP: 0, discountCOP: 0, finalCOP: 0, appliedTier: null };
+    const priceCOP = priceBreakdown.finalCOP;
     const priceCalculable = priceCOP > 0;
 
     const phoneTrimmed = clientPhone.trim();
@@ -425,9 +439,26 @@ export default function BlockedSlotForm({
             {/* Price display (auto-calculado, solo lectura) */}
             <div>
                 <label className="text-xs text-slate-500 mb-1 block">Precio</label>
-                <div className="w-full px-3 py-2 text-base border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold">
-                    {priceCalculable ? formatCOP(priceCOP) : "—"}
-                </div>
+                {priceCalculable && priceBreakdown.discountCOP > 0 ? (
+                    <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 space-y-0.5">
+                        <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Subtotal</span>
+                            <span className="text-slate-600">{formatCOP(priceBreakdown.subtotalCOP)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                            <span className="text-emerald-600">Tarifa especial</span>
+                            <span className="text-emerald-600 font-medium">−{formatCOP(priceBreakdown.discountCOP)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm pt-0.5 border-t border-slate-200 mt-1">
+                            <span className="text-slate-700 font-semibold">Total</span>
+                            <span className="text-slate-700 font-semibold">{formatCOP(priceCOP)}</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="w-full px-3 py-2 text-base border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold">
+                        {priceCalculable ? formatCOP(priceCOP) : "—"}
+                    </div>
+                )}
                 {!priceCalculable && (
                     <p className="text-[10px] text-slate-400 mt-1">No se pudo calcular para este horario; se guardará en 0.</p>
                 )}

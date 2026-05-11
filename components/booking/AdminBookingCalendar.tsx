@@ -11,10 +11,11 @@ import { handleError } from "@/lib/utils/error";
 import AdminBookingCard from "./AdminBookingCard";
 import AdminBlockCard from "./AdminBlockCard";
 import type { Booking } from "@/lib/domain/booking";
-import type { BlockedSlot, ManualReservationStatus, ManualReservationPayment } from "@/lib/domain/venue";
+import type { BlockedSlot, ManualReservationStatus, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
 
 interface AdminBookingCalendarProps {
     venueId: string;
+    venueFormats?: VenueFormat[];
     onBookingClick?: (booking: Booking) => void;
     onBlockClick?: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus?: (block: BlockedSlot) => void;
@@ -45,6 +46,7 @@ function isSameDay(a: Date, b: Date): boolean {
 
 export default function AdminBookingCalendar({
     venueId,
+    venueFormats,
     onBookingClick,
     onBlockClick,
     onAdvanceBlockStatus,
@@ -276,6 +278,7 @@ export default function AdminBookingCalendar({
                                     <AdminBookingCard
                                         key={`b-${row.booking.id}`}
                                         booking={row.booking}
+                                        venueFormats={venueFormats}
                                         onClick={onBookingClick}
                                     />
                                 );

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2, GripVertical } from "lucide-react";
-import { COURT_FORMATS } from "@/lib/domain/venue";
-import type { Court, CourtCombo, CourtFormat } from "@/lib/domain/venue";
+import { useState, useMemo } from "react";
+import { Plus, Trash2, GripVertical, AlertCircle } from "lucide-react";
+import { COURT_FORMATS, formatLabel } from "@/lib/domain/venue";
+import type { Court, CourtCombo, VenueFormat } from "@/lib/domain/venue";
 
 interface CourtConfigEditorProps {
     courts: Court[];
     combos: CourtCombo[];
+    /** Catálogo multi-deporte de la sede. Si vacío/undefined, usa COURT_FORMATS legacy. */
+    venueFormats?: VenueFormat[];
     onCourtsChange: (courts: Court[]) => void;
     onCombosChange: (combos: CourtCombo[]) => void;
 }
@@ -15,16 +17,43 @@ interface CourtConfigEditorProps {
 export default function CourtConfigEditor({
     courts,
     combos,
+    venueFormats,
     onCourtsChange,
     onCombosChange,
 }: CourtConfigEditorProps) {
+    const hasVenueFormats = !!venueFormats && venueFormats.length > 0;
+
+    // Opciones del select de formato. En modo multi-deporte usa los ids del catálogo.
+    // En modo legacy usa los strings hardcoded.
+    const formatOptions = useMemo(() => {
+        if (hasVenueFormats) {
+            return venueFormats!.map((f) => ({ value: f.id, label: f.label }));
+        }
+        return (COURT_FORMATS as readonly string[]).map((f) => ({ value: f, label: f }));
+    }, [hasVenueFormats, venueFormats]);
+
+    const defaultBaseFormat = formatOptions[0]?.value ?? "6v6";
+    const defaultComboFormat = formatOptions[formatOptions.length - 1]?.value ?? "9v9";
+
     const [newCourtName, setNewCourtName] = useState("");
-    const [newCourtFormat, setNewCourtFormat] = useState<CourtFormat>("6v6");
+    const [newCourtFormat, setNewCourtFormat] = useState<string>(defaultBaseFormat);
 
     // New combo state
     const [newComboName, setNewComboName] = useState("");
-    const [newComboFormat, setNewComboFormat] = useState<CourtFormat>("9v9");
+    const [newComboFormat, setNewComboFormat] = useState<string>(defaultComboFormat);
     const [newComboCourtIds, setNewComboCourtIds] = useState<string[]>([]);
+
+    const knownFormatIds = useMemo(() => {
+        return new Set(formatOptions.map((o) => o.value));
+    }, [formatOptions]);
+
+    const renderFormatLabel = (format: string): string => {
+        if (hasVenueFormats) {
+            const found = venueFormats!.find((f) => f.id === format);
+            if (found) return found.label;
+        }
+        return formatLabel(format, venueFormats);
+    };
 
     const addCourt = () => {
         if (!newCourtName.trim()) return;
@@ -37,6 +66,10 @@ export default function CourtConfigEditor({
         };
         onCourtsChange([...courts, newCourt]);
         setNewCourtName("");
+    };
+
+    const updateCourtFormat = (courtId: string, format: string) => {
+        onCourtsChange(courts.map((c) => (c.id === courtId ? { ...c, baseFormat: format } : c)));
     };
 
     const removeCourt = (courtId: string) => {
@@ -72,6 +105,10 @@ export default function CourtConfigEditor({
         setNewComboCourtIds([]);
     };
 
+    const updateComboFormat = (comboId: string, format: string) => {
+        onCombosChange(combos.map((c) => (c.id === comboId ? { ...c, resultingFormat: format } : c)));
+    };
+
     const removeCombo = (comboId: string) => {
         onCombosChange(combos.filter((c) => c.id !== comboId));
     };
@@ -93,30 +130,46 @@ export default function CourtConfigEditor({
                 )}
 
                 <div className="space-y-2 mb-3">
-                    {courts.map((court) => (
-                        <div
-                            key={court.id}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${court.active ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100 opacity-60"}`}
-                        >
-                            <GripVertical className="w-4 h-4 text-slate-300 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                                <span className="text-sm font-medium text-slate-700">{court.name}</span>
-                                <span className="text-xs text-slate-400 ml-2">{court.baseFormat}</span>
+                    {courts.map((court) => {
+                        const isUnknown = hasVenueFormats && !knownFormatIds.has(court.baseFormat);
+                        return (
+                            <div
+                                key={court.id}
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${court.active ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100 opacity-60"}`}
+                            >
+                                <GripVertical className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <span className="text-sm font-medium text-slate-700">{court.name}</span>
+                                </div>
+                                <select
+                                    value={court.baseFormat}
+                                    onChange={(e) => updateCourtFormat(court.id, e.target.value)}
+                                    className={`px-2 py-1 text-base border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 ${isUnknown ? "border-red-300 text-red-600" : "border-slate-200"}`}
+                                >
+                                    {isUnknown && (
+                                        <option value={court.baseFormat}>
+                                            ⚠ {court.baseFormat} (no encontrado)
+                                        </option>
+                                    )}
+                                    {formatOptions.map((o) => (
+                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => toggleCourtActive(court.id)}
+                                    className={`text-xs px-2 py-0.5 rounded-full border ${court.active ? "text-emerald-600 border-emerald-200 bg-emerald-50" : "text-slate-400 border-slate-200"}`}
+                                >
+                                    {court.active ? "Activa" : "Inactiva"}
+                                </button>
+                                <button
+                                    onClick={() => removeCourt(court.id)}
+                                    className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
                             </div>
-                            <button
-                                onClick={() => toggleCourtActive(court.id)}
-                                className={`text-xs px-2 py-0.5 rounded-full border ${court.active ? "text-emerald-600 border-emerald-200 bg-emerald-50" : "text-slate-400 border-slate-200"}`}
-                            >
-                                {court.active ? "Activa" : "Inactiva"}
-                            </button>
-                            <button
-                                onClick={() => removeCourt(court.id)}
-                                className="p-1 text-slate-300 hover:text-red-500 transition-colors"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 {/* Add court form */}
@@ -130,11 +183,11 @@ export default function CourtConfigEditor({
                     />
                     <select
                         value={newCourtFormat}
-                        onChange={(e) => setNewCourtFormat(e.target.value as CourtFormat)}
+                        onChange={(e) => setNewCourtFormat(e.target.value)}
                         className="px-3 py-2 text-base border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30"
                     >
-                        {COURT_FORMATS.map((f) => (
-                            <option key={f} value={f}>{f}</option>
+                        {formatOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                     </select>
                     <button
@@ -159,25 +212,42 @@ export default function CourtConfigEditor({
                 )}
 
                 <div className="space-y-2 mb-3">
-                    {combos.map((combo) => (
-                        <div
-                            key={combo.id}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-white border-slate-200"
-                        >
-                            <div className="flex-1 min-w-0">
-                                <span className="text-sm font-medium text-slate-700">{combo.name}</span>
-                                <span className="text-xs text-slate-400 ml-2">
-                                    {combo.courtIds.map((id) => courts.find((c) => c.id === id)?.name || id).join(" + ")} = {combo.resultingFormat}
-                                </span>
-                            </div>
-                            <button
-                                onClick={() => removeCombo(combo.id)}
-                                className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                    {combos.map((combo) => {
+                        const isUnknown = hasVenueFormats && !knownFormatIds.has(combo.resultingFormat);
+                        return (
+                            <div
+                                key={combo.id}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-white border-slate-200"
                             >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
-                    ))}
+                                <div className="flex-1 min-w-0">
+                                    <span className="text-sm font-medium text-slate-700">{combo.name}</span>
+                                    <span className="text-xs text-slate-400 ml-2 block sm:inline">
+                                        {combo.courtIds.map((id) => courts.find((c) => c.id === id)?.name || id).join(" + ")} = {renderFormatLabel(combo.resultingFormat)}
+                                    </span>
+                                </div>
+                                <select
+                                    value={combo.resultingFormat}
+                                    onChange={(e) => updateComboFormat(combo.id, e.target.value)}
+                                    className={`px-2 py-1 text-base border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 ${isUnknown ? "border-red-300 text-red-600" : "border-slate-200"}`}
+                                >
+                                    {isUnknown && (
+                                        <option value={combo.resultingFormat}>
+                                            ⚠ {combo.resultingFormat} (no encontrado)
+                                        </option>
+                                    )}
+                                    {formatOptions.map((o) => (
+                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => removeCombo(combo.id)}
+                                    className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Add combo form */}
@@ -208,11 +278,11 @@ export default function CourtConfigEditor({
                             <span className="text-xs text-slate-500">Formato resultante:</span>
                             <select
                                 value={newComboFormat}
-                                onChange={(e) => setNewComboFormat(e.target.value as CourtFormat)}
+                                onChange={(e) => setNewComboFormat(e.target.value)}
                                 className="px-2 py-1 text-base border border-slate-200 rounded-lg focus:outline-none"
                             >
-                                {COURT_FORMATS.map((f) => (
-                                    <option key={f} value={f}>{f}</option>
+                                {formatOptions.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
                                 ))}
                             </select>
                             <button
@@ -226,6 +296,15 @@ export default function CourtConfigEditor({
                     </div>
                 )}
             </div>
+
+            {hasVenueFormats && courts.some((c) => !knownFormatIds.has(c.baseFormat)) && (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-800">
+                        Hay canchas con formatos que ya no existen en el catálogo. Reasígnalos antes de guardar.
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -5,7 +5,7 @@ import { X, CalendarPlus, Clock4 } from "lucide-react";
 import AdminBookingCard from "./AdminBookingCard";
 import AdminBlockCard from "./AdminBlockCard";
 import type { Booking } from "@/lib/domain/booking";
-import type { BlockedSlot, Court, ManualReservationStatus, ManualReservationPayment } from "@/lib/domain/venue";
+import type { BlockedSlot, Court, ManualReservationStatus, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
 
 function fmt12h(time: string): string {
     const [hStr, mStr] = time.split(":");
@@ -31,6 +31,7 @@ interface HourDetailDrawerProps {
     bookings: Booking[];
     blocks: BlockedSlot[];
     courts: Court[];
+    venueFormats?: VenueFormat[];
     onBookingClick: (booking: Booking) => void;
     onBlockClick: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus: (block: BlockedSlot) => void;
@@ -56,6 +57,7 @@ export default function HourDetailDrawer({
     bookings,
     blocks,
     courts,
+    venueFormats,
     onBookingClick,
     onBlockClick,
     onAdvanceBlockStatus,
@@ -150,6 +152,7 @@ export default function HourDetailDrawer({
                                                     <AdminBookingCard
                                                         key={b.id}
                                                         booking={b}
+                                                        venueFormats={venueFormats}
                                                         onClick={onBookingClick}
                                                     />
                                                 ))}

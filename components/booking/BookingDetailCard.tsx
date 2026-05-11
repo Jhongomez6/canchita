@@ -3,12 +3,15 @@
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel } from "@/lib/domain/venue";
+import type { VenueFormat } from "@/lib/domain/venue";
 import { bookingStatusLabel, bookingStatusColor } from "@/lib/domain/booking";
 import type { Booking } from "@/lib/domain/booking";
 
 interface BookingDetailCardProps {
     booking: Booking;
     compact?: boolean;
+    /** Catálogo multi-deporte de la sede (opcional). Resuelve VenueFormat.id a label. */
+    venueFormats?: VenueFormat[];
     onClick?: () => void;
 }
 
@@ -36,7 +39,7 @@ function formatDateDisplay(dateStr: string): string {
     return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
 }
 
-export default function BookingDetailCard({ booking, compact, onClick }: BookingDetailCardProps) {
+export default function BookingDetailCard({ booking, compact, venueFormats, onClick }: BookingDetailCardProps) {
     const color = bookingStatusColor(booking.status);
     const statusStyle = STATUS_STYLES[color] || STATUS_STYLES.gray;
     const Component = onClick ? "button" : "div";
@@ -49,7 +52,7 @@ export default function BookingDetailCard({ booking, compact, onClick }: Booking
             {/* Status badge + format */}
             <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold text-slate-800">
-                    {formatLabel(booking.format)}
+                    {formatLabel(booking.format, venueFormats)}
                 </span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle}`}>
                     {bookingStatusLabel(booking.status)}

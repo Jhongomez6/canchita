@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel, calcDepositCOP, calcRemainingCOP } from "@/lib/domain/venue";
-import type { CourtFormat } from "@/lib/domain/venue";
+import type { VenueFormat } from "@/lib/domain/venue";
 
 interface BookingConfirmSheetProps {
     open: boolean;
@@ -14,11 +14,16 @@ interface BookingConfirmSheetProps {
     onRecharge?: () => void;
     venueName: string;
     venueAddress: string;
-    format: CourtFormat;
+    format: string;
+    venueFormats?: VenueFormat[];
     date: string;
     startTime: string;
     endTime: string;
     totalPriceCOP: number;
+    /** Si tier aplicado: subtotal antes del descuento. Si no, igual a totalPriceCOP o undefined. */
+    subtotalCOP?: number;
+    /** Si tier aplicado: monto descontado (subtotal − final). 0 o undefined si no. */
+    discountCOP?: number;
     depositRequired: boolean;
     depositPercent: number;
     walletBalance: number | null;
@@ -47,10 +52,13 @@ export default function BookingConfirmSheet({
     venueName,
     venueAddress,
     format,
+    venueFormats,
     date,
     startTime,
     endTime,
     totalPriceCOP,
+    subtotalCOP,
+    discountCOP,
     depositRequired,
     depositPercent,
     walletBalance,
@@ -122,7 +130,7 @@ export default function BookingConfirmSheet({
                                 </div>
                                 <div className="flex items-center gap-2 text-slate-600">
                                     <span className="text-sm">
-                                        {formatLabel(format)} · {venueName}
+                                        {formatLabel(format, venueFormats)} · {venueName}
                                     </span>
                                 </div>
                                 <p className="text-xs text-slate-400">{venueAddress}</p>
@@ -130,10 +138,28 @@ export default function BookingConfirmSheet({
 
                             {/* Pricing */}
                             <div className="bg-slate-50 rounded-2xl p-4 mb-5 space-y-2.5">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-slate-500">Precio cancha</span>
-                                    <span className="font-semibold text-slate-700">{formatCOP(totalPriceCOP)}</span>
-                                </div>
+                                {discountCOP && discountCOP > 0 && subtotalCOP ? (
+                                    <>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-500">Subtotal</span>
+                                            <span className="text-slate-600">{formatCOP(subtotalCOP)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-emerald-600">Tarifa especial</span>
+                                            <span className="text-emerald-600 font-medium">−{formatCOP(discountCOP)}</span>
+                                        </div>
+                                        <div className="border-t border-slate-200" />
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-500">Precio cancha</span>
+                                            <span className="font-semibold text-slate-700">{formatCOP(totalPriceCOP)}</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Precio cancha</span>
+                                        <span className="font-semibold text-slate-700">{formatCOP(totalPriceCOP)}</span>
+                                    </div>
+                                )}
 
                                 {needsPayment && (
                                     <>

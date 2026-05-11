@@ -3,6 +3,7 @@
 import { Users } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel, formatCourtList } from "@/lib/domain/venue";
+import type { VenueFormat } from "@/lib/domain/venue";
 import { bookingStatusLabel, bookingStatusColor } from "@/lib/domain/booking";
 import type { Booking } from "@/lib/domain/booking";
 
@@ -34,10 +35,12 @@ function fmt12h(time: string): string {
 
 interface AdminBookingCardProps {
     booking: Booking;
+    /** Catálogo multi-deporte de la sede (opcional). */
+    venueFormats?: VenueFormat[];
     onClick?: (booking: Booking) => void;
 }
 
-export default function AdminBookingCard({ booking, onClick }: AdminBookingCardProps) {
+export default function AdminBookingCard({ booking, venueFormats, onClick }: AdminBookingCardProps) {
     const color = bookingStatusColor(booking.status);
     const dotClass = STATUS_DOT[color] || STATUS_DOT.gray;
     const badgeClass = STATUS_BADGE[color] || STATUS_BADGE.gray;
@@ -68,7 +71,7 @@ export default function AdminBookingCard({ booking, onClick }: AdminBookingCardP
                     <Users className="w-3 h-3" />
                     <span>{booking.bookedByName}</span>
                     <span className="text-slate-300">·</span>
-                    <span>{formatLabel(booking.format)}</span>
+                    <span>{formatLabel(booking.format, venueFormats)}</span>
                 </div>
                 <span className="text-xs font-semibold text-slate-600">
                     {formatCOP(booking.totalPriceCOP)}

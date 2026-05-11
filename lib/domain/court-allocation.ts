@@ -36,14 +36,15 @@
  * → ComboFull no viable → null
  */
 
-import type { Court, CourtCombo, CourtFormat } from "./venue";
+import type { Court, CourtCombo } from "./venue";
 
 // ========================
 // TIPOS
 // ========================
 
 export interface AllocationInput {
-    requestedFormat: CourtFormat;
+    /** VenueFormat.id o legacy CourtFormat string ("5v5", "6v6", ...). */
+    requestedFormat: string;
     courts: Court[];
     combos: CourtCombo[];
     occupiedCourtIds: string[];
@@ -194,7 +195,7 @@ export function getViableCombos(
  * Verifica si un formato específico tiene disponibilidad.
  */
 export function isFormatAvailable(
-    format: CourtFormat,
+    format: string,
     courts: Court[],
     combos: CourtCombo[],
     unavailableIds: Set<string>,
@@ -211,15 +212,16 @@ export function isFormatAvailable(
 
 /**
  * Obtiene todos los formatos que tienen disponibilidad en un slot.
+ * Devuelve `string[]` para soportar VenueFormat.id y legacy CourtFormat.
  */
 export function getAvailableFormatsForSlot(
     courts: Court[],
     combos: CourtCombo[],
     occupiedCourtIds: string[],
     blockedCourtIds: string[],
-): CourtFormat[] {
+): string[] {
     const unavailableIds = new Set([...occupiedCourtIds, ...blockedCourtIds]);
-    const allFormats = new Set<CourtFormat>();
+    const allFormats = new Set<string>();
 
     for (const court of courts) {
         if (court.active) allFormats.add(court.baseFormat);

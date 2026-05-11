@@ -18,7 +18,6 @@
 
 import { ValidationError } from "./errors";
 import { REFUND_DEADLINE_MS } from "./wallet";
-import type { CourtFormat } from "./venue";
 
 // ========================
 // TIPOS
@@ -34,6 +33,17 @@ export type BookingStatus =
 
 export type BookingPaymentMethod = "wallet_deposit" | "on_site" | "free";
 
+/**
+ * Snapshot del tier de duración aplicado en el momento de crear el booking.
+ * Permite auditar y mostrar el desglose, sin recomputar nada (los tiers pueden cambiar).
+ */
+export interface BookingTierApplied {
+    minMinutes: number;
+    percentOff?: number;
+    flatPriceCOP?: number;
+    discountCOP: number;  // subtotal − final, siempre presente
+}
+
 export interface Booking {
     id: string;
     venueId: string;
@@ -42,7 +52,8 @@ export interface Booking {
     bookedBy: string;
     bookedByName: string;
     bookedByPhotoURL?: string;
-    format: CourtFormat;
+    /** VenueFormat.id o legacy CourtFormat string ("5v5", "6v6"…). */
+    format: string;
     date: string;
     startTime: string;
     endTime: string;
@@ -62,6 +73,7 @@ export interface Booking {
     cancellationReason?: string;
     refundTxId?: string;
     matchId?: string;
+    tierApplied?: BookingTierApplied;
     createdAt: string;
     updatedAt: string;
 }
@@ -70,7 +82,8 @@ export type BookingCancelRole = "player" | "admin";
 
 export interface CreateBookingInput {
     venueId: string;
-    format: CourtFormat;
+    /** VenueFormat.id o legacy CourtFormat string. */
+    format: string;
     date: string;
     startTime: string;
     endTime: string;

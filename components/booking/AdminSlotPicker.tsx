@@ -9,7 +9,7 @@ import { handleError } from "@/lib/utils/error";
 import FormatSelector from "./FormatSelector";
 import DateCarousel from "./DateCarousel";
 import SlotList from "./SlotList";
-import type { Court, CourtCombo, DaySchedule, CourtFormat, FormatPricing } from "@/lib/domain/venue";
+import type { Court, CourtCombo, DaySchedule, FormatPricing, VenueFormat } from "@/lib/domain/venue";
 import type { BlockedSlot } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
 import type { SlotItem, OccupantLabel } from "./SlotList";
@@ -17,12 +17,13 @@ import type { SlotItem, OccupantLabel } from "./SlotList";
 interface AdminSlotPickerProps {
     venueId: string;
     courts: Court[];
+    venueFormats?: VenueFormat[];
     onHourTapped: (data: {
         date: string;
         startTime: string;
         endTime: string;
         courtIds: string[];
-        format: CourtFormat;
+        format: string;
         bookings: Booking[];
         blocks: BlockedSlot[];
     }) => void;
@@ -34,13 +35,13 @@ function todayLocalISO(): string {
 }
 
 
-export default function AdminSlotPicker({ venueId, courts, onHourTapped }: AdminSlotPickerProps) {
+export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourTapped }: AdminSlotPickerProps) {
     const [combos, setCombos] = useState<CourtCombo[]>([]);
     const [schedule, setSchedule] = useState<DaySchedule | null>(null);
     const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
     const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
 
-    const [selectedFormat, setSelectedFormat] = useState<CourtFormat | null>(null);
+    const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
     const [selectedDate, setSelectedDate] = useState<string>(todayLocalISO);
 
     useEffect(() => {
@@ -68,7 +69,7 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
 
     const formatOptions = useCallback(() => {
         if (!schedule || !schedule.enabled) return [];
-        const formatMap = new Map<CourtFormat, number>();
+        const formatMap = new Map<string, number>();
         for (const slot of schedule.slots) {
             for (const fp of slot.formats) {
                 const existing = formatMap.get(fp.format);
@@ -140,7 +141,7 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
                 const activeEntries: OccupantLabel[] = [];
                 for (const b of overlappingBookings) {
                     const who = b.bookedByName || "Reservado";
-                    const tier = formatLabel(b.format);
+                    const tier = formatLabel(b.format, venueFormats);
                     const where = courtListFor(b.courtIds);
                     activeEntries.push({ who, detail: where ? `${tier} · ${where}` : tier });
                 }
@@ -163,7 +164,7 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
                 cancelledLabels,
             }];
         });
-    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos]);
+    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, venueFormats]);
 
     const handleSlotTap = (slot: SlotItem) => {
         if (!selectedFormat) return;
@@ -204,6 +205,7 @@ export default function AdminSlotPicker({ venueId, courts, onHourTapped }: Admin
             <FormatSelector
                 formats={formats}
                 selected={selectedFormat}
+                venueFormats={venueFormats}
                 onSelect={(f) => setSelectedFormat(f)}
                 hidePrice
                 compact

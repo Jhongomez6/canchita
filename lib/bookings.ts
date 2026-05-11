@@ -24,7 +24,6 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
 import type { Booking } from "./domain/booking";
-import type { CourtFormat } from "./domain/venue";
 
 const functions = getFunctions(app);
 
@@ -114,7 +113,7 @@ export function subscribeToBooking(
  */
 export async function createBooking(input: {
     venueId: string;
-    format: CourtFormat;
+    format: string;
     date: string;
     startTime: string;
     endTime: string;

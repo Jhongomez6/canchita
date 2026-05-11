@@ -28,6 +28,54 @@ const PERMANENT_ERROR_CODES = [
     "messaging/invalid-argument",
 ];
 
+// ========================
+// DURATION TIER HELPERS (inlined; mirror de lib/domain/venue.ts — functions/src es un módulo aislado)
+// ========================
+
+type DurationTier =
+    | { minMinutes: number; percentOff: number; flatPriceCOP?: undefined }
+    | { minMinutes: number; percentOff?: undefined; flatPriceCOP: number };
+
+interface TierResult {
+    finalCOP: number;
+    discountCOP: number;
+    appliedTier: DurationTier | null;
+}
+
+function findVenueFormatTiers(
+    venue: FirebaseFirestore.DocumentData,
+    formatId: string,
+): DurationTier[] | undefined {
+    const formats = venue.formats as Array<{ id: string; durationTiers?: DurationTier[] }> | undefined;
+    if (!formats) return undefined;
+    const vf = formats.find((f) => f.id === formatId);
+    return vf?.durationTiers;
+}
+
+function applyDurationTier(
+    subtotalCOP: number,
+    durationMinutes: number,
+    tiers?: DurationTier[],
+): TierResult {
+    if (!tiers || tiers.length === 0) {
+        return { finalCOP: subtotalCOP, discountCOP: 0, appliedTier: null };
+    }
+    const eligible = tiers.filter((t) => durationMinutes >= t.minMinutes);
+    if (eligible.length === 0) {
+        return { finalCOP: subtotalCOP, discountCOP: 0, appliedTier: null };
+    }
+    const tier = eligible.reduce((best, t) => (t.minMinutes > best.minMinutes ? t : best));
+
+    let finalCOP: number;
+    if (tier.percentOff !== undefined) {
+        const reduction = Math.round(subtotalCOP * tier.percentOff / 100);
+        finalCOP = subtotalCOP - reduction;
+    } else {
+        finalCOP = tier.flatPriceCOP;
+    }
+    return { finalCOP, discountCOP: subtotalCOP - finalCOP, appliedTier: tier };
+}
+
 /**
  * Best-effort push notification for booking events.
  * Never throws — push is always best-effort.
@@ -320,9 +368,27 @@ export const createBooking = onCall(
         const slotCount = Math.max(1, Math.floor(requestedMinutes / slotDurationMin));
 
         const pricePerSlotCOP = formatPricing.priceCOP;
-        const totalPriceCOP = pricePerSlotCOP * slotCount;
+        const subtotalCOP = pricePerSlotCOP * slotCount;
 
-        // Depósito
+        // Aplicar tier de duración si el VenueFormat tiene durationTiers configurados.
+        // El cliente puede mostrar el precio con descuento, pero el server siempre recomputa.
+        const tierResult = applyDurationTier(
+            subtotalCOP,
+            requestedMinutes,
+            findVenueFormatTiers(venue, format),
+        );
+        const totalPriceCOP = tierResult.finalCOP;
+        const tierAppliedSnapshot = tierResult.appliedTier
+            ? {
+                minMinutes: tierResult.appliedTier.minMinutes,
+                discountCOP: tierResult.discountCOP,
+                ...(tierResult.appliedTier.percentOff !== undefined
+                    ? { percentOff: tierResult.appliedTier.percentOff }
+                    : { flatPriceCOP: tierResult.appliedTier.flatPriceCOP }),
+            }
+            : null;
+
+        // Depósito (sobre el precio final, ya con tier aplicado)
         const depositRequired: boolean = venue.depositRequired ?? false;
         const depositPercent: number = venue.depositPercent ?? 0;
         const depositCOP = depositRequired
@@ -497,6 +563,7 @@ export const createBooking = onCall(
                 cancelledAt: null,
                 refundTxId: null,
                 matchId: null,
+                tierApplied: tierAppliedSnapshot,
                 createdAt: now,
                 updatedAt: now,
             };

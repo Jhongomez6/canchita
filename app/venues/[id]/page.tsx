@@ -7,7 +7,7 @@ import { ArrowLeft, MapPin, Settings } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isSuperAdmin } from "@/lib/domain/user";
-import { getAvailableFormats, getDayOfWeek, generateTimeSlots } from "@/lib/domain/venue";
+import { getAvailableFormats, getDayOfWeek, generateTimeSlots, applyDurationTier } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot } from "@/lib/domain/court-allocation";
 import { getVenue, getVenueCourts, getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
 import { subscribeToBookingsForDate, createBooking } from "@/lib/bookings";
@@ -19,7 +19,7 @@ import FormatSelector from "@/components/booking/FormatSelector";
 import DateCarousel from "@/components/booking/DateCarousel";
 import SlotList from "@/components/booking/SlotList";
 import BookingConfirmSheet from "@/components/booking/BookingConfirmSheet";
-import type { Venue, Court, CourtCombo, DaySchedule, CourtFormat, FormatPricing, BlockedSlot } from "@/lib/domain/venue";
+import type { Venue, Court, CourtCombo, DaySchedule, FormatPricing, BlockedSlot } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
 import type { SlotItem } from "@/components/booking/SlotList";
 import type { Wallet } from "@/lib/domain/wallet";
@@ -41,7 +41,7 @@ function VenueDetailContent() {
     const [loading, setLoading] = useState(true);
 
     // Selection state
-    const [selectedFormat, setSelectedFormat] = useState<CourtFormat | null>(null);
+    const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
     const [selectedDate, setSelectedDate] = useState<string>(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -113,7 +113,7 @@ function VenueDetailContent() {
         if (!schedule || !schedule.enabled) return [];
 
         // Collect unique formats from schedule with their min price
-        const formatMap = new Map<CourtFormat, number>();
+        const formatMap = new Map<string, number>();
         for (const slot of schedule.slots) {
             for (const fp of slot.formats) {
                 const existing = formatMap.get(fp.format);
@@ -199,13 +199,23 @@ function VenueDetailContent() {
     };
 
     // Get price for selection
-    const getSelectionPrice = (): number => {
-        if (!selectedStart || !selectedEnd || !selectedFormat) return 0;
+    const getSelectionBreakdown = (): { subtotalCOP: number; discountCOP: number; finalCOP: number } => {
+        if (!selectedStart || !selectedEnd || !selectedFormat) {
+            return { subtotalCOP: 0, discountCOP: 0, finalCOP: 0 };
+        }
         const slots = timeSlots();
         const selectedSlots = slots.filter(
             (s) => s.startTime >= selectedStart && s.endTime <= selectedEnd && s.available
         );
-        return selectedSlots.reduce((acc, s) => acc + s.priceCOP, 0);
+        const subtotalCOP = selectedSlots.reduce((acc, s) => acc + s.priceCOP, 0);
+        if (subtotalCOP === 0) return { subtotalCOP, discountCOP: 0, finalCOP: 0 };
+
+        const vf = venue?.formats?.find((f) => f.id === selectedFormat);
+        const [sH, sM] = selectedStart.split(":").map(Number);
+        const [eH, eM] = selectedEnd.split(":").map(Number);
+        const durationMinutes = (eH * 60 + eM) - (sH * 60 + sM);
+        const { finalCOP, discountCOP } = applyDurationTier(subtotalCOP, durationMinutes, vf?.durationTiers);
+        return { subtotalCOP, discountCOP, finalCOP };
     };
 
     // Confirm booking
@@ -224,14 +234,32 @@ function VenueDetailContent() {
 
             toast.success("Reserva confirmada");
             setConfirmSheetOpen(false);
+
+            // Analytics — desglose actual del cliente (el server puede haber recomputado).
+            const breakdown = getSelectionBreakdown();
+            const vf = venue?.formats?.find((f) => f.id === selectedFormat);
+            const [sH, sM] = selectedStart.split(":").map(Number);
+            const [eH, eM] = selectedEnd.split(":").map(Number);
+            const tier = vf?.durationTiers
+                ? vf.durationTiers
+                    .filter((t) => ((eH * 60 + eM) - (sH * 60 + sM)) >= t.minMinutes)
+                    .reduce<typeof vf.durationTiers[number] | null>(
+                        (best, t) => (best === null || t.minMinutes > best.minMinutes ? t : best),
+                        null,
+                    )
+                : null;
             logBookingConfirmed({
                 venueId,
                 bookingId: result.bookingId,
                 format: selectedFormat,
                 date: selectedDate,
                 startTime: selectedStart,
-                amountCOP: totalPrice,
+                amountCOP: breakdown.finalCOP,
                 paymentMethod: venue?.depositRequired ? "wallet" : "on_site",
+                tierApplied: !!tier,
+                tierType: tier ? (tier.percentOff !== undefined ? "percent" : "flat") : undefined,
+                tierMinMinutes: tier?.minMinutes,
+                tierDiscountCOP: breakdown.discountCOP > 0 ? breakdown.discountCOP : undefined,
             });
             router.push(`/bookings/${result.bookingId}`);
         } catch (err) {
@@ -267,7 +295,8 @@ function VenueDetailContent() {
 
     const formats = formatOptions();
     const slots = timeSlots();
-    const totalPrice = getSelectionPrice();
+    const { subtotalCOP, discountCOP, finalCOP } = getSelectionBreakdown();
+    const totalPrice = finalCOP;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24 md:pb-0">
@@ -311,6 +340,7 @@ function VenueDetailContent() {
                         <FormatSelector
                             formats={formats}
                             selected={selectedFormat}
+                            venueFormats={venue.formats}
                             onSelect={(f) => {
                                 setSelectedFormat(f);
                                 setSelectedStart(null);
@@ -377,6 +407,9 @@ function VenueDetailContent() {
                     venueName={venue.name}
                     venueAddress={venue.address}
                     format={selectedFormat!}
+                    venueFormats={venue.formats}
+                    subtotalCOP={subtotalCOP}
+                    discountCOP={discountCOP}
                     date={selectedDate}
                     startTime={selectedStart || ""}
                     endTime={selectedEnd || ""}
