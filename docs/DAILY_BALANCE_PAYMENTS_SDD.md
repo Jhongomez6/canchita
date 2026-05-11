@@ -62,6 +62,7 @@ Hoy el `location_admin` cierra el día sin saber cuánta plata entró, ni cómo 
 ### Race conditions identificadas
 - **Escenario**: Admin A y B ven el mismo slot sin pago, ambos tapean "Marcar pagado" y registran montos distintos. → **Mitigación**: el `id` determinístico + transacción. El segundo write falla con `AlreadyExists`; la UI le muestra "ya hay un pago, abre edit".
 - **Escenario**: Admin A elimina la reserva mientras Admin B intenta registrar el pago. → **Mitigación**: la transacción del registro lee el slot dentro de la transacción; si fue borrado, falla con `not-found` y el sheet muestra error + se cierra.
+- **Escenario**: Admin cancela una reserva que ya tiene pago registrado. → **Decisión**: el payment doc se conserva (historial financiero). `cancelManualReservation` hace fire-and-forget de `updateDoc(paymentRef, { slotStatus: "cancelled" })` para que `PaymentRow` muestre el badge "Cancelada" sin reads adicionales. Scope `all` (hard delete) no toca el payment — queda huérfano sin badge.
 - **Escenario**: Admin A registra pago, Admin B avanza el status manualmente (popover) en paralelo. → **Mitigación**: ambas escrituras son válidas independientemente; el último write gana sobre `status`. El payment doc no se ve afectado. Si el resultado es inconsistente (ej. payment existe + status revertido a "played"), la UI siempre muestra "Pagado" derivado del payment, no del status — el badge se calcula con `getDisplayStatus(slot, hasPayment)`.
 
 ---
@@ -300,6 +301,7 @@ export interface ManualReservationPayment {
     registeredBy: string;        // uid
     registeredAt: string;        // ISO
     updatedAt?: string;          // ISO
+    slotStatus?: ManualReservationStatus; // denormalizado: "cancelled" si la reserva fue cancelada
 }
 ```
 
