@@ -169,7 +169,7 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                 for (const b of overlappingBookings.filter((b) => b.format === selectedFormat)) {
                     const who = b.bookedByName || "Reservado";
                     const where = courtListFor(b.courtIds);
-                    activeEntries.push({ who, detail: where || undefined });
+                    activeEntries.push({ who, detail: where });
                 }
                 for (const b of activeBlocks.filter(blockTouchesFormat)) {
                     activeEntries.push(blockLabel(b));
