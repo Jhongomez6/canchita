@@ -289,7 +289,7 @@ export default function ProfilePage() {
       if (editBirthdate && editBirthdate !== birthdate) {
         const editedAge = getAgeFromBirthdate(editBirthdate);
         if (editedAge < 18 || editedAge > 70) {
-          toast.error("Debes tener entre 18 y 70 años.");
+          toast.error("Debes tener más de 18 años para usar la plataforma.");
           setSaving(false);
           return;
         }
@@ -701,8 +701,8 @@ export default function ProfilePage() {
                       {editBirthdate && (() => {
                         const a = getAgeFromBirthdate(editBirthdate);
                         return a >= 18 && a <= 70
-                          ? <span className="ml-2 normal-case font-normal text-[#1f7a4f]">· {a} años</span>
-                          : <span className="ml-2 normal-case font-normal text-red-500">· Debe tener entre 18 y 70 años</span>;
+                          ? <span className="ml-2 normal-case font-normal text-[#1f7a4f]">· {a} años ✓</span>
+                          : null;
                       })()}
                     </label>
                     <div className="relative">
@@ -721,6 +721,11 @@ export default function ProfilePage() {
                         </span>
                       )}
                     </div>
+                    {editBirthdate && getAgeFromBirthdate(editBirthdate) < 18 && (
+                      <p className="text-xs text-red-500 font-medium mt-1.5 animate-in fade-in">
+                        Debes tener más de 18 años para usar la plataforma.
+                      </p>
+                    )}
                   </div>
 
                 </div>
