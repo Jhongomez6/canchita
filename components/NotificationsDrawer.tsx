@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { getMyNotifications, markAsRead, markAllAsRead, clearIOSBadge } from "@/lib/notifications";
 import type { AppNotification } from "@/lib/domain/notification";
@@ -82,7 +83,7 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    return (
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <>
@@ -214,7 +215,8 @@ export default function NotificationsDrawer({ isOpen, onClose }: NotificationsDr
                     </motion.div>
                 </>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }
 
