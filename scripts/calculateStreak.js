@@ -45,8 +45,17 @@ async function fetchMatchesByUser() {
   matchesSnap.forEach((doc) => {
     const match = doc.data();
     if (!Array.isArray(match.players)) return;
+
+    // Only count players who were actually in a team (same as stats.played)
+    const teamUids = new Set([
+      ...(match.teams?.A || []).map((p) => p.uid).filter(Boolean),
+      ...(match.teams?.B || []).map((p) => p.uid).filter(Boolean),
+    ]);
+    if (teamUids.size === 0) return;
+
+    // Attendance is stored in match.players, team membership in match.teams
     match.players.forEach((player) => {
-      if (!player?.uid) return;
+      if (!player?.uid || !teamUids.has(player.uid)) return;
       if (!userMatchesMap.has(player.uid)) userMatchesMap.set(player.uid, []);
       userMatchesMap.get(player.uid).push({
         id: doc.id,
@@ -69,12 +78,12 @@ async function fetchMatchesByUser() {
   return userMatchesMap;
 }
 
-async function runForUser(userId, userMatchesMap) {
+async function runForUser(userId, userMatchesMap, dryRun = false) {
   const matches = userMatchesMap.get(userId) || [];
 
   if (matches.length === 0) {
     console.log(`⚠️  ${userId}: sin partidos cerrados → streak = 0`);
-    await db.collection("users").doc(userId).update({ commitmentStreak: 0 });
+    if (!dryRun) await db.collection("users").doc(userId).update({ commitmentStreak: 0 });
     return 0;
   }
 
@@ -82,8 +91,8 @@ async function runForUser(userId, userMatchesMap) {
 
   console.log(`🔥 ${userId}: ${matches.length} partidos → racha = ${streak}`);
 
-  if (process.argv[2] !== "--all") {
-    // Modo individual: mostrar detalle
+  if (process.argv[2] !== "--all" || dryRun) {
+    // Modo individual o dry-run: mostrar detalle
     console.log("\n📈 Detalle (más reciente → más antiguo):\n");
     matches.forEach((m, i) => {
       const att = m.attendance || "present";
@@ -93,12 +102,12 @@ async function runForUser(userId, userMatchesMap) {
     console.log();
   }
 
-  await db.collection("users").doc(userId).update({ commitmentStreak: streak });
+  if (!dryRun) await db.collection("users").doc(userId).update({ commitmentStreak: streak });
   return streak;
 }
 
-async function runAll() {
-  console.log("🚀 Calculando racha de compromiso para TODOS los usuarios...\n");
+async function runAll(dryRun = false) {
+  console.log(`🚀 Calculando racha de compromiso para TODOS los usuarios...${dryRun ? " (DRY RUN — sin escrituras)" : ""}\n`);
 
   const userMatchesMap = await fetchMatchesByUser();
   const uids = Array.from(userMatchesMap.keys());
@@ -109,32 +118,34 @@ async function runAll() {
   const BATCH_SIZE = 10;
   for (let i = 0; i < uids.length; i += BATCH_SIZE) {
     const batch = uids.slice(i, i + BATCH_SIZE);
-    await Promise.all(batch.map((uid) => runForUser(uid, userMatchesMap)));
+    await Promise.all(batch.map((uid) => runForUser(uid, userMatchesMap, dryRun)));
     updated += batch.length;
   }
 
-  console.log(`\n✅ Listo. ${updated} usuarios actualizados.`);
+  console.log(`\n✅ Listo. ${updated} usuarios ${dryRun ? "analizados (sin cambios)" : "actualizados"}.`);
   process.exit(0);
 }
 
-async function runSingle(userId) {
-  console.log(`🔍 Calculando racha para usuario: ${userId}\n`);
+async function runSingle(userId, dryRun = false) {
+  console.log(`🔍 Calculando racha para usuario: ${userId}${dryRun ? " (DRY RUN)" : ""}\n`);
   const userMatchesMap = await fetchMatchesByUser();
-  const streak = await runForUser(userId, userMatchesMap);
-  console.log(`✅ Actualizado → commitmentStreak: ${streak}`);
+  const streak = await runForUser(userId, userMatchesMap, dryRun);
+  console.log(`✅ ${dryRun ? "Racha calculada (sin cambios)" : "Actualizado"} → commitmentStreak: ${streak}`);
   process.exit(0);
 }
 
 // --- Entry point ---
-const arg = process.argv[2];
+const args = process.argv.slice(2);
+const dryRun = args.includes("--dry-run");
+const positional = args.filter((a) => a !== "--dry-run")[0];
 
-if (arg === "--all") {
-  runAll().catch((e) => { console.error("❌", e.message); process.exit(1); });
-} else if (arg) {
-  runSingle(arg).catch((e) => { console.error("❌", e.message); process.exit(1); });
+if (positional === "--all") {
+  runAll(dryRun).catch((e) => { console.error("❌", e.message); process.exit(1); });
+} else if (positional) {
+  runSingle(positional, dryRun).catch((e) => { console.error("❌", e.message); process.exit(1); });
 } else {
   console.error("❌ Uso:");
-  console.error("  node scripts/calculateStreak.js <userId>");
-  console.error("  node scripts/calculateStreak.js --all");
+  console.error("  node scripts/calculateStreak.js <userId> [--dry-run]");
+  console.error("  node scripts/calculateStreak.js --all [--dry-run]");
   process.exit(1);
 }

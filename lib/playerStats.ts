@@ -122,7 +122,8 @@ export async function updatePlayerStats(
 
     // Racha de Compromiso (commitmentStreak): increment ONLY if perfectly punctual (no late, no no_show).
     // reset to 0 on ANY infraction (late OR no_show).
-    // Re-close does not modify streak (ambiguous intent — skip on previousResult).
+    // On re-close: reset streak if attendance is now no_show or late (prevents streak > played when
+    // attendance changes from present → no_show, which decrements played but previously left streak unchanged).
     const topLevelUpdate: Record<string, unknown> = { stats: statsUpdate };
     if (!previousResult) {
       if (isNoShow || attendance === "late") {
@@ -137,6 +138,8 @@ export async function updatePlayerStats(
         topLevelUpdate.weeklyStreak = weekly.weeklyStreak;
         topLevelUpdate.lastPlayedWeek = weekly.lastPlayedWeek;
       }
+    } else if (isNoShow || attendance === "late") {
+      topLevelUpdate.commitmentStreak = 0;
     }
 
     batch.set(userRef, topLevelUpdate, { merge: true });
