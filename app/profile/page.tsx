@@ -13,6 +13,7 @@ import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain
 import type { UserStats } from "@/lib/domain/user";
 import type { Sex, Foot, CourtSize } from "@/lib/domain/rating";
 import { handleError } from "@/lib/utils/error";
+import toast from "react-hot-toast";
 import Link from "next/link";
 import { isSuperAdmin, isAdmin, getAgeFromBirthdate } from "@/lib/domain/user";
 import { getMyApplication } from "@/lib/teamAdminApplications";
@@ -285,7 +286,15 @@ export default function ProfilePage() {
       const attrUpdate: { dominantFoot?: string; preferredCourt?: string; birthdate?: string } = {};
       if (editFoot && editFoot !== dominantFoot) attrUpdate.dominantFoot = editFoot;
       if (editCourt && editCourt !== preferredCourt) attrUpdate.preferredCourt = editCourt;
-      if (editBirthdate && editBirthdate !== birthdate) attrUpdate.birthdate = editBirthdate;
+      if (editBirthdate && editBirthdate !== birthdate) {
+        const editedAge = getAgeFromBirthdate(editBirthdate);
+        if (editedAge < 18 || editedAge > 70) {
+          toast.error("Debes tener entre 18 y 70 años.");
+          setSaving(false);
+          return;
+        }
+        attrUpdate.birthdate = editBirthdate;
+      }
 
       if (Object.keys(attrUpdate).length > 0) {
         await updatePlayerAttributes(user.uid, attrUpdate);
@@ -689,11 +698,12 @@ export default function ProfilePage() {
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
                       Fecha de nacimiento
-                      {editBirthdate && (
-                        <span className="ml-2 normal-case font-normal text-[#1f7a4f]">
-                          · {getAgeFromBirthdate(editBirthdate)} años
-                        </span>
-                      )}
+                      {editBirthdate && (() => {
+                        const a = getAgeFromBirthdate(editBirthdate);
+                        return a >= 18 && a <= 70
+                          ? <span className="ml-2 normal-case font-normal text-[#1f7a4f]">· {a} años</span>
+                          : <span className="ml-2 normal-case font-normal text-red-500">· Debe tener entre 18 y 70 años</span>;
+                      })()}
                     </label>
                     <div className="relative">
                       <input

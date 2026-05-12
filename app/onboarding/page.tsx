@@ -257,9 +257,14 @@ export default function OnboardingPage() {
                                 Debes ser mayor de 18 años para usar la plataforma.
                             </p>
                         )}
-                        {birthdate && currentAge !== null && currentAge >= 18 && (
+                        {birthdate && currentAge !== null && currentAge > 70 && (
+                            <p className="text-xs text-red-500 font-medium mt-2 animate-in fade-in">
+                                Por favor verifica tu fecha de nacimiento.
+                            </p>
+                        )}
+                        {birthdate && currentAge !== null && currentAge >= 18 && currentAge <= 70 && (
                             <p className="text-xs text-[#1f7a4f] font-medium mt-2 animate-in fade-in">
-                                {currentAge} años
+                                {currentAge} años ✓
                             </p>
                         )}
                     </label>
