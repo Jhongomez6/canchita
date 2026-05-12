@@ -34,6 +34,7 @@ Calcular el rating inicial de un jugador nuevo usando hitos objetivos en lugar d
 | > 650 | 3 (Avanzado) |
 
 ### Metadatos de Perfil
+- Fecha de nacimiento: `birthdate` (YYYY-MM-DD) — fuente de verdad permanente
 - Sexo: male / female / other
 - Pie dominante: left / right / ambidextrous
 - Cancha preferida: 6v6 / 9v9 / 11v11
@@ -41,6 +42,13 @@ Calcular el rating inicial de un jugador nuevo usando hitos objetivos en lugar d
 - Condición Física: 1-5
 - Trayectoria: escuela (bool), torneos (bool)
 - Frecuencia: occasional / weekly / intense
+
+### Edad — Modelo de Datos
+La edad **nunca se almacena**; siempre se calcula desde `birthdate`:
+```typescript
+getAgeFromBirthdate(birthdate: string): number  // lib/domain/user.ts
+```
+Usuarios legacy con campo `age: number` (sin `birthdate`) mantienen compatibilidad hacia atrás — la UI usa `age` como fallback si `birthdate` no existe.
 
 ### Reglas de Negocio
 
@@ -54,6 +62,8 @@ Calcular el rating inicial de un jugador nuevo usando hitos objetivos en lugar d
 | 6 | Posiciones seleccionadas durante onboarding | Step 5 en formulario |
 | 7 | Re-evaluación disponible cada 90 días | Cooldown con `onboardingCompletedAt` en profile |
 | 8 | Rating oculto al usuario, solo muestra nivel | UI muestra Level, no PP |
+| 9 | Edad mínima 18 años — validada contra `birthdate` | `max` en date input = hoy − 18 años |
+| 10 | `birthdate` persiste permanentemente; edad no | `saveOnboardingResult` guarda `birthdate`, no `age` |
 
 ---
 
@@ -89,7 +99,7 @@ Calcular el rating inicial de un jugador nuevo usando hitos objetivos en lugar d
 **✅ Cumple**: Reglas #3, #7
 
 #### Capa 3: UI (`app/onboarding/page.tsx`)
-- Paso 1: Datos personales (edad, sexo, pie, cancha)
+- Paso 1: Datos personales (fecha de nacimiento `type="date"`, sexo, pie, cancha)
 - Paso 2: Nivel técnico (5 hito cards)
 - Paso 3: Condición física (5 hito cards)
 - Paso 4: Trayectoria (escuela, torneos, frecuencia)

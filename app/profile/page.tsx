@@ -14,7 +14,7 @@ import type { UserStats } from "@/lib/domain/user";
 import type { Sex, Foot, CourtSize } from "@/lib/domain/rating";
 import { handleError } from "@/lib/utils/error";
 import Link from "next/link";
-import { isSuperAdmin, isAdmin } from "@/lib/domain/user";
+import { isSuperAdmin, isAdmin, getAgeFromBirthdate } from "@/lib/domain/user";
 import { getMyApplication } from "@/lib/teamAdminApplications";
 import type { TeamAdminApplication } from "@/lib/domain/teamAdminApplication";
 import AuthGuard from "@/components/AuthGuard";
@@ -49,6 +49,7 @@ export default function ProfilePage() {
   const [primaryPosition, setPrimaryPosition] = useState<string | null>(null);
   const [level, setLevel] = useState<number | null>(null);
   const [age, setAge] = useState<number | null>(null);
+  const [birthdate, setBirthdate] = useState<string | null>(null);
   const [sex, setSex] = useState<Sex | null>(null);
   const [dominantFoot, setDominantFoot] = useState<Foot | null>(null);
   const [preferredCourt, setPreferredCourt] = useState<CourtSize | null>(null);
@@ -76,6 +77,7 @@ export default function ProfilePage() {
   const [editPrimaryPosition, setEditPrimaryPosition] = useState<string | null>(null);
   const [editFoot, setEditFoot] = useState<Foot | null>(null);
   const [editCourt, setEditCourt] = useState<CourtSize | null>(null);
+  const [editBirthdate, setEditBirthdate] = useState("");
   const [editPhotoBlobs, setEditPhotoBlobs] = useState<AvatarBlobs | null>(null);
 
   // Cropper states
@@ -133,7 +135,12 @@ export default function ProfilePage() {
     }
     if (profile.level != null) setLevel(profile.level);
     if (profile.onboardingCompletedAt) setOnboardingCompletedAt(profile.onboardingCompletedAt);
-    if (profile.age != null) setAge(profile.age);
+    if (profile.birthdate) {
+      setBirthdate(profile.birthdate);
+      setAge(getAgeFromBirthdate(profile.birthdate));
+    } else if (profile.age != null) {
+      setAge(profile.age);
+    }
     if (profile.sex) setSex(profile.sex as Sex);
     if (profile.dominantFoot) setDominantFoot(profile.dominantFoot);
     if (profile.preferredCourt) setPreferredCourt(profile.preferredCourt);
@@ -198,6 +205,7 @@ export default function ProfilePage() {
     setEditPrimaryPosition(primaryPosition);
     setEditFoot(dominantFoot);
     setEditCourt(preferredCourt);
+    setEditBirthdate(birthdate ?? "");
     setEditPhotoBlobs(null);
     setImageSrc(null);
     setEditing(true);
@@ -274,14 +282,19 @@ export default function ProfilePage() {
         setPositions(editPositions);
         setPrimaryPosition(editPrimaryPosition);
       }
-      const attrUpdate: { dominantFoot?: string; preferredCourt?: string } = {};
+      const attrUpdate: { dominantFoot?: string; preferredCourt?: string; birthdate?: string } = {};
       if (editFoot && editFoot !== dominantFoot) attrUpdate.dominantFoot = editFoot;
       if (editCourt && editCourt !== preferredCourt) attrUpdate.preferredCourt = editCourt;
+      if (editBirthdate && editBirthdate !== birthdate) attrUpdate.birthdate = editBirthdate;
 
       if (Object.keys(attrUpdate).length > 0) {
         await updatePlayerAttributes(user.uid, attrUpdate);
         if (editFoot) setDominantFoot(editFoot);
         if (editCourt) setPreferredCourt(editCourt);
+        if (attrUpdate.birthdate) {
+          setBirthdate(attrUpdate.birthdate);
+          setAge(getAgeFromBirthdate(attrUpdate.birthdate));
+        }
       }
 
       if (editPhotoBlobs) {
@@ -407,7 +420,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <div className="max-w-md mx-auto p-4">
+        <div className={`max-w-md mx-auto p-4 ${editing ? "pb-32 md:pb-4" : ""}`}>
 
           {/* Onboarding banner */}
           {isOnboarding && (
@@ -672,22 +685,26 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-1">
-                    <button
-                      onClick={cancelEditing}
-                      className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      disabled={saving || (canEditName && editName.trim().length > 0 && (editName.trim().split(/\s+/).length < 2 || editName.trim().split(/\s+/).some(word => word.length < 2)))}
-                      onClick={saveAll}
-                      className="flex-[2] py-3 bg-[#1f7a4f] text-white font-bold rounded-xl hover:bg-[#16603c] transition-all shadow-md active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                      {saving ? "Guardando..." : "Guardar Cambios"}
-                    </button>
+                  {/* Birthdate */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                      Fecha de nacimiento
+                      {editBirthdate && (
+                        <span className="ml-2 normal-case font-normal text-[#1f7a4f]">
+                          · {getAgeFromBirthdate(editBirthdate)} años
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="date"
+                      value={editBirthdate}
+                      onChange={e => setEditBirthdate(e.target.value)}
+                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                      min={new Date(new Date().setFullYear(new Date().getFullYear() - 70)).toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
+                    />
                   </div>
+
                 </div>
               )}
             </div>
@@ -1010,6 +1027,27 @@ export default function ProfilePage() {
 
         </div>
       </main>
+
+      {/* Sticky save bar — visible only while editing */}
+      {editing && (
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+          <div className="flex gap-3 max-w-md mx-auto">
+            <button
+              onClick={cancelEditing}
+              className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              disabled={saving || (canEditName && editName.trim().length > 0 && (editName.trim().split(/\s+/).length < 2 || editName.trim().split(/\s+/).some(word => word.length < 2)))}
+              onClick={saveAll}
+              className="flex-[2] py-3 bg-[#1f7a4f] text-white font-bold rounded-xl hover:bg-[#16603c] transition-all shadow-md active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {saving ? "Guardando..." : "Guardar Cambios"}
+            </button>
+          </div>
+        </div>
+      )}
 
     </AuthGuard>
   );

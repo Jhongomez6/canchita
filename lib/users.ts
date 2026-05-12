@@ -165,7 +165,7 @@ export async function saveOnboardingResult(
   data: {
     rating: number;
     level: number;
-    age: number;
+    birthdate: string;
     sex: string;
     dominantFoot: string;
     preferredCourt: string;
@@ -211,7 +211,7 @@ export async function requestReEvaluation(uid: string) {
 ========================= */
 export async function updatePlayerAttributes(
   uid: string,
-  data: { dominantFoot?: string; preferredCourt?: string }
+  data: { dominantFoot?: string; preferredCourt?: string; birthdate?: string }
 ) {
   const ref = doc(db, "users", uid);
   await updateDoc(ref, data);

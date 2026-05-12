@@ -19,6 +19,7 @@ import {
 import type { Position } from "@/lib/domain/player";
 import { ALLOWED_POSITIONS, POSITION_LABELS, POSITION_ICONS } from "@/lib/domain/player";
 import { logOnboardingCompleted } from "@/lib/analytics";
+import { getAgeFromBirthdate } from "@/lib/domain/user";
 
 // ========================
 // CONSTANTES DE COPY
@@ -90,7 +91,7 @@ export default function OnboardingPage() {
     }, [profile, authLoading, router]);
 
     // Form data
-    const [age, setAge] = useState("");
+    const [birthdate, setBirthdate] = useState("");
     const [phone, setPhone] = useState("");
     const [sex, setSex] = useState<Sex | "">("");
     const [foot, setFoot] = useState<Foot | "">("");
@@ -110,8 +111,10 @@ export default function OnboardingPage() {
     // Step validation
     const canNext = (): boolean => {
         switch (step) {
-            case 1:
-                return !!age && Number(age) >= 18 && Number(age) <= 70 && !!sex && !!foot && !!court;
+            case 1: {
+                const age = birthdate ? getAgeFromBirthdate(birthdate) : 0;
+                return !!birthdate && age >= 18 && age <= 70 && !!sex && !!foot && !!court;
+            }
             case 2:
                 return /^3\d{9}$/.test(phone);
             case 3:
@@ -131,8 +134,9 @@ export default function OnboardingPage() {
     useEffect(() => {
         if (step !== 7) return;
 
+        const age = getAgeFromBirthdate(birthdate);
         const data: OnboardingData = {
-            age: Number(age),
+            age,
             sex: sex as Sex,
             dominantFoot: foot as Foot,
             preferredCourt: court as CourtSize,
@@ -161,7 +165,7 @@ export default function OnboardingPage() {
                 await saveOnboardingResult(user!.uid, {
                     rating: ratingResult.rating,
                     level: ratingResult.level,
-                    age: Number(age),
+                    birthdate,
                     sex: sex as string,
                     dominantFoot: foot as string,
                     preferredCourt: court as string,
@@ -214,6 +218,11 @@ export default function OnboardingPage() {
     // STEP 1: Datos personales
     // ========================
     if (step === 1) {
+        const today = new Date();
+        const maxBirthdate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+        const minBirthdate = new Date(today.getFullYear() - 70, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+        const currentAge = birthdate ? getAgeFromBirthdate(birthdate) : null;
+
         return (
             <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
@@ -223,21 +232,25 @@ export default function OnboardingPage() {
                         <h1 className="text-2xl font-bold text-gray-800 mt-1">📋 Datos Personales</h1>
                     </div>
 
-                    {/* EDAD */}
+                    {/* FECHA DE NACIMIENTO */}
                     <label className="block mb-4">
-                        <span className="text-sm font-semibold text-gray-700 block mb-2">Edad</span>
+                        <span className="text-sm font-semibold text-gray-700 block mb-2">Fecha de nacimiento</span>
                         <input
-                            type="number"
-                            value={age}
-                            onChange={e => setAge(e.target.value)}
-                            placeholder="Ej: 25"
-                            min={18}
-                            max={70}
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
+                            type="date"
+                            value={birthdate}
+                            onChange={e => setBirthdate(e.target.value)}
+                            min={minBirthdate}
+                            max={maxBirthdate}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
                         />
-                        {age && Number(age) < 18 && (
+                        {birthdate && currentAge !== null && currentAge < 18 && (
                             <p className="text-xs text-red-500 font-medium mt-2 animate-in fade-in">
                                 Debes ser mayor de 18 años para usar la plataforma.
+                            </p>
+                        )}
+                        {birthdate && currentAge !== null && currentAge >= 18 && (
+                            <p className="text-xs text-[#1f7a4f] font-medium mt-2 animate-in fade-in">
+                                {currentAge} años
                             </p>
                         )}
                     </label>

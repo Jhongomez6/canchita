@@ -50,7 +50,8 @@ export interface UserProfile {
     onboardingCompletedAt?: string;
     rating?: number;
     nameLastChanged?: string;
-    age?: number;
+    birthdate?: string;             // YYYY-MM-DD — fuente de verdad; age se calcula desde aquí
+    age?: number;                   // legacy: solo en usuarios que completaron onboarding antes de birthdate
     sex?: Sex;
     dominantFoot?: Foot;
     preferredCourt?: CourtSize;
@@ -105,6 +106,15 @@ export interface UserStats {
  *
  * No se almacena en Firestore — siempre computado desde noShows, lateArrivals y played.
  */
+export function getAgeFromBirthdate(birthdate: string): number {
+    const birth = new Date(birthdate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+}
+
 export function calcCommitmentScore(stats: Pick<UserStats, "noShows" | "lateArrivals" | "played">): number {
     const noShows = stats.noShows ?? 0;
     const lateArrivals = stats.lateArrivals ?? 0;
