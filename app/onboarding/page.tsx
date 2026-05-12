@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { CalendarDays } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { saveOnboardingResult } from "@/lib/users";
@@ -235,14 +236,22 @@ export default function OnboardingPage() {
                     {/* FECHA DE NACIMIENTO */}
                     <label className="block mb-4">
                         <span className="text-sm font-semibold text-gray-700 block mb-2">Fecha de nacimiento</span>
-                        <input
-                            type="date"
-                            value={birthdate}
-                            onChange={e => setBirthdate(e.target.value)}
-                            min={minBirthdate}
-                            max={maxBirthdate}
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
-                        />
+                        <div className="relative">
+                            <input
+                                type="date"
+                                value={birthdate}
+                                onChange={e => setBirthdate(e.target.value)}
+                                min={minBirthdate}
+                                max={maxBirthdate}
+                                className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-[#1f7a4f] focus:border-transparent transition-all"
+                            />
+                            <CalendarDays className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                            {!birthdate && (
+                                <span className="absolute left-11 top-1/2 -translate-y-1/2 text-base text-gray-400 pointer-events-none">
+                                    Toca para seleccionar
+                                </span>
+                            )}
+                        </div>
                         {birthdate && currentAge !== null && currentAge < 18 && (
                             <p className="text-xs text-red-500 font-medium mt-2 animate-in fade-in">
                                 Debes ser mayor de 18 años para usar la plataforma.

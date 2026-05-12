@@ -27,7 +27,7 @@ import {
   Cake, User, Activity, RotateCcw, Camera, Crown,
   Shirt, Clock, Lock, XCircle, Bell, CheckCircle2,
   AlertTriangle, Smartphone, Settings,
-  Zap, Flame, Sprout
+  Zap, Flame, Sprout, CalendarDays
 } from "lucide-react";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
@@ -695,14 +695,22 @@ export default function ProfilePage() {
                         </span>
                       )}
                     </label>
-                    <input
-                      type="date"
-                      value={editBirthdate}
-                      onChange={e => setEditBirthdate(e.target.value)}
-                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                      min={new Date(new Date().setFullYear(new Date().getFullYear() - 70)).toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={editBirthdate}
+                        onChange={e => setEditBirthdate(e.target.value)}
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                        min={new Date(new Date().setFullYear(new Date().getFullYear() - 70)).toISOString().split('T')[0]}
+                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-[#1f7a4f] transition-all"
+                      />
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      {!editBirthdate && (
+                        <span className="absolute left-10 top-1/2 -translate-y-1/2 text-base text-slate-400 pointer-events-none">
+                          Toca para seleccionar
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                 </div>
@@ -1030,7 +1038,10 @@ export default function ProfilePage() {
 
       {/* Sticky save bar — visible only while editing */}
       {editing && (
-        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+        <div
+          className="fixed left-0 right-0 z-40 bg-white border-t border-slate-200 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] md:bottom-0"
+          style={{ bottom: 'calc(52px + max(env(safe-area-inset-bottom), 4px))' }}
+        >
           <div className="flex gap-3 max-w-md mx-auto">
             <button
               onClick={cancelEditing}
