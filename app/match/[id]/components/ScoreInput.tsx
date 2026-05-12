@@ -1,4 +1,5 @@
 import { Shield, Plus, Minus } from "lucide-react";
+import { getTeamColors, TEAM_COLOR_CONFIG } from "@/lib/domain/team-colors";
 
 interface ScoreInputProps {
   scoreA: number;
@@ -6,6 +7,7 @@ interface ScoreInputProps {
   onScoreAChange: (score: number) => void;
   onScoreBChange: (score: number) => void;
   disabled?: boolean;
+  teamColors?: { A: string; B: string };
 }
 
 export default function ScoreInput({
@@ -14,7 +16,12 @@ export default function ScoreInput({
   onScoreAChange,
   onScoreBChange,
   disabled = false,
+  teamColors,
 }: ScoreInputProps) {
+  const tc = getTeamColors(teamColors);
+  const cfgA = TEAM_COLOR_CONFIG[tc.A];
+  const cfgB = TEAM_COLOR_CONFIG[tc.B];
+
   return (
     <div className="bg-slate-50 rounded-xl border border-slate-100 p-4">
       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest text-center mb-3">
@@ -22,8 +29,8 @@ export default function ScoreInput({
       </h4>
       <div className="flex items-center justify-center gap-4">
         <div className="flex flex-col items-center">
-          <div className="text-[10px] font-bold text-red-500 uppercase mb-1 flex items-center gap-1">
-            <Shield size={10} fill="#ef4444" /> A
+          <div className={`text-[10px] font-bold uppercase mb-1 flex items-center gap-1 ${cfgA.subtext}`}>
+            <Shield size={10} fill={cfgA.shieldFill} /> A
           </div>
           <div className="flex items-center gap-1.5">
             {!disabled && (
@@ -41,7 +48,8 @@ export default function ScoreInput({
               value={scoreA}
               onChange={(e) => onScoreAChange(Math.max(0, Number(e.target.value)))}
               disabled={disabled}
-              className="w-14 h-14 text-2xl text-center font-black bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-red-100 outline-none transition-all disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              style={{ "--tw-ring-color": `${cfgA.hex}33` } as React.CSSProperties}
+              className="w-14 h-14 text-2xl text-center font-black bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-[color:var(--tw-ring-color)] outline-none transition-all disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             {!disabled && (
               <button
@@ -57,8 +65,8 @@ export default function ScoreInput({
         <div className="text-3xl text-slate-300 font-thin mt-4">—</div>
 
         <div className="flex flex-col items-center">
-          <div className="text-[10px] font-bold text-blue-500 uppercase mb-1 flex items-center gap-1">
-            <Shield size={10} fill="#3b82f6" /> B
+          <div className={`text-[10px] font-bold uppercase mb-1 flex items-center gap-1 ${cfgB.subtext}`}>
+            <Shield size={10} fill={cfgB.shieldFill} /> B
           </div>
           <div className="flex items-center gap-1.5">
             {!disabled && (
@@ -76,7 +84,8 @@ export default function ScoreInput({
               value={scoreB}
               onChange={(e) => onScoreBChange(Math.max(0, Number(e.target.value)))}
               disabled={disabled}
-              className="w-14 h-14 text-2xl text-center font-black bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-100 outline-none transition-all disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              style={{ "--tw-ring-color": `${cfgB.hex}33` } as React.CSSProperties}
+              className="w-14 h-14 text-2xl text-center font-black bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-[color:var(--tw-ring-color)] outline-none transition-all disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             {!disabled && (
               <button

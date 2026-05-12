@@ -13,6 +13,7 @@ interface ScoreTabProps {
   onScoreBChange: (score: number) => void;
   onSaveScore: (sa: number, sb: number) => Promise<void>;
   onDiscardScore: () => void;
+  teamColors?: { A: string; B: string };
 }
 
 export default function ScoreTab({
@@ -24,6 +25,7 @@ export default function ScoreTab({
   onScoreBChange,
   onSaveScore,
   onDiscardScore,
+  teamColors,
 }: ScoreTabProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -58,6 +60,7 @@ export default function ScoreTab({
           onScoreAChange={onScoreAChange}
           onScoreBChange={onScoreBChange}
           disabled={isClosed}
+          teamColors={teamColors}
         />
 
         {!isClosed && (

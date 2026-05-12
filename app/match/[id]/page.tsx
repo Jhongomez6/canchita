@@ -866,6 +866,7 @@ export default function MatchDetailPage() {
                 setScoreA(match.score?.A ?? 0);
                 setScoreB(match.score?.B ?? 0);
               }}
+              teamColors={match.teamColors}
             />
           )}
 

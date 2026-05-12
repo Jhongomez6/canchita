@@ -891,13 +891,13 @@ export default function JoinMatchPage() {
                 {match.score && (
                   <div className="flex justify-center items-center gap-6 mb-8 bg-slate-50 py-4 rounded-xl border border-slate-100">
                     <div className="text-center">
-                      <div className="text-4xl font-black text-red-600 mb-1">{match.score.A}</div>
-                      <div className="text-xs font-bold text-red-800/60 uppercase tracking-widest">Equipo A</div>
+                      <div className={`text-4xl font-black mb-1 ${cfgA.subtext}`}>{match.score.A}</div>
+                      <div className={`text-xs font-bold uppercase tracking-widest opacity-60 ${cfgA.text}`}>Equipo A</div>
                     </div>
                     <div className="text-2xl font-black text-slate-300">-</div>
                     <div className="text-center">
-                      <div className="text-4xl font-black text-blue-600 mb-1">{match.score.B}</div>
-                      <div className="text-xs font-bold text-blue-800/60 uppercase tracking-widest">Equipo B</div>
+                      <div className={`text-4xl font-black mb-1 ${cfgB.subtext}`}>{match.score.B}</div>
+                      <div className={`text-xs font-bold uppercase tracking-widest opacity-60 ${cfgB.text}`}>Equipo B</div>
                     </div>
                   </div>
                 )}
