@@ -5,6 +5,7 @@ import { X, CalendarPlus, Clock4 } from "lucide-react";
 import AdminBookingCard from "./AdminBookingCard";
 import AdminBlockCard from "./AdminBlockCard";
 import type { Booking } from "@/lib/domain/booking";
+import { getBlockedSlotStatus } from "@/lib/domain/venue";
 import type { BlockedSlot, Court, ManualReservationStatus, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
 
 function fmt12h(time: string): string {
@@ -38,8 +39,8 @@ interface HourDetailDrawerProps {
     unavailableRelevantCourtIds?: string[];
     onBookingClick: (booking: Booking) => void;
     onBlockClick: (block: BlockedSlot, targetDate: string) => void;
-    onAdvanceBlockStatus: (block: BlockedSlot) => void;
-    onPickBlockStatus: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
+    onAdvanceBlockStatus: (block: BlockedSlot, targetDate: string) => void;
+    onPickBlockStatus: (block: BlockedSlot, newStatus: ManualReservationStatus, targetDate: string) => void;
     onCancelBlock: (block: BlockedSlot, targetDate: string) => void;
     onEditBlock: (block: BlockedSlot) => void;
     onCreateManual: () => void;
@@ -81,10 +82,10 @@ export default function HourDetailDrawer({
     );
     const isEmpty = bookings.length === 0 && blocks.length === 0;
 
-    // Canceladas al final
+    // Canceladas al final (usa estado efectivo por instancia para recurrentes)
     const sortedBlocks = [...blocks].sort((a, b) => {
-        const aCancelled = a.status === "cancelled" ? 1 : 0;
-        const bCancelled = b.status === "cancelled" ? 1 : 0;
+        const aCancelled = getBlockedSlotStatus(a, date) === "cancelled" ? 1 : 0;
+        const bCancelled = getBlockedSlotStatus(b, date) === "cancelled" ? 1 : 0;
         return aCancelled - bCancelled;
     });
 
@@ -97,7 +98,7 @@ export default function HourDetailDrawer({
             : (() => {
                 const occupiedCourtIds = new Set([
                     ...bookings.flatMap((b) => b.courtIds),
-                    ...blocks.filter((b) => b.status !== "cancelled").flatMap((b) => b.courtIds),
+                    ...blocks.filter((b) => getBlockedSlotStatus(b, date) !== "cancelled").flatMap((b) => b.courtIds),
                 ]);
                 const activeCourts = courts.filter((c) => c.active);
                 return activeCourts.length > 0 && activeCourts.every((c) => occupiedCourtIds.has(c.id));

@@ -9,7 +9,6 @@ import {
     tierLabelFromCount,
     getBlockedSlotStatus,
     getNextStatus,
-    isCancelled,
     statusBadge,
     nextStatusActionLabel,
     MANUAL_RESERVATION_STATUS_ORDER,
@@ -33,8 +32,8 @@ interface AdminBlockCardProps {
     courts: Court[];
     targetDate: string;
     onClick?: (block: BlockedSlot, targetDate: string) => void;
-    onAdvanceStatus?: (block: BlockedSlot) => void;
-    onPickStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
+    onAdvanceStatus?: (block: BlockedSlot, targetDate: string) => void;
+    onPickStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus, targetDate: string) => void;
     onCancelBlock?: (block: BlockedSlot, targetDate: string) => void;
     onEdit?: (block: BlockedSlot) => void;
     /** Pago registrado de la instancia (si existe). Cuando está presente, la card
@@ -65,8 +64,8 @@ export default function AdminBlockCard({
     const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
     const blockTier = tierLabelFromCount(block.courtIds.length);
     const blockCourtList = formatCourtList(blockCourtNames);
-    const status = getBlockedSlotStatus(block);
-    const cancelled = isCancelled(block);
+    const status = getBlockedSlotStatus(block, targetDate);
+    const cancelled = status === "cancelled";
 
     const clickable = !!onClick && cancelled;
     const badge = statusBadge(status);
@@ -153,7 +152,7 @@ export default function AdminBlockCard({
                                                     if (s === "paid" && onRegisterPayment && isReservationPayable(block)) {
                                                         onRegisterPayment(block, targetDate, existingPayment ?? null);
                                                     } else {
-                                                        onPickStatus(block, s);
+                                                        onPickStatus(block, s, targetDate);
                                                     }
                                                 }
                                             }}
@@ -283,7 +282,7 @@ export default function AdminBlockCard({
                                 if (nextStatus === "paid" && onRegisterPayment) {
                                     onRegisterPayment(block, targetDate, existingPayment ?? null);
                                 } else {
-                                    onAdvanceStatus(block);
+                                    onAdvanceStatus(block, targetDate);
                                 }
                             }}
                             className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-[#1f7a4f]/10 text-[#1f7a4f] text-xs font-semibold hover:bg-[#1f7a4f]/15 transition-colors"

@@ -18,8 +18,8 @@ interface AdminBookingCalendarProps {
     venueFormats?: VenueFormat[];
     onBookingClick?: (booking: Booking) => void;
     onBlockClick?: (block: BlockedSlot, targetDate: string) => void;
-    onAdvanceBlockStatus?: (block: BlockedSlot) => void;
-    onPickBlockStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus) => void;
+    onAdvanceBlockStatus?: (block: BlockedSlot, targetDate: string) => void;
+    onPickBlockStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus, targetDate: string) => void;
     onCancelBlock?: (block: BlockedSlot, targetDate: string) => void;
     onEditBlock?: (block: BlockedSlot) => void;
     onRegisterPayment?: (

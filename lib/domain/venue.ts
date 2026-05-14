@@ -202,6 +202,7 @@ export interface BlockedSlot {
     recurrence?: BlockedSlotRecurrence;
     isMonthly?: boolean;           // true si el cliente paga mensualidad
     exceptDates?: string[];        // YYYY-MM-DD instancias canceladas
+    statusOverrides?: Record<string, ManualReservationStatus>; // YYYY-MM-DD → estado de esa instancia
     createdBy: string;
     createdAt: string;
     updatedAt?: string;
@@ -212,9 +213,13 @@ export function isCancelled(slot: BlockedSlot): boolean {
 }
 
 /**
- * Status efectivo de una reserva manual (con default para docs viejos).
+ * Status efectivo de una reserva manual.
+ * Para reservas recurrentes, `date` (YYYY-MM-DD) permite leer el override de esa instancia.
  */
-export function getBlockedSlotStatus(slot: BlockedSlot): ManualReservationStatus {
+export function getBlockedSlotStatus(slot: BlockedSlot, date?: string): ManualReservationStatus {
+    if (date && slot.statusOverrides?.[date] !== undefined) {
+        return slot.statusOverrides[date];
+    }
     return slot.status ?? "pending";
 }
 

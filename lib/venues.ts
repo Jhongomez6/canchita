@@ -411,6 +411,7 @@ export async function updateManualReservationStatus(
     venueId: string,
     slotId: string,
     newStatus: ManualReservationStatus,
+    targetDate?: string,
 ): Promise<void> {
     const ref = doc(db, "venues", venueId, "blocked_slots", slotId);
     await runTransaction(db, async (tx) => {
@@ -418,10 +419,18 @@ export async function updateManualReservationStatus(
         if (!snap.exists()) {
             throw new Error("La reserva ya no existe");
         }
-        tx.update(ref, {
-            status: newStatus,
-            updatedAt: new Date().toISOString(),
-        });
+        const data = snap.data() as { recurrence?: unknown };
+        if (targetDate && data.recurrence) {
+            tx.update(ref, {
+                [`statusOverrides.${targetDate}`]: newStatus,
+                updatedAt: new Date().toISOString(),
+            });
+        } else {
+            tx.update(ref, {
+                status: newStatus,
+                updatedAt: new Date().toISOString(),
+            });
+        }
     });
 }
 

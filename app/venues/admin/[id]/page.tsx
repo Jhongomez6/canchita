@@ -181,24 +181,30 @@ function VenueAdminContent() {
     );
 
     // Optimistic update del status en hourDetail (snapshot, no escucha realtime).
-    const patchHourDetailBlockStatus = useCallback((slotId: string, newStatus: ManualReservationStatus) => {
+    // instanceDate: si se pasa, actualiza el override de esa instancia (recurrentes).
+    const patchHourDetailBlockStatus = useCallback((slotId: string, newStatus: ManualReservationStatus, instanceDate?: string) => {
         setHourDetail((prev) => {
             if (!prev) return prev;
-            const next = prev.blocks.map((b) =>
-                b.id === slotId ? { ...b, status: newStatus } : b,
-            );
+            const next = prev.blocks.map((b) => {
+                if (b.id !== slotId) return b;
+                if (instanceDate) {
+                    return { ...b, statusOverrides: { ...(b.statusOverrides ?? {}), [instanceDate]: newStatus } };
+                }
+                return { ...b, status: newStatus };
+            });
             return { ...prev, blocks: next };
         });
     }, []);
 
-    const handleAdvanceBlockStatus = useCallback(async (slot: BlockedSlot) => {
-        const current = getBlockedSlotStatus(slot);
+    const handleAdvanceBlockStatus = useCallback(async (slot: BlockedSlot, targetDate: string) => {
+        const instanceDate = slot.recurrence ? targetDate : undefined;
+        const current = getBlockedSlotStatus(slot, instanceDate);
         const next = getNextStatus(current);
         if (!next) return;
         // Optimistic: actualizar UI inmediatamente
-        patchHourDetailBlockStatus(slot.id, next);
+        patchHourDetailBlockStatus(slot.id, next, instanceDate);
         try {
-            await updateManualReservationStatus(venueId, slot.id, next);
+            await updateManualReservationStatus(venueId, slot.id, next, instanceDate);
             logManualReservationStatusChanged({
                 venueId,
                 slotId: slot.id,
@@ -208,18 +214,19 @@ function VenueAdminContent() {
             });
         } catch (err) {
             // Revertir en caso de error
-            patchHourDetailBlockStatus(slot.id, current);
+            patchHourDetailBlockStatus(slot.id, current, instanceDate);
             handleError(err, "No pudimos actualizar el estado");
         }
     }, [venueId, patchHourDetailBlockStatus]);
 
-    const handlePickBlockStatus = useCallback(async (slot: BlockedSlot, newStatus: ManualReservationStatus) => {
-        const current = getBlockedSlotStatus(slot);
+    const handlePickBlockStatus = useCallback(async (slot: BlockedSlot, newStatus: ManualReservationStatus, targetDate: string) => {
+        const instanceDate = slot.recurrence ? targetDate : undefined;
+        const current = getBlockedSlotStatus(slot, instanceDate);
         if (current === newStatus) return;
         // Optimistic
-        patchHourDetailBlockStatus(slot.id, newStatus);
+        patchHourDetailBlockStatus(slot.id, newStatus, instanceDate);
         try {
-            await updateManualReservationStatus(venueId, slot.id, newStatus);
+            await updateManualReservationStatus(venueId, slot.id, newStatus, instanceDate);
             logManualReservationStatusChanged({
                 venueId,
                 slotId: slot.id,
@@ -228,7 +235,7 @@ function VenueAdminContent() {
                 via: "popover",
             });
         } catch (err) {
-            patchHourDetailBlockStatus(slot.id, current);
+            patchHourDetailBlockStatus(slot.id, current, instanceDate);
             handleError(err, "No pudimos actualizar el estado");
         }
     }, [venueId, patchHourDetailBlockStatus]);
