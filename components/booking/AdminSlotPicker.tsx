@@ -38,6 +38,19 @@ function todayLocalISO(): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function twoMonthsBackISO(): string {
+    const d = new Date();
+    const start = new Date(d.getFullYear(), d.getMonth() - 2, 1);
+    return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function fourMonthsWindowDays(): number {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 3, 0); // último día del mes +2
+    return Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+}
+
 
 export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourTapped }: AdminSlotPickerProps) {
     const [combos, setCombos] = useState<CourtCombo[]>([]);
@@ -248,6 +261,8 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
             <DateCarousel
                 selectedDate={selectedDate}
                 onSelect={setSelectedDate}
+                startDate={twoMonthsBackISO()}
+                daysAhead={fourMonthsWindowDays()}
             />
 
             {selectedFormat && (
