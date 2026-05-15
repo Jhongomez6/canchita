@@ -11,7 +11,7 @@
  * ESPECIFICACIÓN:
  * - Posiciones permitidas: GK, DEF, MID, FWD
  * - Máximo 2 posiciones por jugador
- * - Nivel entre 1 y 3
+ * - Nivel entre 1 y 4
  * - Nombre obligatorio, mínimo 2 caracteres
  */
 
@@ -39,7 +39,7 @@ export const POSITION_ICONS: Record<Position, string> = {
     FWD: "⚡",
 };
 
-export type PlayerLevel = 1 | 2 | 3;
+export type PlayerLevel = 1 | 2 | 3 | 4;
 
 export type AttendanceStatus = "present" | "late" | "no_show";
 
@@ -82,11 +82,11 @@ export function validatePlayerName(name: string): void {
 
 /**
  * Valida el nivel de un jugador.
- * Regla: Entre 1 y 3.
+ * Regla: Entre 1 y 4.
  */
 export function validateLevel(level: number): void {
-    if (level < 1 || level > 3) {
-        throw new ValidationError("El nivel debe ser 1, 2, o 3");
+    if (level < 1 || level > 4) {
+        throw new ValidationError("El nivel debe ser 1, 2, 3 o 4");
     }
 }
 

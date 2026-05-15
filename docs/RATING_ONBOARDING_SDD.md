@@ -17,21 +17,24 @@ Calcular el rating inicial de un jugador nuevo usando hitos objetivos en lugar d
 |---|---|
 | Base | 200 PP |
 | Técnica (1-5) | [0, 80, 160, 240, 320] |
-| Físico (1-5) | [0, 40, 80, 120, 160] |
+| Físico (1-5) | [0, 50, 100, 150, 200] |
 | Escuela de fútbol | +100 |
-| Torneos competitivos | +100 |
+| Torneos competitivos | +60 |
 | Frecuencia | occasional(0), weekly(60), intense(120) |
 | Edad 18-35 | +50 |
 | Edad 36-45 | 0 |
 | Edad 46+ | -50 |
 | **Cap** | [100, 950] |
 
-### Mapeo a Nivel
+**Rebalanceo (2026-05-15):** El físico subió de 160 → 200 puntos máx (+25%) y torneos bajó de 100 → 60 puntos (-40%). Mantiene el mismo cap, así que los ratings históricos no requieren recálculo de cap.
+
+### Mapeo a Nivel (4 niveles)
 | Rating | Nivel |
 |---|---|
-| < 350 | 1 (Básico) |
-| 350–650 | 2 (Intermedio) |
-| > 650 | 3 (Avanzado) |
+| < 320 | 1 (Principiante) 🐣 |
+| 320–500 | 2 (Básico) 🌱 |
+| 501–700 | 3 (Intermedio) ⚡ |
+| > 700 | 4 (Avanzado) 🔥 |
 
 ### Metadatos de Perfil
 - Fecha de nacimiento: `birthdate` (YYYY-MM-DD) — fuente de verdad permanente
@@ -148,7 +151,7 @@ Usuarios legacy con campo `age: number` (sin `birthdate`) mantienen compatibilid
 ### ✅ Criterio 3
 **Given** un jugador que finaliza onboarding
 **When** ve el resultado
-**Then** el rating está entre [100, 950] y el nivel es 1, 2 o 3
+**Then** el rating está entre [100, 950] y el nivel es 1, 2, 3 o 4
 
 ### ✅ Criterio 4
 **Given** un jugador con onboarding completo
@@ -178,3 +181,31 @@ Login → AuthGuard → ¿initialRatingCalculated?
   └─ SÍ  → App normal
              └─ /profile → Ficha Técnica (nivel + re-evaluación a los 90 días)
 ```
+
+---
+
+## 7. MIGRACIÓN — Rebalanceo 2026-05-15
+
+Script: [scripts/recalculate-user-levels.js](../scripts/recalculate-user-levels.js)
+
+### Estrategia de migración por caso
+
+| Estado del user | Acción | Justificación |
+|---|---|---|
+| `initialRatingCalculated: true` + datos crudos completos | Recalcula `rating` + `level` con nuevos pesos | Los nuevos pesos cambian el rating final |
+| `initialRatingCalculated: true` + datos crudos faltantes (legacy) | Solo remapea `level` desde el `rating` existente | Sin datos crudos no se puede recalcular el rating; al menos mantenemos el nivel coherente con los nuevos umbrales |
+| `initialRatingCalculated: true` + sin `rating` ni datos | Salteado con warning | Caso anómalo, requiere intervención manual |
+| `initialRatingCalculated` falsy | Salteado silencioso | Aún no completaron onboarding |
+
+### Por qué algunos usuarios son "legacy"
+
+Antes del commit `c29def9 "saving all data from onboarding form"`, el flujo de onboarding **no persistía** los campos crudos (`techLevel`, `physLevel`, `hasSchool`, `hasTournaments`, `frequency`). Solo guardaba `rating` y `level` finales. Estos usuarios se identifican en runtime: tienen `initialRatingCalculated: true` y `rating` pero les faltan los crudos.
+
+### Uso del script
+
+```powershell
+node scripts/recalculate-user-levels.js --dry-run   # imprime cambios sin escribir
+node scripts/recalculate-user-levels.js             # aplica los cambios
+```
+
+Salida marca cada caso con un emoji: `🔄` recálculo completo, `🧓` legacy (solo nivel), `⚠️` salteado por datos insuficientes.

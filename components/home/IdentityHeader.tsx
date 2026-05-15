@@ -15,7 +15,7 @@ interface IdentityHeaderProps {
 }
 
 function getLevelLabel(level?: number): string {
-    const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado"];
+    const LEVEL_LABELS = ["", "Principiante", "Básico", "Intermedio", "Avanzado"];
     if (!level || level < 1 || level >= LEVEL_LABELS.length) return "Nivel desconocido";
     return LEVEL_LABELS[level];
 }
