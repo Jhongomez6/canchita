@@ -1054,17 +1054,13 @@ function VenueAdminContent() {
                         existingPayment={paymentTarget.existingPayment}
                         registeredBy={user.uid}
                         onSaved={() => {
-                            // Optimistic: marca el status del slot en el drawer si es puntual.
-                            if (!paymentTarget.slot.recurrence) {
-                                patchHourDetailBlockStatus(paymentTarget.slot.id, "paid");
-                            }
+                            const instanceDate = paymentTarget.slot.recurrence ? paymentTarget.targetDate : undefined;
+                            patchHourDetailBlockStatus(paymentTarget.slot.id, "paid", instanceDate);
                             setPaymentTarget(null);
                         }}
                         onDeleted={() => {
-                            // Si era puntual y estaba paid, el backend la dejó en played.
-                            if (!paymentTarget.slot.recurrence) {
-                                patchHourDetailBlockStatus(paymentTarget.slot.id, "played");
-                            }
+                            const instanceDate = paymentTarget.slot.recurrence ? paymentTarget.targetDate : undefined;
+                            patchHourDetailBlockStatus(paymentTarget.slot.id, "played", instanceDate);
                             setPaymentTarget(null);
                         }}
                     />

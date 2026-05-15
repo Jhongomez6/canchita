@@ -149,8 +149,8 @@ export default function AdminBlockCard({
                                                 e.stopPropagation();
                                                 setPopoverOpen(false);
                                                 if (!isCurrent) {
-                                                    if (s === "paid" && onRegisterPayment && isReservationPayable(block)) {
-                                                        onRegisterPayment(block, targetDate, existingPayment ?? null);
+                                                    if (s === "paid" && onRegisterPayment && isReservationPayable(block) && !existingPayment) {
+                                                        onRegisterPayment(block, targetDate, null);
                                                     } else {
                                                         onPickStatus(block, s, targetDate);
                                                     }
@@ -279,8 +279,8 @@ export default function AdminBlockCard({
                                 e.stopPropagation();
                                 // Interceptar la transición a "paid": en lugar de cambiar status directo,
                                 // abrir el sheet de pago para capturar montos por método.
-                                if (nextStatus === "paid" && onRegisterPayment) {
-                                    onRegisterPayment(block, targetDate, existingPayment ?? null);
+                                if (nextStatus === "paid" && onRegisterPayment && !existingPayment) {
+                                    onRegisterPayment(block, targetDate, null);
                                 } else {
                                     onAdvanceStatus(block, targetDate);
                                 }
