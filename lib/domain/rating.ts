@@ -16,8 +16,8 @@
  * - Frecuencia: occasional(0), weekly(60), intense(120)
  * - Edad: 18-35(+50), 36-45(0), 46+(-50)
  * - Cap: [100, 950]
- * - Mapeo: <320 → Lvl 1 (Principiante), 320-500 → Lvl 2 (Básico),
- *          501-700 → Lvl 3 (Intermedio), >700 → Lvl 4 (Avanzado)
+ * - Mapeo: <320 → Lvl 1 (Básico), 320-500 → Lvl 2 (Intermedio),
+ *          501-700 → Lvl 3 (Avanzado), >700 → Lvl 4 (Elite)
  */
 
 // ========================

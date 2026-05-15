@@ -226,7 +226,7 @@ export default function PlayersTab({
                             .map((p) => POSITION_ICONS[p as Position] || p)
                             .join(" ")
                           : "";
-                        const LEVEL_LABELS = ["", "Principiante", "Básico", "Intermedio", "Avanzado"];
+                        const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado", "Elite"];
                         const levelLabel = LEVEL_LABELS[u.level ?? 0] || "Sin nivel";
 
                         return (

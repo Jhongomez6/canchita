@@ -28,7 +28,7 @@ import {
   Cake, User, Activity, RotateCcw, Camera, Crown,
   Shirt, Clock, Lock, XCircle, Bell, CheckCircle2,
   AlertTriangle, Smartphone, Settings,
-  Zap, Flame, Sprout, Leaf, CalendarDays
+  Zap, Flame, Sprout, Goal, CalendarDays
 } from "lucide-react";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
@@ -36,8 +36,8 @@ import { logStatsViewed, logApplyCTAClicked, logPWAInstallClicked } from "@/lib/
 
 const FOOT_LABELS: Record<string, string> = { left: "Izquierdo", right: "Derecho", ambidextrous: "Ambidiestro" };
 const SEX_LABELS: Record<string, string> = { male: "M", female: "F", other: "Otro" };
-const LEVEL_LABELS = ["", "Principiante", "Básico", "Intermedio", "Avanzado"];
-const LEVEL_ICONS = [null, Leaf, Sprout, Zap, Flame];
+const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado", "Elite"];
+const LEVEL_ICONS = [null, Sprout, Goal, Zap, Flame];
 
 export default function ProfilePage() {
   const { user, profile, loading: authLoading } = useAuth();

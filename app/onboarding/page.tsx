@@ -794,8 +794,8 @@ export default function OnboardingPage() {
     // STEP 8: RESULTADO
     // ========================
     if (step === 8 && result) {
-        const levelLabels = ["", "Principiante", "Básico", "Intermedio", "Avanzado"];
-        const levelEmojis = ["", "🐣", "🌱", "⚡", "🔥"];
+        const levelLabels = ["", "Básico", "Intermedio", "Avanzado", "Elite"];
+        const levelEmojis = ["", "🌱", "⚽", "⚡", "🔥"];
 
         return (
             <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-4">

@@ -31,10 +31,10 @@ Calcular el rating inicial de un jugador nuevo usando hitos objetivos en lugar d
 ### Mapeo a Nivel (4 niveles)
 | Rating | Nivel |
 |---|---|
-| < 320 | 1 (Principiante) 🐣 |
-| 320–500 | 2 (Básico) 🌱 |
-| 501–700 | 3 (Intermedio) ⚡ |
-| > 700 | 4 (Avanzado) 🔥 |
+| < 320 | 1 (Básico) 🌱 |
+| 320–500 | 2 (Intermedio) ⚽ |
+| 501–700 | 3 (Avanzado) ⚡ |
+| > 700 | 4 (Elite) 🔥 |
 
 ### Metadatos de Perfil
 - Fecha de nacimiento: `birthdate` (YYYY-MM-DD) — fuente de verdad permanente
