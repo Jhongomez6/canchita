@@ -548,7 +548,12 @@ export async function registerManualReservationPayment(
         };
         tx.set(paymentRef, payment);
 
-        if (!isRecurring) {
+        if (isRecurring) {
+            tx.update(slotRef, {
+                [`statusOverrides.${targetDate}`]: "paid",
+                updatedAt: now,
+            });
+        } else {
             tx.update(slotRef, { status: "paid", updatedAt: now });
         }
     });
@@ -612,11 +617,14 @@ export async function deleteManualReservationPayment(
         if (slotSnap.exists()) {
             const slot = slotSnap.data() as Omit<BlockedSlot, "id">;
             const isRecurring = !!slot.recurrence;
-            if (!isRecurring && slot.status === "paid") {
+            const now = new Date().toISOString();
+            if (isRecurring && slot.statusOverrides?.[payment.date] === "paid") {
                 tx.update(slotRef, {
-                    status: "played",
-                    updatedAt: new Date().toISOString(),
+                    [`statusOverrides.${payment.date}`]: "played",
+                    updatedAt: now,
                 });
+            } else if (!isRecurring && slot.status === "paid") {
+                tx.update(slotRef, { status: "played", updatedAt: now });
             }
         }
     });
