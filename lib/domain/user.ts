@@ -18,6 +18,7 @@
 
 import type { Position } from "./player";
 import type { Sex, Foot, CourtSize, TechLevel, PhysLevel, Frequency } from "./rating";
+import type { UserKudosSummary, UserReportsSummary } from "./matchReview";
 
 // ========================
 // TIPOS
@@ -78,6 +79,10 @@ export interface UserProfile {
     // Soft-anonymization (set on account deletion — personal data wiped, traza conservada)
     deleted?: boolean;
     deletedAt?: string;                // ISO date of anonymization
+    // Post-Match Review — escritos exclusivamente por Cloud Functions (triggers).
+    // El cliente tiene escritura denegada vía firestore.rules.
+    kudosSummary?: UserKudosSummary;
+    _reportsSummary?: UserReportsSummary;  // solo lectura admin
 }
 
 export interface UserStats {

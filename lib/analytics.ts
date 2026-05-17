@@ -780,3 +780,57 @@ export async function logBlockedSlotConflictsForced(venueId: string, conflictsCo
     conflicts_count: conflictsCount.toString(),
   });
 }
+
+/* =========================
+   POST-MATCH REVIEW (P2/P3)
+========================= */
+
+export async function logPostMatchReviewCardShown(matchId: string) {
+  await trackEvent("post_match_review_card_shown", { match_id: matchId });
+}
+
+export async function logPostMatchReviewCardDismissed(matchId: string) {
+  await trackEvent("post_match_review_card_dismissed", { match_id: matchId });
+}
+
+export async function logPostMatchReviewStarted(
+  matchId: string,
+  source: "home_card" | "in_app_notif" | "direct",
+) {
+  await trackEvent("post_match_review_started", { match_id: matchId, source });
+}
+
+export async function logPostMatchReviewSubmitted(params: {
+  matchId: string;
+  rating: number;
+  kudosGivenCount: number;
+  reportsGivenCount: number;
+  hasComment: boolean;
+}) {
+  await trackEvent("post_match_review_submitted", {
+    match_id: params.matchId,
+    rating: params.rating.toString(),
+    kudos_given_count: params.kudosGivenCount.toString(),
+    reports_given_count: params.reportsGivenCount.toString(),
+    has_comment: params.hasComment.toString(),
+  });
+}
+
+export async function logPostMatchReviewAbandoned(matchId: string) {
+  await trackEvent("post_match_review_abandoned", { match_id: matchId });
+}
+
+export async function logKudoGiven(matchId: string, kudoType: string) {
+  await trackEvent("kudo_given", { match_id: matchId, kudo_type: kudoType });
+}
+
+export async function logReportSubmitted(matchId: string, reason: string) {
+  await trackEvent("report_submitted", { match_id: matchId, reason });
+}
+
+export async function logAdminReportActioned(
+  reportId: string,
+  action: "dismiss" | "warning" | "suspension",
+) {
+  await trackEvent("admin_report_actioned", { report_id: reportId, action });
+}

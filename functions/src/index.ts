@@ -16,3 +16,6 @@ export * from "./bookings";
 
 // 🚫 Exportamos las funciones de bloqueos (puntuales + recurrentes)
 export * from "./blocked-slots";
+
+// ⭐ Post-Match Review: notificaciones, agregación de kudos/reportes y moderación
+export * from "./postMatchReview";

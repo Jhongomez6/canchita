@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin as checkIsSuperAdmin, isLocationAdmin as checkIsLocationAdmin, hasBookingAccess as checkHasBookingAccess } from "@/lib/domain/user";
 import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
+import { getPendingReportsCount } from "@/lib/matchReview";
 
 export default function BottomNav() {
     const pathname = usePathname();
@@ -15,11 +16,15 @@ export default function BottomNav() {
     const hasBooking = profile ? checkHasBookingAccess(profile) : false;
     const isPlayer = profile?.roles?.includes("player") ?? false;
     const [pendingApps, setPendingApps] = useState(0);
+    const [pendingReports, setPendingReports] = useState(0);
 
     useEffect(() => {
         if (!isSuperAdminUser) return;
         getPendingApplicationsCount()
             .then((count) => setPendingApps(count))
+            .catch(() => {/* silencioso */});
+        getPendingReportsCount()
+            .then((count) => setPendingReports(count))
             .catch(() => {/* silencioso */});
     }, [isSuperAdminUser]);
 
@@ -217,6 +222,33 @@ export default function BottomNav() {
                             <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
                         </svg>
                         <span className="text-[10px] font-bold tracking-wide">Sugerencias</span>
+                    </Link>
+                )}
+
+                {/* ADMIN REPORTS (Super Admin Only) */}
+                {isSuperAdminUser && (
+                    <Link href="/admin/reports" className={navItemClass(pathname.startsWith("/admin/reports"))}>
+                        <div className="relative">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill={pathname.startsWith("/admin/reports") ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth={pathname.startsWith("/admin/reports") ? "0" : "2"}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="w-7 h-7"
+                            >
+                                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                                <line x1="4" x2="4" y1="22" y2="15" />
+                            </svg>
+                            {pendingReports > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                                    {pendingReports > 9 ? "9+" : pendingReports}
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-[10px] font-bold tracking-wide">Reportes</span>
                     </Link>
                 )}
 

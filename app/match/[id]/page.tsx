@@ -66,6 +66,7 @@ import TeamsTab from "./components/TeamsTab";
 import ScoreTab from "./components/ScoreTab";
 import SettingsTab from "./components/SettingsTab";
 import PaymentsTab from "./components/PaymentsTab";
+import ReviewsTab from "./components/ReviewsTab";
 import MatchFAB from "./components/MatchFAB";
 
 export default function MatchDetailPage() {
@@ -161,7 +162,7 @@ export default function MatchDetailPage() {
   useEffect(() => {
     if (!match || tabInitialized) return;
     const urlTab = searchParams.get("tab") as TabId | null;
-    if (urlTab && ["dashboard", "players", "teams", "settings", "payments"].includes(urlTab)) {
+    if (urlTab && ["dashboard", "players", "teams", "score", "settings", "payments", "reviews"].includes(urlTab)) {
       setActiveTab(urlTab);
     } else {
       const phase = getMatchPhase(
@@ -931,6 +932,10 @@ export default function MatchDetailPage() {
                 }
               }}
             />
+          )}
+
+          {activeTab === "reviews" && match.status === "closed" && (
+            <ReviewsTab matchId={id} />
           )}
         </div>
 

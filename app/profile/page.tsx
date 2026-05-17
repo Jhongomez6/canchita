@@ -20,6 +20,7 @@ import { getMyApplication } from "@/lib/teamAdminApplications";
 import type { TeamAdminApplication } from "@/lib/domain/teamAdminApplication";
 import AuthGuard from "@/components/AuthGuard";
 import StatsCard from "@/components/StatsCard";
+import KudosHistoryDrawer from "@/components/profile/KudosHistoryDrawer";
 import FifaPlayerCard from "@/components/FifaPlayerCard";
 import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
@@ -70,6 +71,7 @@ export default function ProfilePage() {
   // PWA Install
   const { isInstallable, isStandalone, isIOS, isAndroid, promptToInstall } = usePWAInstall();
   const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showKudosHistory, setShowKudosHistory] = useState(false);
   const canInstall = !isStandalone && (isInstallable || isIOS || isAndroid);
 
   // Edit buffers
@@ -736,7 +738,14 @@ export default function ProfilePage() {
           {/* ========================= */}
           {/*      ESTADÍSTICAS       */}
           {/* ========================= */}
-          {!isOnboarding && <StatsCard stats={stats} mvpAwards={profile.mvpAwards} />}
+          {!isOnboarding && (
+            <StatsCard
+              stats={stats}
+              mvpAwards={profile.mvpAwards}
+              kudosSummary={profile.kudosSummary}
+              onViewKudosHistory={user ? () => setShowKudosHistory(true) : undefined}
+            />
+          )}
 
           {/* ========================= */}
           {/*   TEAM ADMIN APPLICATION  */}
@@ -1073,6 +1082,14 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
+      )}
+
+      {user && (
+        <KudosHistoryDrawer
+          open={showKudosHistory}
+          userUid={user.uid}
+          onClose={() => setShowKudosHistory(false)}
+        />
       )}
 
     </AuthGuard>

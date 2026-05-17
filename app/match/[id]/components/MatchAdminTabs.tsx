@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Scale, 
-  Trophy, 
-  Settings, 
-  DollarSign 
+import {
+  LayoutDashboard,
+  Users,
+  Scale,
+  Trophy,
+  Settings,
+  DollarSign,
+  Star
 } from "lucide-react";
 import { type FABPhase } from "./MatchFAB";
 
-export type TabId = "dashboard" | "players" | "teams" | "score" | "settings" | "payments";
+export type TabId = "dashboard" | "players" | "teams" | "score" | "settings" | "payments" | "reviews";
 
 interface Tab {
   id: TabId;
@@ -85,12 +86,17 @@ export default function MatchAdminTabs({
       icon: Settings,
       showDot: (fabPhase === "recruiting" || fabPhase === "can_close") && activeTab !== "settings"
     },
-    { 
-      id: "payments" as const, 
-      label: "Cobros", 
+    {
+      id: "payments" as const,
+      label: "Cobros",
       icon: DollarSign,
       showDot: fabPhase === "can_collect" && activeTab !== "payments"
     },
+    ...(isClosed ? [{
+      id: "reviews" as const,
+      label: "Reviews",
+      icon: Star,
+    }] : []),
   ];
 
   return (

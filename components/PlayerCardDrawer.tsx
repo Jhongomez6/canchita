@@ -6,6 +6,8 @@ import { getUserProfile } from "@/lib/users";
 import type { UserProfile } from "@/lib/domain/user";
 import FifaPlayerCard from "./FifaPlayerCard";
 import FifaCardSkeleton from "./skeletons/FifaCardSkeleton";
+import KudosBadges from "./profile/KudosBadges";
+import DrawerStreaks from "./profile/DrawerStreaks";
 import { logPlayerCardViewed } from "@/lib/analytics";
 
 interface PlayerCardDrawerProps {
@@ -80,7 +82,7 @@ export default function PlayerCardDrawer({ isOpen, onClose, playerUid }: PlayerC
                 onClose();
               }
             }}
-            className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center rounded-t-3xl h-[66vh] overflow-hidden"
+            className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center rounded-t-3xl h-[72vh] min-h-[min(620px,90vh)] overflow-hidden"
             style={{
               background: "linear-gradient(to bottom, rgba(5,20,12,0.96), rgba(3,12,7,0.98))",
               backdropFilter: "blur(20px) saturate(1.2)",
@@ -223,7 +225,7 @@ export default function PlayerCardDrawer({ isOpen, onClose, playerUid }: PlayerC
                   <p className="text-green-200/70 font-medium text-sm">{error}</p>
                 </div>
               ) : profile ? (
-                <div className="relative mt-0">
+                <div className="relative mt-0 w-[340px] flex flex-col items-center">
                   {/* Breathing ambient glow behind card */}
                   <motion.div
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[45%] w-[320px] h-[520px] rounded-full pointer-events-none"
@@ -245,8 +247,11 @@ export default function PlayerCardDrawer({ isOpen, onClose, playerUid }: PlayerC
                     <FifaPlayerCard profile={profile} animated={true} />
                   </motion.div>
 
+                  {/* Spacer — la card está escalada 1.45x desde top-center, lo cual extiende ~45% su altura natural sin empujar el flow. Reservamos espacio manualmente para que la shelf line y los kudos no queden tapados. */}
+                  <div aria-hidden className="h-[140px]" />
+
                   {/* Glass shelf line below card */}
-                  <div className="mt-3 flex flex-col items-center">
+                  <div className="flex flex-col items-center">
                     <div
                       className="w-[160px] h-[1px]"
                       style={{ background: "linear-gradient(to right, transparent, rgba(74,222,128,0.3), transparent)" }}
@@ -256,6 +261,37 @@ export default function PlayerCardDrawer({ isOpen, onClose, playerUid }: PlayerC
                       style={{ background: "rgba(74,222,128,0.08)", filter: "blur(3px)" }}
                     />
                   </div>
+
+                  {/* Reconocimientos + Rachas — agrupados en una sola fila inline.
+                      SDD: PLAYER_CARD_DRAWER_SECTIONS_SDD */}
+                  {(
+                    (profile.kudosSummary && profile.kudosSummary.total > 0) ||
+                    (profile.weeklyStreak ?? 0) > 0 ||
+                    (profile.commitmentStreak ?? 0) > 0
+                  ) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.4 }}
+                      className="mt-3 w-full flex flex-col items-center"
+                    >
+                      {/* Micro header — tight tracking, sin líneas decorativas */}
+                      <div className="mb-3">
+                        <span className="text-[11px] font-bold text-green-300/60 uppercase tracking-[0.18em]">
+                          Logros
+                        </span>
+                      </div>
+
+                      <div className="w-full max-w-[340px] flex flex-col items-center gap-2">
+                        {/* Row 1 — Rachas primero, mayor jerarquía */}
+                        <DrawerStreaks profile={profile} />
+                        {/* Row 2 — Reconocimientos */}
+                        {profile.kudosSummary && profile.kudosSummary.total > 0 && (
+                          <KudosBadges summary={profile.kudosSummary} compact />
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               ) : null}
             </div>

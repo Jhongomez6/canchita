@@ -144,3 +144,42 @@ export class BookingNotFoundError extends BusinessError {
         this.name = "BookingNotFoundError";
     }
 }
+
+// ========================
+// ERRORES DE POST-MATCH REVIEW
+// ========================
+
+export class ReviewNotEligibleError extends BusinessError {
+    constructor() {
+        super("No podés calificar este partido");
+        this.name = "ReviewNotEligibleError";
+    }
+}
+
+export class ReviewWindowExpiredError extends BusinessError {
+    constructor() {
+        super("La ventana para calificar este partido ya cerró");
+        this.name = "ReviewWindowExpiredError";
+    }
+}
+
+export class ReviewAlreadyExistsError extends BusinessError {
+    constructor() {
+        super("Ya enviaste tu review de este partido");
+        this.name = "ReviewAlreadyExistsError";
+    }
+}
+
+export class ActiveReportLimitError extends BusinessError {
+    constructor() {
+        super("Ya tenés 2 reportes pendientes contra este jugador. Esperá a que el admin los revise.");
+        this.name = "ActiveReportLimitError";
+    }
+}
+
+export class SelfTargetError extends BusinessError {
+    constructor() {
+        super("No podés dar kudos ni reportarte a vos mismo");
+        this.name = "SelfTargetError";
+    }
+}

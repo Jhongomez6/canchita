@@ -30,6 +30,12 @@ service cloud.firestore {
         && locationId in userDoc.data.get('assignedLocationIds', []);
     }
 
+    // Helper: usuario estuvo en el partido cerrado (post-match review)
+    function wasInClosedMatch(matchId, uid) {
+      let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      return m.status == "closed" && uid in m.get('playerUids', []);
+    }
+
     // 🏟️ CANCHAS
     match /locations/{locationId} {
 
@@ -66,12 +72,12 @@ service cloud.firestore {
           (
             request.auth.uid == userId
             // Verificamos que no intente modificar campos sensibles
-            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'adminType', 'assignedLocationIds']))
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'adminType', 'assignedLocationIds', 'kudosSummary', '_reportsSummary']))
           )
           ||
           (
-            isAdmin() 
-            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'adminType', 'assignedLocationIds']) || isSuperAdmin())
+            isAdmin()
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'adminType', 'assignedLocationIds', 'kudosSummary', '_reportsSummary']) || isSuperAdmin())
           )
         );
  
@@ -303,6 +309,69 @@ service cloud.firestore {
         allow delete: if request.auth != null
           && (isSuperAdmin() || isLocationAdminFor(venueId));
       }
+    }
+
+    /* =========================
+       ⭐ POST-MATCH REVIEW
+    ========================= */
+
+    match /matchReviews/{reviewId} {
+      allow read: if request.auth != null
+        && (request.auth.uid == resource.data.userUid || isAdmin());
+
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.userUid
+        && reviewId == request.resource.data.matchId + "_" + request.auth.uid
+        && wasInClosedMatch(request.resource.data.matchId, request.auth.uid)
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && (!('comment' in request.resource.data)
+            || request.resource.data.comment.size() <= 500);
+
+      allow update: if false; // inmutable
+      allow delete: if false;
+    }
+
+    match /playerKudos/{kudoId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.giverUid
+        && request.resource.data.giverUid != request.resource.data.recipientUid
+        && request.resource.data.type in
+            ["buen_toque", "goleador", "muralla", "fair_play", "capitan"]
+        && wasInClosedMatch(request.resource.data.matchId, request.auth.uid);
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /playerReports/{reportId} {
+      allow read: if request.auth != null
+        && (request.auth.uid == resource.data.reporterUid || isAdmin());
+
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.reporterUid
+        && request.resource.data.reporterUid != request.resource.data.reportedUid
+        && request.resource.data.reason in
+            ["no_show", "aggressive_behavior", "level_mismatch", "late_no_warning", "other"]
+        && (
+          request.resource.data.reason != "other"
+          || ('comment' in request.resource.data && request.resource.data.comment.size() > 0)
+        )
+        && (!('comment' in request.resource.data)
+            || request.resource.data.comment.size() <= 500)
+        && wasInClosedMatch(request.resource.data.matchId, request.auth.uid)
+        && request.resource.data.status == "pending";
+
+      allow update: if request.auth != null && isAdmin();
+      allow delete: if false;
+    }
+
+    match /moderationAlerts/{alertId} {
+      allow read: if request.auth != null && isAdmin();
+      allow write: if false; // solo Cloud Functions
     }
 
     /* =========================

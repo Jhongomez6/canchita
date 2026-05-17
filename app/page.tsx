@@ -29,6 +29,9 @@ import { formatCOP } from "@/lib/domain/wallet";
 import IdentityHeader from "@/components/home/IdentityHeader";
 import QuickStats from "@/components/home/QuickStats";
 import HistoryRow from "@/components/home/HistoryRow";
+import PostMatchReviewCard from "@/components/home/PostMatchReviewCard";
+import { getMyReviewedMatchIds } from "@/lib/matchReview";
+import { reviewCardDismissKey, isReviewWindowExpired, wasUserInMatch } from "@/lib/domain/matchReview";
 
 export default function Home() {
   const router = useRouter();
@@ -40,6 +43,8 @@ export default function Home() {
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [joinCode, setJoinCode] = useState("");
   const [pendingApps, setPendingApps] = useState(0);
+  const [reviewedMatchIds, setReviewedMatchIds] = useState<Set<string>>(new Set());
+  const [dismissedMatchIds, setDismissedMatchIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (
@@ -57,6 +62,16 @@ export default function Home() {
       router.replace("/bookings");
     }
   }, [authLoading, profile, router]);
+
+  // Cargar matchIds que el user ya calificó (para rotar el banner de review en home)
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    getMyReviewedMatchIds(user.uid)
+      .then((ids) => { if (!cancelled) setReviewedMatchIds(ids); })
+      .catch(() => { /* best-effort, sin filtro si falla */ });
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -146,6 +161,19 @@ export default function Home() {
   const upcomingMatches = activeUserMatches.filter(m => m.id !== nextMatch?.id);
   const activeMatches = upcomingMatches.filter(m => m.status === 'open');
   const closedMatches = upcomingMatches.filter(m => m.status === 'closed');
+
+  // Primer partido cerrado elegible para mostrar el banner de review:
+  // dentro de ventana de 2d, sin review enviado, y no descartado localmente.
+  const pendingReviewMatch = user
+    ? closedMatches.find((m) => {
+        if (!m.id || !m.closedAt) return false;
+        if (isReviewWindowExpired(m.closedAt)) return false;
+        if (!wasUserInMatch(m, user.uid)) return false;  // solo a jugadores que estuvieron en teams.A/B
+        if (reviewedMatchIds.has(m.id) || dismissedMatchIds.has(m.id)) return false;
+        if (typeof window !== "undefined" && localStorage.getItem(reviewCardDismissKey(m.id, user.uid))) return false;
+        return true;
+      })
+    : undefined;
 
   // Hero card computed values
   const heroDate = nextMatch ? new Date(`${nextMatch.date}T12:00:00`) : null;
@@ -526,6 +554,25 @@ export default function Home() {
                 </div>
               </div>
             ) : null}
+
+            {/* POST-MATCH REVIEW — card for most recent unreviewed closed match */}
+            {user && pendingReviewMatch && (
+              <div className="mb-2">
+                <PostMatchReviewCard
+                  match={pendingReviewMatch}
+                  userUid={user.uid}
+                  onDismiss={() => {
+                    if (pendingReviewMatch.id) {
+                      setDismissedMatchIds((prev) => {
+                        const next = new Set(prev);
+                        next.add(pendingReviewMatch.id!);
+                        return next;
+                      });
+                    }
+                  }}
+                />
+              </div>
+            )}
 
             {/* HISTORY — TROPHY SHELF */}
             {closedMatches.length > 0 && (
