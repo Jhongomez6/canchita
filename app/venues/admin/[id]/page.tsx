@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -530,10 +531,13 @@ function VenueAdminContent() {
                                     className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 border-2 border-dashed border-slate-200 cursor-pointer hover:border-[#1f7a4f]/40 transition-colors"
                                 >
                                     {(imagePreview || venueImageURL) ? (
-                                        <img
-                                            src={imagePreview || venueImageURL}
+                                        <Image
+                                            src={imagePreview || venueImageURL!}
                                             alt="portada"
-                                            className="w-full h-full object-cover"
+                                            fill
+                                            className="object-cover"
+                                            sizes="(max-width: 768px) 100vw, 50vw"
+                                            unoptimized
                                         />
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full gap-2">

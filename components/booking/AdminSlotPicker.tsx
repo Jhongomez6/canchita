@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { getAvailableFormats, getDayOfWeek, generateTimeSlots, formatLabel, tierLabelFromCount, formatCourtList } from "@/lib/domain/venue";
+import { getAvailableFormats, getDayOfWeek, generateTimeSlots, tierLabelFromCount, formatCourtList } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot, allocateCourts } from "@/lib/domain/court-allocation";
 import { getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
 import { subscribeToBookingsForDate } from "@/lib/bookings";
@@ -107,6 +107,9 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
         const fmts = formatOptions();
         const firstAvailable = fmts.find((f) => f.available);
         if (firstAvailable && !selectedFormat) {
+            // Auto-select default format on mount. setState en effect es intencional aquí
+            // y solo corre una vez (cuando selectedFormat es null y hay formato disponible).
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedFormat(firstAvailable.format);
         }
     }, [formatOptions, selectedFormat]);
@@ -203,7 +206,7 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                 cancelledLabels,
             }];
         });
-    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, venueFormats, blockTouchesFormat]);
+    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, blockTouchesFormat]);
 
     const handleSlotTap = (slot: SlotItem) => {
         if (!selectedFormat) return;
