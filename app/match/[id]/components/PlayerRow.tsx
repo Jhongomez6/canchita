@@ -146,9 +146,10 @@ export default function PlayerRow({
                 onClick={(e) => e.stopPropagation()}
                 className="text-base bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#1f7a4f]"
               >
-                <option value={1}>Bajo (1)</option>
-                <option value={2}>Medio (2)</option>
-                <option value={3}>Alto (3)</option>
+                <option value={1}>Básico (1)</option>
+                <option value={2}>Intermedio (2)</option>
+                <option value={3}>Avanzado (3)</option>
+                <option value={4}>Elite (4)</option>
               </select>
             </div>
           )}

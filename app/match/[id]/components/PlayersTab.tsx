@@ -313,9 +313,10 @@ export default function PlayersTab({
                       onChange={(e) => setManualLevel(Number(e.target.value))}
                       className="w-24 px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-base outline-none focus:ring-2 focus:ring-[#1f7a4f]"
                     >
-                      <option value={1}>Bajo (1)</option>
-                      <option value={2}>Medio (2)</option>
-                      <option value={3}>Alto (3)</option>
+                      <option value={1}>Básico (1)</option>
+                      <option value={2}>Intermedio (2)</option>
+                      <option value={3}>Avanzado (3)</option>
+                      <option value={4}>Elite (4)</option>
                     </select>
                   </div>
 
@@ -512,6 +513,7 @@ export default function PlayersTab({
                           <option value={1}>Lvl 1</option>
                           <option value={2}>Lvl 2</option>
                           <option value={3}>Lvl 3</option>
+                          <option value={4}>Lvl 4</option>
                         </select>
                       )}
                     </div>
