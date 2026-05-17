@@ -35,10 +35,11 @@ export default function ReviewsTab({ matchId }: Props) {
     const [reviews, setReviews] = useState<MatchReview[] | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // matchId no cambia durante la vida del tab (es el partido del path), pero por
+    // seguridad invalidamos resultados pasados con `cancelled`. El reset visual al
+    // cambiar de partido lo provoca el unmount del componente.
     useEffect(() => {
         let cancelled = false;
-        setReviews(null);
-        setError(null);
         getReviewsForMatch(matchId)
             .then((data) => { if (!cancelled) setReviews(data); })
             .catch(() => { if (!cancelled) setError("No se pudieron cargar las calificaciones."); });

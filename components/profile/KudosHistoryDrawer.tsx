@@ -15,16 +15,25 @@ interface Props {
 
 export default function KudosHistoryDrawer({ open, userUid, onClose }: Props) {
     const [kudos, setKudos] = useState<PlayerKudo[]>([]);
-    const [loading, setLoading] = useState(false);
+    // Trackear el uid para el cual ya cargamos. Derivamos loading = (open && no se cargó para este uid).
+    // Evita un setState síncrono dentro del useEffect.
+    const [loadedFor, setLoadedFor] = useState<string | null>(null);
+    const loading = open && !!userUid && loadedFor !== userUid;
 
     useEffect(() => {
         if (!open || !userUid) return;
         let cancelled = false;
-        setLoading(true);
         getKudosReceivedByPlayer(userUid, 50)
-            .then((data) => { if (!cancelled) setKudos(data); })
-            .catch(() => { if (!cancelled) setKudos([]); })
-            .finally(() => { if (!cancelled) setLoading(false); });
+            .then((data) => {
+                if (cancelled) return;
+                setKudos(data);
+                setLoadedFor(userUid);
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setKudos([]);
+                setLoadedFor(userUid);
+            });
         return () => { cancelled = true; };
     }, [open, userUid]);
 

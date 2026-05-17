@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
@@ -14,7 +14,6 @@ import type { KudoType, ReportReason, DimensionValue, MatchReview } from "@/lib/
 import {
     wasUserInMatch,
     isReviewWindowExpired,
-    shouldShowMvpBanner,
     getReviewWindowEnd,
 } from "@/lib/domain/matchReview";
 import { submitMatchReview, getMyReview, getKudosGivenInMatch } from "@/lib/matchReview";
@@ -55,7 +54,6 @@ function draftKey(matchId: string, uid: string) {
 export default function MatchReviewPage() {
     const { id: matchId } = useParams<{ id: string }>();
     const searchParams = useSearchParams();
-    const router = useRouter();
     const { user, profile } = useAuth();
 
     const [loading, setLoading] = useState(true);

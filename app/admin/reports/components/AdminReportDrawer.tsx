@@ -28,12 +28,11 @@ export default function AdminReportDrawer({ report, adminUid, onClose, onActione
     const [submitting, setSubmitting] = useState(false);
     const [history, setHistory] = useState<UserReportsSummary | null>(null);
 
-    // Cargar histórico del reportado al abrir el drawer
+    // Cargar histórico del reportado al abrir el drawer.
+    // Nota: el reset de `history` se hace en handleClose (al cerrar el drawer),
+    // por eso no llamamos setHistory(null) dentro del efecto.
     useEffect(() => {
-        if (!report?.reportedUid) {
-            setHistory(null);
-            return;
-        }
+        if (!report?.reportedUid) return;
         let cancelled = false;
         getDoc(doc(db, "users", report.reportedUid))
             .then((snap) => {
