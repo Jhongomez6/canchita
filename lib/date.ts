@@ -38,30 +38,30 @@ export function formatDuration(minutes: number): string {
     return `${hours}h ${mins}m`;
 }
 
+// Formato manual para evitar que iOS/Android ignoren `hour12` cuando el SO
+// está configurado en formato 24h (bug conocido de toLocaleTimeString).
+function build12h(hour: number, minute: number): string {
+    const normalizedHour = ((hour % 24) + 24) % 24;
+    const normalizedMinute = ((minute % 60) + 60) % 60;
+    const suffix = normalizedHour >= 12 ? "PM" : "AM";
+    const h12 = normalizedHour % 12 || 12;
+    const mm = normalizedMinute.toString().padStart(2, "0");
+    return `${h12}:${mm} ${suffix}`;
+}
+
 export function formatTime12h(timeStr: string) {
     const [hour, minute] = timeStr.split(":").map(Number);
-    const date = new Date();
-    date.setHours(hour, minute);
-
-    return date.toLocaleTimeString("es-CO", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-    }).replace(/\s*[ap]\.\s*m\./i, m => ' ' + m.replace(/[\s.]/g, '').toUpperCase());
+    return build12h(hour, minute);
 }
 
 /**
  * Calcula la hora de fin y la formatea en 12h.
- * Ej: formatEndTime("19:00", 90) → "8:30 p.m."
+ * Ej: formatEndTime("19:00", 90) → "8:30 PM"
  */
 export function formatEndTime(timeStr: string, durationMinutes: number): string {
     const [hour, minute] = timeStr.split(":").map(Number);
-    const date = new Date();
-    date.setHours(hour, minute + durationMinutes);
-
-    return date.toLocaleTimeString("es-CO", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-    }).replace(/\s*[ap]\.\s*m\./i, m => ' ' + m.replace(/[\s.]/g, '').toUpperCase());
+    const totalMinutes = hour * 60 + minute + durationMinutes;
+    const endHour = Math.floor(totalMinutes / 60);
+    const endMinute = totalMinutes % 60;
+    return build12h(endHour, endMinute);
 }
