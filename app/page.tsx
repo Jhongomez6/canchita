@@ -226,6 +226,25 @@ export default function Home() {
           </div>
 
           <div className="px-5">
+            {/* POST-MATCH REVIEW — card for most recent unreviewed closed match */}
+            {user && pendingReviewMatch && (
+              <div className="mt-5 mb-2">
+                <PostMatchReviewCard
+                  match={pendingReviewMatch}
+                  userUid={user.uid}
+                  onDismiss={() => {
+                    if (pendingReviewMatch.id) {
+                      setDismissedMatchIds((prev) => {
+                        const next = new Set(prev);
+                        next.add(pendingReviewMatch.id!);
+                        return next;
+                      });
+                    }
+                  }}
+                />
+              </div>
+            )}
+
             {/* ADMIN ACTION BAR */}
             {isAdminUser && (
               <div className="mb-6 mt-5 flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 snap-x snap-mandatory">
@@ -554,25 +573,6 @@ export default function Home() {
                 </div>
               </div>
             ) : null}
-
-            {/* POST-MATCH REVIEW — card for most recent unreviewed closed match */}
-            {user && pendingReviewMatch && (
-              <div className="mb-2">
-                <PostMatchReviewCard
-                  match={pendingReviewMatch}
-                  userUid={user.uid}
-                  onDismiss={() => {
-                    if (pendingReviewMatch.id) {
-                      setDismissedMatchIds((prev) => {
-                        const next = new Set(prev);
-                        next.add(pendingReviewMatch.id!);
-                        return next;
-                      });
-                    }
-                  }}
-                />
-              </div>
-            )}
 
             {/* HISTORY — TROPHY SHELF */}
             {closedMatches.length > 0 && (
