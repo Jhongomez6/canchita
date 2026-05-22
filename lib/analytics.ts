@@ -560,6 +560,7 @@ export async function logBlockedSlotCreated(
     priceCOP: number;
     priceCalculable: boolean;
     courtsCount: number;
+    isBirthday: boolean;
   },
 ) {
   await trackEvent("blocked_slot_created", {
@@ -572,6 +573,21 @@ export async function logBlockedSlotCreated(
     price_cop: String(params.priceCOP),
     price_calculable: params.priceCalculable.toString(),
     courts_count: params.courtsCount.toString(),
+    is_birthday: params.isBirthday.toString(),
+  });
+}
+
+export async function logManualReservationBirthdayToggled(params: {
+  venueId: string;
+  slotId: string;
+  from: boolean;
+  to: boolean;
+}) {
+  await trackEvent("manual_reservation_birthday_toggled", {
+    venue_id: params.venueId,
+    slot_id: params.slotId,
+    from: params.from.toString(),
+    to: params.to.toString(),
   });
 }
 

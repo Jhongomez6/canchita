@@ -37,6 +37,7 @@ interface CreateInput {
     status?: ManualReservationStatus;
     recurrence?: Recurrence;
     isMonthly?: boolean;
+    isBirthday?: boolean;
 }
 
 interface BookingConflict {
@@ -291,6 +292,7 @@ export const createBlockedSlot = onCall(async (request) => {
     if (clientPhone) docData.clientPhone = clientPhone;
     if (normalizedRecurrence) docData.recurrence = normalizedRecurrence;
     if (normalizedRecurrence && input.isMonthly === true) docData.isMonthly = true;
+    if (input.isBirthday === true) docData.isBirthday = true;
 
     await venueRef.collection("blocked_slots").doc(id).set(docData);
 

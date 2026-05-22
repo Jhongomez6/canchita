@@ -284,6 +284,7 @@ export interface CreateBlockedSlotInput {
     status?: BlockedSlot["status"];
     recurrence?: BlockedSlot["recurrence"];
     isMonthly?: boolean;
+    isBirthday?: boolean;
 }
 
 export interface CreateBlockedSlotResult {
@@ -317,7 +318,7 @@ export type CancelManualReservationScope = "non_recurring" | "single" | "future"
 export async function updateManualReservation(
     venueId: string,
     slotId: string,
-    updates: { clientName?: string; clientPhone?: string; reason?: string; isMonthly?: boolean },
+    updates: { clientName?: string; clientPhone?: string; reason?: string; isMonthly?: boolean; isBirthday?: boolean },
 ): Promise<void> {
     const ref = doc(db, "venues", venueId, "blocked_slots", slotId);
     const payload: Record<string, unknown> = {};

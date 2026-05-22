@@ -16,6 +16,7 @@ const PERIOD_LABEL: Record<Period, string> = {
 export interface OccupantLabel {
     who: string;
     detail: string;
+    isBirthday?: boolean;
 }
 
 export interface SlotItem {
@@ -145,6 +146,7 @@ export default function SlotList({
                     const tappable = slot.available || !!onSlotTap;
                     const activeCount = slot.occupantLabels?.length ?? 0;
                     const cancelledCount = slot.cancelledLabels?.length ?? 0;
+                    const birthdayCount = slot.occupantLabels?.filter((l) => l.isBirthday).length ?? 0;
                     const hasOccupants = activeCount > 0 || cancelledCount > 0;
 
                     return (
@@ -194,6 +196,11 @@ export default function SlotList({
                                                 {activeCount} reserva{activeCount !== 1 ? "s" : ""}
                                             </span>
                                         )}
+                                        {birthdayCount > 0 && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-200">
+                                                🎂 {birthdayCount} cumpleaños
+                                            </span>
+                                        )}
                                         {cancelledCount > 0 && (
                                             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-200">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />
@@ -206,7 +213,9 @@ export default function SlotList({
                                         <ul className="space-y-0.5">
                                             {slot.occupantLabels!.map((label, i) => (
                                                 <li key={`o-${i}`} className="flex items-baseline gap-1.5 min-w-0">
-                                                    <span className="text-sm font-semibold text-slate-800 truncate min-w-0">{label.who}</span>
+                                                    <span className={`text-sm font-semibold truncate min-w-0 ${label.isBirthday ? "text-pink-700" : "text-slate-800"}`}>
+                                                        {label.isBirthday ? `🎂 ${label.who}` : label.who}
+                                                    </span>
                                                     {label.detail && (
                                                         <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">{label.detail}</span>
                                                     )}

@@ -70,6 +70,7 @@ export default function AdminBookingCalendar({
     // Calendar indicators: dates with bookings or blocks
     const [monthBookingDates, setMonthBookingDates] = useState<Set<string>>(new Set());
     const [monthBlockDates, setMonthBlockDates] = useState<Set<string>>(new Set());
+    const [monthBirthdayDates, setMonthBirthdayDates] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         getVenueCourts(venueId).then(setCourts).catch(() => {});
@@ -122,6 +123,7 @@ export default function AdminBookingCalendar({
 
             const bookingDates = new Set<string>();
             const blockDates = new Set<string>();
+            const birthdayDates = new Set<string>();
 
             const [, allBlocks] = await Promise.all([
                 Promise.allSettled(
@@ -136,10 +138,14 @@ export default function AdminBookingCalendar({
             for (const date of checkDates) {
                 const expanded = expandBlockedSlotsForDate(allBlocks, date);
                 if (expanded.length > 0) blockDates.add(date);
+                if (expanded.some((b) => b.isBirthday && b.status !== "cancelled")) {
+                    birthdayDates.add(date);
+                }
             }
 
             setMonthBookingDates(bookingDates);
             setMonthBlockDates(blockDates);
+            setMonthBirthdayDates(birthdayDates);
         };
 
         loadMonthIndicators().catch(() => {});
@@ -217,6 +223,7 @@ export default function AdminBookingCalendar({
                     const isToday = isSameDay(dateObj, today);
                     const hasBookings = monthBookingDates.has(iso);
                     const hasBlocks = monthBlockDates.has(iso);
+                    const hasBirthday = monthBirthdayDates.has(iso);
 
                     return (
                         <button
@@ -234,13 +241,16 @@ export default function AdminBookingCalendar({
                             `}
                         >
                             {day}
-                            {(hasBookings || hasBlocks) && (
+                            {(hasBookings || hasBlocks || hasBirthday) && (
                                 <span className="flex gap-0.5 mt-0.5">
                                     {hasBookings && (
                                         <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-[#1f7a4f]"}`} />
                                     )}
                                     {hasBlocks && (
                                         <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-slate-500"}`} />
+                                    )}
+                                    {hasBirthday && (
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-pink-400"}`} />
                                     )}
                                 </span>
                             )}

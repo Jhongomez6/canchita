@@ -218,6 +218,7 @@ export default function BlockedSlotsEditor({
                 priceCOP: 0,
                 priceCalculable: false,
                 courtsCount: selectedCourtIds.length,
+                isBirthday: false,
             });
             setConflictsOpen(false);
             setConflicts([]);

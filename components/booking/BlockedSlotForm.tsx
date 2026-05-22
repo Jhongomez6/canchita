@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Repeat } from "lucide-react";
+import { Loader2, Repeat, Cake } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import { createBlockedSlot, getVenueSchedule } from "@/lib/venues";
@@ -96,6 +96,7 @@ export default function BlockedSlotForm({
     const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly");
     const [endDate, setEndDate] = useState("");
     const [isMonthly, setIsMonthly] = useState(false);
+    const [isBirthday, setIsBirthday] = useState(false);
 
     const [adding, setAdding] = useState(false);
     const [confirming, setConfirming] = useState(false);
@@ -211,6 +212,7 @@ export default function BlockedSlotForm({
                         }
                         : undefined,
                     isMonthly: isRecurring && isMonthly ? true : undefined,
+                    isBirthday: isBirthday ? true : undefined,
                 },
                 force,
             );
@@ -232,6 +234,7 @@ export default function BlockedSlotForm({
                 priceCOP,
                 priceCalculable,
                 courtsCount: selectedCourtIds.length,
+                isBirthday,
             });
             setConflictsOpen(false);
             setConflicts([]);
@@ -462,33 +465,61 @@ export default function BlockedSlotForm({
                 )}
             </div>
 
-            {/* Price display (auto-calculado, solo lectura) */}
-            <div>
-                <label className="text-xs text-slate-500 mb-1 block">Precio</label>
-                {priceCalculable && priceBreakdown.discountCOP > 0 ? (
-                    <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 space-y-0.5">
-                        <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">Subtotal</span>
-                            <span className="text-slate-600">{formatCOP(priceBreakdown.subtotalCOP)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                            <span className="text-emerald-600">Tarifa especial</span>
-                            <span className="text-emerald-600 font-medium">−{formatCOP(priceBreakdown.discountCOP)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm pt-0.5 border-t border-slate-200 mt-1">
-                            <span className="text-slate-700 font-semibold">Total</span>
-                            <span className="text-slate-700 font-semibold">{formatCOP(priceCOP)}</span>
-                        </div>
+            {/* Cumpleaños toggle */}
+            <div className="bg-white rounded-lg p-3 border border-slate-200">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Cake className="w-4 h-4 text-pink-500" />
+                        <span className="text-sm font-medium text-slate-700">Cumpleaños</span>
                     </div>
-                ) : (
-                    <div className="w-full px-3 py-2 text-base border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold">
-                        {priceCalculable ? formatCOP(priceCOP) : "—"}
-                    </div>
-                )}
-                {!priceCalculable && (
-                    <p className="text-[10px] text-slate-400 mt-1">No se pudo calcular para este horario; se guardará en 0.</p>
-                )}
+                    <button
+                        type="button"
+                        onClick={() => setIsBirthday((v) => !v)}
+                        className={`w-11 h-6 rounded-full transition-colors relative ${isBirthday ? "bg-pink-500" : "bg-slate-300"}`}
+                    >
+                        <span
+                            className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isBirthday ? "left-[22px]" : "left-0.5"}`}
+                        />
+                    </button>
+                </div>
             </div>
+
+            {/* Price display (auto-calculado, solo lectura) — oculto si es cumpleaños */}
+            {isBirthday ? (
+                <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Precio</label>
+                    <div className="w-full px-3 py-2 text-sm border border-pink-200 rounded-lg bg-pink-50 text-pink-700">
+                        Las reservas de cumpleaños no muestran el precio.
+                    </div>
+                </div>
+            ) : (
+                <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Precio</label>
+                    {priceCalculable && priceBreakdown.discountCOP > 0 ? (
+                        <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 space-y-0.5">
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-500">Subtotal</span>
+                                <span className="text-slate-600">{formatCOP(priceBreakdown.subtotalCOP)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-emerald-600">Tarifa especial</span>
+                                <span className="text-emerald-600 font-medium">−{formatCOP(priceBreakdown.discountCOP)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm pt-0.5 border-t border-slate-200 mt-1">
+                                <span className="text-slate-700 font-semibold">Total</span>
+                                <span className="text-slate-700 font-semibold">{formatCOP(priceCOP)}</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="w-full px-3 py-2 text-base border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold">
+                            {priceCalculable ? formatCOP(priceCOP) : "—"}
+                        </div>
+                    )}
+                    {!priceCalculable && (
+                        <p className="text-[10px] text-slate-400 mt-1">No se pudo calcular para este horario; se guardará en 0.</p>
+                    )}
+                </div>
+            )}
 
             {/* Información adicional (campo `reason` en Firestore) */}
             <div>

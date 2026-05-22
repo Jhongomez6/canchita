@@ -201,6 +201,7 @@ export interface BlockedSlot {
     cancelledAt?: string;          // ISO timestamp del momento de cancelación
     recurrence?: BlockedSlotRecurrence;
     isMonthly?: boolean;           // true si el cliente paga mensualidad
+    isBirthday?: boolean;          // true si la reserva es para un cumpleaños (v1: solo afecta UI)
     exceptDates?: string[];        // YYYY-MM-DD instancias canceladas
     statusOverrides?: Record<string, ManualReservationStatus>; // YYYY-MM-DD → estado de esa instancia
     createdBy: string;

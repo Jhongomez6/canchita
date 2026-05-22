@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { CalendarPlus, Repeat, Trash2, Check, ChevronRight, Pencil, Banknote, Landmark } from "lucide-react";
+import { CalendarPlus, Repeat, Trash2, Check, ChevronRight, Pencil, Banknote, Landmark, Cake } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
@@ -66,6 +66,7 @@ export default function AdminBlockCard({
     const blockCourtList = formatCourtList(blockCourtNames);
     const status = getBlockedSlotStatus(block, targetDate);
     const cancelled = status === "cancelled";
+    const isBirthday = !!block.isBirthday;
 
     const clickable = !!onClick && cancelled;
     const badge = statusBadge(status);
@@ -98,7 +99,9 @@ export default function AdminBlockCard({
             className={`relative w-full text-left rounded-xl border p-3 transition-colors ${
                 cancelled
                     ? "bg-slate-50/40 border-slate-100 opacity-60"
-                    : `bg-slate-50/60 border-slate-100 ${clickable ? "hover:border-slate-200" : ""}`
+                    : isBirthday
+                        ? `bg-pink-50/70 border-pink-200 ${clickable ? "hover:border-pink-300" : ""}`
+                        : `bg-slate-50/60 border-slate-100 ${clickable ? "hover:border-slate-200" : ""}`
             }`}
         >
             {/* Header: hora + badge tappable */}
@@ -113,6 +116,12 @@ export default function AdminBlockCard({
                     <span className={`text-sm font-semibold ${cancelled ? "text-slate-400 line-through" : "text-slate-800"}`}>
                         {fmt12h(block.startTime)} – {fmt12h(block.endTime)}
                     </span>
+                    {isBirthday && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-200">
+                            <Cake className="w-2.5 h-2.5" />
+                            Cumpleaños
+                        </span>
+                    )}
                 </button>
 
                 <div className="relative" ref={popoverRef}>
@@ -219,7 +228,12 @@ export default function AdminBlockCard({
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                         Precio
                     </span>
-                    {block.isMonthly ? (
+                    {isBirthday ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-200">
+                            <Cake className="w-2.5 h-2.5" />
+                            Cumpleaños
+                        </span>
+                    ) : block.isMonthly ? (
                         <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100">
                             Mensualidad
                         </span>

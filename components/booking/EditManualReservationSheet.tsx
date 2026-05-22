@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, X } from "lucide-react";
+import { Cake, Loader2, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { updateManualReservation } from "@/lib/venues";
+import { logManualReservationBirthdayToggled } from "@/lib/analytics";
 import { handleError } from "@/lib/utils/error";
 import type { BlockedSlot } from "@/lib/domain/venue";
 
@@ -31,6 +32,7 @@ export default function EditManualReservationSheet({
     const [clientPhone, setClientPhone] = useState(slot.clientPhone ?? "");
     const [reason, setReason] = useState(slot.reason ?? "");
     const [isMonthly, setIsMonthly] = useState(slot.isMonthly ?? false);
+    const [isBirthday, setIsBirthday] = useState(slot.isBirthday ?? false);
     const [submitting, setSubmitting] = useState(false);
     const isRecurring = !!slot.recurrence;
 
@@ -40,6 +42,7 @@ export default function EditManualReservationSheet({
             setClientPhone(slot.clientPhone ?? "");
             setReason(slot.reason ?? "");
             setIsMonthly(slot.isMonthly ?? false);
+            setIsBirthday(slot.isBirthday ?? false);
         }
     }, [open, slot]);
 
@@ -50,13 +53,23 @@ export default function EditManualReservationSheet({
 
     const handleSave = async () => {
         setSubmitting(true);
+        const previousIsBirthday = slot.isBirthday ?? false;
         try {
             await updateManualReservation(venueId, slot.id, {
                 clientName: clientName.trim() || undefined,
                 clientPhone: clientPhone.trim() || undefined,
                 reason: reason.trim() || undefined,
                 ...(isRecurring ? { isMonthly } : {}),
+                isBirthday: isBirthday ? true : undefined,
             });
+            if (previousIsBirthday !== isBirthday) {
+                logManualReservationBirthdayToggled({
+                    venueId,
+                    slotId: slot.id,
+                    from: previousIsBirthday,
+                    to: isBirthday,
+                }).catch(() => undefined);
+            }
             toast.success("Reserva actualizada");
             onClose();
         } catch (err) {
@@ -70,7 +83,8 @@ export default function EditManualReservationSheet({
         (clientName.trim() || "") !== (slot.clientName ?? "") ||
         (clientPhone.trim() || "") !== (slot.clientPhone ?? "") ||
         (reason.trim() || "") !== (slot.reason ?? "") ||
-        (isRecurring && isMonthly !== (slot.isMonthly ?? false));
+        (isRecurring && isMonthly !== (slot.isMonthly ?? false)) ||
+        isBirthday !== (slot.isBirthday ?? false);
 
     return (
         <AnimatePresence>
@@ -150,6 +164,24 @@ export default function EditManualReservationSheet({
                                     rows={3}
                                     className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 resize-none"
                                 />
+                            </div>
+
+                            {/* Cumpleaños — siempre */}
+                            <div className="flex items-center justify-between py-1 border-t border-slate-100 pt-3">
+                                <div className="flex items-center gap-2">
+                                    <Cake className="w-4 h-4 text-pink-500" />
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-700">Cumpleaños</p>
+                                        <p className="text-[11px] text-slate-400">Oculta el precio</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsBirthday((v) => !v)}
+                                    className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${isBirthday ? "bg-pink-500" : "bg-slate-300"}`}
+                                >
+                                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isBirthday ? "left-[22px]" : "left-0.5"}`} />
+                                </button>
                             </div>
 
                             {/* Pago mensual — solo recurrentes */}

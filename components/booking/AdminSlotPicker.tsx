@@ -178,7 +178,7 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                     else if (!b.clientName && b.clientPhone) who = b.clientPhone;
                     const tier = tierLabelFromCount(b.courtIds.length);
                     const where = courtListFor(b.courtIds);
-                    return { who, detail: where ? `${tier} · ${where}` : tier };
+                    return { who, detail: where ? `${tier} · ${where}` : tier, isBirthday: !!b.isBirthday };
                 };
 
                 const activeEntries: OccupantLabel[] = [];
