@@ -55,11 +55,18 @@ function getTecDisplay(profile: UserProfile): number {
   const base = profile.techLevel ? SKILL_TO_FIFA[profile.techLevel] ?? 50 : 50;
   const schoolBonus = profile.hasSchool ? 3 : 0;
   const tournamentBonus = profile.hasTournaments ? 5 : 0;
-  return Math.min(99, base + schoolBonus + tournamentBonus);
+  const freqBonus =
+    profile.frequency === "intense" ? 3 :
+    profile.frequency === "weekly"  ? 1 : 0;
+  return Math.min(99, base + schoolBonus + tournamentBonus + freqBonus);
 }
 
 function getFisDisplay(profile: UserProfile): number {
-  return profile.physLevel ? SKILL_TO_FIFA[profile.physLevel] ?? 50 : 50;
+  const base = profile.physLevel ? SKILL_TO_FIFA[profile.physLevel] ?? 50 : 50;
+  const freqBonus =
+    profile.frequency === "intense" ? 5 :
+    profile.frequency === "weekly"  ? 2 : 0;
+  return Math.min(99, base + freqBonus);
 }
 
 // ========================

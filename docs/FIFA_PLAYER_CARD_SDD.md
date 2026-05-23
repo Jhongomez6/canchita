@@ -21,6 +21,7 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
 | `physLevel` (1-5) | FIS — Nivel Físico (mapeado a 0-99) |
 | `hasSchool` | Bono TEC (+3) |
 | `hasTournaments` | Bono TEC (+5) |
+| `frequency` | Bono TEC y FIS según frecuencia de juego |
 
 ## Layout de la Carta
 
@@ -56,9 +57,17 @@ Carta de presentación pública estilo FIFA Ultimate Team para cada jugador. Dis
    - 4 → 90
    - 5 → 99
 
-   **TEC recibe bonos adicionales por trayectoria (cap 99):**
+   **TEC recibe bonos adicionales por trayectoria y frecuencia (cap 99):**
    - `hasSchool = true` → +3
    - `hasTournaments = true` → +5
+   - `frequency = "weekly"` → +1
+   - `frequency = "intense"` → +3
+
+   **FIS recibe bono por frecuencia (cap 99):**
+   - `frequency = "weekly"` → +2
+   - `frequency = "intense"` → +5
+
+   **Racional:** La frecuencia de juego se traduce en mejor condición física (más fuerte: +5) y mejora marginal de técnica por repetición (menor: +3), ya que la técnica depende más de formación estructurada (escuela/torneos).
 5. **COM (Compromiso):** `Math.max(0, Math.min(99, 99 - noShows×20 - lateArrivals×6 + played))`. Computado en display — no se almacena en Firestore. El `+played` da recuperación (+1 por partido puntual). Los late arrivals no recuperan (neto 0). Los no-shows no incrementan `played`. Misma fórmula que `StatsCard`.
 6. **MVP:** Campo `mvpAwards` en la raíz del documento `users/{uid}`. Incrementado por la Cloud Function `sendMvpWinnerNotification` al cerrar la votación.
 7. **Pie dominante:** Pill sobresaliendo del borde derecho inferior (🦶 icon SportShoe + IZQ/DER/AMB).
