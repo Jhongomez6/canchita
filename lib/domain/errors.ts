@@ -183,3 +183,21 @@ export class SelfTargetError extends BusinessError {
         this.name = "SelfTargetError";
     }
 }
+
+// ========================
+// ERRORES DE XP / NIVELES
+// ========================
+
+export class XpAwardError extends BusinessError {
+    constructor(message: string) {
+        super(message);
+        this.name = "XpAwardError";
+    }
+}
+
+export class XpEventAlreadyExistsError extends BusinessError {
+    constructor(eventId: string) {
+        super(`El evento de XP "${eventId}" ya fue otorgado`);
+        this.name = "XpEventAlreadyExistsError";
+    }
+}

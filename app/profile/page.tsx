@@ -15,7 +15,7 @@ import type { Sex, Foot, CourtSize } from "@/lib/domain/rating";
 import { handleError } from "@/lib/utils/error";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { isSuperAdmin, isAdmin, getAgeFromBirthdate } from "@/lib/domain/user";
+import { isSuperAdmin, isAdmin, getAgeFromBirthdate, hasXpAccess } from "@/lib/domain/user";
 import { getMyApplication } from "@/lib/teamAdminApplications";
 import type { TeamAdminApplication } from "@/lib/domain/teamAdminApplication";
 import AuthGuard from "@/components/AuthGuard";
@@ -23,6 +23,11 @@ import StatsCard from "@/components/StatsCard";
 import KudosHistoryDrawer from "@/components/profile/KudosHistoryDrawer";
 import FifaPlayerCard from "@/components/FifaPlayerCard";
 import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
+import XpStatsSection from "@/components/profile/XpStatsSection";
+import AchievementsGrid from "@/components/profile/AchievementsGrid";
+import XpOnboardingModal from "@/components/xp/XpOnboardingModal";
+import { markXpOnboardingSeen } from "@/lib/xp";
+import { logXpOnboardingReopened } from "@/lib/analytics";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import {
   X, Share, PlusSquare, ChevronRight, FileUser, Pencil,
@@ -96,6 +101,10 @@ export default function ProfilePage() {
   // Team admin application
   const [myApplication, setMyApplication] = useState<TeamAdminApplication | null>(null);
 
+  // XP Onboarding modal — controlled state. Auto-opens at first load if not seen.
+  const [xpOnboardingOpen, setXpOnboardingOpen] = useState(false);
+  const [xpOnboardingAutoTriggered, setXpOnboardingAutoTriggered] = useState(false);
+
   // Push notifications
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -156,7 +165,37 @@ export default function ProfilePage() {
         .catch(() => {/* silencioso */ });
     }
 
-  }, [profile, user]);
+    // Auto-trigger del XP Onboarding modal: solo si el user tiene acceso al feature,
+    // tiene XP cargado y nunca vio el modal.
+    // Disparo único por mount — el setter local evita re-disparos por re-renders.
+    if (
+      hasXpAccess(profile)
+      && !xpOnboardingAutoTriggered
+      && typeof profile.xp === "number"
+      && !profile.xpOnboardingSeenAt
+      && !isOnboarding
+    ) {
+      setXpOnboardingAutoTriggered(true);
+      setXpOnboardingOpen(true);
+    }
+
+  }, [profile, user, isOnboarding, xpOnboardingAutoTriggered]);
+
+  const handleXpOnboardingClose = async () => {
+    setXpOnboardingOpen(false);
+    if (user) {
+      try {
+        await markXpOnboardingSeen(user.uid);
+      } catch (err) {
+        console.error("[XpOnboarding] no se pudo persistir seenAt:", err);
+      }
+    }
+  };
+
+  const handleXpOnboardingReopen = () => {
+    logXpOnboardingReopened();
+    setXpOnboardingOpen(true);
+  };
 
 
   // Name cooldown
@@ -748,6 +787,30 @@ export default function ProfilePage() {
           )}
 
           {/* ========================= */}
+          {/*       XP / NIVEL          */}
+          {/* ========================= */}
+          {hasXpAccess(profile) && !isOnboarding && user && (
+            <div className="mt-4">
+              <XpStatsSection
+                uid={user.uid}
+                xp={profile.xp}
+                xpLevel={profile.xpLevel}
+                xpTier={profile.xpTier}
+                onOpenOnboarding={handleXpOnboardingReopen}
+              />
+            </div>
+          )}
+
+          {/* ========================= */}
+          {/*         LOGROS            */}
+          {/* ========================= */}
+          {hasXpAccess(profile) && !isOnboarding && (
+            <div className="mt-4">
+              <AchievementsGrid unlocked={profile.achievements ?? {}} />
+            </div>
+          )}
+
+          {/* ========================= */}
           {/*   TEAM ADMIN APPLICATION  */}
           {/* ========================= */}
           {!isOnboarding && !isAdmin(profile) && (
@@ -1089,6 +1152,18 @@ export default function ProfilePage() {
           open={showKudosHistory}
           userUid={user.uid}
           onClose={() => setShowKudosHistory(false)}
+        />
+      )}
+
+      {/* XP Onboarding Modal — solo si el user tiene acceso al feature.
+          Auto-trigger en primer load, reabrible desde XpStatsSection. */}
+      {profile && hasXpAccess(profile) && (
+        <XpOnboardingModal
+          open={xpOnboardingOpen}
+          onClose={handleXpOnboardingClose}
+          currentTier={profile.xpTier}
+          currentLevel={profile.xpLevel}
+          currentXp={profile.xp}
         />
       )}
 

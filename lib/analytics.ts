@@ -850,3 +850,75 @@ export async function logAdminReportActioned(
 ) {
   await trackEvent("admin_report_actioned", { report_id: reportId, action });
 }
+
+/* =========================
+   XP / LEVELS (gamification)
+========================= */
+
+export async function logXpAwarded(params: {
+  source: string;
+  amount: number;
+  newTotalXp: number;
+  level: number;
+}) {
+  await trackEvent("xp_awarded", {
+    source: params.source,
+    amount: params.amount.toString(),
+    new_total_xp: params.newTotalXp.toString(),
+    level: params.level.toString(),
+  });
+}
+
+export async function logXpLevelUp(fromLevel: number, toLevel: number, tier: string) {
+  await trackEvent("xp_level_up", {
+    from_level: fromLevel.toString(),
+    to_level: toLevel.toString(),
+    tier,
+  });
+}
+
+export async function logXpTierUp(fromTier: string, toTier: string, level: number) {
+  await trackEvent("xp_tier_up", {
+    from_tier: fromTier,
+    to_tier: toTier,
+    level: level.toString(),
+  });
+}
+
+export async function logXpAchievementUnlocked(achievementId: string, xpBonus: number) {
+  await trackEvent("xp_achievement_unlocked", {
+    achievement_id: achievementId,
+    xp_bonus: xpBonus.toString(),
+  });
+}
+
+export async function logXpHistoryViewed() {
+  await trackEvent("xp_history_viewed");
+}
+
+export async function logXpOnboardingShown(currentTier: string, currentLevel: number) {
+  await trackEvent("xp_onboarding_shown", {
+    current_tier: currentTier,
+    current_level: currentLevel.toString(),
+  });
+}
+
+export async function logXpOnboardingCompleted(timeSpentSeconds: number) {
+  await trackEvent("xp_onboarding_completed", {
+    time_spent_seconds: timeSpentSeconds.toString(),
+  });
+}
+
+export async function logXpOnboardingReopened() {
+  await trackEvent("xp_onboarding_reopened");
+}
+
+export async function logXpModalDismissed(
+  type: "level" | "tier" | "achievement",
+  dismissMethod: "cta" | "tap_outside" | "esc" | "auto",
+) {
+  await trackEvent("xp_modal_dismissed", {
+    type,
+    dismiss_method: dismissMethod,
+  });
+}

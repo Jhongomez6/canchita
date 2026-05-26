@@ -8,6 +8,9 @@ import FifaPlayerCard from "./FifaPlayerCard";
 import FifaCardSkeleton from "./skeletons/FifaCardSkeleton";
 import KudosBadges from "./profile/KudosBadges";
 import DrawerStreaks from "./profile/DrawerStreaks";
+import XpBadge from "./xp/XpBadge";
+import { calcLevelFromXp, calcTierFromLevel } from "@/lib/domain/xp";
+import { hasXpAccess } from "@/lib/domain/user";
 import { logPlayerCardViewed } from "@/lib/analytics";
 
 interface PlayerCardDrawerProps {
@@ -261,6 +264,22 @@ export default function PlayerCardDrawer({ isOpen, onClose, playerUid }: PlayerC
                       style={{ background: "rgba(74,222,128,0.08)", filter: "blur(3px)" }}
                     />
                   </div>
+
+                  {/* XP Badge — visible si el jugador tiene acceso al feature XP y xp > 0 */}
+                  {hasXpAccess(profile) && typeof profile.xp === "number" && profile.xp > 0 && (() => {
+                    const lvl = profile.xpLevel ?? calcLevelFromXp(profile.xp);
+                    const tr = profile.xpTier ?? calcTierFromLevel(lvl);
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.35 }}
+                        className="mt-3"
+                      >
+                        <XpBadge tier={tr} level={lvl} size="md" />
+                      </motion.div>
+                    );
+                  })()}
 
                   {/* Reconocimientos + Rachas — agrupados en una sola fila inline.
                       SDD: PLAYER_CARD_DRAWER_SECTIONS_SDD */}

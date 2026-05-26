@@ -19,6 +19,7 @@
 import type { Position } from "./player";
 import type { Sex, Foot, CourtSize, TechLevel, PhysLevel, Frequency } from "./rating";
 import type { UserKudosSummary, UserReportsSummary } from "./matchReview";
+import type { XpTier, AchievementId, AchievementUnlock } from "./xp";
 
 // ========================
 // TIPOS
@@ -76,6 +77,7 @@ export interface UserProfile {
     // Feature flags
     walletEnabled?: boolean;           // Acceso a la billetera (feature flag por usuario)
     bookingEnabled?: boolean;          // Acceso al módulo de reservas (feature flag por usuario)
+    xpEnabled?: boolean;               // Acceso al sistema de XP / Niveles / Achievements (feature flag por usuario)
     // Soft-anonymization (set on account deletion — personal data wiped, traza conservada)
     deleted?: boolean;
     deletedAt?: string;                // ISO date of anonymization
@@ -83,6 +85,18 @@ export interface UserProfile {
     // El cliente tiene escritura denegada vía firestore.rules.
     kudosSummary?: UserKudosSummary;
     _reportsSummary?: UserReportsSummary;  // solo lectura admin
+    // Sistema de XP / Niveles — escritos exclusivamente por Cloud Functions.
+    // El cliente lee para mostrar pero no puede setearlos (rules deniegan).
+    xp?: number;                       // XP total acumulado (nunca baja del floor del nivel actual)
+    xpLevel?: number;                  // Nivel actual 1-50 (cacheado, derivable de xp)
+    xpTier?: XpTier;                   // Tier actual (cacheado, derivable de xpLevel)
+    xpLastEvent?: string;              // ISO del último evento de XP
+    xpOnboardingSeenAt?: string;       // ISO de cuándo vio el modal explicativo del sistema XP
+    achievements?: Partial<Record<AchievementId, AchievementUnlock>>;  // Logros desbloqueados
+    firstMatchAt?: string;             // ISO del primer partido jugado (poblado por trigger, se usa para achievement "veteran_year")
+    earlyConfirmCount?: number;        // Contador de confirmaciones >24h antes
+    reviewCount?: number;              // Cuántos post-match reviews completó
+    perfectMonths?: number;            // Cuántos meses tuvo 4+ partidos sin late/no-show
 }
 
 export interface UserStats {
@@ -332,6 +346,19 @@ export function hasWalletAccess(profile: UserProfile): boolean {
  */
 export function hasBookingAccess(profile: UserProfile): boolean {
     return isSuperAdmin(profile) || profile.bookingEnabled === true;
+}
+
+/**
+ * Verifica si el usuario tiene acceso al sistema de XP / Niveles / Achievements.
+ * Super admins siempre tienen acceso; otros usuarios requieren el flag xpEnabled.
+ *
+ * Cuando está OFF: la FIFA card muestra "?" como OVR + rarity verde (legacy),
+ * y XpStatsSection / AchievementsGrid / XpOnboardingModal / XpBadge no se renderizan.
+ * Las Cloud Functions siguen acumulando XP en background — al activar el flag
+ * el user ve su historia completa de inmediato.
+ */
+export function hasXpAccess(profile: UserProfile): boolean {
+    return isSuperAdmin(profile) || profile.xpEnabled === true;
 }
 
 /**

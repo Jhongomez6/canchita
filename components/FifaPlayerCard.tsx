@@ -1,9 +1,10 @@
 "use client";
 
-import { calcCommitmentScore } from "@/lib/domain/user";
+import { calcCommitmentScore, hasXpAccess } from "@/lib/domain/user";
 import type { UserProfile } from "@/lib/domain/user";
 import type { Position } from "@/lib/domain/player";
 import { POSITION_ICONS } from "@/lib/domain/player";
+import { ovrFromLevel, calcTierFromLevel, type XpTier } from "@/lib/domain/xp";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
@@ -34,6 +35,98 @@ const SKILL_TO_FIFA: Record<number, number> = {
   3: 70,
   4: 90,
   5: 99,
+};
+
+// ========================
+// RARITIES — 5 variantes visuales de la card por tier de XP
+// Suplente=Bronze, Titular=Silver, Estrella=Gold, Capitán=Verde Canchita, Leyenda=Cosmic
+// ========================
+
+interface CardRarityVisuals {
+  // Marco
+  frameOuter: string;        // gradient CSS para el marco exterior (2px)
+  frameInner: string;        // gradient CSS para el fondo interior
+  shimmerVia: string;        // tailwind via-* del shimmer
+  isCosmic: boolean;         // animación de gradiente loop (solo Leyenda)
+  // Tipografía interna
+  textPrimary: string;       // OVR, stats values, nombre — texto principal (más claro)
+  textSecondary: string;     // POS abrev, stats labels — texto secundario (medio)
+  accentLine: string;        // tailwind class para el via-* de las líneas decorativas
+  // Pills (alt positions + foot)
+  pillGradient: string;      // tailwind classes from-X to-Y para el bg de las pills
+  pillBorder: string;        // tailwind class para el border
+  pillIcon: string;          // tailwind class para el icon de la pill (SportShoe)
+  // Skeleton de la foto mientras carga
+  photoSkeleton: string;     // tailwind bg-* para el placeholder de la foto
+}
+
+const RARITY_VISUALS: Record<XpTier, CardRarityVisuals> = {
+  suplente: {
+    frameOuter: "linear-gradient(to bottom, #d4a373, #92580a, #5d3a06)",
+    frameInner: "linear-gradient(to bottom, #6b4318, #4a2c0a, #2a1805)",
+    shimmerVia: "via-amber-200/20",
+    isCosmic: false,
+    textPrimary: "text-amber-50",
+    textSecondary: "text-amber-300",
+    accentLine: "via-amber-400/40",
+    pillGradient: "from-amber-800 to-amber-950",
+    pillBorder: "border-amber-400/50",
+    pillIcon: "text-amber-300",
+    photoSkeleton: "bg-amber-900/80",
+  },
+  titular: {
+    frameOuter: "linear-gradient(to bottom, #e2e8f0, #94a3b8, #475569)",
+    frameInner: "linear-gradient(to bottom, #475569, #334155, #1e293b)",
+    shimmerVia: "via-white/30",
+    isCosmic: false,
+    textPrimary: "text-slate-50",
+    textSecondary: "text-slate-300",
+    accentLine: "via-slate-300/50",
+    pillGradient: "from-slate-700 to-slate-900",
+    pillBorder: "border-slate-300/50",
+    pillIcon: "text-slate-300",
+    photoSkeleton: "bg-slate-700/80",
+  },
+  estrella: {
+    frameOuter: "linear-gradient(to bottom, #fcd34d, #f59e0b, #b45309)",
+    frameInner: "linear-gradient(to bottom, #92400e, #78350f, #451a03)",
+    shimmerVia: "via-yellow-200/30",
+    isCosmic: false,
+    textPrimary: "text-amber-50",
+    textSecondary: "text-yellow-200",
+    accentLine: "via-yellow-300/50",
+    pillGradient: "from-amber-700 to-amber-900",
+    pillBorder: "border-amber-300/50",
+    pillIcon: "text-yellow-200",
+    photoSkeleton: "bg-amber-900/80",
+  },
+  // La rarity actual de la app — verde Canchita (identidad de marca)
+  capitan: {
+    frameOuter: "linear-gradient(to bottom, #4ade80, #1f7a4f, #0d3d26)",
+    frameInner: "linear-gradient(to bottom, #145c3a, #0d3d26, #071e12)",
+    shimmerVia: "via-green-200/20",
+    isCosmic: false,
+    textPrimary: "text-green-50",
+    textSecondary: "text-green-300",
+    accentLine: "via-green-400/40",
+    pillGradient: "from-emerald-800 to-emerald-900",
+    pillBorder: "border-green-400/50",
+    pillIcon: "text-green-300",
+    photoSkeleton: "bg-emerald-800/80",
+  },
+  leyenda: {
+    frameOuter: "linear-gradient(135deg, #a855f7, #ec4899, #f59e0b)",
+    frameInner: "linear-gradient(to bottom, #4c1d95, #581c87, #1e1b4b)",
+    shimmerVia: "via-pink-200/30",
+    isCosmic: true,
+    textPrimary: "text-white",
+    textSecondary: "text-pink-200",
+    accentLine: "via-pink-300/50",
+    pillGradient: "from-purple-800 to-purple-950",
+    pillBorder: "border-pink-300/50",
+    pillIcon: "text-pink-200",
+    photoSkeleton: "bg-purple-900/80",
+  },
 };
 
 // ========================
@@ -80,7 +173,7 @@ const STAT_TOOLTIPS: Record<string, string> = {
   PJ: "Partidos Jugados",
   PG: "Partidos Ganados",
   MVP: "Veces elegido MVP del partido",
-  OVR: "Overall — rating del jugador (próximamente)",
+  OVR: "Overall — tu nivel general en Canchita (50-99). Sube ganando XP.",
   POS_GK: "Posición principal: Portero",
   POS_DEF: "Posición principal: Defensa",
   POS_MID: "Posición principal: Medio",
@@ -94,16 +187,18 @@ const STAT_TOOLTIPS: Record<string, string> = {
   FOOT_AMB: "Pie dominante: Ambidiestro",
 };
 
-function StatCell({ label, value, active, onToggle }: {
+function StatCell({ label, value, active, onToggle, textPrimary, textSecondary }: {
   label: string;
   value: number | string;
   active: boolean;
   onToggle: () => void;
+  textPrimary: string;       // tailwind class para el valor (más claro)
+  textSecondary: string;     // tailwind class para el label (más opaco)
 }) {
   return (
     <div className="relative flex flex-col items-center cursor-pointer select-none" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
-      <span className={`text-[8px] font-bold uppercase tracking-widest mb-1 transition-colors ${active ? "text-green-300" : "text-green-400/80"}`}>{label}</span>
-      <span className="text-[15px] font-black text-green-50 leading-none tabular-nums">{value}</span>
+      <span className={`text-[8px] font-bold uppercase tracking-widest mb-1 transition-colors ${active ? textSecondary : `${textSecondary} opacity-80`}`}>{label}</span>
+      <span className={`text-[15px] font-black ${textPrimary} leading-none tabular-nums`}>{value}</span>
     </div>
   );
 }
@@ -181,6 +276,17 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [photoLoaded, setPhotoLoaded] = useState(false);
 
+  // Tier y OVR derivados del XP — solo si el user tiene acceso al feature.
+  // Cuando NO tiene acceso: forzamos rarity verde (Capitán) y OVR "?" (legacy pre-XP).
+  // Cuando tiene acceso sin xpLevel: tier "suplente" (Bronce, OVR 50) — "estás empezando".
+  const xpOn = hasXpAccess(profile);
+  const xpLevel = xpOn ? profile.xpLevel : undefined;
+  const tier: XpTier = xpOn
+    ? (profile.xpTier ?? (xpLevel ? calcTierFromLevel(xpLevel) : "suplente"))
+    : "capitan";
+  const ovrDisplay: number | string = typeof xpLevel === "number" ? ovrFromLevel(xpLevel) : "?";
+  const rarity = RARITY_VISUALS[tier];
+
   const toggleTooltip = (label: string) => {
     if (activeTooltip !== label) {
       logTooltipOpened(`fifa_card_${label.toLowerCase()}`);
@@ -209,25 +315,34 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
         </defs>
       </svg>
 
-      {/* Card frame — double border like FUT cards */}
-      <div
+      {/* Card frame — double border like FUT cards. Gradient varía según rarity del tier. */}
+      <motion.div
         className="relative p-[2px]"
-        style={{ clipPath: "url(#fifa-card-outer)", background: "linear-gradient(to bottom, #4ade80, #1f7a4f, #0d3d26)" }}
+        style={{ clipPath: "url(#fifa-card-outer)", background: rarity.frameOuter }}
+        animate={rarity.isCosmic ? {
+          background: [
+            "linear-gradient(135deg, #a855f7, #ec4899, #f59e0b)",
+            "linear-gradient(135deg, #ec4899, #f59e0b, #a855f7)",
+            "linear-gradient(135deg, #f59e0b, #a855f7, #ec4899)",
+            "linear-gradient(135deg, #a855f7, #ec4899, #f59e0b)",
+          ],
+        } : undefined}
+        transition={rarity.isCosmic ? { duration: 4, repeat: Infinity, ease: "linear" } : undefined}
       >
         <div
           className="relative overflow-hidden"
-          style={{ clipPath: "url(#fifa-card-inner)", background: "linear-gradient(to bottom, #145c3a, #0d3d26, #071e12)" }}
+          style={{ clipPath: "url(#fifa-card-inner)", background: rarity.frameInner }}
         >
 
           {/* Diamond pattern background */}
           <DiamondPattern />
 
-          {/* Shimmer effect */}
+          {/* Shimmer effect — color varía según rarity */}
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-green-200/20 to-transparent skew-x-12 pointer-events-none z-30"
+            className={`absolute inset-0 bg-gradient-to-r from-transparent ${rarity.shimmerVia} to-transparent skew-x-12 pointer-events-none z-30`}
             initial={{ x: "-200%" }}
             animate={{ x: "200%" }}
-            transition={{ duration: 3, repeat: Infinity, repeatDelay: 5, ease: "easeInOut" }}
+            transition={{ duration: 3, repeat: Infinity, repeatDelay: rarity.isCosmic ? 2 : 5, ease: "easeInOut" }}
           />
 
           {/* ========================= */}
@@ -242,7 +357,7 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
               <div className="relative mx-1.5 h-[180px]">
                 <div className="relative w-full h-full overflow-hidden rounded-full">
                   {!photoLoaded && (
-                    <div className="absolute inset-0 bg-emerald-800/80 animate-pulse rounded-full" />
+                    <div className={`absolute inset-0 ${rarity.photoSkeleton} animate-pulse rounded-full`} />
                   )}
                   <Image
                     src={profile.photoURL || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
@@ -263,13 +378,13 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
                 {/* Rating + Position overlay (top-left sobre la foto) */}
                 <div className="absolute top-0 left-0 -translate-x-[5%] flex flex-col items-center cursor-pointer select-none z-10">
                   <span
-                    className="text-[38px] font-black text-green-100 leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
+                    className={`text-[38px] font-black ${rarity.textPrimary} leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] tabular-nums`}
                     onClick={(e) => { e.stopPropagation(); toggleTooltip("OVR"); }}
                   >
-                    ?
+                    {ovrDisplay}
                   </span>
                   <span
-                    className="text-[13px] font-black text-green-300 tracking-wider leading-none flex items-center gap-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
+                    className={`text-[13px] font-black ${rarity.textSecondary} tracking-wider leading-none flex items-center gap-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]`}
                     onClick={(e) => { e.stopPropagation(); toggleTooltip(`POS_${primaryPos}`); }}
                   >
                     <span>{POSITION_ICONS[primaryPos as Position]}</span>
@@ -284,8 +399,8 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
             {/* ========================= */}
             <div className="relative mx-2 mb-1">
               {/* Decorative line above name */}
-              <div className="h-[1px] bg-gradient-to-r from-transparent via-green-400/40 to-transparent mb-2" />
-              <h3 className="text-center text-[13px] font-black text-green-50 uppercase tracking-[0.2em] truncate px-2">
+              <div className={`h-[1px] bg-gradient-to-r from-transparent ${rarity.accentLine} to-transparent mb-2`} />
+              <h3 className={`text-center text-[13px] font-black ${rarity.textPrimary} uppercase tracking-[0.2em] truncate px-2`}>
                 {profile.name || "Jugador"}
               </h3>
             </div>
@@ -308,6 +423,8 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
                   value={value}
                   active={activeTooltip === label}
                   onToggle={() => toggleTooltip(label)}
+                  textPrimary={rarity.textPrimary}
+                  textSecondary={rarity.textSecondary}
                 />
               ))}
             </div>
@@ -330,10 +447,10 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
           </div>
 
           {/* Bottom decorative edge */}
-          <div className="h-[2px] bg-gradient-to-r from-green-400/0 via-green-400/50 to-green-400/0" />
+          <div className={`h-[2px] bg-gradient-to-r from-transparent ${rarity.accentLine} to-transparent`} />
         </div>
 
-      </div>
+      </motion.div>
 
       {/* Alt positions — outside clipped div, sobresalen borde derecho */}
       {altPositions.length > 0 && (
@@ -341,11 +458,11 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
           {altPositions.map((pos) => (
             <div
               key={pos}
-              className="bg-gradient-to-r from-emerald-800 to-emerald-900 rounded px-1.5 py-0.5 border border-green-400/50 shadow-md shadow-black/20 cursor-pointer select-none flex items-center gap-0.5"
+              className={`bg-gradient-to-r ${rarity.pillGradient} rounded px-1.5 py-0.5 border ${rarity.pillBorder} shadow-md shadow-black/20 cursor-pointer select-none flex items-center gap-0.5`}
               onClick={(e) => { e.stopPropagation(); toggleTooltip(`ALT_${pos}`); }}
             >
               <span className="text-[11px] leading-none">{POSITION_ICONS[pos as Position]}</span>
-              <span className="text-[8px] font-black text-green-100 tracking-wider leading-none">{POSITION_SHORT[pos] ?? pos}</span>
+              <span className={`text-[8px] font-black ${rarity.textPrimary} tracking-wider leading-none`}>{POSITION_SHORT[pos] ?? pos}</span>
             </div>
           ))}
         </div>
@@ -354,11 +471,11 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
       {/* Foot pill — outside clipped div, sobresale borde derecho */}
       {footAbbrev !== "?" && (
         <div
-          className="absolute right-0 bottom-[6rem] translate-x-[40%] z-40 bg-gradient-to-r from-emerald-800 to-emerald-900 rounded px-1.5 py-0.5 border border-green-400/50 shadow-md shadow-black/20 cursor-pointer select-none flex items-center gap-0.5"
+          className={`absolute right-0 bottom-[6rem] translate-x-[40%] z-40 bg-gradient-to-r ${rarity.pillGradient} rounded px-1.5 py-0.5 border ${rarity.pillBorder} shadow-md shadow-black/20 cursor-pointer select-none flex items-center gap-0.5`}
           onClick={(e) => { e.stopPropagation(); toggleTooltip(`FOOT_${footAbbrev}`); }}
         >
-          <SportShoe size={11} className="text-green-300" />
-          <span className="text-[8px] font-black text-green-100 tracking-wider leading-none">{footAbbrev}</span>
+          <SportShoe size={11} className={rarity.pillIcon} />
+          <span className={`text-[8px] font-black ${rarity.textPrimary} tracking-wider leading-none`}>{footAbbrev}</span>
         </div>
       )}
 

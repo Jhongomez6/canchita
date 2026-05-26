@@ -19,3 +19,6 @@ export * from "./blocked-slots";
 
 // ⭐ Post-Match Review: notificaciones, agregación de kudos/reportes y moderación
 export * from "./postMatchReview";
+
+// ⚡ Sistema de XP / Niveles: triggers, achievements, backfill
+export * from "./xp";

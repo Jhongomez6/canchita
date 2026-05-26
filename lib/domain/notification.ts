@@ -14,7 +14,7 @@
  * - Tipos: feedback_resolved, match_reminder, mvp, general
  */
 
-export type NotificationType = 'feedback_resolved' | 'match_reminder' | 'mvp' | 'teams_confirmed' | 'mvp_voting_open' | 'general' | 'booking_confirmed' | 'booking_cancelled' | 'post_match_review' | 'kudo_received' | 'report_reviewed';
+export type NotificationType = 'feedback_resolved' | 'match_reminder' | 'mvp' | 'teams_confirmed' | 'mvp_voting_open' | 'general' | 'booking_confirmed' | 'booking_cancelled' | 'post_match_review' | 'kudo_received' | 'report_reviewed' | 'xp_level_up' | 'xp_tier_up' | 'xp_achievement';
 
 export interface AppNotification {
     id?: string;

@@ -66,18 +66,32 @@ service cloud.firestore {
       // Crear: solo el propio usuario
       allow create: if request.auth != null && request.auth.uid == userId;
  
-      // Update: usuario NO puede cambiar su rol o roles, admin puede todo salvo roles/tiers (superadmin only)
+      // Update: usuario NO puede cambiar su rol/roles ni campos de sistema (XP/kudos/reports/flags),
+      // admin puede todo salvo roles/tiers/flags (superadmin only). El cliente SÍ puede escribir
+      // `xpOnboardingSeenAt` (flag del modal de onboarding) — por eso NO está en la lista bloqueada.
+      // `xpEnabled` está protegido — solo super_admin puede togglear el acceso al feature.
       allow update: if request.auth != null
         && (
           (
             request.auth.uid == userId
-            // Verificamos que no intente modificar campos sensibles
-            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'adminType', 'assignedLocationIds', 'kudosSummary', '_reportsSummary']))
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'role', 'roles', 'adminType', 'assignedLocationIds',
+              'kudosSummary', '_reportsSummary',
+              'xp', 'xpLevel', 'xpTier', 'xpLastEvent', 'achievements',
+              'firstMatchAt', 'earlyConfirmCount', 'reviewCount', 'perfectMonths',
+              'xpEnabled'
+            ]))
           )
           ||
           (
             isAdmin()
-            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'adminType', 'assignedLocationIds', 'kudosSummary', '_reportsSummary']) || isSuperAdmin())
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'role', 'roles', 'adminType', 'assignedLocationIds',
+              'kudosSummary', '_reportsSummary',
+              'xp', 'xpLevel', 'xpTier', 'xpLastEvent', 'achievements',
+              'firstMatchAt', 'earlyConfirmCount', 'reviewCount', 'perfectMonths',
+              'xpEnabled'
+            ]) || isSuperAdmin())
           )
         );
  
@@ -374,6 +388,18 @@ service cloud.firestore {
     match /moderationAlerts/{alertId} {
       allow read: if request.auth != null && isAdmin();
       allow write: if false; // solo Cloud Functions
+    }
+
+    /* =========================
+       ⚡ XP EVENTS (auditoría del sistema de XP)
+    ========================= */
+    match /xpEvents/{eventId} {
+      // Leer: solo el dueño del evento o admin (historial es privado)
+      allow read: if request.auth != null
+        && (request.auth.uid == resource.data.uid || isAdmin());
+
+      // Escribir: solo Cloud Functions (admin SDK)
+      allow write: if false;
     }
 
     /* =========================
