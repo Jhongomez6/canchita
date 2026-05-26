@@ -323,7 +323,7 @@ Toda la lógica de cálculo de XP vive en **Cloud Functions** que reciben trigge
 
 | Componente | Cambio |
 |---|---|
-| `components/FifaPlayerCard.tsx` | **Reemplazar `?` por `OVR = 49 + xpLevel`** + agregar prop `tier?: XpTier` que cambia 4 variables visuales (gradiente del marco, color del shimmer, color del patrón de diamantes, glow detrás de foto). Default `tier="capitan"` para conservar el verde actual como fallback. |
+| `components/FifaPlayerCard.tsx` | **Reemplazar `?` por `OVR = 49 + xpLevel`** + leer `tier` de `profile.xpTier`. RARITY_VISUALS expone 7 variables visuales por tier: frameOuter/frameInner, shimmerVia, textPrimary/textSecondary, accentLine, pillGradient/pillBorder/pillIcon, photoSkeleton. Cuando `hasXpAccess(profile) === false`: forzar rarity `"capitan"` (verde legacy) + OVR `"?"`. Cuando hay acceso pero sin xpLevel: fallback `"suplente"` (Bronce, OVR 50) — "estás empezando, ganá XP". |
 | `PlayerCardDrawer.tsx` | Agregar `XpBadge` debajo del FIFA card, junto a kudos/rachas. |
 | `app/profile/page.tsx` | Agregar `XpStatsSection` cerca del top (entre header y FIFA card) + `AchievementsGrid` antes de stats. |
 | `app/page.tsx` (home) | (Opcional) Card con `XpProgressBar` mini para usuarios con `played >= 3`. |
@@ -559,7 +559,21 @@ interface UserProfile {
   xpLevel?: number;
   xpTier?: XpTier;
   xpLastEvent?: string;
+  xpOnboardingSeenAt?: string;       // flag del modal explicativo one-shot
   achievements?: Partial<Record<AchievementId, AchievementUnlock>>;
+  // Feature flag por usuario (super_admin siempre tiene acceso).
+  // Solo super_admin puede setear este campo (firestore.rules lo protege).
+  xpEnabled?: boolean;
+  // Contadores adicionales para achievements/penalizaciones (escritos por CF).
+  firstMatchAt?: string;             // ISO del primer partido (achievement "veteran_year")
+  earlyConfirmCount?: number;        // confirmaciones >24h antes (achievement "early_bird")
+  reviewCount?: number;              // reviews completadas (achievement "review_master")
+  perfectMonths?: number;            // meses con 4+ partidos sin late/no-show (achievement "perfect_month")
+}
+
+// Helper de acceso (lib/domain/user.ts) — sigue el patrón de hasWalletAccess/hasBookingAccess
+export function hasXpAccess(profile: UserProfile): boolean {
+  return isSuperAdmin(profile) || profile.xpEnabled === true;
 }
 ```
 
@@ -947,10 +961,10 @@ firestore.indexes.json           (modificar — 3 índices nuevos)
 | `components/skeletons/XpStatsSkeleton.tsx` | **Nuevo** |
 | `functions/src/xp.ts` | **Nuevo** — todos los triggers (awardOnMatchClose, awardOnKudo, awardOnReview, awardOnConfirmation, checkAchievements, cleanup, recalculate). |
 | `functions/src/index.ts` | **Modificar** — exportar xp. |
-| `scripts/backfillXp.ts` | **Nuevo** — migración inicial. |
+| `scripts/backfillXp.js` | **Nuevo** — migración inicial standalone (CommonJS, usa serviceAccountKey.json + admin SDK). Soporta `<userId>`, `--all`, `--dry-run`, `--force`. Espejo del callable `backfillAllUsersXp` para correr fuera del entorno de Cloud Functions. |
 | `firestore.rules` | **Modificar** — proteger campos `xp/xpLevel/xpTier/achievements` + reglas para `xpEvents`. |
 | `firestore.indexes.json` | **Modificar** — 3 índices nuevos. |
-| `package.json` | **Modificar** — agregar `canvas-confetti` (~6kb). |
+| `lib/featureFlags.ts` | **No requerido** — se descartó el approach env-var global en favor del flag por usuario `UserProfile.xpEnabled`. Sigue el patrón existente de `walletEnabled`/`bookingEnabled` (ver sección 13). |
 
 ---
 
@@ -977,8 +991,8 @@ firestore.indexes.json           (modificar — 3 índices nuevos)
 - `XpHistoryDrawer`.
 - `LevelUpModal`, `TierUpModal`, `AchievementUnlockedModal`.
 - Integración en `/profile`.
-- Toasts pequeños para XP eventos.
-- `canvas-confetti` integrado.
+- Toasts pequeños para XP eventos (`lib/utils/xpToast.ts`).
+- `canvas-confetti` **NO instalado en V1**: los modales (LevelUpModal/TierUpModal/AchievementUnlockedModal) funcionan sin confetti. Si se desea sumar después: `npm i canvas-confetti` y disparar en `onMount` del modal correspondiente.
 
 ### Sesión 4 — Drawer ajeno, notificaciones, rarities, onboarding, migración
 - `XpBadge` en `PlayerCardDrawer`.
@@ -987,8 +1001,8 @@ firestore.indexes.json           (modificar — 3 índices nuevos)
 - `TierUpModal` con preview lado-a-lado de card vieja → card nueva.
 - **`XpOnboardingModal`** + integración del trigger automático en root layout (`app/layout.tsx` o equivalente) que chequea `xpOnboardingSeenAt`.
 - Botón "¿Cómo funciona?" en `XpStatsSection` que reabre el modal.
-- Script `scripts/backfillXp.ts` + modal de bienvenida post-backfill (incluye preview de la rarity nueva si cambia).
-- Feature flag `NEXT_PUBLIC_XP_ENABLED` para gating.
+- Script `scripts/backfillXp.js` (standalone, requiere serviceAccountKey.json) + callable `backfillAllUsersXp` para correr desde el entorno de Functions.
+- Feature flag `UserProfile.xpEnabled` por usuario + helper `hasXpAccess(profile)`. Wrap en `app/profile/page.tsx`, `FifaPlayerCard`, `PlayerCardDrawer`. Solo super_admin puede setear (rules lo protegen).
 - QA end-to-end con partido de prueba + verificación visual de las 5 rarities + verificación del onboarding modal.
 
 Cada sesión termina en estado deployable detrás del feature flag.
@@ -996,6 +1010,16 @@ Cada sesión termina en estado deployable detrás del feature flag.
 ---
 
 ## 13. DECISIONES CERRADAS
+
+### Feature flag por usuario (no env-var global)
+Inicialmente el SDD proponía `NEXT_PUBLIC_XP_ENABLED` como env-var de Next. **Se descartó en favor de un flag per-usuario** (`UserProfile.xpEnabled`) por dos razones:
+
+1. **Rollout gradual**: permite activar el feature para 10 users primero, ver feedback, expandir. Imposible con env-var (todo o nada).
+2. **Consistencia con el proyecto**: ya existen `walletEnabled` y `bookingEnabled` con el mismo patrón. Helper `hasXpAccess(profile)` mimetiza `hasWalletAccess`/`hasBookingAccess`.
+
+Las **Cloud Functions NO se gatean**: siguen acumulando XP en background para todos los users. Cuando un user recibe el flag, ve su historia completa de inmediato — sin "ramp-up" desde cero.
+
+### Otras decisiones
 
 | Decisión | Resolución |
 |---|---|
@@ -1032,6 +1056,21 @@ Cada sesión termina en estado deployable detrás del feature flag.
 | 2 | ¿Qué pasa con los `team_admin` y `location_admin` que no juegan? | No reciben XP por partidos donde no estuvieron. Pueden alcanzar achievements de "organizador" en una fase futura. |
 | 3 | ¿Achievement "all_tiers" tiene un cosmético especial? | Sí en fase 2 — sticker animado en perfil. Por ahora solo bonus de 2000 XP. |
 | 4 | ¿Banner explicativo del sistema en el primer login post-feature? | **Confirmado — Decisión cerrada.** Ver `XpOnboardingModal` en sección 7. Aparece una vez, persiste `xpOnboardingSeenAt`, reabrible desde perfil. |
+
+---
+
+## 14.bis. PENDIENTE PARA ITERACIONES POST-V1
+
+Cosas que el SDD asume completas pero quedaron como **mejoras futuras** tras la implementación inicial (no bloquean el deploy):
+
+| Item | Estado | Notas |
+|---|---|---|
+| `LevelUpModal` / `TierUpModal` / `AchievementUnlockedModal` auto-trigger desde notif | **Componentes existen pero sin listener.** | Hay que escuchar `notifications/{uid}/items` filtrando por `type IN ['xp_level_up','xp_tier_up','xp_achievement']`. Sin esto, los modales solo se ven si se importan y abren manualmente. |
+| `xpToast()` integrado en handlers (confirmar, dar kudo, completar review) | **Helper existe en `lib/utils/xpToast.ts` pero sin callers.** | El XP igual se otorga server-side; solo falta el toast inmediato de feedback. |
+| `canvas-confetti` en LevelUpModal | **Dep no instalada.** | Los modales funcionan sin confetti; instalar y disparar al montar. |
+| `DiamondPattern` SVG con colores dinámicos por rarity | **Sigue verde en todas las rarities.** | Colores hardcoded en `<polygon fill="rgba(74,222,128,...)">`; refactorizar para recibir fillColor prop. Sutil pero presente en Bronce/Plata/Dorado/Cosmic. |
+| Toggle UI del flag `xpEnabled` desde el panel admin | **Hoy solo Firestore Console o tooling.** | Setear vía `updateDoc(users/{uid}, { xpEnabled: true })` desde super_admin. |
+| Bottom decorative edge en `FifaPlayerCard` con color dinámico | **Implementado.** | (Ya está vía `rarity.accentLine` — sin pendiente.) |
 
 ---
 
