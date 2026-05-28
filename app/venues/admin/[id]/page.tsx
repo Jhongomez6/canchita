@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon, Inbox } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
@@ -17,6 +17,7 @@ import {
     getVenueCombos,
     getVenueFullSchedule,
     updateVenueSettings,
+    updatePaymentMethods,
     saveVenueCourts,
     saveVenueCombos,
     saveVenueFullSchedule,
@@ -38,10 +39,13 @@ import DeleteBlockedSlotSheet from "@/components/booking/DeleteBlockedSlotSheet"
 import CancelManualReservationSheet from "@/components/booking/CancelManualReservationSheet";
 import EditManualReservationSheet from "@/components/booking/EditManualReservationSheet";
 import RegisterPaymentSheet from "@/components/booking/RegisterPaymentSheet";
+import PaymentMethodEditor from "@/components/booking/PaymentMethodEditor";
+import PendingBookingsAdminView from "@/components/booking/PendingBookingsAdminView";
+import ConfirmAttendanceSheet from "@/components/booking/ConfirmAttendanceSheet";
 import DailyBalanceView from "@/components/booking/DailyBalanceView";
 import HourDetailDrawer from "@/components/booking/HourDetailDrawer";
 import { updateManualReservationStatus } from "@/lib/venues";
-import { cancelBooking } from "@/lib/bookings";
+import { cancelBooking, advanceBookingStatus } from "@/lib/bookings";
 import { getBlockedSlotStatus, getNextStatus } from "@/lib/domain/venue";
 import {
     logBookingCancelled,
@@ -50,10 +54,11 @@ import {
     logAdminHourDetailCreateClicked,
     logManualReservationStatusChanged,
 } from "@/lib/analytics";
-import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
+import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus, ManualReservationPayment, VenueFormat, PaymentMethod } from "@/lib/domain/venue";
+import { DEFAULT_PENDING_APPROVAL_TTL_HOURS, MIN_PENDING_APPROVAL_TTL_HOURS, MAX_PENDING_APPROVAL_TTL_HOURS } from "@/lib/domain/booking";
 import type { Booking } from "@/lib/domain/booking";
 
-type AdminTab = "info" | "courts" | "schedule" | "payments" | "blocked" | "bookings" | "balance";
+type AdminTab = "info" | "courts" | "schedule" | "payments" | "blocked" | "bookings" | "pending" | "balance";
 
 const TAB_LABELS: Record<AdminTab, string> = {
     info: "Sede",
@@ -62,6 +67,7 @@ const TAB_LABELS: Record<AdminTab, string> = {
     payments: "Pagos",
     blocked: "Bloqueos",
     bookings: "Reservas",
+    pending: "Pendientes",
     balance: "Balance",
 };
 
@@ -72,6 +78,7 @@ const TAB_ICONS: Record<AdminTab, LucideIcon> = {
     payments: CreditCard,
     blocked: Ban,
     bookings: CalendarDays,
+    pending: Inbox,
     balance: Receipt,
 };
 
@@ -93,6 +100,10 @@ function VenueAdminContent() {
     // Payment settings
     const [depositRequired, setDepositRequired] = useState(false);
     const [depositPercent, setDepositPercent] = useState(30);
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+    const [paymentMethodsDirty, setPaymentMethodsDirty] = useState(false);
+    const [pendingTTLHours, setPendingTTLHours] = useState<number>(DEFAULT_PENDING_APPROVAL_TTL_HOURS);
+    const [whatsappNumber, setWhatsappNumber] = useState<string>("");
 
     // Venue info (tab "info", super admin only)
     const [venueName, setVenueName] = useState("");
@@ -109,8 +120,8 @@ function VenueAdminContent() {
     // Role gating
     const isSuper = profile ? isSuperAdmin(profile) : false;
     const visibleTabs: AdminTab[] = isSuper
-        ? ["info", "courts", "schedule", "payments", "blocked", "bookings", "balance"]
-        : ["bookings", "balance"];
+        ? ["info", "courts", "schedule", "payments", "blocked", "bookings", "pending", "balance"]
+        : ["bookings", "pending", "balance"];
 
     // Active tab
     const [activeTab, setActiveTab] = useState<AdminTab>(isSuper ? "info" : "bookings");
@@ -144,6 +155,13 @@ function VenueAdminContent() {
 
     // Cancel booking sheet (admin cancels player's booking)
     const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
+
+    // Confirm attendance sheet (deposit_confirmed → confirmed)
+    const [confirmAttendanceTarget, setConfirmAttendanceTarget] = useState<Booking | null>(null);
+
+    // Register payment sheet for player bookings (played → paid).
+    // Cuando es booking, generamos un slot sintético para reusar RegisterPaymentSheet.
+    const [bookingPaymentTarget, setBookingPaymentTarget] = useState<Booking | null>(null);
 
     // Delete block sheet (super admin hard delete)
     const [deleteTarget, setDeleteTarget] = useState<{ slot: BlockedSlot; targetDate: string } | null>(null);
@@ -301,6 +319,14 @@ function VenueAdminContent() {
             setVenueFormats(v.formats ?? []);
             setDepositRequired(v.depositRequired);
             setDepositPercent(v.depositPercent);
+            setPaymentMethods(v.paymentMethods ?? []);
+            setPaymentMethodsDirty(false);
+            setPendingTTLHours(
+                typeof v.pendingApprovalTTLHours === "number"
+                    ? v.pendingApprovalTTLHours
+                    : DEFAULT_PENDING_APPROVAL_TTL_HOURS,
+            );
+            setWhatsappNumber(v.whatsappNotificationNumber ?? "");
             setVenueName(v.name ?? "");
             setVenueAddress(v.address ?? "");
             setVenuePhone(v.phone ?? "");
@@ -366,23 +392,35 @@ function VenueAdminContent() {
                 setUploadingImage(false);
             }
 
+            const settingsPayload: Parameters<typeof updateVenueSettings>[1] = {
+                depositRequired,
+                depositPercent,
+                name: venueName,
+                address: venueAddress,
+                phone: venuePhone || undefined,
+                description: venueDescription || undefined,
+                imageURL: finalImageURL || undefined,
+                icon: venueIcon || undefined,
+                active: venueActive,
+                formats: venueFormats.length > 0 ? venueFormats : undefined,
+                pendingApprovalTTLHours: pendingTTLHours,
+                whatsappNotificationNumber: whatsappNumber.trim() || undefined,
+            };
+
             await Promise.all([
-                updateVenueSettings(venueId, {
-                    depositRequired,
-                    depositPercent,
-                    name: venueName,
-                    address: venueAddress,
-                    phone: venuePhone || undefined,
-                    description: venueDescription || undefined,
-                    imageURL: finalImageURL || undefined,
-                    icon: venueIcon || undefined,
-                    active: venueActive,
-                    formats: venueFormats.length > 0 ? venueFormats : undefined,
-                }),
+                updateVenueSettings(venueId, settingsPayload),
                 saveVenueCourts(venueId, courts),
                 saveVenueCombos(venueId, combos),
                 saveVenueFullSchedule(venueId, fullSchedules),
+                // paymentMethods se actualizan separadamente porque las Firestore Rules
+                // hacen field-level check (solo Super Admin puede tocar este campo).
+                // Si el usuario actual no es super admin, este path no se ejecuta — el
+                // editor está deshabilitado en la UI y paymentMethodsDirty queda en false.
+                paymentMethodsDirty
+                    ? updatePaymentMethods(venueId, paymentMethods)
+                    : Promise.resolve(),
             ]);
+            setPaymentMethodsDirty(false);
 
             setDirty(false);
             toast.success("Cambios guardados");
@@ -779,6 +817,87 @@ function VenueAdminContent() {
                                     </p>
                                 </div>
                             )}
+
+                            {/* Métodos de pago externos — solo aplica con depósito requerido */}
+                            {depositRequired && (
+                                <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                                    <h3 className="text-sm font-semibold text-slate-700 mb-1">
+                                        Métodos de pago aceptados
+                                    </h3>
+                                    <p className="text-xs text-slate-400 mb-4">
+                                        Datos que el jugador verá para pagar el abono externamente
+                                        (Nequi, Bancolombia, Llave Transfiya, etc.).
+                                    </p>
+                                    <PaymentMethodEditor
+                                        venueId={venueId}
+                                        methods={paymentMethods}
+                                        canEdit={isSuper}
+                                        onChange={(next) => {
+                                            setPaymentMethods(next);
+                                            setPaymentMethodsDirty(true);
+                                            markDirty();
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* TTL configurable para reservas pendientes */}
+                            {depositRequired && (
+                                <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                                    <h3 className="text-sm font-semibold text-slate-700 mb-1">
+                                        Ventana de tiempo para pago
+                                    </h3>
+                                    <p className="text-xs text-slate-400 mb-4">
+                                        Horas que el jugador tiene para enviar el comprobante antes
+                                        de que la reserva se cancele automáticamente.
+                                    </p>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="number"
+                                            min={MIN_PENDING_APPROVAL_TTL_HOURS}
+                                            max={MAX_PENDING_APPROVAL_TTL_HOURS}
+                                            step={1}
+                                            value={pendingTTLHours}
+                                            onChange={(e) => {
+                                                const raw = parseInt(e.target.value, 10);
+                                                if (Number.isNaN(raw)) return;
+                                                const clamped = Math.max(
+                                                    MIN_PENDING_APPROVAL_TTL_HOURS,
+                                                    Math.min(MAX_PENDING_APPROVAL_TTL_HOURS, raw),
+                                                );
+                                                setPendingTTLHours(clamped);
+                                                markDirty();
+                                            }}
+                                            className="w-24 px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50"
+                                        />
+                                        <span className="text-sm text-slate-600">horas</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-2">
+                                        Mínimo {MIN_PENDING_APPROVAL_TTL_HOURS}h, máximo {MAX_PENDING_APPROVAL_TTL_HOURS}h.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* WhatsApp opcional para botón "Avisar al admin" */}
+                            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                                <h3 className="text-sm font-semibold text-slate-700 mb-1">
+                                    WhatsApp para avisos (opcional)
+                                </h3>
+                                <p className="text-xs text-slate-400 mb-3">
+                                    Si lo configurás, el jugador verá un botón &quot;Avisar por WhatsApp&quot;
+                                    después de pagar. Déjalo vacío para ocultarlo.
+                                </p>
+                                <input
+                                    type="tel"
+                                    placeholder="+57 311 234 5678"
+                                    value={whatsappNumber}
+                                    onChange={(e) => {
+                                        setWhatsappNumber(e.target.value);
+                                        markDirty();
+                                    }}
+                                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50"
+                                />
+                            </div>
                         </div>
                     )}
 
@@ -843,6 +962,8 @@ function VenueAdminContent() {
                                         });
                                         setCancelTarget(booking);
                                     }}
+                                    onConfirmAttendance={(b) => setConfirmAttendanceTarget(b)}
+                                    onRegisterBookingPayment={(b) => setBookingPaymentTarget(b)}
                                     onBlockClick={(slot, targetDate) => {
                                         setDeleteTarget({ slot, targetDate });
                                     }}
@@ -874,6 +995,20 @@ function VenueAdminContent() {
                                     }}
                                 />
                             )}
+                        </div>
+                    )}
+
+                    {/* Pending bookings tab */}
+                    {activeTab === "pending" && (
+                        <div className="space-y-4">
+                            <p className="text-xs text-slate-500">
+                                Reservas de jugadores con pago externo. Aprobá el abono cuando recibas la transferencia, o rechazá si el comprobante no corresponde.
+                            </p>
+                            <PendingBookingsAdminView
+                                venueId={venueId}
+                                venueFormats={venueFormats}
+                                onCancelBooking={(b) => setCancelTarget(b)}
+                            />
                         </div>
                     )}
 
@@ -965,6 +1100,8 @@ function VenueAdminContent() {
                         });
                         setCancelTarget(booking);
                     }}
+                    onConfirmAttendance={(b) => setConfirmAttendanceTarget(b)}
+                    onRegisterBookingPayment={(b) => setBookingPaymentTarget(b)}
                     onBlockClick={(slot, targetDate) => {
                         setDeleteTarget({ slot, targetDate });
                     }}
@@ -1047,7 +1184,7 @@ function VenueAdminContent() {
                     />
                 )}
 
-                {/* Register/edit payment sheet */}
+                {/* Register/edit payment sheet — manual reservation */}
                 {paymentTarget && user && (
                     <RegisterPaymentSheet
                         open={!!paymentTarget}
@@ -1066,6 +1203,50 @@ function VenueAdminContent() {
                             const instanceDate = paymentTarget.slot.recurrence ? paymentTarget.targetDate : undefined;
                             patchHourDetailBlockStatus(paymentTarget.slot.id, "played", instanceDate);
                             setPaymentTarget(null);
+                        }}
+                    />
+                )}
+
+                {/* Confirm attendance sheet (deposit_confirmed → confirmed) */}
+                <ConfirmAttendanceSheet
+                    open={!!confirmAttendanceTarget}
+                    onClose={() => setConfirmAttendanceTarget(null)}
+                    booking={confirmAttendanceTarget}
+                />
+
+                {/* Register payment sheet — player booking (played → paid).
+                    Construye un slot sintético desde el booking para reusar el sheet.
+                    Tras registrar, marca played → paid en el server vía advanceBookingStatus. */}
+                {bookingPaymentTarget && user && (
+                    <RegisterPaymentSheet
+                        open={!!bookingPaymentTarget}
+                        onClose={() => setBookingPaymentTarget(null)}
+                        venueId={venueId}
+                        slot={{
+                            id: bookingPaymentTarget.id,
+                            date: bookingPaymentTarget.date,
+                            startTime: bookingPaymentTarget.startTime,
+                            endTime: bookingPaymentTarget.endTime,
+                            courtIds: bookingPaymentTarget.courtIds,
+                            clientName: bookingPaymentTarget.bookedByName,
+                            priceCOP: bookingPaymentTarget.totalPriceCOP,
+                            createdBy: bookingPaymentTarget.bookedBy,
+                            createdAt: bookingPaymentTarget.createdAt,
+                        } as BlockedSlot}
+                        targetDate={bookingPaymentTarget.date}
+                        existingPayment={null}
+                        registeredBy={user.uid}
+                        depositCOP={bookingPaymentTarget.depositCOP}
+                        paymentProofURL={bookingPaymentTarget.paymentProofURL ?? undefined}
+                        paymentVerifiedAt={bookingPaymentTarget.approvedAt ?? undefined}
+                        onSaved={async () => {
+                            // Tras registrar el pago manual del partido, avanzamos el booking a "paid".
+                            try {
+                                await advanceBookingStatus(bookingPaymentTarget.id, "paid");
+                            } catch (err) {
+                                handleError(err, "El pago se registró pero no pudimos actualizar el estado de la reserva");
+                            }
+                            setBookingPaymentTarget(null);
                         }}
                     />
                 )}

@@ -38,6 +38,9 @@ interface HourDetailDrawerProps {
     /** Subconjunto de relevantCourtIds que ya está ocupado por bookings o blocks. */
     unavailableRelevantCourtIds?: string[];
     onBookingClick: (booking: Booking) => void;
+    onConfirmAttendance?: (booking: Booking) => void;
+    onRegisterBookingPayment?: (booking: Booking) => void;
+    onBookingAdvanced?: () => void;
     onBlockClick: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus: (block: BlockedSlot, targetDate: string) => void;
     onPickBlockStatus: (block: BlockedSlot, newStatus: ManualReservationStatus, targetDate: string) => void;
@@ -64,6 +67,9 @@ export default function HourDetailDrawer({
     courts,
     venueFormats,
     onBookingClick,
+    onConfirmAttendance,
+    onRegisterBookingPayment,
+    onBookingAdvanced,
     onBlockClick,
     onAdvanceBlockStatus,
     onPickBlockStatus,
@@ -170,6 +176,9 @@ export default function HourDetailDrawer({
                                                         booking={b}
                                                         venueFormats={venueFormats}
                                                         onClick={onBookingClick}
+                                                        onConfirmAttendance={onConfirmAttendance}
+                                                        onRegisterPayment={onRegisterBookingPayment}
+                                                        onAdvanced={onBookingAdvanced}
                                                     />
                                                 ))}
                                             </div>

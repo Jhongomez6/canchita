@@ -1,29 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, Clock, MapPin, CreditCard, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, MapPin, AlertTriangle, Check, CircleDashed } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel } from "@/lib/domain/venue";
-import type { VenueFormat } from "@/lib/domain/venue";
+import type { VenueFormat, Venue } from "@/lib/domain/venue";
 import { getVenue } from "@/lib/venues";
-import { isBookingRefundable, bookingStatusLabel, bookingStatusColor } from "@/lib/domain/booking";
+import {
+    isBookingRefundable,
+    bookingStatusLabel,
+    bookingStatusColor,
+    MAX_PAYMENT_PROOF_ATTEMPTS,
+} from "@/lib/domain/booking";
 import { subscribeToBooking, cancelBooking } from "@/lib/bookings";
 import { handleError } from "@/lib/utils/error";
 import { logBookingCancelled, logBookingCancellationStarted } from "@/lib/analytics";
 import AuthGuard from "@/components/AuthGuard";
 import CancelBookingSheet from "@/components/booking/CancelBookingSheet";
+import BookingExpirationTimer from "@/components/booking/BookingExpirationTimer";
+import PaymentMethodList from "@/components/booking/PaymentMethodList";
+import PaymentProofUploader from "@/components/booking/PaymentProofUploader";
+import PaymentProofPreview from "@/components/booking/PaymentProofPreview";
+import RejectionBanner from "@/components/booking/RejectionBanner";
+import WhatsAppNotifyButton from "@/components/booking/WhatsAppNotifyButton";
+import DepositSummary from "@/components/booking/DepositSummary";
 import type { Booking } from "@/lib/domain/booking";
 
 const STATUS_STYLES: Record<string, string> = {
     yellow: "bg-amber-50 text-amber-700",
-    green: "bg-emerald-50 text-emerald-700",
+    orange: "bg-orange-50 text-orange-700",
     blue: "bg-blue-50 text-blue-700",
+    green: "bg-emerald-50 text-emerald-700",
+    indigo: "bg-indigo-50 text-indigo-700",
+    purple: "bg-purple-50 text-purple-700",
     red: "bg-red-50 text-red-700",
     gray: "bg-slate-100 text-slate-500",
-    orange: "bg-orange-50 text-orange-700",
 };
 
 function fmt12h(time: string): string {
@@ -41,6 +55,13 @@ function formatDateFull(dateStr: string): string {
     return `${days[date.getDay()]} ${date.getDate()} de ${months[date.getMonth()]}`;
 }
 
+function formatShortSummary(booking: Booking, formatNice: string): string {
+    const date = new Date(booking.date + "T12:00:00");
+    const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    return `${formatNice} · ${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${fmt12h(booking.startTime)}`;
+}
+
 function BookingDetailContent() {
     const params = useParams();
     const router = useRouter();
@@ -48,6 +69,7 @@ function BookingDetailContent() {
     const bookingId = params.id as string;
 
     const [booking, setBooking] = useState<Booking | null>(null);
+    const [venue, setVenue] = useState<Venue | null>(null);
     const [venueFormats, setVenueFormats] = useState<VenueFormat[] | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
@@ -62,12 +84,16 @@ function BookingDetailContent() {
         return () => unsub();
     }, [bookingId]);
 
-    // Carga el catálogo multi-deporte de la sede para resolver el label del formato.
+    // Carga el venue para sus paymentMethods + WhatsApp + formats.
     useEffect(() => {
         if (!booking?.venueId) return;
         let cancelled = false;
         getVenue(booking.venueId)
-            .then((v) => { if (!cancelled) setVenueFormats(v?.formats); })
+            .then((v) => {
+                if (cancelled) return;
+                setVenue(v);
+                setVenueFormats(v?.formats);
+            })
             .catch(() => { if (!cancelled) setVenueFormats(undefined); });
         return () => { cancelled = true; };
     }, [booking?.venueId]);
@@ -76,8 +102,18 @@ function BookingDetailContent() {
         ? isBookingRefundable(booking.date, booking.startTime)
         : false;
 
-    const canCancel = booking?.status === "confirmed" || booking?.status === "pending_payment";
-    const isOwner = booking && user && booking.bookedBy === user.uid;
+    const isOwner = !!(booking && user && booking.bookedBy === user.uid);
+    const canCancel = !!booking && [
+        "pending_payment",
+        "pending_approval",
+        "deposit_confirmed",
+        "confirmed",
+    ].includes(booking.status);
+
+    const formatNice = useMemo(
+        () => booking ? formatLabel(booking.format, venueFormats) : "",
+        [booking, venueFormats],
+    );
 
     const handleCancel = async (reason: string) => {
         if (!booking) return;
@@ -156,6 +192,8 @@ function BookingDetailContent() {
 
     const color = bookingStatusColor(booking.status);
     const statusStyle = STATUS_STYLES[color] || STATUS_STYLES.gray;
+    const attemptsUsed = booking.paymentProofHistory?.length ?? 0;
+    const attemptsRemaining = Math.max(0, MAX_PAYMENT_PROOF_ATTEMPTS - attemptsUsed);
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24 md:pb-0">
@@ -174,15 +212,21 @@ function BookingDetailContent() {
                 </div>
 
                 {/* Main card */}
-                <div className="px-4 -mt-4 relative z-10">
+                <div className="px-4 -mt-4 relative z-10 space-y-4">
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
                         {/* Status + format */}
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-slate-800">{formatLabel(booking.format, venueFormats)}</h2>
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-lg font-bold text-slate-800">{formatNice}</h2>
                             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusStyle}`}>
                                 {bookingStatusLabel(booking.status)}
                             </span>
                         </div>
+
+                        {booking.status === "pending_payment" && booking.expiresAt && (
+                            <div className="mb-3">
+                                <BookingExpirationTimer expiresAt={booking.expiresAt} />
+                            </div>
+                        )}
 
                         {/* Venue */}
                         <p className="text-base font-semibold text-slate-700 mb-3">{booking.venueName}</p>
@@ -226,13 +270,11 @@ function BookingDetailContent() {
                                     <span className="font-semibold text-slate-700">{formatCOP(booking.totalPriceCOP)}</span>
                                 </div>
                             )}
+
                             {booking.depositCOP > 0 && (
                                 <>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-slate-500 flex items-center gap-1.5">
-                                            <CreditCard className="w-3.5 h-3.5" />
-                                            Depósito ({booking.depositPercent}%)
-                                        </span>
+                                        <span className="text-slate-500">Depósito ({booking.depositPercent}%)</span>
                                         <span className="font-bold text-[#1f7a4f]">{formatCOP(booking.depositCOP)}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
@@ -241,18 +283,138 @@ function BookingDetailContent() {
                                     </div>
                                 </>
                             )}
-                            {booking.paymentMethod === "on_site" && (
+
+                            {booking.paymentMethod === "on_site" && booking.depositCOP === 0 && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-slate-500">Pago en sede</span>
                                     <span className="text-slate-700">{formatCOP(booking.totalPriceCOP)}</span>
                                 </div>
                             )}
                         </div>
+
+                        {/* Resumen del abono (visible desde deposit_confirmed en adelante) */}
+                        {(["deposit_confirmed", "confirmed", "played", "paid"].includes(booking.status) && booking.depositCOP > 0) && (
+                            <div className="mt-4">
+                                <DepositSummary
+                                    depositCOP={booking.depositCOP}
+                                    remainingCOP={booking.remainingCOP}
+                                />
+                            </div>
+                        )}
                     </div>
 
-                    {/* Cancellation info (cuando ya está cancelada) */}
+                    {/* ── PENDING PAYMENT ──────────────────────────────────────── */}
+                    {booking.status === "pending_payment" && isOwner && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4">
+                            {/* Rejection banner si hubo intentos previos */}
+                            {booking.lastRejectionReason && (
+                                <RejectionBanner
+                                    reason={booking.lastRejectionReason}
+                                    rejectedAt={booking.lastRejectionAt ?? undefined}
+                                    attemptsRemaining={attemptsRemaining}
+                                />
+                            )}
+
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-800 mb-1">
+                                    Paga el abono de {formatCOP(booking.depositCOP)}
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    Usá cualquiera de estos métodos. Cuando termines, subí el comprobante.
+                                </p>
+                            </div>
+
+                            <PaymentMethodList methods={venue?.paymentMethods ?? []} />
+
+                            <div className="border-t border-slate-100 pt-4">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                                    ¿Ya pagaste?
+                                </p>
+                                <PaymentProofUploader
+                                    venueId={booking.venueId}
+                                    bookingId={booking.id}
+                                    previousAttempts={attemptsUsed}
+                                />
+                                {venue?.whatsappNotificationNumber && (
+                                    <div className="mt-2">
+                                        <WhatsAppNotifyButton
+                                            venueId={booking.venueId}
+                                            bookingId={booking.id}
+                                            phoneNumber={venue.whatsappNotificationNumber}
+                                            bookingSummary={formatShortSummary(booking, formatNice)}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── PENDING APPROVAL ─────────────────────────────────────── */}
+                    {booking.status === "pending_approval" && isOwner && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-3">
+                            <div className="flex items-start gap-2.5">
+                                <CircleDashed className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0 animate-pulse" />
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-800">En revisión</h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        El admin está verificando tu pago. Te avisaremos cuando se apruebe.
+                                    </p>
+                                </div>
+                            </div>
+                            <PaymentProofPreview
+                                url={booking.paymentProofURL}
+                                uploadedAt={booking.paymentProofUploadedAt}
+                                statusLabel="Comprobante en revisión"
+                            />
+                        </div>
+                    )}
+
+                    {/* ── DEPOSIT CONFIRMED ────────────────────────────────────── */}
+                    {booking.status === "deposit_confirmed" && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-2.5">
+                            <Check className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="text-sm font-semibold text-blue-700">
+                                    Abono confirmado
+                                </p>
+                                <p className="text-xs text-blue-600 mt-0.5">
+                                    Falta confirmar tu asistencia con la sede. Te van a contactar antes del partido.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── CONFIRMED ────────────────────────────────────────────── */}
+                    {booking.status === "confirmed" && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-2.5">
+                            <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="text-sm font-semibold text-emerald-700">¡Listo para jugar!</p>
+                                <p className="text-xs text-emerald-600 mt-0.5">
+                                    Tu reserva está confirmada. Disfrutá el partido.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── EXPIRED ──────────────────────────────────────────────── */}
+                    {booking.status === "expired" && (
+                        <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 flex items-start gap-2.5">
+                            <AlertTriangle className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                                <p className="text-sm font-semibold text-slate-700">Reserva expirada</p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    {booking.lastRejectionReason
+                                        ? `Se alcanzó el máximo de intentos: ${booking.lastRejectionReason}`
+                                        : "No se completó el pago a tiempo. La cancha quedó libre."}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── CANCELLED ───────────────────────────────────────────── */}
                     {booking.status === "cancelled" && booking.cancellationReason && (
-                        <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4">
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                             <div className="flex items-start gap-2">
                                 <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                                 <div className="flex-1">
@@ -271,7 +433,7 @@ function BookingDetailContent() {
                     {canCancel && isOwner && (
                         <button
                             onClick={openCancelSheet}
-                            className="w-full mt-4 py-3 text-sm font-semibold text-red-500 bg-white border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
+                            className="w-full py-3 text-sm font-semibold text-red-500 bg-white border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
                         >
                             Cancelar reserva
                         </button>

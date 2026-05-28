@@ -17,6 +17,12 @@ interface AdminBookingCalendarProps {
     venueId: string;
     venueFormats?: VenueFormat[];
     onBookingClick?: (booking: Booking) => void;
+    /** Confirmar asistencia para reservas en deposit_confirmed (abre sheet). */
+    onConfirmAttendance?: (booking: Booking) => void;
+    /** Registrar pago en sede para reservas player en played → paid (abre RegisterPaymentSheet con depositCOP). */
+    onRegisterBookingPayment?: (booking: Booking) => void;
+    /** Notifica al padre que se avanzó el estado (refresh local). */
+    onBookingAdvanced?: () => void;
     onBlockClick?: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus?: (block: BlockedSlot, targetDate: string) => void;
     onPickBlockStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus, targetDate: string) => void;
@@ -48,6 +54,9 @@ export default function AdminBookingCalendar({
     venueId,
     venueFormats,
     onBookingClick,
+    onConfirmAttendance,
+    onRegisterBookingPayment,
+    onBookingAdvanced,
     onBlockClick,
     onAdvanceBlockStatus,
     onPickBlockStatus,
@@ -290,6 +299,12 @@ export default function AdminBookingCalendar({
                                         booking={row.booking}
                                         venueFormats={venueFormats}
                                         onClick={onBookingClick}
+                                        onConfirmAttendance={onConfirmAttendance}
+                                        onRegisterPayment={onRegisterBookingPayment}
+                                        onAdvanced={() => {
+                                            onBookingAdvanced?.();
+                                            loadDayBookings(selectedDate);
+                                        }}
                                     />
                                 );
                             }

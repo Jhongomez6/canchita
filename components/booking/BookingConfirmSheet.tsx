@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Clock } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel, calcDepositCOP, calcRemainingCOP } from "@/lib/domain/venue";
+import { DEFAULT_PENDING_APPROVAL_TTL_HOURS } from "@/lib/domain/booking";
 import type { VenueFormat } from "@/lib/domain/venue";
 
 interface BookingConfirmSheetProps {
     open: boolean;
     onClose: () => void;
     onConfirm: () => Promise<void>;
-    onRecharge?: () => void;
     venueName: string;
     venueAddress: string;
     format: string;
@@ -26,7 +26,8 @@ interface BookingConfirmSheetProps {
     discountCOP?: number;
     depositRequired: boolean;
     depositPercent: number;
-    walletBalance: number | null;
+    /** TTL del venue en horas (1-24). Default 24 si no se pasa. */
+    pendingTTLHours?: number;
 }
 
 function formatDateDisplay(dateStr: string): string {
@@ -48,7 +49,6 @@ export default function BookingConfirmSheet({
     open,
     onClose,
     onConfirm,
-    onRecharge,
     venueName,
     venueAddress,
     format,
@@ -61,7 +61,7 @@ export default function BookingConfirmSheet({
     discountCOP,
     depositRequired,
     depositPercent,
-    walletBalance,
+    pendingTTLHours,
 }: BookingConfirmSheetProps) {
     const [loading, setLoading] = useState(false);
 
@@ -76,8 +76,9 @@ export default function BookingConfirmSheet({
     const depositCOP = depositRequired ? calcDepositCOP(totalPriceCOP, depositPercent) : 0;
     const remainingCOP = depositRequired ? calcRemainingCOP(totalPriceCOP, depositCOP) : totalPriceCOP;
     const needsPayment = depositRequired && depositCOP > 0;
-    const hasSufficientBalance = walletBalance !== null && walletBalance >= depositCOP;
-    const deficit = needsPayment && walletBalance !== null ? Math.max(0, depositCOP - walletBalance) : 0;
+    const ttlHoursDisplay = typeof pendingTTLHours === "number" && pendingTTLHours > 0
+        ? pendingTTLHours
+        : DEFAULT_PENDING_APPROVAL_TTL_HOURS;
 
     const handleConfirm = async () => {
         setLoading(true);
@@ -169,12 +170,6 @@ export default function BookingConfirmSheet({
                                             <span className="font-bold text-[#1f7a4f]">{formatCOP(depositCOP)}</span>
                                         </div>
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">Tu saldo</span>
-                                            <span className={`font-medium ${hasSufficientBalance ? "text-slate-700" : "text-red-500"}`}>
-                                                {walletBalance !== null ? formatCOP(walletBalance) : "..."}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
                                             <span className="text-slate-500">Resto en sede</span>
                                             <span className="text-slate-700 font-medium">{formatCOP(remainingCOP)}</span>
                                         </div>
@@ -189,33 +184,25 @@ export default function BookingConfirmSheet({
                                 )}
                             </div>
 
-                            {/* Insufficient balance warning */}
-                            {needsPayment && !hasSufficientBalance && walletBalance !== null && (
-                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-start gap-2">
-                                    <span className="text-amber-500 text-lg leading-none mt-0.5">!</span>
-                                    <div>
-                                        <p className="text-sm font-medium text-amber-700">
-                                            Te faltan {formatCOP(deficit)}
-                                        </p>
-                                        {onRecharge && (
-                                            <button
-                                                onClick={onRecharge}
-                                                className="text-sm text-[#1f7a4f] font-semibold mt-1 hover:underline"
-                                            >
-                                                Recargar billetera
-                                            </button>
-                                        )}
-                                    </div>
+                            {/* TTL info para reservas con depósito */}
+                            {needsPayment && (
+                                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4 flex items-start gap-2">
+                                    <Clock className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                    <p className="text-sm text-amber-700 leading-relaxed">
+                                        Tendrás <strong>{ttlHoursDisplay} h</strong> para enviar el
+                                        comprobante de tu abono después de reservar. El admin lo verificará
+                                        antes de confirmar.
+                                    </p>
                                 </div>
                             )}
 
-                            {/* Action buttons */}
+                            {/* Action button */}
                             <button
                                 onClick={handleConfirm}
-                                disabled={loading || (needsPayment && !hasSufficientBalance)}
+                                disabled={loading}
                                 className={`
                                     w-full py-3.5 rounded-xl text-base font-bold transition-all
-                                    ${loading || (needsPayment && !hasSufficientBalance)
+                                    ${loading
                                         ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                                         : "bg-[#1f7a4f] text-white hover:bg-[#145c3a] active:scale-[0.98]"
                                     }
@@ -224,7 +211,7 @@ export default function BookingConfirmSheet({
                                 {loading
                                     ? "Procesando..."
                                     : needsPayment
-                                        ? `Pagar depósito ${formatCOP(depositCOP)}`
+                                        ? "Reservar y pagar luego"
                                         : "Reservar"
                                 }
                             </button>

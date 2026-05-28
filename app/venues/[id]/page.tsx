@@ -416,7 +416,7 @@ function VenueDetailContent() {
                     totalPriceCOP={totalPrice}
                     depositRequired={venue.depositRequired}
                     depositPercent={venue.depositPercent}
-                    walletBalance={wallet?.balanceCOP ?? null}
+                    pendingTTLHours={venue.pendingApprovalTTLHours}
                 />
             </div>
         </div>

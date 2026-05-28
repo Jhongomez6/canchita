@@ -13,6 +13,7 @@ import {
 import { calcPaymentDiff } from "@/lib/domain/payments";
 import { formatCOP } from "@/lib/domain/wallet";
 import { handleError } from "@/lib/utils/error";
+import { Info, ExternalLink } from "lucide-react";
 import {
     logManualReservationPaymentRegistered,
     logManualReservationPaymentEdited,
@@ -31,6 +32,16 @@ interface RegisterPaymentSheetProps {
     registeredBy: string;
     onSaved?: () => void;
     onDeleted?: () => void;
+
+    // ── Props opcionales para reservas de jugador con abono (RESERVAS_PAGO_EXTERNO_SDD) ──
+    /** Monto del abono ya pagado externamente. Pre-rellena el input transferencia. */
+    depositCOP?: number;
+    /** URL del comprobante para mostrar link "Ver comprobante". */
+    paymentProofURL?: string;
+    /** Etiqueta del método del abono (ej. "Nequi"). */
+    paymentMethodLabel?: string;
+    /** ISO de cuando se aprobó el abono. */
+    paymentVerifiedAt?: string;
 }
 
 function fmt12h(time: string): string {
@@ -72,6 +83,10 @@ export default function RegisterPaymentSheet({
     registeredBy,
     onSaved,
     onDeleted,
+    depositCOP,
+    paymentProofURL,
+    paymentMethodLabel,
+    paymentVerifiedAt,
 }: RegisterPaymentSheetProps) {
     const isEditMode = !!existingPayment;
     const [cashPesos, setCashPesos] = useState(0);
@@ -85,14 +100,21 @@ export default function RegisterPaymentSheet({
         if (existingPayment) {
             setCashPesos(centavosToPesos(existingPayment.cashCOP));
             setTransferPesos(centavosToPesos(existingPayment.transferCOP));
+        } else if (typeof depositCOP === "number" && depositCOP > 0 && typeof slot.priceCOP === "number") {
+            // Reserva de jugador con abono: transferencia = abono, efectivo = resto.
+            // El admin puede ajustar si en sede el cliente paga distinto.
+            const transferPesosInit = centavosToPesos(depositCOP);
+            const restCOP = Math.max(0, slot.priceCOP - depositCOP);
+            setTransferPesos(transferPesosInit);
+            setCashPesos(centavosToPesos(restCOP));
         } else {
-            // Pre-rellenar efectivo con priceCOP (caso más común).
+            // Reserva manual o reserva sin abono: efectivo pre-rellenado con precio total.
             const pricePesos = typeof slot.priceCOP === "number" ? centavosToPesos(slot.priceCOP) : 0;
             setCashPesos(pricePesos);
             setTransferPesos(0);
         }
         setConfirmingDelete(false);
-    }, [open, existingPayment, slot.priceCOP]);
+    }, [open, existingPayment, slot.priceCOP, depositCOP]);
 
     const cashCOP = pesosToCentavos(cashPesos);
     const transferCOP = pesosToCentavos(transferPesos);
@@ -280,6 +302,30 @@ export default function RegisterPaymentSheet({
                                         className="w-full pl-7 pr-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50"
                                     />
                                 </div>
+                                {typeof depositCOP === "number" && depositCOP > 0 && !existingPayment && (
+                                    <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-slate-500">
+                                        <Info className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
+                                        <span>
+                                            Incluye abono de {formatCOP(depositCOP)}
+                                            {paymentMethodLabel ? ` (${paymentMethodLabel})` : ""}
+                                            {paymentVerifiedAt ? ` aprobado el ${new Date(paymentVerifiedAt).toLocaleDateString("es-CO")}` : ""}
+                                            {paymentProofURL && (
+                                                <>
+                                                    {" · "}
+                                                    <a
+                                                        href={paymentProofURL}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-0.5 text-blue-700 font-semibold hover:underline"
+                                                    >
+                                                        Ver comprobante
+                                                        <ExternalLink className="w-2.5 h-2.5" />
+                                                    </a>
+                                                </>
+                                            )}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Total + diff badge */}
