@@ -361,7 +361,11 @@ export const createBooking = onCall(
             throw new HttpsError("invalid-argument", "La hora de inicio debe ser anterior a la hora de fin");
         }
 
-        const todayISO = new Date().toISOString().split("T")[0];
+        // Usa hora de Colombia (UTC-5, sin DST). Si usáramos toISOString() puro,
+        // después de las 7pm hora local UTC ya pasó al día siguiente y las reservas
+        // del mismo día se rechazarían como "fecha pasada".
+        const todayISO = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" })
+            .format(new Date());
         if (date < todayISO) {
             throw new HttpsError("invalid-argument", "No se puede reservar en una fecha pasada");
         }
