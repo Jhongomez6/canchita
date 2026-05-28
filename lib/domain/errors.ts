@@ -145,6 +145,41 @@ export class BookingNotFoundError extends BusinessError {
     }
 }
 
+export class BookingNotPendingError extends BusinessError {
+    constructor() {
+        super("La reserva no está en un estado pendiente válido para esta acción");
+        this.name = "BookingNotPendingError";
+    }
+}
+
+export class PaymentProofRejectedError extends BusinessError {
+    constructor(reason: string) {
+        super(`Comprobante rechazado: ${reason}`);
+        this.name = "PaymentProofRejectedError";
+    }
+}
+
+export class MaxRejectionsReachedError extends BusinessError {
+    constructor() {
+        super("Se alcanzó el número máximo de intentos de comprobante. La reserva fue cancelada.");
+        this.name = "MaxRejectionsReachedError";
+    }
+}
+
+export class InvalidStatusTransitionError extends BusinessError {
+    constructor(from: string, to: string) {
+        super(`Transición de estado inválida: ${from} → ${to}`);
+        this.name = "InvalidStatusTransitionError";
+    }
+}
+
+export class PaymentMethodValidationError extends ValidationError {
+    constructor(message: string) {
+        super(message);
+        this.name = "PaymentMethodValidationError";
+    }
+}
+
 // ========================
 // ERRORES DE POST-MATCH REVIEW
 // ========================

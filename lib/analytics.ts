@@ -922,3 +922,131 @@ export async function logXpModalDismissed(
     dismiss_method: dismissMethod,
   });
 }
+
+// ============================================================================
+// Reservas con pago externo (RESERVAS_PAGO_EXTERNO_SDD)
+// ============================================================================
+
+export async function logBookingPendingCreated(params: {
+  venueId: string;
+  bookingId: string;
+  format: string;
+  depositCOP: number;
+  ttlHours: number;
+}) {
+  await trackEvent("booking_pending_created", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    format: params.format,
+    deposit_cop: params.depositCOP.toString(),
+    ttl_hours: params.ttlHours.toString(),
+  });
+}
+
+export async function logPaymentProofUploaded(params: {
+  venueId: string;
+  bookingId: string;
+  fileSizeKB: number;
+  attemptNumber: number;
+}) {
+  await trackEvent("payment_proof_uploaded", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    file_size_kb: params.fileSizeKB.toString(),
+    attempt_number: params.attemptNumber.toString(),
+  });
+}
+
+export async function logPaymentProofUploadFailed(params: {
+  venueId: string;
+  bookingId: string;
+  reason: string;
+}) {
+  await trackEvent("payment_proof_upload_failed", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    reason: params.reason,
+  });
+}
+
+export async function logWhatsAppNotifyTapped(params: {
+  venueId: string;
+  bookingId: string;
+}) {
+  await trackEvent("whatsapp_notify_tapped", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+  });
+}
+
+export async function logBookingDepositApproved(params: {
+  venueId: string;
+  bookingId: string;
+  timeToApproveMinutes: number;
+}) {
+  await trackEvent("booking_deposit_approved", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    time_to_approve_minutes: params.timeToApproveMinutes.toString(),
+  });
+}
+
+export async function logBookingAttendanceConfirmed(params: {
+  venueId: string;
+  bookingId: string;
+}) {
+  await trackEvent("booking_attendance_confirmed", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+  });
+}
+
+export async function logBookingProofRejected(params: {
+  venueId: string;
+  bookingId: string;
+  attemptNumber: number;
+}) {
+  await trackEvent("booking_proof_rejected", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    attempt_number: params.attemptNumber.toString(),
+  });
+}
+
+export async function logBookingStatusAdvanced(params: {
+  venueId: string;
+  bookingId: string;
+  fromStatus: string;
+  toStatus: string;
+}) {
+  await trackEvent("booking_status_advanced", {
+    venue_id: params.venueId,
+    booking_id: params.bookingId,
+    from_status: params.fromStatus,
+    to_status: params.toStatus,
+  });
+}
+
+export async function logVenuePaymentMethodsUpdated(params: {
+  venueId: string;
+  methodsCount: number;
+  hasQR: boolean;
+}) {
+  await trackEvent("venue_payment_methods_updated", {
+    venue_id: params.venueId,
+    methods_count: params.methodsCount.toString(),
+    has_qr: params.hasQR.toString(),
+  });
+}
+
+export async function logVenuePendingTTLUpdated(params: {
+  venueId: string;
+  oldHours: number;
+  newHours: number;
+}) {
+  await trackEvent("venue_pending_ttl_updated", {
+    venue_id: params.venueId,
+    old_hours: params.oldHours.toString(),
+    new_hours: params.newHours.toString(),
+  });
+}

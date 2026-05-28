@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -12,10 +12,17 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-export const app =
-  getApps().length === 0
-    ? initializeApp(firebaseConfig)
-    : getApps()[0];
+const isNewApp = getApps().length === 0;
+export const app = isNewApp ? initializeApp(firebaseConfig) : getApps()[0];
 
-export const db = getFirestore(app);
+// initializeFirestore solo se puede llamar una vez por app. Si ya existe (HMR),
+// caemos al getFirestore que devuelve la instancia previamente configurada.
+export const db = isNewApp
+  ? initializeFirestore(app, {
+      // Permite enviar objetos con campos `undefined` — Firestore los ignora en lugar
+      // de throwear. Crítico para patrones como `phone: value || undefined` en updates.
+      ignoreUndefinedProperties: true,
+    })
+  : getFirestore(app);
+
 export const storage = getStorage(app);

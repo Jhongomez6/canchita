@@ -52,8 +52,18 @@ export async function getUserBookings(
     return { bookings, lastDoc: last };
 }
 
+/** Estados que bloquean slot — usados en queries del calendario admin. */
+const SLOT_BLOCKING_STATUSES = [
+    "pending_payment",
+    "pending_approval",
+    "deposit_confirmed",
+    "confirmed",
+    "played",
+] as const;
+
 /**
  * Obtiene reservas de un venue en una fecha (para calcular courts ocupados en UI).
+ * Incluye todos los estados que bloquean slot (pre-juego + played).
  */
 export async function getBookingsForDate(
     venueId: string,
@@ -63,14 +73,14 @@ export async function getBookingsForDate(
         collection(db, "bookings"),
         where("venueId", "==", venueId),
         where("date", "==", date),
-        where("status", "in", ["confirmed", "pending_payment"]),
+        where("status", "in", SLOT_BLOCKING_STATUSES as unknown as string[]),
     );
     const snap = await getDocs(q);
     return snap.docs.map((d) => d.data() as Booking);
 }
 
 /**
- * Suscripción reactiva a las reservas confirmadas/pendientes del venue+fecha.
+ * Suscripción reactiva a las reservas que bloquean slot del venue+fecha.
  */
 export function subscribeToBookingsForDate(
     venueId: string,
@@ -81,11 +91,44 @@ export function subscribeToBookingsForDate(
         collection(db, "bookings"),
         where("venueId", "==", venueId),
         where("date", "==", date),
-        where("status", "in", ["confirmed", "pending_payment"]),
+        where("status", "in", SLOT_BLOCKING_STATUSES as unknown as string[]),
     );
     return onSnapshot(q, (snap) => {
         callback(snap.docs.map((d) => d.data() as Booking));
     });
+}
+
+/**
+ * Suscripción a las reservas pendientes (sin comprobante o por aprobar) de un venue.
+ * Para la vista admin "Reservas pendientes".
+ */
+export function subscribeToPendingBookings(
+    venueId: string,
+    callback: (bookings: Booking[]) => void,
+): () => void {
+    const q = query(
+        collection(db, "bookings"),
+        where("venueId", "==", venueId),
+        where("status", "in", ["pending_payment", "pending_approval"]),
+        orderBy("createdAt", "desc"),
+    );
+    return onSnapshot(q, (snap) => {
+        callback(snap.docs.map((d) => d.data() as Booking));
+    });
+}
+
+/**
+ * Lectura puntual del listado de pendientes para un venue.
+ */
+export async function getPendingBookingsForVenue(venueId: string): Promise<Booking[]> {
+    const q = query(
+        collection(db, "bookings"),
+        where("venueId", "==", venueId),
+        where("status", "in", ["pending_payment", "pending_approval"]),
+        orderBy("createdAt", "desc"),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as Booking);
 }
 
 /**
@@ -132,7 +175,7 @@ export async function createBooking(input: {
 }
 
 /**
- * Cancelar una reserva (con posible reembolso de depósito).
+ * Cancelar una reserva (con posible reembolso de depósito para bookings legacy).
  */
 export async function cancelBooking(bookingId: string, reason: string) {
     const fn = httpsCallable<
@@ -141,4 +184,84 @@ export async function cancelBooking(bookingId: string, reason: string) {
     >(functions, "cancelBooking");
     const result = await fn({ bookingId, reason });
     return result.data;
+}
+
+// ========================
+// PAGO EXTERNO — NUEVO FLUJO
+// ========================
+
+/**
+ * Marca el comprobante subido en una reserva. El cliente debe haber subido
+ * el archivo a Storage previamente; aquí solo persiste la URL y mueve el
+ * estado a pending_approval.
+ */
+export async function markPaymentProofUploaded(
+    bookingId: string,
+    proofURL: string,
+): Promise<{ status: "pending_approval" }> {
+    const fn = httpsCallable<
+        { bookingId: string; proofURL: string },
+        { status: "pending_approval" }
+    >(functions, "uploadPaymentProof");
+    const res = await fn({ bookingId, proofURL });
+    return res.data;
+}
+
+/**
+ * Admin aprueba el abono → estado pasa a deposit_confirmed.
+ */
+export async function approveBookingDeposit(
+    bookingId: string,
+): Promise<{ status: "deposit_confirmed" }> {
+    const fn = httpsCallable<
+        { bookingId: string },
+        { status: "deposit_confirmed" }
+    >(functions, "approveBookingDeposit");
+    const res = await fn({ bookingId });
+    return res.data;
+}
+
+/**
+ * Admin confirma asistencia → estado pasa a confirmed.
+ */
+export async function confirmBookingAttendance(
+    bookingId: string,
+): Promise<{ status: "confirmed" }> {
+    const fn = httpsCallable<
+        { bookingId: string },
+        { status: "confirmed" }
+    >(functions, "confirmBookingAttendance");
+    const res = await fn({ bookingId });
+    return res.data;
+}
+
+/**
+ * Admin rechaza el comprobante con motivo. Si es el 3er rechazo,
+ * el server marca la reserva como expired.
+ */
+export async function rejectPaymentProof(
+    bookingId: string,
+    reason: string,
+): Promise<{ status: "pending_payment" | "expired"; attemptsRemaining: number }> {
+    const fn = httpsCallable<
+        { bookingId: string; reason: string },
+        { status: "pending_payment" | "expired"; attemptsRemaining: number }
+    >(functions, "rejectPaymentProof");
+    const res = await fn({ bookingId, reason });
+    return res.data;
+}
+
+/**
+ * Admin avanza estado post-aprobación: confirmed → played → paid, o → no_show.
+ */
+export async function advanceBookingStatus(
+    bookingId: string,
+    nextStatus: "confirmed" | "played" | "paid" | "no_show",
+): Promise<{ status: string }> {
+    const fn = httpsCallable<
+        { bookingId: string; nextStatus: string },
+        { status: string }
+    >(functions, "advanceBookingStatus");
+    const res = await fn({ bookingId, nextStatus });
+    return res.data;
 }

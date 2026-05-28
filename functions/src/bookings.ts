@@ -121,11 +121,76 @@ async function sendBookingPush(
     }
 }
 
+/**
+ * Notifica a todos los admins de un venue (super_admin + location_admin asignados).
+ * Crea notificación in-app + push para cada uno. Best-effort.
+ */
+async function notifyVenueAdmins(
+    venueId: string,
+    payload: { title: string; body: string; type: string; url: string },
+): Promise<void> {
+    try {
+        // Buscar location admins asignados a este venue
+        const locationAdminsSnap = await db
+            .collection("users")
+            .where("adminType", "==", "location_admin")
+            .where("assignedLocationIds", "array-contains", venueId)
+            .get();
+
+        // Buscar super admins (global)
+        const superAdminsSnap = await db
+            .collection("users")
+            .where("adminType", "==", "super_admin")
+            .get();
+
+        const adminUids = new Set<string>();
+        locationAdminsSnap.docs.forEach((d) => adminUids.add(d.id));
+        superAdminsSnap.docs.forEach((d) => adminUids.add(d.id));
+
+        if (adminUids.size === 0) {
+            console.log(`[notifyVenueAdmins] no admins for venue=${venueId}`);
+            return;
+        }
+
+        const now = nowISO();
+        const expireAt = admin.firestore.Timestamp.fromDate(
+            new Date(Date.now() + NOTIFICATION_TTL_MS),
+        );
+
+        await Promise.all(
+            Array.from(adminUids).map(async (uid) => {
+                try {
+                    await db.collection("notifications").doc(uid).collection("items").add({
+                        title: payload.title,
+                        body: payload.body,
+                        type: payload.type,
+                        url: payload.url,
+                        read: false,
+                        createdAt: now,
+                        expireAt,
+                    });
+                } catch (err) {
+                    console.error(`[notifyVenueAdmins] in-app fail uid=${uid}:`, err);
+                }
+
+                await sendBookingPush(uid, {
+                    title: payload.title,
+                    body: payload.body,
+                }, payload.url);
+            }),
+        );
+    } catch (err) {
+        console.error("[notifyVenueAdmins] failed:", err);
+    }
+}
+
 // ========================
 // CONSTANTES
 // ========================
 
 const REFUND_DEADLINE_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+const MAX_PAYMENT_PROOF_ATTEMPTS = 3;
 
 // ========================
 // HELPERS
@@ -396,9 +461,20 @@ export const createBooking = onCall(
             : 0;
         const remainingCOP = totalPriceCOP - depositCOP;
 
+        // Nuevo flujo: pago externo verificado por admin (no debit wallet).
+        // Si no se requiere depósito, va directo a confirmed con paymentMethod=on_site.
         const paymentMethod: string = depositRequired && depositCOP > 0
-            ? "wallet_deposit"
+            ? "external_deposit"
             : "on_site";
+
+        // TTL configurable por el venue (1-24h). Default 24h.
+        const pendingApprovalTTLHours: number = (() => {
+            const raw = venue.pendingApprovalTTLHours;
+            if (typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= 24) {
+                return raw;
+            }
+            return 24;
+        })();
 
         // ── LEER PERFIL USUARIO ──
         const userSnap = await db.collection("users").doc(uid).get();
@@ -475,45 +551,41 @@ export const createBooking = onCall(
             }
         }
 
-        // ── TRANSACCIÓN: ASIGNAR + CREAR BOOKING + DEBITAR ──
-        const walletRef = paymentMethod === "wallet_deposit"
-            ? db.collection("wallets").doc(uid)
-            : null;
+        // ── TRANSACCIÓN: ASIGNAR + CREAR BOOKING (sin debit wallet) ──
         const bookingRef = db.collection("bookings").doc();
-        const txRef = paymentMethod === "wallet_deposit"
-            ? db.collection("wallet_transactions").doc()
-            : null;
         const now = nowISO();
+
+        // Estado inicial:
+        //   - on_site (sin depósito) → directo a "confirmed" (igual que antes)
+        //   - external_deposit → "pending_payment" con expiresAt = now + ttlHours
+        const initialStatus: string = paymentMethod === "external_deposit"
+            ? "pending_payment"
+            : "confirmed";
+        const expiresAtISO: string | null = paymentMethod === "external_deposit"
+            ? new Date(Date.now() + pendingApprovalTTLHours * 60 * 60 * 1000).toISOString()
+            : null;
 
         await db.runTransaction(async (transaction) => {
             // ── READS PRIMERO ──
-
-            // Leer wallet si necesita pago
-            let walletBalance = 0;
-            if (walletRef) {
-                const walletSnap = await transaction.get(walletRef);
-                walletBalance = walletSnap.exists ? walletSnap.data()!.balanceCOP || 0 : 0;
-
-                if (walletBalance < depositCOP) {
-                    throw new HttpsError("failed-precondition", "Saldo insuficiente en tu billetera");
-                }
-            }
-
-            // Leer bookings existentes en este venue+fecha para detectar courts ocupados
-            // Firestore no permite queries complejas dentro de tx,
-            // así que leemos todas las bookings del venue para esa fecha
+            // Leer bookings existentes en este venue+fecha para detectar courts ocupados.
+            // Incluye todos los estados que bloquean slot.
             const existingBookingsSnap = await db
                 .collection("bookings")
                 .where("venueId", "==", venueId)
                 .where("date", "==", date)
-                .where("status", "in", ["confirmed", "pending_payment"])
+                .where("status", "in", [
+                    "pending_payment",
+                    "pending_approval",
+                    "deposit_confirmed",
+                    "confirmed",
+                    "played",
+                ])
                 .get();
 
             // Encontrar courts ocupados en el rango solicitado
             const occupiedCourtIds: string[] = [];
             for (const doc of existingBookingsSnap.docs) {
                 const b = doc.data();
-                // Verificar solapamiento: startTime < endTime AND endTime > startTime
                 if (b.startTime < endTime && b.endTime > startTime) {
                     occupiedCourtIds.push(...(b.courtIds || []));
                 }
@@ -533,10 +605,6 @@ export const createBooking = onCall(
             }
 
             // ── WRITES ──
-            const expiresAt = paymentMethod === "wallet_deposit"
-                ? undefined // se paga inmediatamente, no necesita TTL
-                : undefined;
-
             const bookingData = {
                 id: bookingRef.id,
                 venueId,
@@ -551,47 +619,33 @@ export const createBooking = onCall(
                 endTime,
                 courtIds: allocation.courtIds,
                 courtNames: allocation.courtNames,
-                status: "confirmed",
+                status: initialStatus,
                 totalPriceCOP,
                 depositPercent: depositRequired ? depositPercent : 0,
                 depositCOP,
                 remainingCOP,
                 paymentMethod,
-                paymentTxId: txRef?.id ?? null,
-                expiresAt: expiresAt ?? null,
+                paymentTxId: null,
+                expiresAt: expiresAtISO,
                 cancelledBy: null,
                 cancelledAt: null,
                 refundTxId: null,
                 matchId: null,
                 tierApplied: tierAppliedSnapshot,
+                paymentProofURL: null,
+                paymentProofUploadedAt: null,
+                paymentProofHistory: [],
+                lastRejectionReason: null,
+                lastRejectionAt: null,
+                approvedBy: null,
+                approvedAt: null,
+                attendanceConfirmedBy: null,
+                attendanceConfirmedAt: null,
                 createdAt: now,
                 updatedAt: now,
             };
 
             transaction.set(bookingRef, bookingData);
-
-            // Debitar wallet si pago con depósito
-            if (walletRef && txRef && depositCOP > 0) {
-                const newBalance = walletBalance - depositCOP;
-
-                transaction.update(walletRef, {
-                    balanceCOP: newBalance,
-                    updatedAt: now,
-                });
-
-                transaction.set(txRef, {
-                    id: txRef.id,
-                    uid,
-                    type: "booking_deposit_debit",
-                    status: "completed",
-                    amountCOP: -depositCOP,
-                    balanceAfterCOP: newBalance,
-                    description: `Depósito reserva ${venue.name}`,
-                    bookingId: bookingRef.id,
-                    venueId,
-                    createdAt: now,
-                });
-            }
         });
 
         // Notifications — best effort, outside transaction
@@ -600,17 +654,26 @@ export const createBooking = onCall(
             const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
             return `${days[d.getDay()]} ${d.getDate()}`;
         })();
+        const slotLine = `${formattedDate} ${fmt12h(startTime)} – ${fmt12h(endTime)}`;
 
-        const notifTitle = "Reserva confirmada";
-        const notifBody = `${venue.name} · ${formattedDate} ${fmt12h(startTime)} – ${fmt12h(endTime)}`;
-        const notifUrl = `/bookings/${bookingRef.id}`;
+        // Notificación al jugador — varía según estado inicial
+        const playerNotifTitle = initialStatus === "pending_payment"
+            ? "Reserva creada — pendiente de pago"
+            : "Reserva confirmada";
+        const playerNotifBody = initialStatus === "pending_payment"
+            ? `${venue.name} · ${slotLine}. Envía el comprobante de tu abono para confirmar.`
+            : `${venue.name} · ${slotLine}`;
+        const playerNotifType = initialStatus === "pending_payment"
+            ? "booking_pending_payment"
+            : "booking_confirmed";
+        const playerNotifUrl = `/bookings/${bookingRef.id}`;
 
         try {
             await db.collection("notifications").doc(uid).collection("items").add({
-                title: notifTitle,
-                body: notifBody,
-                type: "booking_confirmed",
-                url: notifUrl,
+                title: playerNotifTitle,
+                body: playerNotifBody,
+                type: playerNotifType,
+                url: playerNotifUrl,
                 read: false,
                 createdAt: now,
                 expireAt: admin.firestore.Timestamp.fromDate(
@@ -618,19 +681,32 @@ export const createBooking = onCall(
                 ),
             });
         } catch (err) {
-            console.error("[BookingNotif] failed to write in-app notification:", err);
+            console.error("[BookingNotif] failed to write player in-app notification:", err);
         }
 
         await sendBookingPush(uid, {
-            title: notifTitle,
-            body: notifBody,
-        }, notifUrl);
+            title: playerNotifTitle,
+            body: playerNotifBody,
+        }, playerNotifUrl);
+
+        // Notificación a admins del venue si la reserva quedó pendiente de pago
+        if (initialStatus === "pending_payment") {
+            const adminUrl = `/venues/admin/${venueId}?tab=pending`;
+            await notifyVenueAdmins(venueId, {
+                title: "Nueva reserva pendiente de pago",
+                body: `${user.name || "Un usuario"} · ${slotLine}`,
+                type: "booking_admin_pending_payment",
+                url: adminUrl,
+            });
+        }
 
         return {
             bookingId: bookingRef.id,
             depositCOP,
             remainingCOP,
             totalPriceCOP,
+            status: initialStatus,
+            expiresAt: expiresAtISO,
         };
     }
 );
@@ -691,8 +767,16 @@ export const cancelBooking = onCall(
                 actorRole = "admin";
             }
 
-            // Solo se puede cancelar si está confirmed o pending_payment
-            if (booking.status !== "confirmed" && booking.status !== "pending_payment") {
+            // Se puede cancelar desde cualquier estado pre-juego o desde played
+            // (post-paid o terminales como cancelled/expired/no_show no se tocan)
+            const cancellableStates = new Set([
+                "pending_payment",
+                "pending_approval",
+                "deposit_confirmed",
+                "confirmed",
+                "played",
+            ]);
+            if (!cancellableStates.has(booking.status)) {
                 throw new HttpsError("failed-precondition", "La reserva no se puede cancelar en su estado actual");
             }
 
@@ -901,4 +985,416 @@ export const completePassedBookings = onSchedule(
 
         console.log(`Completed ${allToComplete.length} past bookings`);
     }
+);
+
+// ========================
+// uploadPaymentProof — onCall
+// ========================
+// El cliente sube primero el archivo a Storage (con compresión y reglas que
+// validan tamaño/tipo), luego llama esta función con la URL para mover el
+// estado a "pending_approval" y disparar notificación al admin.
+
+export const uploadPaymentProof = onCall(
+    { maxInstances: 10 },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+        }
+        const uid = request.auth.uid;
+        const { bookingId, proofURL } = request.data as { bookingId: string; proofURL: string };
+
+        if (!bookingId || !proofURL) {
+            throw new HttpsError("invalid-argument", "bookingId y proofURL son requeridos");
+        }
+        if (typeof proofURL !== "string" || !proofURL.startsWith("http")) {
+            throw new HttpsError("invalid-argument", "proofURL inválida");
+        }
+
+        const bookingRef = db.collection("bookings").doc(bookingId);
+        const now = nowISO();
+        let venueIdForNotif: string | null = null;
+        let bookerName = "Un usuario";
+        let slotLine = "";
+
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(bookingRef);
+            if (!snap.exists) {
+                throw new HttpsError("not-found", "La reserva no existe");
+            }
+            const booking = snap.data()!;
+
+            if (booking.bookedBy !== uid) {
+                throw new HttpsError("permission-denied", "No es tu reserva");
+            }
+            if (booking.status !== "pending_payment") {
+                throw new HttpsError("failed-precondition", "La reserva no está pendiente de pago");
+            }
+            const expiresAt: string | undefined = booking.expiresAt;
+            if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
+                throw new HttpsError("failed-precondition", "La reserva expiró");
+            }
+            const history: unknown[] = Array.isArray(booking.paymentProofHistory) ? booking.paymentProofHistory : [];
+            if (history.length >= MAX_PAYMENT_PROOF_ATTEMPTS) {
+                throw new HttpsError("failed-precondition", "Se agotaron los intentos de comprobante");
+            }
+
+            venueIdForNotif = booking.venueId;
+            bookerName = booking.bookedByName || bookerName;
+            const d = new Date(booking.date + "T12:00:00");
+            const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+            slotLine = `${booking.venueName} · ${days[d.getDay()]} ${d.getDate()} ${fmt12h(booking.startTime)}`;
+
+            tx.update(bookingRef, {
+                status: "pending_approval",
+                paymentProofURL: proofURL,
+                paymentProofUploadedAt: now,
+                // Una vez subido el comprobante, el TTL no cuenta más — queda en manos del admin
+                expiresAt: null,
+                updatedAt: now,
+            });
+        });
+
+        // Notificar a admins del venue
+        if (venueIdForNotif) {
+            await notifyVenueAdmins(venueIdForNotif, {
+                title: "Comprobante listo para revisar",
+                body: `${bookerName} subió comprobante · ${slotLine}`,
+                type: "booking_admin_proof_ready",
+                url: `/venues/admin/${venueIdForNotif}?tab=pending`,
+            });
+        }
+
+        return { status: "pending_approval" as const };
+    },
+);
+
+// ========================
+// HELPER — verificar admin del venue
+// ========================
+async function assertVenueAdmin(authUid: string, venueId: string): Promise<"super_admin" | "location_admin"> {
+    const userDoc = await db.collection("users").doc(authUid).get();
+    const userData = userDoc.data();
+    if (userData?.adminType === "super_admin") return "super_admin";
+    if (userData?.adminType === "location_admin" && Array.isArray(userData?.assignedLocationIds) && userData.assignedLocationIds.includes(venueId)) {
+        return "location_admin";
+    }
+    throw new HttpsError("permission-denied", "No tienes permisos sobre esta sede");
+}
+
+// ========================
+// approveBookingDeposit — onCall
+// ========================
+// Admin aprueba el abono: status pending_approval → deposit_confirmed.
+
+export const approveBookingDeposit = onCall(
+    { maxInstances: 10 },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+        }
+        const adminUid = request.auth.uid;
+        const { bookingId } = request.data as { bookingId: string };
+        if (!bookingId) {
+            throw new HttpsError("invalid-argument", "bookingId es requerido");
+        }
+
+        const bookingRef = db.collection("bookings").doc(bookingId);
+        const now = nowISO();
+        let bookerUid = "";
+        let venueName = "";
+        let slotLine = "";
+
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(bookingRef);
+            if (!snap.exists) throw new HttpsError("not-found", "La reserva no existe");
+            const booking = snap.data()!;
+            await assertVenueAdmin(adminUid, booking.venueId);
+            if (booking.status !== "pending_approval") {
+                throw new HttpsError("failed-precondition", "La reserva ya fue gestionada o no está pendiente de aprobación");
+            }
+
+            bookerUid = booking.bookedBy;
+            venueName = booking.venueName;
+            const d = new Date(booking.date + "T12:00:00");
+            const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+            slotLine = `${days[d.getDay()]} ${d.getDate()} ${fmt12h(booking.startTime)}`;
+
+            tx.update(bookingRef, {
+                status: "deposit_confirmed",
+                approvedBy: adminUid,
+                approvedAt: now,
+                updatedAt: now,
+            });
+        });
+
+        // Notificar al jugador
+        try {
+            await db.collection("notifications").doc(bookerUid).collection("items").add({
+                title: "Abono verificado",
+                body: `Tu abono en ${venueName} fue aprobado · ${slotLine}`,
+                type: "booking_deposit_approved",
+                url: `/bookings/${bookingId}`,
+                read: false,
+                createdAt: now,
+                expireAt: admin.firestore.Timestamp.fromDate(
+                    new Date(Date.now() + NOTIFICATION_TTL_MS),
+                ),
+            });
+        } catch (err) {
+            console.error("[approveBookingDeposit] in-app notif fail:", err);
+        }
+        await sendBookingPush(bookerUid, {
+            title: "Abono verificado",
+            body: `Tu abono en ${venueName} fue aprobado.`,
+        }, `/bookings/${bookingId}`);
+
+        return { status: "deposit_confirmed" as const };
+    },
+);
+
+// ========================
+// confirmBookingAttendance — onCall
+// ========================
+// Admin confirma asistencia: deposit_confirmed → confirmed.
+
+export const confirmBookingAttendance = onCall(
+    { maxInstances: 10 },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+        }
+        const adminUid = request.auth.uid;
+        const { bookingId } = request.data as { bookingId: string };
+        if (!bookingId) {
+            throw new HttpsError("invalid-argument", "bookingId es requerido");
+        }
+
+        const bookingRef = db.collection("bookings").doc(bookingId);
+        const now = nowISO();
+        let bookerUid = "";
+        let venueName = "";
+
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(bookingRef);
+            if (!snap.exists) throw new HttpsError("not-found", "La reserva no existe");
+            const booking = snap.data()!;
+            await assertVenueAdmin(adminUid, booking.venueId);
+            if (booking.status !== "deposit_confirmed") {
+                throw new HttpsError("failed-precondition", "La reserva no está en estado para confirmar asistencia");
+            }
+
+            bookerUid = booking.bookedBy;
+            venueName = booking.venueName;
+
+            tx.update(bookingRef, {
+                status: "confirmed",
+                attendanceConfirmedBy: adminUid,
+                attendanceConfirmedAt: now,
+                updatedAt: now,
+            });
+        });
+
+        try {
+            await db.collection("notifications").doc(bookerUid).collection("items").add({
+                title: "Reserva confirmada",
+                body: `${venueName}: tu reserva está confirmada.`,
+                type: "booking_confirmed",
+                url: `/bookings/${bookingId}`,
+                read: false,
+                createdAt: now,
+                expireAt: admin.firestore.Timestamp.fromDate(
+                    new Date(Date.now() + NOTIFICATION_TTL_MS),
+                ),
+            });
+        } catch (err) {
+            console.error("[confirmBookingAttendance] in-app notif fail:", err);
+        }
+        await sendBookingPush(bookerUid, {
+            title: "Reserva confirmada",
+            body: `${venueName}: tu reserva está confirmada.`,
+        }, `/bookings/${bookingId}`);
+
+        return { status: "confirmed" as const };
+    },
+);
+
+// ========================
+// rejectPaymentProof — onCall
+// ========================
+// Admin rechaza el comprobante. Vuelve a pending_payment con nuevo TTL.
+// Al 3er intento rechazado, marca como expired y libera la cancha.
+
+export const rejectPaymentProof = onCall(
+    { maxInstances: 10 },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+        }
+        const adminUid = request.auth.uid;
+        const { bookingId, reason } = request.data as { bookingId: string; reason: string };
+
+        if (!bookingId) {
+            throw new HttpsError("invalid-argument", "bookingId es requerido");
+        }
+        const trimmedReason = (reason ?? "").trim();
+        if (trimmedReason.length < 5 || trimmedReason.length > 500) {
+            throw new HttpsError("invalid-argument", "El motivo debe tener entre 5 y 500 caracteres");
+        }
+
+        const bookingRef = db.collection("bookings").doc(bookingId);
+        const now = nowISO();
+        let bookerUid = "";
+        let venueName = "";
+        let venueId = "";
+        type RejectionResultStatus = "pending_payment" | "expired";
+        let nextStatus = "pending_payment" as RejectionResultStatus;
+        let attemptsRemaining = 0;
+
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(bookingRef);
+            if (!snap.exists) throw new HttpsError("not-found", "La reserva no existe");
+            const booking = snap.data()!;
+            await assertVenueAdmin(adminUid, booking.venueId);
+            if (booking.status !== "pending_approval") {
+                throw new HttpsError("failed-precondition", "La reserva no está en estado para rechazar comprobante");
+            }
+
+            bookerUid = booking.bookedBy;
+            venueName = booking.venueName;
+            venueId = booking.venueId;
+
+            const history = Array.isArray(booking.paymentProofHistory) ? [...booking.paymentProofHistory] : [];
+            history.push({
+                url: booking.paymentProofURL || "",
+                uploadedAt: booking.paymentProofUploadedAt || now,
+                rejectedAt: now,
+                rejectionReason: trimmedReason,
+            });
+
+            // TTL configurable del venue
+            const venueSnap = await tx.get(db.collection("venues").doc(booking.venueId));
+            const ttlHours: number = (() => {
+                const raw = venueSnap.data()?.pendingApprovalTTLHours;
+                if (typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= 24) return raw;
+                return 24;
+            })();
+
+            if (history.length >= MAX_PAYMENT_PROOF_ATTEMPTS) {
+                nextStatus = "expired";
+                attemptsRemaining = 0;
+                tx.update(bookingRef, {
+                    status: "expired",
+                    paymentProofURL: null,
+                    paymentProofUploadedAt: null,
+                    paymentProofHistory: history,
+                    lastRejectionReason: trimmedReason,
+                    lastRejectionAt: now,
+                    expiresAt: null,
+                    updatedAt: now,
+                });
+            } else {
+                nextStatus = "pending_payment";
+                attemptsRemaining = MAX_PAYMENT_PROOF_ATTEMPTS - history.length;
+                const newExpiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
+                tx.update(bookingRef, {
+                    status: "pending_payment",
+                    paymentProofURL: null,
+                    paymentProofUploadedAt: null,
+                    paymentProofHistory: history,
+                    lastRejectionReason: trimmedReason,
+                    lastRejectionAt: now,
+                    expiresAt: newExpiresAt,
+                    updatedAt: now,
+                });
+            }
+        });
+
+        // Notificar al jugador
+        const notifTitle = nextStatus === "expired"
+            ? "Reserva cancelada"
+            : "Comprobante rechazado";
+        const notifBody = nextStatus === "expired"
+            ? `${venueName}: se alcanzó el máximo de intentos. Motivo: ${trimmedReason}`
+            : `${venueName}: ${trimmedReason}. Podés intentar nuevamente.`;
+        try {
+            await db.collection("notifications").doc(bookerUid).collection("items").add({
+                title: notifTitle,
+                body: notifBody,
+                type: nextStatus === "expired" ? "booking_expired_max_rejections" : "booking_proof_rejected",
+                url: `/bookings/${bookingId}`,
+                read: false,
+                createdAt: now,
+                expireAt: admin.firestore.Timestamp.fromDate(
+                    new Date(Date.now() + NOTIFICATION_TTL_MS),
+                ),
+            });
+        } catch (err) {
+            console.error("[rejectPaymentProof] in-app notif fail:", err);
+        }
+        await sendBookingPush(bookerUid, {
+            title: notifTitle,
+            body: notifBody,
+        }, `/bookings/${bookingId}`);
+
+        // venueId disponible para futuras hooks; por ahora silenciamos lint:
+        void venueId;
+
+        return { status: nextStatus, attemptsRemaining };
+    },
+);
+
+// ========================
+// advanceBookingStatus — onCall
+// ========================
+// Admin avanza ciclo post-aprobación: confirmed → played → paid, o → no_show.
+// Permite rollback (paid → played, played → confirmed) para corrección admin.
+
+const ADMIN_PICKER_STATUSES = new Set(["confirmed", "played", "paid", "no_show"]);
+const ADMIN_FROM_STATUSES = new Set(["deposit_confirmed", "confirmed", "played", "paid", "no_show"]);
+
+export const advanceBookingStatus = onCall(
+    { maxInstances: 10 },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+        }
+        const adminUid = request.auth.uid;
+        const { bookingId, nextStatus } = request.data as {
+            bookingId: string;
+            nextStatus: string;
+        };
+        if (!bookingId || !nextStatus) {
+            throw new HttpsError("invalid-argument", "bookingId y nextStatus son requeridos");
+        }
+        if (!ADMIN_PICKER_STATUSES.has(nextStatus)) {
+            throw new HttpsError("invalid-argument", `nextStatus inválido: ${nextStatus}`);
+        }
+
+        const bookingRef = db.collection("bookings").doc(bookingId);
+        const now = nowISO();
+
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(bookingRef);
+            if (!snap.exists) throw new HttpsError("not-found", "La reserva no existe");
+            const booking = snap.data()!;
+            await assertVenueAdmin(adminUid, booking.venueId);
+
+            if (!ADMIN_FROM_STATUSES.has(booking.status)) {
+                throw new HttpsError(
+                    "failed-precondition",
+                    `No se puede avanzar desde estado ${booking.status}`,
+                );
+            }
+            if (booking.status === nextStatus) {
+                throw new HttpsError("failed-precondition", "La reserva ya está en ese estado");
+            }
+
+            tx.update(bookingRef, {
+                status: nextStatus,
+                updatedAt: now,
+            });
+        });
+
+        return { status: nextStatus };
+    },
 );

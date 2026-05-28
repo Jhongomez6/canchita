@@ -1,0 +1,116 @@
+rules_version = '2';
+
+// ============================================================================
+// CANCHITA — Storage Rules
+// ----------------------------------------------------------------------------
+// Reglas para:
+//   - avatars/                  — fotos de perfil de usuarios (lectura pública)
+//   - venues/{venueId}/cover.*  — fotos de portada de sedes (lectura pública)
+//   - payment_proofs/{venueId}/{file}  — comprobantes de pago (privado + lifecycle 90d)
+//   - venue_payment_qrs/{venueId}/{methodId}.*  — QR de métodos de pago (lectura pública)
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── Helpers ──────────────────────────────────────────────────────────
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    // Lectura segura del user doc — usa .get(field, default) en vez de acceso directo
+    // para evitar fallos silenciosos cuando un campo es null o no existe.
+    function userData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthed()
+        && userData().get('adminType', '') == 'super_admin';
+    }
+
+    function isVenueAdmin(venueId) {
+      return isAuthed() && (
+        userData().get('adminType', '') == 'super_admin'
+        || (
+          userData().get('adminType', '') == 'location_admin'
+          && (venueId in userData().get('assignedLocationIds', []))
+        )
+      );
+    }
+
+    function isImage() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function isUnder(maxBytes) {
+      return request.resource != null && request.resource.size <= maxBytes;
+    }
+
+    // ─── Avatars (perfil de usuario) ──────────────────────────────────────
+    // Lectura PÚBLICA — los <img> del navegador no envían token de Firebase Auth,
+    // así que isAuthed() falla para img tags. Los avatares ya son públicos por diseño.
+    match /avatars/{fileName} {
+      allow read: if true;
+      // Solo el dueño puede subir su avatar (fileName empieza con su uid).
+      allow write: if isAuthed()
+        && fileName.matches(request.auth.uid + '.*')
+        && isImage()
+        && isUnder(2 * 1024 * 1024); // 2 MB
+    }
+
+    // ─── Cover image de sede ──────────────────────────────────────────────
+    // Lectura PÚBLICA — las portadas se renderizan con <img>/<Image> sin Auth header.
+    match /venues/{venueId}/{fileName} {
+      allow read: if true;
+      // Solo admins del venue suben/reemplazan la foto de portada.
+      allow write: if isVenueAdmin(venueId)
+        && isImage()
+        && isUnder(5 * 1024 * 1024); // 5 MB
+    }
+
+    // ─── Payment proofs (comprobantes de abono) ───────────────────────────
+    // Path: payment_proofs/{venueId}/{bookingId}_{timestamp}.jpg
+    // Lectura: dueño de la reserva o admin del venue.
+    // Escritura: dueño de la reserva (validado por el bookingId en el fileName).
+    // Lifecycle de 90 días aplicado server-side desde GCS (ver gcs-lifecycle.json).
+    match /payment_proofs/{venueId}/{fileName} {
+      function bookingIdFromFile() {
+        return fileName.split('_')[0];
+      }
+
+      function isPaymentProofOwner() {
+        return isAuthed()
+          && firestore.get(/databases/(default)/documents/bookings/$(bookingIdFromFile())).data.bookedBy == request.auth.uid;
+      }
+
+      allow read: if isPaymentProofOwner() || isVenueAdmin(venueId);
+
+      allow create: if isPaymentProofOwner()
+        && isImage()
+        && isUnder(500 * 1024); // 500 KB (post-compresión)
+
+      // No permitimos overwrite — cada intento debe usar un timestamp distinto.
+      allow update: if false;
+
+      // Delete: solo admin del venue (poco usado, casi todo se maneja por lifecycle).
+      allow delete: if isVenueAdmin(venueId);
+    }
+
+    // ─── Venue payment QRs (QR de métodos de pago configurados por venue) ─
+    // Path: venue_payment_qrs/{venueId}/{paymentMethodId}.jpg
+    // Lectura PÚBLICA: los QR se renderizan con <img>/<Image> sin Auth header,
+    // y por diseño son públicos (cualquiera con el QR puede pagar al venue).
+    // Escritura: cualquier usuario autenticado. La seguridad real está en Firestore:
+    // el campo `paymentMethods` (donde queda el qrImageURL) solo lo edita Super Admin
+    // por field-level check en firestore.rules. Si un no-admin sube un QR aquí, el
+    // archivo queda huérfano (no puede asociarlo a un venue) — sin riesgo de seguridad.
+    match /venue_payment_qrs/{venueId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthed()
+        && isImage()
+        && isUnder(500 * 1024); // 500 KB
+    }
+  }
+}

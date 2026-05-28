@@ -253,9 +253,18 @@ service cloud.firestore {
       // Crear: solo super_admin
       allow create: if request.auth != null && isSuperAdmin();
 
-      // Actualizar: super_admin o location_admin asignado
+      // Actualizar:
+      //   - Super Admin: cualquier campo
+      //   - Location Admin asignado: cualquier campo EXCEPTO paymentMethods
+      //     (datos bancarios sensibles, solo Super Admin)
       allow update: if request.auth != null
-        && (isSuperAdmin() || isLocationAdminFor(venueId));
+        && (
+          isSuperAdmin()
+          || (
+            isLocationAdminFor(venueId)
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentMethods'])
+          )
+        );
 
       // Borrar: nadie
       allow delete: if false;
@@ -406,12 +415,17 @@ service cloud.firestore {
        📅 RESERVAS (BOOKINGS)
     ========================= */
     match /bookings/{bookingId} {
-      // Get individual: solo el dueño de la reserva o super_admin
+      // Get individual: el dueño de la reserva, super_admin, o location_admin asignado al venue
       allow get: if request.auth != null
-        && (resource.data.bookedBy == request.auth.uid || isSuperAdmin());
+        && (
+          resource.data.bookedBy == request.auth.uid
+          || isSuperAdmin()
+          || isLocationAdminFor(resource.data.venueId)
+        );
 
       // List (queries): cualquier usuario autenticado
       // Necesario para getBookingsForDate() que verifica disponibilidad de courts
+      // y vista admin "Reservas pendientes" (filtrada por venueId)
       allow list: if request.auth != null;
 
       // Crear/Actualizar/Borrar: solo Cloud Functions (admin SDK)

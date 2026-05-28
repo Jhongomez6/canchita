@@ -30,7 +30,10 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
 import { expandBlockedSlotsForDate } from "./domain/blocked-slots";
-import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus, ManualReservationPayment } from "./domain/venue";
+import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus, ManualReservationPayment, PaymentMethod } from "./domain/venue";
+import { validatePaymentMethods } from "./domain/venue";
+import { validatePendingApprovalTTL } from "./domain/booking";
+import { validateWhatsAppNumber } from "./domain/venue";
 import { buildPaymentId, validatePaymentAmounts } from "./domain/payments";
 
 // ========================
@@ -220,10 +223,60 @@ export async function createVenue(input: CreateVenueInput): Promise<string> {
 
 export async function updateVenueSettings(
     venueId: string,
-    data: Partial<Pick<Venue, "depositRequired" | "depositPercent" | "name" | "address" | "phone" | "description" | "active" | "imageURL" | "icon" | "formats">>,
+    data: Partial<Pick<Venue, "depositRequired" | "depositPercent" | "name" | "address" | "phone" | "description" | "active" | "imageURL" | "icon" | "formats" | "pendingApprovalTTLHours" | "whatsappNotificationNumber">>,
 ): Promise<void> {
+    if (data.pendingApprovalTTLHours !== undefined) {
+        validatePendingApprovalTTL(data.pendingApprovalTTLHours);
+    }
+    if (data.whatsappNotificationNumber !== undefined) {
+        validateWhatsAppNumber(data.whatsappNotificationNumber);
+    }
     await updateDoc(doc(db, "venues", venueId), {
         ...data,
+        updatedAt: new Date().toISOString(),
+    });
+}
+
+/**
+ * Actualiza los métodos de pago del venue. Solo Super Admin debe llamar esto
+ * (las Firestore Rules lo enforzan field-level).
+ */
+export async function updatePaymentMethods(
+    venueId: string,
+    methods: PaymentMethod[],
+): Promise<void> {
+    validatePaymentMethods(methods);
+    await updateDoc(doc(db, "venues", venueId), {
+        paymentMethods: methods,
+        updatedAt: new Date().toISOString(),
+    });
+}
+
+/**
+ * Actualiza el TTL configurable de reservas pendientes.
+ */
+export async function updatePendingApprovalTTL(
+    venueId: string,
+    hours: number,
+): Promise<void> {
+    validatePendingApprovalTTL(hours);
+    await updateDoc(doc(db, "venues", venueId), {
+        pendingApprovalTTLHours: hours,
+        updatedAt: new Date().toISOString(),
+    });
+}
+
+/**
+ * Actualiza el número WhatsApp del venue. Pasar string vacío o null para limpiar.
+ */
+export async function updateWhatsAppNotificationNumber(
+    venueId: string,
+    number: string | null,
+): Promise<void> {
+    const trimmed = number?.trim();
+    if (trimmed) validateWhatsAppNumber(trimmed);
+    await updateDoc(doc(db, "venues", venueId), {
+        whatsappNotificationNumber: trimmed || deleteField(),
         updatedAt: new Date().toISOString(),
     });
 }

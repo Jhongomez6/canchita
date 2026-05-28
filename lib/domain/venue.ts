@@ -107,6 +107,68 @@ export const MIN_DEPOSIT_PERCENT = 20;
 export const MAX_DEPOSIT_PERCENT = 50;
 
 // ========================
+// MÉTODOS DE PAGO EXTERNO
+// ========================
+
+/**
+ * Tipos de método de pago aceptados por una sede.
+ * - `nequi`: cuenta Nequi (identificador = teléfono)
+ * - `bancolombia`: cuenta Bancolombia (identificador = número de cuenta)
+ * - `daviplata`: cuenta Daviplata
+ * - `llave`: alias Transfiya (Bancolombia/Nequi/Movii — identificador alfanumérico)
+ * - `transfer`: transferencia bancaria genérica
+ * - `other`: otro método con texto libre
+ */
+export type PaymentMethodType =
+    | "nequi"
+    | "bancolombia"
+    | "daviplata"
+    | "llave"
+    | "transfer"
+    | "other";
+
+export const PAYMENT_METHOD_TYPES: PaymentMethodType[] = [
+    "nequi", "bancolombia", "daviplata", "llave", "transfer", "other",
+];
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethodType, string> = {
+    nequi: "Nequi",
+    bancolombia: "Bancolombia",
+    daviplata: "Daviplata",
+    llave: "Llave (Transfiya)",
+    transfer: "Transferencia bancaria",
+    other: "Otro",
+};
+
+/**
+ * Método de pago externo configurado por la sede.
+ * Solo el Super Admin puede modificar la lista (datos bancarios sensibles del dueño).
+ */
+export interface PaymentMethod {
+    id: string;                          // uuid
+    type: PaymentMethodType;
+    label: string;                       // 2-40 chars, label visible
+    accountHolderName: string;           // 2-80 chars
+    accountIdentifier: string;           // 1-50 chars (teléfono, cuenta, llave)
+    qrImageURL?: string;                 // Storage URL del QR opcional
+    instructions?: string;               // Texto opcional ≤ 200 chars
+    active: boolean;
+    sortOrder: number;
+}
+
+/** Mín/máx caracteres para campos de PaymentMethod. */
+export const PAYMENT_METHOD_LABEL_MIN = 2;
+export const PAYMENT_METHOD_LABEL_MAX = 40;
+export const PAYMENT_METHOD_HOLDER_MIN = 2;
+export const PAYMENT_METHOD_HOLDER_MAX = 80;
+export const PAYMENT_METHOD_IDENTIFIER_MIN = 1;
+export const PAYMENT_METHOD_IDENTIFIER_MAX = 50;
+export const PAYMENT_METHOD_INSTRUCTIONS_MAX = 200;
+
+/** Máximo de métodos configurables por sede. */
+export const MAX_PAYMENT_METHODS_PER_VENUE = 5;
+
+// ========================
 // ENTIDADES
 // ========================
 
@@ -128,6 +190,15 @@ export interface Venue {
     description?: string;
     /** Catálogo multi-deporte de la sede. undefined o vacío = modo legacy football-only. */
     formats?: VenueFormat[];
+
+    // ── Pago externo (nuevo flujo) ──
+    /** Métodos de pago aceptados (Nequi/Banco/Llave/etc.). Solo Super Admin edita. */
+    paymentMethods?: PaymentMethod[];
+    /** TTL configurable (1-24h) para reservas pending_payment. Default 24. */
+    pendingApprovalTTLHours?: number;
+    /** Número WhatsApp opcional E.164 para el botón "Avisar al admin". */
+    whatsappNotificationNumber?: string;
+
     createdAt: string;
     updatedAt: string;
 }
@@ -668,4 +739,90 @@ export function validateVenueFormats(formats: VenueFormat[]): void {
         }
         ids.add(f.id);
     }
+}
+
+// ========================
+// VALIDACIONES PAGO EXTERNO
+// ========================
+
+export function validatePaymentMethod(m: PaymentMethod): void {
+    if (!m.id || typeof m.id !== "string") {
+        throw new ValidationError("El id del método de pago es obligatorio");
+    }
+    if (!PAYMENT_METHOD_TYPES.includes(m.type)) {
+        throw new ValidationError(`Tipo de método inválido: ${m.type}`);
+    }
+    const label = (m.label ?? "").trim();
+    if (label.length < PAYMENT_METHOD_LABEL_MIN || label.length > PAYMENT_METHOD_LABEL_MAX) {
+        throw new ValidationError(
+            `El label debe tener entre ${PAYMENT_METHOD_LABEL_MIN} y ${PAYMENT_METHOD_LABEL_MAX} caracteres`,
+        );
+    }
+    const holder = (m.accountHolderName ?? "").trim();
+    if (holder.length < PAYMENT_METHOD_HOLDER_MIN || holder.length > PAYMENT_METHOD_HOLDER_MAX) {
+        throw new ValidationError(
+            `El nombre del titular debe tener entre ${PAYMENT_METHOD_HOLDER_MIN} y ${PAYMENT_METHOD_HOLDER_MAX} caracteres`,
+        );
+    }
+    const id = (m.accountIdentifier ?? "").trim();
+    if (id.length < PAYMENT_METHOD_IDENTIFIER_MIN || id.length > PAYMENT_METHOD_IDENTIFIER_MAX) {
+        throw new ValidationError(
+            `El identificador debe tener entre ${PAYMENT_METHOD_IDENTIFIER_MIN} y ${PAYMENT_METHOD_IDENTIFIER_MAX} caracteres`,
+        );
+    }
+    if (m.instructions !== undefined && m.instructions.length > PAYMENT_METHOD_INSTRUCTIONS_MAX) {
+        throw new ValidationError(
+            `Las instrucciones no pueden superar ${PAYMENT_METHOD_INSTRUCTIONS_MAX} caracteres`,
+        );
+    }
+    if (typeof m.active !== "boolean") {
+        throw new ValidationError("El campo active debe ser booleano");
+    }
+    if (!Number.isInteger(m.sortOrder) || m.sortOrder < 0) {
+        throw new ValidationError("El sortOrder debe ser entero ≥ 0");
+    }
+}
+
+export function validatePaymentMethods(methods: PaymentMethod[]): void {
+    if (!Array.isArray(methods)) {
+        throw new ValidationError("paymentMethods debe ser un array");
+    }
+    if (methods.length > MAX_PAYMENT_METHODS_PER_VENUE) {
+        throw new ValidationError(
+            `Máximo ${MAX_PAYMENT_METHODS_PER_VENUE} métodos de pago por sede`,
+        );
+    }
+    const ids = new Set<string>();
+    for (const m of methods) {
+        validatePaymentMethod(m);
+        if (ids.has(m.id)) {
+            throw new ValidationError(`Id de método duplicado: ${m.id}`);
+        }
+        ids.add(m.id);
+    }
+}
+
+/**
+ * Valida un número WhatsApp en formato E.164 simple (+57 312345...).
+ * Acepta vacío/undefined (campo opcional).
+ */
+export function validateWhatsAppNumber(num: string | undefined | null): void {
+    if (num === undefined || num === null || num === "") return;
+    const trimmed = num.trim();
+    if (!/^\+?[0-9]{8,15}$/.test(trimmed)) {
+        throw new ValidationError(
+            "El número WhatsApp debe tener entre 8 y 15 dígitos (formato E.164, opcional el +)",
+        );
+    }
+}
+
+/**
+ * Formatea un mensaje pre-llenado para el deep-link WhatsApp con resumen de booking.
+ */
+export function formatWhatsAppNotifyMessage(
+    bookingShortSummary: string,
+    appUrl?: string,
+): string {
+    const tail = appUrl ? `\n${appUrl}` : "";
+    return `Hola, acabo de pagar el abono de mi reserva: ${bookingShortSummary}${tail}`;
 }
