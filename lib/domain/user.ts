@@ -354,8 +354,10 @@ export function hasBookingAccess(profile: UserProfile): boolean {
  *
  * Cuando está OFF: la FIFA card muestra "?" como OVR + rarity verde (legacy),
  * y XpStatsSection / AchievementsGrid / XpOnboardingModal / XpBadge no se renderizan.
- * Las Cloud Functions siguen acumulando XP en background — al activar el flag
- * el user ve su historia completa de inmediato.
+ * Las Cloud Functions también respetan el flag (ver `hasXpAccess` espejo en
+ * `functions/src/xp.ts`): sin FF no se acumula XP, no se desbloquean logros
+ * ni llegan notifs. Al activar el flag, el script `scripts/backfillXp.js` /
+ * callable `backfillAllUsersXp` aplican el retroactivo desde stats.
  */
 export function hasXpAccess(profile: UserProfile): boolean {
     return isSuperAdmin(profile) || profile.xpEnabled === true;

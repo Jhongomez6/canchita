@@ -1017,7 +1017,9 @@ Inicialmente el SDD proponía `NEXT_PUBLIC_XP_ENABLED` como env-var de Next. **S
 1. **Rollout gradual**: permite activar el feature para 10 users primero, ver feedback, expandir. Imposible con env-var (todo o nada).
 2. **Consistencia con el proyecto**: ya existen `walletEnabled` y `bookingEnabled` con el mismo patrón. Helper `hasXpAccess(profile)` mimetiza `hasWalletAccess`/`hasBookingAccess`.
 
-Las **Cloud Functions NO se gatean**: siguen acumulando XP en background para todos los users. Cuando un user recibe el flag, ve su historia completa de inmediato — sin "ramp-up" desde cero.
+**Las Cloud Functions también se gatean por la FF** (revertido — ver nota abajo). Sin `xpEnabled` ni `super_admin`, los triggers no escriben en `users/{uid}.xp/xpLevel/xpTier/achievements`, no crean `xpEvents`, ni emiten notifs `xp_*` en `notifications/{uid}/items`. El retroactivo al activar el flag se aplica con `scripts/backfillXp.js` (standalone) o el callable `backfillAllUsersXp`, que estiman XP desde stats (`played`, `won`, `draw`, `mvpAwards`, `kudosSummary.total`, `noShows`, `lateArrivals`) y desbloquean achievements correspondientes.
+
+> **Cambio de diseño 2026-05-28**: la versión original del SDD proponía que las Functions acumularan XP en background para todos. Esa decisión se revirtió cuando jugadores sin FF empezaron a recibir notifs in-app de level-up / tier-up / achievement (la in-app notif bell lee `notifications/{uid}/items` globalmente, sin chequear la FF). El gate ahora vive en `functions/src/xp.ts → hasXpAccess(userData)`, espejo server-side de `lib/domain/user.ts → hasXpAccess(profile)`. Cleanup retroactivo del XP ya leaked: `scripts/cleanupXpNoFF.js`.
 
 ### Otras decisiones
 

@@ -190,6 +190,19 @@ function buildXpEventId(uid: string, source: XpSource, contextId: string): strin
     return `${uid}_${source}_${contextId}`;
 }
 
+/**
+ * Espejo server-side de `hasXpAccess(profile)` en lib/domain/user.ts.
+ * Solo super_admins o usuarios con la FF `xpEnabled === true` acumulan XP,
+ * desbloquean achievements y reciben notifs del sistema. El retroactivo al activar
+ * la FF se hace mediante el script `scripts/backfillXp.js` (no por background accumulation).
+ */
+function hasXpAccess(userData: Record<string, unknown>): boolean {
+    if (userData.xpEnabled === true) return true;
+    const roles = userData.roles;
+    const isAdmin = Array.isArray(roles) && roles.includes("admin");
+    return isAdmin && userData.adminType === "super_admin";
+}
+
 // ========================
 // HELPER CENTRAL: awardXp
 // ========================
@@ -260,6 +273,22 @@ async function awardXp(input: AwardXpInput): Promise<AwardXpResult> {
         }
 
         const u = userSnap.data() ?? {};
+
+        // Feature flag: solo otorgar XP a usuarios con xpEnabled o super_admin.
+        // No escribir xpEvents tampoco — al activar la FF, el retroactivo lo hace
+        // backfillAllUsersXp / scripts/backfillXp.js desde stats acumulados.
+        if (!hasXpAccess(u)) {
+            const lvl = (u.xpLevel as number | undefined) ?? MIN_LEVEL;
+            const tr = (u.xpTier as XpTier | undefined) ?? calcTierFromLevel(lvl);
+            return {
+                skipped: true,
+                levelChanged: false, tierChanged: false,
+                fromLevel: lvl, toLevel: lvl,
+                fromTier: tr, toTier: tr,
+                newXp: (u.xp as number | undefined) ?? 0,
+            };
+        }
+
         const currentXp = (u.xp as number | undefined) ?? 0;
         const currentLevel = (u.xpLevel as number | undefined) ?? calcLevelFromXp(currentXp);
         const currentTier = (u.xpTier as XpTier | undefined) ?? calcTierFromLevel(currentLevel);
@@ -610,6 +639,9 @@ export const awardXpAndCheckAchievements = onDocumentUpdated(
 );
 
 async function checkAndUnlockAchievements(uid: string, userData: Record<string, unknown>) {
+    // Feature flag: usuarios sin xpEnabled no desbloquean logros ni reciben notifs.
+    if (!hasXpAccess(userData)) return;
+
     const stats = (userData.stats as { played?: number; won?: number } | undefined) ?? {};
     const xpLevel = (userData.xpLevel as number | undefined) ?? MIN_LEVEL;
     const xpTier = (userData.xpTier as XpTier | undefined) ?? calcTierFromLevel(xpLevel);
