@@ -29,7 +29,7 @@ export default function WorldCupRules({ open, onClose }: { open: boolean; onClos
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
                         transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto md:max-w-lg md:mx-auto"
+                        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl max-h-[85dvh] overflow-y-auto overscroll-contain md:max-w-lg md:mx-auto"
                     >
                         <div className="sticky top-0 bg-white flex items-center justify-between px-5 py-4 border-b border-gray-100">
                             <h2 className="text-lg font-bold text-gray-900">¿Cómo funciona?</h2>
@@ -38,7 +38,10 @@ export default function WorldCupRules({ open, onClose }: { open: boolean; onClos
                             </button>
                         </div>
 
-                        <div className="px-5 py-5 space-y-6 pb-8">
+                        <div
+                            className="px-5 py-5 space-y-6"
+                            style={{ paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
+                        >
                             {/* Importante (primero) */}
                             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
                                 <h3 className="font-bold text-gray-900 text-sm">⚠️ Importante</h3>
