@@ -116,8 +116,11 @@ export const WC_CHAMPION_POINTS = 10;
 /** Bonus por acertar el subcampeón del torneo. */
 export const WC_RUNNERUP_POINTS = 5;
 
-/** Premio del ganador de la polla: cantidad de partidos sin pagar cuota. */
+/** Premio del ganador de la polla: cantidad de partidos sin pagar cuota (jugador de campo). */
 export const WC_PRIZE_FREE_MATCHES = 5;
+
+/** Premio equivalente para arqueros: pagan media cuota, así que el mismo valor son 10 partidos. */
+export const WC_PRIZE_FREE_MATCHES_GK = 10;
 
 // ========================
 // REGLAS DE NEGOCIO (puras)

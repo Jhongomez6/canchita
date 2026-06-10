@@ -6,6 +6,7 @@ import {
     WC_CHAMPION_POINTS,
     WC_RUNNERUP_POINTS,
     WC_PRIZE_FREE_MATCHES,
+    WC_PRIZE_FREE_MATCHES_GK,
 } from "@/lib/domain/worldcup";
 
 /**
@@ -44,11 +45,13 @@ export default function WorldCupRules({ open, onClose }: { open: boolean; onClos
                                     <Target className="w-5 h-5 text-[#1f7a4f]" />
                                     <h3 className="font-bold text-gray-900">Puntaje por partido</h3>
                                 </div>
-                                <p className="text-sm text-gray-500 mb-3">Predecí el marcador de cada partido antes de que empiece.</p>
-                                <ul className="space-y-2">
-                                    <RuleRow points="3" color="bg-[#1f7a4f]" text="Marcador exacto (ej. predecís 2-1 y sale 2-1)" />
-                                    <RuleRow points="1" color="bg-blue-500" text="Resultado correcto: acertás quién gana o el empate, pero no el marcador exacto" />
-                                    <RuleRow points="0" color="bg-gray-300" text="Sin acierto" />
+                                <p className="text-sm text-gray-500 mb-3">
+                                    Predecí el marcador de cada partido antes de que empiece. Vas a ver este sello en cada partido finalizado:
+                                </p>
+                                <ul className="space-y-3">
+                                    <BadgeRow points={3} text="Marcador exacto (ej. predecís 2-1 y sale 2-1)" />
+                                    <BadgeRow points={1} text="Resultado correcto: acertás quién gana o el empate, pero no el marcador exacto" />
+                                    <BadgeRow points={0} text="Sin acierto" />
                                 </ul>
                             </section>
 
@@ -75,7 +78,10 @@ export default function WorldCupRules({ open, onClose }: { open: boolean; onClos
                                 </div>
                                 <p className="text-sm text-white/90">
                                     Quien quede <strong>1º en la tabla</strong> al final del Mundial gana{" "}
-                                    <strong>{WC_PRIZE_FREE_MATCHES} partidos gratis</strong>: no paga su cuota en esos {WC_PRIZE_FREE_MATCHES} partidos. 🎉
+                                    <strong>{WC_PRIZE_FREE_MATCHES} partidos gratis</strong> (no paga su cuota). 🎉
+                                </p>
+                                <p className="text-xs text-white/70 mt-2">
+                                    ¿Sos arquero? Como pagás media cuota, son <strong>{WC_PRIZE_FREE_MATCHES_GK} partidos gratis</strong> por el mismo valor.
                                 </p>
                             </section>
 
@@ -95,6 +101,22 @@ function RuleRow({ points, color, text }: { points: string; color: string; text:
         <li className="flex items-center gap-3">
             <span className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-white text-sm font-bold ${color}`}>
                 {points}
+            </span>
+            <span className="text-sm text-gray-700">{text}</span>
+        </li>
+    );
+}
+
+/** Fila con el pill de puntos (mismo color que el sello del partido), sin label. */
+function BadgeRow({ points, text }: { points: 0 | 1 | 3; text: string }) {
+    const cls =
+        points === 3 ? "bg-[#1f7a4f] text-white"
+            : points === 1 ? "bg-blue-500 text-white"
+                : "bg-gray-200 text-gray-500";
+    return (
+        <li className="flex items-start gap-3">
+            <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold ${cls}`}>
+                +{points}
             </span>
             <span className="text-sm text-gray-700">{text}</span>
         </li>
