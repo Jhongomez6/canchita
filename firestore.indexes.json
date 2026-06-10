@@ -210,6 +210,22 @@
         { "fieldPath": "uid", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "worldcupMatches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "kickoffMs", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "worldcupLeaderboard",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "points", "order": "DESCENDING" },
+        { "fieldPath": "exactHits", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

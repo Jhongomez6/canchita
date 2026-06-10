@@ -1050,3 +1050,28 @@ export async function logVenuePendingTTLUpdated(params: {
     new_hours: params.newHours.toString(),
   });
 }
+
+/* =========================
+   🌍 POLLA MUNDIALISTA 2026
+   Ref: docs/POLLA_MUNDIALISTA_SDD.md
+========================= */
+
+export async function logWorldCupPollOpened() {
+  await trackEvent("worldcup_poll_opened");
+}
+
+export async function logWorldCupPredictionSaved(matchId: string, homeGoals: number, awayGoals: number) {
+  await trackEvent("worldcup_prediction_saved", {
+    match_id: matchId,
+    home_goals: homeGoals.toString(),
+    away_goals: awayGoals.toString(),
+  });
+}
+
+export async function logWorldCupOthersViewed(matchId: string) {
+  await trackEvent("worldcup_others_viewed", { match_id: matchId });
+}
+
+export async function logWorldCupLeaderboardViewed(userPosition: number) {
+  await trackEvent("worldcup_leaderboard_viewed", { user_position: userPosition.toString() });
+}

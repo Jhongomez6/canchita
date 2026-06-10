@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin as checkIsSuperAdmin, isLocationAdmin as checkIsLocationAdmin, hasBookingAccess as checkHasBookingAccess } from "@/lib/domain/user";
 import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
 import { getPendingReportsCount } from "@/lib/matchReview";
+import { getWorldCupConfig } from "@/lib/worldcup";
 
 export default function BottomNav() {
     const pathname = usePathname();
@@ -17,6 +18,7 @@ export default function BottomNav() {
     const isPlayer = profile?.roles?.includes("player") ?? false;
     const [pendingApps, setPendingApps] = useState(0);
     const [pendingReports, setPendingReports] = useState(0);
+    const [worldCupEnabled, setWorldCupEnabled] = useState(false);
 
     useEffect(() => {
         if (!isSuperAdminUser) return;
@@ -27,6 +29,14 @@ export default function BottomNav() {
             .then((count) => setPendingReports(count))
             .catch(() => {/* silencioso */});
     }, [isSuperAdminUser]);
+
+    // Polla mundialista — feature flag global temporal
+    useEffect(() => {
+        if (!user) return;
+        getWorldCupConfig()
+            .then((cfg) => setWorldCupEnabled(cfg.pollEnabled))
+            .catch(() => {/* silencioso */});
+    }, [user]);
 
     if (!user) return null;
 
@@ -249,6 +259,34 @@ export default function BottomNav() {
                             )}
                         </div>
                         <span className="text-[10px] font-bold tracking-wide">Reportes</span>
+                    </Link>
+                )}
+
+                {/* MUNDIAL (polla — feature flag global temporal). Admin → carga de resultados; jugador → polla.
+                    Super admin siempre lo ve (para probar antes del lanzamiento); jugadores solo con el flag prendido. */}
+                {(worldCupEnabled || isSuperAdminUser) && (isPlayer || isSuperAdminUser) && (
+                    <Link
+                        href={isSuperAdminUser ? "/worldcup/admin" : "/worldcup"}
+                        className={navItemClass(pathname.startsWith("/worldcup"))}
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill={pathname.startsWith("/worldcup") ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth={pathname.startsWith("/worldcup") ? "0" : "2"}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-7 h-7"
+                        >
+                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                            <path d="M4 22h16" />
+                            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                        </svg>
+                        <span className="text-[10px] font-bold tracking-wide">Mundial</span>
                     </Link>
                 )}
 

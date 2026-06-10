@@ -1,0 +1,167 @@
+/**
+ * ========================
+ * WORLD CUP POLL CLIENT API
+ * ========================
+ *
+ * Specification-Driven Development (SDD)
+ * Ref: docs/POLLA_MUNDIALISTA_SDD.md
+ *
+ * Lecturas de partidos/predicciones/leaderboard + escritura de predicción propia
+ * + llamada a Cloud Function para cargar resultados (admin).
+ */
+
+import {
+    doc,
+    getDoc,
+    setDoc,
+    collection,
+    query,
+    where,
+    orderBy,
+    limit as firestoreLimit,
+    getDocs,
+} from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { db, app } from "./firebase";
+import type {
+    WCMatch,
+    WCPrediction,
+    WCLeaderboardEntry,
+    WCConfig,
+} from "./domain/worldcup";
+
+const functions = getFunctions(app);
+
+// ========================
+// CONFIG
+// ========================
+
+/** Lee el flag global de la polla. Si el doc no existe, la polla está apagada. */
+export async function getWorldCupConfig(): Promise<WCConfig> {
+    const snap = await getDoc(doc(db, "config", "worldcup"));
+    if (!snap.exists()) return { pollEnabled: false };
+    return { pollEnabled: snap.data().pollEnabled === true };
+}
+
+// ========================
+// PARTIDOS
+// ========================
+
+/** Todos los partidos de grupos, ordenados por hora de inicio. */
+export async function getWorldCupMatches(): Promise<WCMatch[]> {
+    const q = query(collection(db, "worldcupMatches"), orderBy("kickoffMs", "asc"));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as WCMatch);
+}
+
+/**
+ * Partidos sin resultado cuyo kickoff ya pasó (para la página admin).
+ * Ordenados por hora ascendente (los más viejos primero).
+ */
+export async function getPendingResultMatches(): Promise<WCMatch[]> {
+    const q = query(
+        collection(db, "worldcupMatches"),
+        where("status", "==", "SCHEDULED"),
+        orderBy("kickoffMs", "asc"),
+    );
+    const snap = await getDocs(q);
+    const now = Date.now();
+    return snap.docs
+        .map((d) => d.data() as WCMatch)
+        .filter((m) => m.kickoffMs <= now);
+}
+
+// ========================
+// PREDICCIONES
+// ========================
+
+/** Todas las predicciones del usuario actual. */
+export async function getUserPredictions(userId: string): Promise<WCPrediction[]> {
+    const q = query(collection(db, "worldcupPredictions"), where("userId", "==", userId));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as WCPrediction);
+}
+
+/**
+ * Crea o actualiza la predicción del usuario para un partido.
+ * El candado por tiempo (now < kickoff) lo refuerzan las Firestore rules.
+ *
+ * @param snapshot - displayName/photoURLThumb del usuario, para mostrar predicciones
+ *                   ajenas sin join a /users.
+ */
+export async function savePrediction(
+    userId: string,
+    matchId: string,
+    homeGoals: number,
+    awayGoals: number,
+    snapshot: { displayName: string; photoURLThumb?: string },
+): Promise<void> {
+    const id = `${userId}_${matchId}`;
+    const ref = doc(db, "worldcupPredictions", id);
+    const existing = await getDoc(ref);
+    const nowISO = new Date().toISOString();
+
+    const data: Record<string, unknown> = {
+        id,
+        userId,
+        matchId,
+        homeGoals,
+        awayGoals,
+        displayName: snapshot.displayName,
+        updatedAt: nowISO,
+        createdAt: existing.exists() ? existing.data().createdAt : nowISO,
+    };
+    // Evitar escribir undefined (Firestore lo rechaza)
+    if (snapshot.photoURLThumb) data.photoURLThumb = snapshot.photoURLThumb;
+
+    await setDoc(ref, data, { merge: true });
+}
+
+/**
+ * Predicciones de todos los usuarios para un partido.
+ * Las rules solo permiten leer ajenas si el partido ya arrancó.
+ */
+export async function getMatchPredictions(matchId: string): Promise<WCPrediction[]> {
+    const q = query(collection(db, "worldcupPredictions"), where("matchId", "==", matchId));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as WCPrediction);
+}
+
+// ========================
+// LEADERBOARD
+// ========================
+
+/** Top N del leaderboard, ordenado por puntos y desempatado por aciertos exactos. */
+export async function getLeaderboard(max: number = 200): Promise<WCLeaderboardEntry[]> {
+    const q = query(
+        collection(db, "worldcupLeaderboard"),
+        orderBy("points", "desc"),
+        orderBy("exactHits", "desc"),
+        firestoreLimit(max),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as WCLeaderboardEntry);
+}
+
+/** Entry de leaderboard del usuario actual (null si aún no puntuó). */
+export async function getUserLeaderboardEntry(userId: string): Promise<WCLeaderboardEntry | null> {
+    const snap = await getDoc(doc(db, "worldcupLeaderboard", userId));
+    return snap.exists() ? (snap.data() as WCLeaderboardEntry) : null;
+}
+
+// ========================
+// ADMIN — CARGA DE RESULTADOS (Cloud Function)
+// ========================
+
+/**
+ * Carga o corrige el resultado de un partido. Solo super_admin (validado en la CF).
+ * Dispara el recálculo automático del leaderboard.
+ */
+export async function updateMatchResult(
+    matchId: string,
+    homeGoals: number,
+    awayGoals: number,
+): Promise<void> {
+    const fn = httpsCallable(functions, "updateWorldCupMatchResult");
+    await fn({ matchId, homeGoals, awayGoals });
+}

@@ -22,3 +22,6 @@ export * from "./postMatchReview";
 
 // ⚡ Sistema de XP / Niveles: triggers, achievements, backfill
 export * from "./xp";
+
+// 🌍 Polla Mundialista 2026: carga de resultados + recálculo de leaderboard
+export * from "./worldcup";

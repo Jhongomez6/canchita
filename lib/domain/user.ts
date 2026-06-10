@@ -349,6 +349,15 @@ export function hasBookingAccess(profile: UserProfile): boolean {
 }
 
 /**
+ * Verifica si el usuario tiene acceso a la polla mundialista 2026 (feature temporal).
+ * Super admins siempre tienen acceso (para probar antes del lanzamiento); el resto
+ * solo cuando el flag global `pollEnabled` está prendido.
+ */
+export function hasWorldCupAccess(profile: UserProfile, pollEnabled: boolean): boolean {
+    return isSuperAdmin(profile) || pollEnabled === true;
+}
+
+/**
  * Verifica si el usuario tiene acceso al sistema de XP / Niveles / Achievements.
  * Super admins siempre tienen acceso; otros usuarios requieren el flag xpEnabled.
  *

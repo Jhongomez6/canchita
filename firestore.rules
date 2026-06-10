@@ -432,5 +432,51 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    /* =========================
+       🌍 POLLA MUNDIALISTA 2026
+       Ref: docs/POLLA_MUNDIALISTA_SDD.md
+    ========================= */
+
+    // Config global de la polla (flag pollEnabled). Solo lectura.
+    match /config/worldcup {
+      allow read: if request.auth != null;
+      allow write: if false; // super_admin lo cambia desde Firestore Console
+    }
+
+    // Partidos — solo lectura; escritura solo Admin SDK (CF de carga de resultados)
+    match /worldcupMatches/{matchId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Predicciones de los usuarios
+    match /worldcupPredictions/{predId} {
+      // Lectura: la propia siempre; las ajenas solo si el partido ya arrancó
+      // (kickoffMs <= ahora). Así nadie ve predicciones antes del cierre.
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/worldcupMatches/$(resource.data.matchId)).data.kickoffMs <= request.time.toMillis()
+      );
+
+      // Crear/editar: solo la propia, solo antes del kickoff, con goles válidos
+      // y el id debe ser "{uid}_{matchId}".
+      allow create, update: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && predId == request.auth.uid + "_" + request.resource.data.matchId
+        && request.resource.data.homeGoals is int
+        && request.resource.data.awayGoals is int
+        && request.resource.data.homeGoals >= 0 && request.resource.data.homeGoals <= 20
+        && request.resource.data.awayGoals >= 0 && request.resource.data.awayGoals <= 20
+        && get(/databases/$(database)/documents/worldcupMatches/$(request.resource.data.matchId)).data.kickoffMs > request.time.toMillis();
+
+      allow delete: if false;
+    }
+
+    // Leaderboard — solo lectura; escritura solo Admin SDK (CF trigger)
+    match /worldcupLeaderboard/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
   }
 }

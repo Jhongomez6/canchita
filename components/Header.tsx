@@ -7,9 +7,10 @@ import { logout } from "@/lib/auth";
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/notifications";
-import { isSuperAdmin, isLocationAdmin, hasWalletAccess } from "@/lib/domain/user";
+import { isSuperAdmin, isLocationAdmin, hasWalletAccess, hasWorldCupAccess } from "@/lib/domain/user";
 import { logNotificationsOpened, logTooltipOpened } from "@/lib/analytics";
 import { subscribeToWallet } from "@/lib/wallet";
+import { getWorldCupConfig } from "@/lib/worldcup";
 import { formatCOP } from "@/lib/domain/wallet";
 import dynamic from "next/dynamic";
 const NotificationsDrawer = dynamic(() => import("./NotificationsDrawer"), { ssr: false });
@@ -21,11 +22,13 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [worldCupEnabled, setWorldCupEnabled] = useState(false);
   const skipFetchRef = useRef(false);
 
   const isAdmin = profile?.roles?.includes("admin") ?? false;
   const isSuperAdminUser = profile ? isSuperAdmin(profile) : false;
   const isLocationAdminUser = profile ? isLocationAdmin(profile) : false;
+  const showWorldCup = profile ? hasWorldCupAccess(profile, worldCupEnabled) : false;
 
   const getAdminBadge = () => {
     if (!isAdmin) return null;
@@ -73,6 +76,14 @@ export default function Header() {
     });
     return () => unsub();
   }, [user, profile]);
+
+  // Polla mundialista — feature flag global temporal
+  useEffect(() => {
+    if (!user) return;
+    getWorldCupConfig()
+      .then((cfg) => setWorldCupEnabled(cfg.pollEnabled))
+      .catch(() => { });
+  }, [user]);
 
   // Sync unread count → OS app badge (Badging API)
   useEffect(() => {
@@ -197,6 +208,20 @@ export default function Header() {
               >
                 Perfil
               </Link>
+
+              {showWorldCup && (
+                <Link
+                  href={isSuperAdminUser ? "/worldcup/admin" : "/worldcup"}
+                  className="hidden md:block"
+                  style={{
+                    color: "#e6f6ed",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                  }}
+                >
+                  Mundial 🌍
+                </Link>
+              )}
             </>
           )}
 
