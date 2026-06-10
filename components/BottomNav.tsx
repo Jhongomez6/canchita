@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { isSuperAdmin as checkIsSuperAdmin, isLocationAdmin as checkIsLocationAdmin, hasBookingAccess as checkHasBookingAccess } from "@/lib/domain/user";
+import { isSuperAdmin as checkIsSuperAdmin, isLocationAdmin as checkIsLocationAdmin, hasBookingAccess as checkHasBookingAccess, hasWorldCupAccess } from "@/lib/domain/user";
 import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
 import { getPendingReportsCount } from "@/lib/matchReview";
 import { getWorldCupConfig } from "@/lib/worldcup";
@@ -18,7 +18,8 @@ export default function BottomNav() {
     const isPlayer = profile?.roles?.includes("player") ?? false;
     const [pendingApps, setPendingApps] = useState(0);
     const [pendingReports, setPendingReports] = useState(0);
-    const [worldCupEnabled, setWorldCupEnabled] = useState(false);
+    const [pollEnabled, setPollEnabled] = useState(false);
+    const showWorldCup = profile ? hasWorldCupAccess(profile, pollEnabled) : false;
 
     useEffect(() => {
         if (!isSuperAdminUser) return;
@@ -30,11 +31,11 @@ export default function BottomNav() {
             .catch(() => {/* silencioso */});
     }, [isSuperAdminUser]);
 
-    // Polla mundialista — feature flag global temporal
+    // Polla mundialista — flag global + flag por usuario (hasWorldCupAccess)
     useEffect(() => {
         if (!user) return;
         getWorldCupConfig()
-            .then((cfg) => setWorldCupEnabled(cfg.pollEnabled))
+            .then((cfg) => setPollEnabled(cfg.pollEnabled))
             .catch(() => {/* silencioso */});
     }, [user]);
 
@@ -262,9 +263,9 @@ export default function BottomNav() {
                     </Link>
                 )}
 
-                {/* MUNDIAL (polla — feature flag global temporal). Admin → carga de resultados; jugador → polla.
-                    Super admin siempre lo ve (para probar antes del lanzamiento); jugadores solo con el flag prendido. */}
-                {(worldCupEnabled || isSuperAdminUser) && (isPlayer || isSuperAdminUser) && (
+                {/* MUNDIAL (polla). Admin → carga de resultados; jugador → polla.
+                    Acceso: super_admin siempre, flag global pollEnabled, o flag por usuario worldCupEnabled. */}
+                {showWorldCup && (isPlayer || isSuperAdminUser) && (
                     <Link
                         href={isSuperAdminUser ? "/worldcup/admin" : "/worldcup"}
                         className={navItemClass(pathname.startsWith("/worldcup"))}
