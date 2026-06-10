@@ -40,7 +40,7 @@ export default function WorldCupRules({ open, onClose }: { open: boolean; onClos
 
                         <div
                             className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 space-y-6"
-                            style={{ paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
+                            style={{ paddingBottom: "max(6rem, calc(env(safe-area-inset-bottom) + 5rem))" }}
                         >
                             {/* Importante (primero) */}
                             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
