@@ -267,3 +267,23 @@ export async function setAccessCode(code: string): Promise<void> {
 export async function setJoinByCodeOpen(open: boolean): Promise<void> {
     await setDoc(doc(db, "config", "worldcup"), { joinByCodeOpen: open }, { merge: true });
 }
+
+export interface WCParticipant {
+    uid: string;
+    name: string;
+    email?: string;
+    photoURLThumb?: string;
+}
+
+/**
+ * Jugadores que tienen acceso a la polla por el flag worldCupEnabled
+ * (es decir, los que canjearon el código). Para el panel admin.
+ */
+export async function getWorldCupParticipants(): Promise<WCParticipant[]> {
+    const q = query(collection(db, "users"), where("worldCupEnabled", "==", true));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+        const u = d.data();
+        return { uid: d.id, name: u.name ?? "Jugador", email: u.email, photoURLThumb: u.photoURLThumb };
+    });
+}
