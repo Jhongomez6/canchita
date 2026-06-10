@@ -33,7 +33,7 @@ export default function PredictionInput({
     const handleSave = async () => {
         setSaving(true);
         try {
-            await savePrediction(userId, match.id, home, away, snapshot);
+            await savePrediction(userId, match.id, home, away, snapshot, existing?.createdAt);
             logWorldCupPredictionSaved(match.id, home, away);
             toast.success(existing ? "Predicción actualizada" : "¡Predicción guardada!");
             onSaved?.(home, away);

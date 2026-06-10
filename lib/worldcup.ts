@@ -88,6 +88,10 @@ export async function getUserPredictions(userId: string): Promise<WCPrediction[]
  *
  * @param snapshot - displayName/photoURLThumb del usuario, para mostrar predicciones
  *                   ajenas sin join a /users.
+ * @param createdAt - ISO de creación de la predicción existente (si la hay). Se pasa
+ *                   desde el estado de la UI para NO leer el doc aquí: leer una predicción
+ *                   inexistente de un partido futuro es rechazado por las rules (el read
+ *                   ajeno solo se permite tras el kickoff).
  */
 export async function savePrediction(
     userId: string,
@@ -95,10 +99,10 @@ export async function savePrediction(
     homeGoals: number,
     awayGoals: number,
     snapshot: { displayName: string; photoURLThumb?: string },
+    createdAt?: string,
 ): Promise<void> {
     const id = `${userId}_${matchId}`;
     const ref = doc(db, "worldcupPredictions", id);
-    const existing = await getDoc(ref);
     const nowISO = new Date().toISOString();
 
     const data: Record<string, unknown> = {
@@ -109,7 +113,7 @@ export async function savePrediction(
         awayGoals,
         displayName: snapshot.displayName,
         updatedAt: nowISO,
-        createdAt: existing.exists() ? existing.data().createdAt : nowISO,
+        createdAt: createdAt ?? nowISO,
     };
     // Evitar escribir undefined (Firestore lo rechaza)
     if (snapshot.photoURLThumb) data.photoURLThumb = snapshot.photoURLThumb;
