@@ -5,6 +5,7 @@ import { X, CalendarPlus, Clock4 } from "lucide-react";
 import AdminBookingCard from "./AdminBookingCard";
 import AdminBlockCard from "./AdminBlockCard";
 import type { Booking } from "@/lib/domain/booking";
+import { SLOT_BLOCKING_BOOKING_STATUSES } from "@/lib/bookings";
 import { getBlockedSlotStatus } from "@/lib/domain/venue";
 import type { BlockedSlot, Court, ManualReservationStatus, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
 
@@ -37,9 +38,10 @@ interface HourDetailDrawerProps {
     relevantCourtIds?: string[];
     /** Subconjunto de relevantCourtIds que ya está ocupado por bookings o blocks. */
     unavailableRelevantCourtIds?: string[];
-    onBookingClick: (booking: Booking) => void;
+    /** Callback al tocar el tarro de cancelar en una card de booking online. */
+    onBookingCancel?: (booking: Booking) => void;
     onConfirmAttendance?: (booking: Booking) => void;
-    onRegisterBookingPayment?: (booking: Booking) => void;
+    onRegisterBookingPayment?: (booking: Booking, existingPayment: ManualReservationPayment | null) => void;
     onBookingAdvanced?: () => void;
     onBlockClick: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus: (block: BlockedSlot, targetDate: string) => void;
@@ -66,7 +68,7 @@ export default function HourDetailDrawer({
     blocks,
     courts,
     venueFormats,
-    onBookingClick,
+    onBookingCancel,
     onConfirmAttendance,
     onRegisterBookingPayment,
     onBookingAdvanced,
@@ -102,8 +104,12 @@ export default function HourDetailDrawer({
         relevantCourtIds !== undefined && unavailableRelevantCourtIds !== undefined
             ? relevantCourtIds.length > 0 && unavailableRelevantCourtIds.length >= relevantCourtIds.length
             : (() => {
+                // Solo cuentan reservas en estados que bloquean slot (excluye cancelled,
+                // no_show, paid, expired). Mismo criterio que AdminSlotPicker.
                 const occupiedCourtIds = new Set([
-                    ...bookings.flatMap((b) => b.courtIds),
+                    ...bookings
+                        .filter((b) => (SLOT_BLOCKING_BOOKING_STATUSES as readonly string[]).includes(b.status))
+                        .flatMap((b) => b.courtIds),
                     ...blocks.filter((b) => getBlockedSlotStatus(b, date) !== "cancelled").flatMap((b) => b.courtIds),
                 ]);
                 const activeCourts = courts.filter((c) => c.active);
@@ -175,7 +181,8 @@ export default function HourDetailDrawer({
                                                         key={b.id}
                                                         booking={b}
                                                         venueFormats={venueFormats}
-                                                        onClick={onBookingClick}
+                                                        existingPayment={paymentByReservationId.get(b.id) ?? null}
+                                                        onCancel={onBookingCancel}
                                                         onConfirmAttendance={onConfirmAttendance}
                                                         onRegisterPayment={onRegisterBookingPayment}
                                                         onAdvanced={onBookingAdvanced}

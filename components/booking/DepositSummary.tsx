@@ -19,7 +19,7 @@ export default function DepositSummary({ depositCOP, remainingCOP, variant = "pr
                 <CreditCard className="w-3 h-3" />
                 <span className="font-semibold">Abono {formatCOP(depositCOP)}</span>
                 {remainingCOP > 0 && (
-                    <span className="text-emerald-600">· resto {formatCOP(remainingCOP)}</span>
+                    <span className="text-emerald-600">· Debe {formatCOP(remainingCOP)}</span>
                 )}
             </div>
         );

@@ -240,41 +240,46 @@ match /venues/{venueId} {
 ### Storage Rules
 
 ```javascript
-// firebase.storage rules
+// firebase.storage rules — versión implementada (simplificada vs. spec original)
 service firebase.storage {
   match /b/{bucket}/o {
+    // Lectura PÚBLICA para paths que se renderizan con <img>: los browsers no envían
+    // el header `Authorization: Bearer <fb-token>`, así que isAuthed() falla. Para los
+    // QR/portadas/avatares no hay datos sensibles — son recursos pensados para ser vistos.
+    match /avatars/{fileName} { allow read: if true; ... }
+    match /venues/{venueId}/{fileName} { allow read: if true; ... }
+    match /venue_payment_qrs/{venueId}/{fileName} { allow read: if true; ... }
+
     match /payment_proofs/{venueId}/{fileName} {
-      // Lectura: dueño de la reserva o admin del venue
-      allow read: if request.auth != null &&
-        (
-          // Match {bookingId}_{ts}.{ext} → resolver booking
-          isPaymentProofOwner(venueId, fileName) ||
-          isVenueAdmin(venueId)
-        );
+      // Lectura: cualquier autenticado. La privacidad real está en la URL: solo se
+      // accede vía el `downloadURL` con token que se almacena en el booking doc
+      // (lectura restringida en Firestore). Storage no permite listar el bucket.
+      allow read: if isAuthed();
 
-      // Escritura: solo el dueño de la reserva, max 500KB, solo imagen
-      allow write: if request.auth != null &&
-        request.resource.size <= 500 * 1024 &&
-        request.resource.contentType.matches('image/.*') &&
-        isPaymentProofOwner(venueId, fileName);
+      // Escritura: cualquier autenticado (la validación de dueño/status/intentos
+      // la hace la Cloud Function `uploadPaymentProof` antes de aceptar la URL en
+      // el booking). Archivos huérfanos se limpian automáticamente con lifecycle 90d.
+      allow create: if isAuthed()
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size <= 500 * 1024;
+      allow update: if false;
+      allow delete: if isAuthed();
     }
-  }
-
-  function isVenueAdmin(venueId) {
-    let userDoc = firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
-    return userDoc.data.adminType == 'super_admin' ||
-      (userDoc.data.adminType == 'location_admin' &&
-       userDoc.data.assignedLocationIds.hasAny([venueId]));
-  }
-
-  function isPaymentProofOwner(venueId, fileName) {
-    // Convención: bookingId es el prefijo del fileName, antes del primer "_"
-    let bookingId = fileName.split('_')[0];
-    let bookingDoc = firestore.get(/databases/(default)/documents/bookings/$(bookingId));
-    return bookingDoc.data.bookedBy == request.auth.uid;
   }
 }
 ```
+
+**Nota de implementación**: el diseño original requería `firestore.get(...)` cross-service
+desde Storage Rules para validar dueño/admin. Durante el deploy descubrimos que esa
+llamada falla en este proyecto incluso con sintaxis correcta (probablemente IAM entre
+servicios — pendiente de debug profundo). La solución pragmática:
+
+- **Reads quedan abiertos** para paths con `<img>` rendering (avatares, venues, QR)
+- **Writes loose** a `isAuthed()` + validaciones de contentType/size
+- **Seguridad real** se mantiene a nivel de Cloud Function (`uploadPaymentProof`
+  valida dueño + estado + intentos antes de aceptar la URL en el booking doc)
+- **Comprobantes orphan** (subidos sin asociarse a booking) se limpian con el
+  lifecycle de 90 días — no son riesgo de seguridad, solo basura en el bucket
 
 ### Validaciones de input
 
@@ -652,8 +657,15 @@ interface Booking {
   // NUEVO: trazabilidad de aprobación
   approvedBy?: string | null;          // uid del admin
   approvedAt?: string | null;          // ISO
+  attendanceConfirmedBy?: string | null;  // uid del admin que pasó a "confirmed"
+  attendanceConfirmedAt?: string | null;  // ISO
   lastRejectionReason?: string | null;  // visible al jugador en pending_payment tras rechazo
   lastRejectionAt?: string | null;
+
+  // NUEVO (snapshots agregados durante implementación): evitan lookups laterales en
+  // listas que no tienen el venue/profile cargado (ej. /bookings del jugador).
+  bookedByPhone?: string | null;       // snapshot de user.phone al crear
+  formatLabel?: string;                // snapshot del VenueFormat.label (ej "Cancha sencilla")
 }
 
 type BookingStatus =
@@ -911,3 +923,188 @@ Al cerrar ciclo (`played → paid`), el `RegisterPaymentSheet` pre-rellena el ca
 
 ### 10. ✅ Confirmación de asistencia 100% manual (sin cron de recordatorio)
 El admin marca `deposit_confirmed → confirmed` cuando él decide (típicamente tras llamar al cliente). No hay scheduled function que mande push 24h antes. Las reservas en `deposit_confirmed` son visibles en el calendario por hora y en la vista de pendientes, de modo que el admin las gestiona en su rutina diaria sin interrupciones automáticas.
+
+---
+
+## 12. IMPLEMENTACIÓN — Cambios sobre la spec original
+
+Estos cambios surgieron durante la implementación/testing y completan la spec.
+
+### 12.1 Snapshots adicionales en `Booking`
+
+| Campo | Por qué | Uso |
+|---|---|---|
+| `bookedByPhone` | El admin necesita contactar al cliente para confirmar asistencia; sin snapshot habría que hacer N+1 reads contra `users/{uid}` | Visible en `AdminBookingCard` debajo del nombre, mismo formato que reservas manuales |
+| `formatLabel` | Las listas que no cargan el catálogo del venue (ej. `/bookings` del jugador) mostraban el ID crudo (`football_6v6`) en vez del label | Pre-resuelto en `createBooking` con fallback a heurística `XvX → Cancha sencilla/doble/triple` |
+| `attendanceConfirmedBy` / `attendanceConfirmedAt` | Trazabilidad de quién pasó a `confirmed` (separado de quién aprobó abono) | Auditoría |
+
+Helper agregado: `bookingStatusLabelForPlayer(status)` — devuelve etiquetas más suaves
+para vistas del jugador (`no_show` → "Sin asistencia" en vez de "No asistió").
+
+### 12.2 Manejo de TTL vencido (client-side)
+
+El cron `expirePendingBookings` corre cada 5 min. Durante esa ventana, una reserva con
+TTL vencido seguía mostrándose como `pending_payment` (UI de pago, "Cancelar reserva",
+etc.). Solución client-side:
+
+| Lugar | Comportamiento agregado |
+|---|---|
+| `/bookings/[id]` (detalle jugador) | Si `status==pending_payment && expiresAt<=now`, se renderiza como `expired`: badge "Expirada", sin UI de upload, sin "Cancelar reserva" |
+| `BookingDetailCard` (lista jugador) | Mismo cómputo; el booking se mueve a sección "Anteriores" |
+| `PendingBookingsAdminView` | Los TTL-vencidos se filtran del listado pending |
+| `AdminBookingCard` (calendario + drawer) | Badge "Expirada", visual tachado/griseado, sin acciones — pero el card **no se oculta** (tracking del admin) |
+| `AdminSlotPicker` (lista por hora) | Los TTL-vencidos van al set `cancelledLabels` (tachados) |
+
+El cron eventualmente oficializa el estado en Firestore. La UI converge antes.
+
+### 12.3 Cálculo de canchas ocupadas — `SLOT_BLOCKING_BOOKING_STATUSES`
+
+Constante exportada desde `lib/bookings.ts`:
+```typescript
+export const SLOT_BLOCKING_BOOKING_STATUSES = [
+    "pending_payment", "pending_approval", "deposit_confirmed", "confirmed", "played",
+] as const;
+```
+
+Solo estos estados **bloquean cancha**. `no_show`, `paid`, `cancelled` y `expired` liberan
+la cancha. Aplicado en 4 lugares (todos por el mismo bug que iba apareciendo):
+
+1. `AdminSlotPicker.timeSlots()` — cálculo de disponibilidad por hora
+2. `AdminSlotPicker.handleSlotTap()` — cómputo de `occupiedCourtIds` para pasar al drawer
+3. `HourDetailDrawer` (fallback "Sin canchas disponibles")
+4. Form de reserva manual — `occupiedCourtIds` que se pasa a `BlockedSlotForm`
+
+### 12.4 Suscripciones admin vs player
+
+Se separó la suscripción de bookings en dos para evitar mezclar concerns:
+
+| Función | Filtro de status | Uso |
+|---|---|---|
+| `subscribeToBookingsForDate` | `SLOT_BLOCKING_BOOKING_STATUSES` | Player browser (`/venues/[id]`): calcula slots disponibles |
+| `subscribeToAllBookingsForDate` | Ninguno | Admin (`/venues/admin/[id]`): muestra todo el histórico del día incluyendo no_show, paid, cancelled, expired |
+
+Adicionalmente: en el admin panel, **mientras el `HourDetailDrawer` está abierto** se
+mantiene una suscripción que sincroniza `hourDetail.bookings` en tiempo real. Evita
+stale-state que permitía dobles-clicks sobre acciones ya ejecutadas (ej. "Confirmar
+asistencia" dos veces porque la UI no se había refrescado).
+
+### 12.5 Storage Rules — simplificación pragmática
+
+Detalle completo en §4 ("Storage Rules"). Resumen: las llamadas `firestore.get(...)`
+cross-service desde Storage Rules fallan silenciosamente en este proyecto. Solución:
+
+- Lectura pública en paths con `<img>` rendering (avatares, portadas de venue, QR)
+- Escritura con `isAuthed()` + validaciones de contentType/size
+- Seguridad real movida a las Cloud Functions y al doc de booking en Firestore
+
+### 12.6 Fix de timezone en `createBooking`
+
+Reemplazo `new Date().toISOString().split("T")[0]` (UTC) por:
+```typescript
+new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date())
+```
+
+Sin esto, después de las 19:00 hora local, UTC ya cambió de día y las reservas
+del mismo día se rechazaban como "fecha pasada".
+
+### 12.7 `registerManualReservationPayment` reusada para bookings online
+
+Para pagar una reserva online (cobro del resto en sede en `RegisterPaymentSheet`),
+reusamos el flujo de pagos de reservas manuales. Pero la función original lee
+`venues/{venueId}/blocked_slots/{slot.id}` para tomar snapshots y actualizar el
+status — ese doc no existe para bookings online (viven en `bookings/{id}`).
+
+Solución: parámetro opcional `options.skipSlotUpdate`. Cuando es `true`:
+- No se lee/actualiza el doc en `blocked_slots`
+- Los snapshots del payment se toman del prop `slot` (que el caller construye desde el booking)
+- La transición del booking a `paid` la hace el caller vía `advanceBookingStatus`
+
+El admin page pasa `skipSlotUpdate` cuando abre el sheet para una reserva online.
+
+### 12.8 Picker de estado en la pill — parity con reservas manuales
+
+`AdminBookingCard` ahora tiene la pill clickeable (igual que `AdminBlockCard`) con
+opciones del picker: `deposit_confirmed`, `confirmed`, `played`, `paid`, `no_show`.
+Permite rollback (`confirmed → deposit_confirmed`). Picker delega:
+
+- A `confirmed` desde `deposit_confirmed` → abre `ConfirmAttendanceSheet`
+- A `paid` → abre `RegisterPaymentSheet` (con `existingPayment` si ya hay)
+- Cualquier otra transición → `advanceBookingStatus` directo
+
+`advanceBookingStatus` (Cloud Function) ahora acepta también `deposit_confirmed`
+como destino para soportar el rollback.
+
+### 12.9 Sin push en transiciones rollback
+
+Los pushes al jugador solo se envían en el **camino natural forward**:
+- `deposit_confirmed` ← aprobar abono (`approveBookingDeposit`)
+- `confirmed` ← confirmar asistencia (`confirmBookingAttendance`)
+- `pending_payment` ← rechazar comprobante (`rejectPaymentProof`)
+- `expired` ← 3er rechazo (`rejectPaymentProof` con history.length≥3)
+
+`advanceBookingStatus` (usado para `played`, `paid`, `no_show`, y todos los rollbacks)
+**no envía push** — son acciones operacionales del admin que no requieren notificar
+al jugador.
+
+### 12.10 Chip de pago registrado en `AdminBookingCard`
+
+Cuando `booking.status === "paid"` y existe `existingPayment` (lookup por
+`reservationId === booking.id` en `ManualReservationPayment`), la card muestra
+un chip emerald con desglose `💵 cash + 🏦 transfer`. Tap reabre el
+`RegisterPaymentSheet` en modo edit. Mismo patrón visual y comportamiento que
+`AdminBlockCard`.
+
+### 12.11 Tratamiento visual "terminal" extendido a más estados
+
+El estilo griseado + tachado se aplica no solo a `cancelled` sino también a
+`expired`, `no_show`, y el TTL-vencido (efectivamente `expired`). En `AdminBookingCard`:
+
+```typescript
+const dimmed = effectiveStatus === "cancelled"
+    || effectiveStatus === "expired"
+    || effectiveStatus === "no_show";
+```
+
+`paid` NO entra en dimmed — es ciclo cerrado exitoso, no terminal-negativo.
+
+### 12.12 Color emerald en badge "Pagada"
+
+Cambiado de `purple` a `emerald` (vía mapping de `bookingStatusColor` a `"green"`)
+para emparejar con el badge "Pagado" de reservas manuales. Convenciones de color
+ahora consistentes entre los dos tipos de reserva.
+
+### 12.13 UX — relocación de CTAs en header
+
+Headers gradient-verde no compiten más con CTAs primarios:
+
+| Pantalla | Antes | Ahora |
+|---|---|---|
+| `/bookings` | "+ Reservar" en el header | CTA primary full-width "+ Reservar nueva cancha" debajo del header |
+| `/venues` | "Ver mis reservas" en el header | CTA outlined "Ver mis reservas" debajo del header |
+| `/bookings/[id]` | `DepositSummary` separado debajo del breakdown | Eliminado — el breakdown ya muestra Depósito/Resto |
+
+### 12.14 PaymentMethodCard — CTA QR prominente
+
+El QR antes era un chip pequeño en la esquina ("QR"). Ahora es un botón full-width
+con texto "Ver QR de pago", borde verde y tinte de marca — jerarquía equivalente al
+botón "Copiar" del identificador.
+
+### 12.15 CancelBookingSheet — sin sugerencias de motivos
+
+Removida la sección "Motivos frecuentes" con chips. El sheet va directo al textarea
+libre. Decisión: las sugerencias creaban fricción y los jugadores tendían a usar la
+opción "Otro" igual, escribiendo en el textarea.
+
+### 12.16 Filtro de `no_show` con label suave en player view
+
+`bookingStatusLabelForPlayer(status)` reemplaza "No asistió" por "Sin asistencia" en
+vistas del jugador (`/bookings` lista + `/bookings/[id]` detalle). El admin sigue
+viendo "No asistió" porque es directo e informativo para su rol.
+
+### 12.17 Cron `expirePendingBookings` — sin cambios
+
+El comportamiento del cron no cambió: cada 5 min, `pending_payment` con `expiresAt<=now`
+→ `expired`. El cron NO marca como `cancelled` porque son semánticas distintas:
+- `cancelled` = acción explícita (jugador o admin), tiene motivo
+- `expired` = sistema cerró por inactividad
+

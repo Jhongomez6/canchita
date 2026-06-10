@@ -70,8 +70,13 @@ export interface Booking {
     bookedBy: string;
     bookedByName: string;
     bookedByPhotoURL?: string;
+    /** Snapshot del teléfono del usuario al crear la reserva (para que el admin lo contacte). */
+    bookedByPhone?: string | null;
     /** VenueFormat.id o legacy CourtFormat string ("5v5", "6v6"…). */
     format: string;
+    /** Snapshot del label del formato (ej "Cancha sencilla"). Evita el lookup del catálogo
+        en vistas que no tienen acceso al venue (lista del jugador). */
+    formatLabel?: string;
     date: string;
     startTime: string;
     endTime: string;
@@ -244,6 +249,19 @@ export function bookingStatusLabel(status: BookingStatus): string {
 }
 
 /**
+ * Label en español específico para vistas del jugador. Suaviza los textos que
+ * desde la perspectiva del admin tienen sentido informativo (ej. "No asistió")
+ * pero que vistos por el dueño de la reserva pueden sonar acusatorios.
+ *
+ * Usar en `/bookings` (lista) y `/bookings/[id]` (detalle). Para vistas admin
+ * mantener `bookingStatusLabel` que es más directo.
+ */
+export function bookingStatusLabelForPlayer(status: BookingStatus): string {
+    if (status === "no_show") return "Sin asistencia";
+    return bookingStatusLabel(status);
+}
+
+/**
  * Color asociado a cada estado de reserva (para badges).
  * Valores semánticos — la UI mapea a clases tailwind.
  */
@@ -254,7 +272,8 @@ export function bookingStatusColor(status: BookingStatus): string {
         deposit_confirmed: "blue",
         confirmed: "green",
         played: "indigo",
-        paid: "purple",
+        // "paid" usa emerald — match con reservas manuales (success final).
+        paid: "emerald",
         completed: "blue",
         cancelled: "red",
         expired: "gray",
@@ -473,15 +492,49 @@ export const ADMIN_BOOKING_STATUS_PICKER: BookingStatus[] = [
 ];
 
 /**
- * Valida que una transición de estado sea legal para el ciclo post-aprobación.
- * Permite transiciones lineales (confirmed → played → paid) y terminales (→ no_show).
- * Rollback (paid → played) está permitido para corrección de errores admin.
+ * Transiciones permitidas en el picker de status de RESERVAS ONLINE.
+ * Aplica SOLO a `AdminBookingCard` (bookings de jugador), NO a reservas manuales
+ * (`AdminBlockCard` mantiene su propia matriz vía `MANUAL_RESERVATION_STATUS_ORDER`).
+ *
+ * Diseño: cada estado origen permite solo transiciones meaningful (forward natural
+ * + rollback al estado anterior). Bloquea saltos arbitrarios para preservar
+ * trazabilidad del ciclo de vida.
+ *
+ * Ref: docs/RESERVAS_PAGO_EXTERNO_SDD.md §12 — discusión de transiciones válidas.
+ */
+export const BOOKING_VALID_PICKER_TRANSITIONS: Partial<Record<BookingStatus, BookingStatus[]>> = {
+    // Solo permite avanzar a confirmed (vía ConfirmAttendanceSheet). Si el cliente
+    // nunca respondió, admin usa el tarro "Cancelar reserva" con motivo, no no_show.
+    deposit_confirmed: ["confirmed"],
+
+    // Forward: played, no_show. Rollback: deposit_confirmed.
+    confirmed: ["played", "no_show", "deposit_confirmed"],
+
+    // Forward: paid (vía RegisterPaymentSheet). Rollback: confirmed.
+    played: ["paid", "confirmed"],
+
+    // Solo rollbacks — ya cerró ciclo financiero.
+    paid: ["played", "confirmed"],
+
+    // Solo rollback al estado de donde vino normalmente (confirmed).
+    no_show: ["confirmed"],
+};
+
+/**
+ * Devuelve los estados a los que el admin puede transicionar desde el actual,
+ * según la matriz de transiciones válidas para bookings online.
+ * Si el estado actual no admite transiciones (pending_*, expired, cancelled, completed),
+ * devuelve `[]` — el picker debe estar deshabilitado.
+ */
+export function getValidPickerTransitions(currentStatus: BookingStatus): BookingStatus[] {
+    return BOOKING_VALID_PICKER_TRANSITIONS[currentStatus] ?? [];
+}
+
+/**
+ * Valida que una transición de estado sea legal para el ciclo post-aprobación
+ * (solo para bookings online — manuales tienen su propia lógica).
  */
 export function isValidAdminStatusTransition(from: BookingStatus, to: BookingStatus): boolean {
     if (from === to) return false;
-    // Solo se puede operar sobre estados post-aprobación
-    const allowedFrom: BookingStatus[] = ["deposit_confirmed", "confirmed", "played", "paid", "no_show"];
-    if (!allowedFrom.includes(from)) return false;
-    if (!ADMIN_BOOKING_STATUS_PICKER.includes(to)) return false;
-    return true;
+    return getValidPickerTransitions(from).includes(to);
 }

@@ -66,7 +66,7 @@ function VenuesContent() {
             <div className="max-w-md mx-auto">
                 {/* Header */}
                 <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] p-6 pb-8 rounded-b-3xl shadow-lg">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between gap-3">
                         <div>
                             <h1 className="text-xl font-bold text-white">
                                 {isAdmin ? "Sedes" : "Reservar cancha"}
@@ -75,20 +75,15 @@ function VenuesContent() {
                                 {isAdmin ? "Administra y configura tus sedes" : "Encuentra y reserva tu horario"}
                             </p>
                         </div>
-                        {isAdmin ? (
+                        {/* Admin: botón + para nueva sede (pequeño, queda en el header).
+                            Jugadores: el CTA "Ver mis reservas" se movió debajo del header para
+                            no competir con el título. */}
+                        {isAdmin && (
                             <button
                                 onClick={() => router.push("/venues/admin/new")}
-                                className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                                className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors flex-shrink-0"
                             >
                                 <Plus className="w-5 h-5 text-white" />
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => router.push("/bookings")}
-                                className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white text-[#1f7a4f] text-sm font-bold rounded-xl shadow hover:bg-slate-50 active:scale-95 transition-all"
-                            >
-                                <CalendarCheck className="w-5 h-5" />
-                                Ver mis reservas
                             </button>
                         )}
                     </div>
@@ -96,6 +91,20 @@ function VenuesContent() {
 
                 {/* Venue list */}
                 <div className="px-4 mt-5 space-y-4">
+                    {/* CTA "Ver mis reservas" — solo para jugadores (no admin).
+                        Mismo estilo solid verde que el CTA "+ Reservar nueva cancha" en
+                        /bookings: consistencia cross-page para acciones de navegación
+                        entre las dos pantallas del flujo de reservas. */}
+                    {!isAdmin && (
+                        <button
+                            onClick={() => router.push("/bookings")}
+                            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#1f7a4f] text-white text-sm font-bold shadow-sm hover:bg-[#145c3a] active:scale-[0.99] transition-all"
+                        >
+                            <CalendarCheck className="w-4 h-4" />
+                            Ir a mis reservas
+                        </button>
+                    )}
+
                     {venues.length === 0 && (
                         <div className="text-center py-16">
                             <p className="text-4xl mb-3">&#127967;</p>

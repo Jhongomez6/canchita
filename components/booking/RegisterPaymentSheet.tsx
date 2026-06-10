@@ -42,6 +42,9 @@ interface RegisterPaymentSheetProps {
     paymentMethodLabel?: string;
     /** ISO de cuando se aprobó el abono. */
     paymentVerifiedAt?: string;
+    /** Si true, no se intenta leer/actualizar `blocked_slots/{id}`: el slot pasado es
+        sintético (booking online). El caller maneja la transición a "paid" del booking. */
+    skipSlotUpdate?: boolean;
 }
 
 function fmt12h(time: string): string {
@@ -87,6 +90,7 @@ export default function RegisterPaymentSheet({
     paymentProofURL,
     paymentMethodLabel,
     paymentVerifiedAt,
+    skipSlotUpdate,
 }: RegisterPaymentSheetProps) {
     const isEditMode = !!existingPayment;
     const [cashPesos, setCashPesos] = useState(0);
@@ -162,6 +166,7 @@ export default function RegisterPaymentSheet({
                     cashCOP,
                     transferCOP,
                     registeredBy,
+                    { skipSlotUpdate },
                 );
                 logManualReservationPaymentRegistered({
                     venueId,

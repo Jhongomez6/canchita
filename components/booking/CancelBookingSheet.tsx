@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, X } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
-    PLAYER_CANCEL_SUGGESTIONS,
-    ADMIN_CANCEL_SUGGESTIONS,
     CANCEL_REASON_MIN_LENGTH,
     CANCEL_REASON_MAX_LENGTH,
 } from "@/lib/domain/booking";
@@ -30,6 +28,9 @@ interface CancelBookingSheetProps {
     booking: BookingSummary;
     /** Indica si la cancelación generará reembolso (lo decide el caller). */
     willRefund: boolean;
+    /** Si true, el booking ya pasó por confirmación de asistencia → warning extra
+        para que el jugador sea consciente de que rompe un compromiso ya validado. */
+    attendanceConfirmed?: boolean;
 }
 
 function fmt12h(time: string): string {
@@ -54,6 +55,7 @@ export default function CancelBookingSheet({
     mode,
     booking,
     willRefund,
+    attendanceConfirmed,
 }: CancelBookingSheetProps) {
     const [reason, setReason] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -65,7 +67,6 @@ export default function CancelBookingSheet({
         }
     }, [open]);
 
-    const suggestions = mode === "player" ? PLAYER_CANCEL_SUGGESTIONS : ADMIN_CANCEL_SUGGESTIONS;
     const trimmed = reason.trim();
     const tooShort = trimmed.length > 0 && trimmed.length < CANCEL_REASON_MIN_LENGTH;
     const isValid = trimmed.length >= CANCEL_REASON_MIN_LENGTH && trimmed.length <= CANCEL_REASON_MAX_LENGTH;
@@ -118,6 +119,18 @@ export default function CancelBookingSheet({
                         </div>
 
                         <div className="overflow-y-auto p-5 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] md:pb-[calc(env(safe-area-inset-bottom,0px)+24px)] space-y-4">
+                            {/* Warning: asistencia ya confirmada con la sede.
+                                Se muestra ANTES del bloque de reembolso para que pese visualmente. */}
+                            {attendanceConfirmed && (
+                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+                                    <p className="text-sm text-orange-700">
+                                        {mode === "player"
+                                            ? "Tu reserva ya está confirmada con la sede. Si no podés asistir, te recomendamos avisarles cuanto antes."
+                                            : "Esta reserva ya pasó por confirmación de asistencia. Asegurate de avisar al cliente."}
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Reembolso */}
                             {willRefund && booking.depositCOP && booking.depositCOP > 0 ? (
                                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
@@ -141,30 +154,6 @@ export default function CancelBookingSheet({
                                     </p>
                                 </div>
                             )}
-
-                            {/* Sugerencias */}
-                            <div>
-                                <p className="text-xs font-semibold text-slate-500 mb-2">Motivos frecuentes</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {suggestions.map((s) => {
-                                        const active = trimmed === s;
-                                        return (
-                                            <button
-                                                key={s}
-                                                type="button"
-                                                onClick={() => setReason(s)}
-                                                className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
-                                                    active
-                                                        ? "bg-[#1f7a4f] text-white border-[#1f7a4f]"
-                                                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                                                }`}
-                                            >
-                                                {s}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
 
                             {/* Textarea */}
                             <div>

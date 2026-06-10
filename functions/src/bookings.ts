@@ -608,6 +608,26 @@ export const createBooking = onCall(
                 throw new HttpsError("failed-precondition", "Este horario ya no está disponible para el formato seleccionado");
             }
 
+            // Resuelve el label del formato — preferencia: catálogo del venue (VenueFormat.label).
+            // Fallback: jerarquía sencilla/doble/triple basada en cantidad de jugadores.
+            const resolveFormatLabel = (): string => {
+                const venueFormats = venue.formats as Array<{ id: string; label: string }> | undefined;
+                if (venueFormats) {
+                    const vf = venueFormats.find((f) => f.id === format);
+                    if (vf?.label) return vf.label;
+                }
+                // Fallback: "sport_XvX" o "XvX" → tier
+                const match = format.match(/^(?:[a-z]+_)?(\d+)v\d+$/);
+                if (match) {
+                    const perTeam = parseInt(match[1], 10);
+                    if (perTeam <= 6) return "Cancha sencilla";
+                    if (perTeam <= 9) return "Cancha doble";
+                    return "Cancha triple";
+                }
+                return format;
+            };
+            const formatLabel = resolveFormatLabel();
+
             // ── WRITES ──
             const bookingData = {
                 id: bookingRef.id,
@@ -617,7 +637,9 @@ export const createBooking = onCall(
                 bookedBy: uid,
                 bookedByName: user.name || "Usuario",
                 bookedByPhotoURL: user.photoURL || null,
+                bookedByPhone: user.phone || null,
                 format,
+                formatLabel,
                 date,
                 startTime,
                 endTime,
@@ -1353,7 +1375,8 @@ export const rejectPaymentProof = onCall(
 // Admin avanza ciclo post-aprobación: confirmed → played → paid, o → no_show.
 // Permite rollback (paid → played, played → confirmed) para corrección admin.
 
-const ADMIN_PICKER_STATUSES = new Set(["confirmed", "played", "paid", "no_show"]);
+// Estados a los que admin puede transicionar manualmente (incluye rollback a deposit_confirmed).
+const ADMIN_PICKER_STATUSES = new Set(["deposit_confirmed", "confirmed", "played", "paid", "no_show"]);
 const ADMIN_FROM_STATUSES = new Set(["deposit_confirmed", "confirmed", "played", "paid", "no_show"]);
 
 export const advanceBookingStatus = onCall(

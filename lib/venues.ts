@@ -550,13 +550,17 @@ export class PaymentAlreadyExistsError extends Error {
 }
 
 /**
- * Registra un pago para una reserva manual en una fecha concreta.
- * Operación atómica: crea el doc en `payments` y, si el slot es puntual (no recurrente),
- * actualiza su status a "paid". Para recurrentes el doc maestro no se toca — el pago
- * por instancia se deriva de la existencia del payment doc.
+ * Registra un pago para una reserva (manual o booking online) en una fecha concreta.
+ * Operación atómica: crea el doc en `payments`. Para reservas manuales también actualiza
+ * el slot `blocked_slots.{id}` a status "paid" (o el statusOverride para recurrentes).
  *
  * Falla con `PaymentAlreadyExistsError` si ya hay pago registrado para el mismo
  * par (reservationId, targetDate) — la UI redirecciona a edit.
+ *
+ * Para reservas ONLINE (bookings), pasar `options.skipSlotUpdate = true`. En ese
+ * caso no se lee ni actualiza el doc en `blocked_slots` (no existe — el booking
+ * vive en `bookings/{id}`). Los snapshots se toman del prop `slot` directamente, y
+ * la transición del booking a "paid" la hace el caller vía `advanceBookingStatus`.
  */
 export async function registerManualReservationPayment(
     venueId: string,
@@ -565,6 +569,7 @@ export async function registerManualReservationPayment(
     cashCOP: number,
     transferCOP: number,
     registeredBy: string,
+    options?: { skipSlotUpdate?: boolean },
 ): Promise<{ id: string }> {
     validatePaymentAmounts(cashCOP, transferCOP);
 
@@ -574,41 +579,52 @@ export async function registerManualReservationPayment(
     const now = new Date().toISOString();
     const totalCOP = cashCOP + transferCOP;
     const isRecurring = !!slot.recurrence;
+    const skipSlotUpdate = !!options?.skipSlotUpdate;
 
     await runTransaction(db, async (tx) => {
-        const slotSnap = await tx.get(slotRef);
-        if (!slotSnap.exists()) {
-            throw new Error("La reserva ya no existe");
+        // Para reservas online no leemos blocked_slots (el doc no existe).
+        // Usamos el `slot` prop como fuente para los snapshots del payment.
+        let slotData: Omit<BlockedSlot, "id"> | null = null;
+        if (!skipSlotUpdate) {
+            const slotSnap = await tx.get(slotRef);
+            if (!slotSnap.exists()) {
+                throw new Error("La reserva ya no existe");
+            }
+            slotData = slotSnap.data() as Omit<BlockedSlot, "id">;
         }
         const existing = await tx.get(paymentRef);
         if (existing.exists()) {
             throw new PaymentAlreadyExistsError(paymentId);
         }
 
-        const slotData = slotSnap.data() as Omit<BlockedSlot, "id">;
+        // Fuente de snapshots: el doc leído (manual) o el prop (online).
+        const src = slotData ?? slot;
         const payment: Omit<ManualReservationPayment, "id"> = {
             reservationId: slot.id,
             date: targetDate,
             cashCOP,
             transferCOP,
             totalCOP,
-            startTime: slotData.startTime,
-            endTime: slotData.endTime,
-            courtIds: slotData.courtIds,
-            ...(slotData.clientName ? { clientName: slotData.clientName } : {}),
-            ...(typeof slotData.priceCOP === "number" ? { priceCOP: slotData.priceCOP } : {}),
+            startTime: src.startTime,
+            endTime: src.endTime,
+            courtIds: src.courtIds,
+            ...(src.clientName ? { clientName: src.clientName } : {}),
+            ...(typeof src.priceCOP === "number" ? { priceCOP: src.priceCOP } : {}),
             registeredBy,
             registeredAt: now,
         };
         tx.set(paymentRef, payment);
 
-        if (isRecurring) {
-            tx.update(slotRef, {
-                [`statusOverrides.${targetDate}`]: "paid",
-                updatedAt: now,
-            });
-        } else {
-            tx.update(slotRef, { status: "paid", updatedAt: now });
+        // Slot update solo para reservas manuales.
+        if (!skipSlotUpdate) {
+            if (isRecurring) {
+                tx.update(slotRef, {
+                    [`statusOverrides.${targetDate}`]: "paid",
+                    updatedAt: now,
+                });
+            } else {
+                tx.update(slotRef, { status: "paid", updatedAt: now });
+            }
         }
     });
 

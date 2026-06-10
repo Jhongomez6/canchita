@@ -31,9 +31,18 @@ export default function PendingBookingsAdminView({ venueId, venueFormats, onCanc
 
     const { pendingApproval, pendingPayment } = useMemo(() => {
         const list = bookings ?? [];
+        const nowMs = Date.now();
         return {
             pendingApproval: list.filter((b) => b.status === "pending_approval"),
-            pendingPayment: list.filter((b) => b.status === "pending_payment"),
+            // Filtramos los pending_payment cuyo TTL ya venció: aunque el cron
+            // todavía no haya corrido, ya no se pueden completar — los ocultamos
+            // del listado para que el admin no tenga que "cancelarlos" manualmente.
+            // El cron eventualmente los pasa a "expired" oficialmente.
+            pendingPayment: list.filter((b) => {
+                if (b.status !== "pending_payment") return false;
+                if (!b.expiresAt) return true;
+                return new Date(b.expiresAt).getTime() > nowMs;
+            }),
         };
     }, [bookings]);
 

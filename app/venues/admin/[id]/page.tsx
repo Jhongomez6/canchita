@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon, Inbox } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -45,7 +45,7 @@ import ConfirmAttendanceSheet from "@/components/booking/ConfirmAttendanceSheet"
 import DailyBalanceView from "@/components/booking/DailyBalanceView";
 import HourDetailDrawer from "@/components/booking/HourDetailDrawer";
 import { updateManualReservationStatus } from "@/lib/venues";
-import { cancelBooking, advanceBookingStatus } from "@/lib/bookings";
+import { cancelBooking, advanceBookingStatus, subscribeToAllBookingsForDate, SLOT_BLOCKING_BOOKING_STATUSES } from "@/lib/bookings";
 import { getBlockedSlotStatus, getNextStatus } from "@/lib/domain/venue";
 import {
     logBookingCancelled,
@@ -82,9 +82,16 @@ const TAB_ICONS: Record<AdminTab, LucideIcon> = {
     balance: Receipt,
 };
 
+const ALL_ADMIN_TABS: AdminTab[] = ["info", "courts", "schedule", "payments", "blocked", "bookings", "pending", "balance"];
+
+function isValidAdminTab(value: string | null | undefined): value is AdminTab {
+    return !!value && (ALL_ADMIN_TABS as string[]).includes(value);
+}
+
 function VenueAdminContent() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { profile, user } = useAuth();
     const venueId = params.id as string;
 
@@ -123,8 +130,22 @@ function VenueAdminContent() {
         ? ["info", "courts", "schedule", "payments", "blocked", "bookings", "pending", "balance"]
         : ["bookings", "pending", "balance"];
 
-    // Active tab
-    const [activeTab, setActiveTab] = useState<AdminTab>(isSuper ? "info" : "bookings");
+    // Active tab. Si la URL trae ?tab=pending (deep-link desde notificación push),
+    // arrancamos en ese tab. Si no, default según rol.
+    const queryTab = searchParams?.get("tab");
+    const initialTab: AdminTab = isValidAdminTab(queryTab) && visibleTabs.includes(queryTab)
+        ? queryTab
+        : (isSuper ? "info" : "bookings");
+    const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
+
+    // Re-sincroniza el tab si el query param cambia mientras la página ya está
+    // montada (caso: notificación llega con app abierta en /venues/admin/[id]).
+    useEffect(() => {
+        if (isValidAdminTab(queryTab) && visibleTabs.includes(queryTab) && queryTab !== activeTab) {
+            setActiveTab(queryTab);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [queryTab]);
 
     // Blocked slots drawer (location admins access blocks from bookings tab)
     const [blockedDrawerOpen, setBlockedDrawerOpen] = useState(false);
@@ -161,7 +182,7 @@ function VenueAdminContent() {
 
     // Register payment sheet for player bookings (played → paid).
     // Cuando es booking, generamos un slot sintético para reusar RegisterPaymentSheet.
-    const [bookingPaymentTarget, setBookingPaymentTarget] = useState<Booking | null>(null);
+    const [bookingPaymentTarget, setBookingPaymentTarget] = useState<{ booking: Booking; existingPayment: ManualReservationPayment | null } | null>(null);
 
     // Delete block sheet (super admin hard delete)
     const [deleteTarget, setDeleteTarget] = useState<{ slot: BlockedSlot; targetDate: string } | null>(null);
@@ -191,6 +212,30 @@ function VenueAdminContent() {
         const unsub = subscribeDailyPayments(venueId, hourDetail.date, setDrawerPayments);
         return () => unsub();
     }, [venueId, hourDetail]);
+
+    // Suscripción a bookings del día mientras el drawer está abierto: mantiene
+    // hourDetail.bookings sincronizado en tiempo real (evita stale state que
+    // permite re-clicks sobre acciones ya ejecutadas — ej. "Confirmar asistencia"
+    // dos veces porque la primera no refrescó el estado del booking).
+    const hourDate = hourDetail?.date;
+    const hourStart = hourDetail?.startTime;
+    const hourEnd = hourDetail?.endTime;
+    useEffect(() => {
+        if (!hourDate || !hourStart || !hourEnd) return;
+        // Usamos `subscribeToAllBookingsForDate` (sin filtro de status) para que el
+        // drawer muestre histórico completo del día (no_show, paid, cancelled, etc.).
+        const unsub = subscribeToAllBookingsForDate(venueId, hourDate, (all) => {
+            const overlapping = all.filter(
+                (b) => b.startTime < hourEnd && b.endTime > hourStart,
+            );
+            setHourDetail((prev) =>
+                prev && prev.date === hourDate && prev.startTime === hourStart && prev.endTime === hourEnd
+                    ? { ...prev, bookings: overlapping }
+                    : prev,
+            );
+        });
+        return () => unsub();
+    }, [venueId, hourDate, hourStart, hourEnd]);
 
     const handleRegisterPayment = useCallback(
         (slot: BlockedSlot, targetDate: string, existingPayment: ManualReservationPayment | null) => {
@@ -954,7 +999,7 @@ function VenueAdminContent() {
                                 <AdminBookingCalendar
                                     venueId={venueId}
                                     venueFormats={venueFormats}
-                                    onBookingClick={(booking) => {
+                                    onBookingCancel={(booking) => {
                                         logBookingCancellationStarted({
                                             venueId: booking.venueId,
                                             bookingId: booking.id,
@@ -963,7 +1008,7 @@ function VenueAdminContent() {
                                         setCancelTarget(booking);
                                     }}
                                     onConfirmAttendance={(b) => setConfirmAttendanceTarget(b)}
-                                    onRegisterBookingPayment={(b) => setBookingPaymentTarget(b)}
+                                    onRegisterBookingPayment={(b, existingPayment) => setBookingPaymentTarget({ booking: b, existingPayment })}
                                     onBlockClick={(slot, targetDate) => {
                                         setDeleteTarget({ slot, targetDate });
                                     }}
@@ -1092,7 +1137,7 @@ function VenueAdminContent() {
                     venueFormats={venueFormats}
                     relevantCourtIds={hourDetail?.relevantCourtIds ?? []}
                     unavailableRelevantCourtIds={hourDetail?.unavailableRelevantCourtIds ?? []}
-                    onBookingClick={(booking) => {
+                    onBookingCancel={(booking) => {
                         logBookingCancellationStarted({
                             venueId,
                             bookingId: booking.id,
@@ -1101,7 +1146,7 @@ function VenueAdminContent() {
                         setCancelTarget(booking);
                     }}
                     onConfirmAttendance={(b) => setConfirmAttendanceTarget(b)}
-                    onRegisterBookingPayment={(b) => setBookingPaymentTarget(b)}
+                    onRegisterBookingPayment={(b, existingPayment) => setBookingPaymentTarget({ booking: b, existingPayment })}
                     onBlockClick={(slot, targetDate) => {
                         setDeleteTarget({ slot, targetDate });
                     }}
@@ -1120,8 +1165,13 @@ function VenueAdminContent() {
                             endTime: hourDetail.endTime,
                             hadOverlaps: hourDetail.bookings.length > 0 || hourDetail.blocks.length > 0,
                         });
+                        // Solo cuentan como "occupied" las reservas online en estados que
+                        // bloquean slot (excluye cancelled, no_show, paid, expired). Mismo
+                        // criterio que AdminSlotPicker y HourDetailDrawer.
                         const occupiedCourtIds = [
-                            ...hourDetail.bookings.flatMap((b) => b.courtIds),
+                            ...hourDetail.bookings
+                                .filter((b) => (SLOT_BLOCKING_BOOKING_STATUSES as readonly string[]).includes(b.status))
+                                .flatMap((b) => b.courtIds),
                             ...hourDetail.blocks.filter((b) => b.status !== "cancelled").flatMap((b) => b.courtIds),
                         ];
                         setDrawerDefaults({
@@ -1153,6 +1203,7 @@ function VenueAdminContent() {
                             depositCOP: cancelTarget.depositCOP,
                         }}
                         willRefund={cancelTarget.depositCOP > 0 && cancelTarget.paymentMethod === "wallet_deposit"}
+                        attendanceConfirmed={cancelTarget.status === "confirmed"}
                     />
                 )}
 
@@ -1223,28 +1274,32 @@ function VenueAdminContent() {
                         onClose={() => setBookingPaymentTarget(null)}
                         venueId={venueId}
                         slot={{
-                            id: bookingPaymentTarget.id,
-                            date: bookingPaymentTarget.date,
-                            startTime: bookingPaymentTarget.startTime,
-                            endTime: bookingPaymentTarget.endTime,
-                            courtIds: bookingPaymentTarget.courtIds,
-                            clientName: bookingPaymentTarget.bookedByName,
-                            priceCOP: bookingPaymentTarget.totalPriceCOP,
-                            createdBy: bookingPaymentTarget.bookedBy,
-                            createdAt: bookingPaymentTarget.createdAt,
+                            id: bookingPaymentTarget.booking.id,
+                            date: bookingPaymentTarget.booking.date,
+                            startTime: bookingPaymentTarget.booking.startTime,
+                            endTime: bookingPaymentTarget.booking.endTime,
+                            courtIds: bookingPaymentTarget.booking.courtIds,
+                            clientName: bookingPaymentTarget.booking.bookedByName,
+                            priceCOP: bookingPaymentTarget.booking.totalPriceCOP,
+                            createdBy: bookingPaymentTarget.booking.bookedBy,
+                            createdAt: bookingPaymentTarget.booking.createdAt,
                         } as BlockedSlot}
-                        targetDate={bookingPaymentTarget.date}
-                        existingPayment={null}
+                        targetDate={bookingPaymentTarget.booking.date}
+                        existingPayment={bookingPaymentTarget.existingPayment}
                         registeredBy={user.uid}
-                        depositCOP={bookingPaymentTarget.depositCOP}
-                        paymentProofURL={bookingPaymentTarget.paymentProofURL ?? undefined}
-                        paymentVerifiedAt={bookingPaymentTarget.approvedAt ?? undefined}
+                        depositCOP={bookingPaymentTarget.booking.depositCOP}
+                        paymentProofURL={bookingPaymentTarget.booking.paymentProofURL ?? undefined}
+                        paymentVerifiedAt={bookingPaymentTarget.booking.approvedAt ?? undefined}
+                        skipSlotUpdate
                         onSaved={async () => {
-                            // Tras registrar el pago manual del partido, avanzamos el booking a "paid".
-                            try {
-                                await advanceBookingStatus(bookingPaymentTarget.id, "paid");
-                            } catch (err) {
-                                handleError(err, "El pago se registró pero no pudimos actualizar el estado de la reserva");
+                            const target = bookingPaymentTarget;
+                            // Solo avanzar a "paid" si se está creando un pago nuevo (no editando).
+                            if (!target.existingPayment) {
+                                try {
+                                    await advanceBookingStatus(target.booking.id, "paid");
+                                } catch (err) {
+                                    handleError(err, "El pago se registró pero no pudimos actualizar el estado de la reserva");
+                                }
                             }
                             setBookingPaymentTarget(null);
                         }}

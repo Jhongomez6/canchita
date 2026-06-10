@@ -16,11 +16,16 @@ import type { BlockedSlot, ManualReservationStatus, ManualReservationPayment, Ve
 interface AdminBookingCalendarProps {
     venueId: string;
     venueFormats?: VenueFormat[];
-    onBookingClick?: (booking: Booking) => void;
+    /** Callback al tocar el tarro (cancelar) en una card de booking online. */
+    onBookingCancel?: (booking: Booking) => void;
     /** Confirmar asistencia para reservas en deposit_confirmed (abre sheet). */
     onConfirmAttendance?: (booking: Booking) => void;
-    /** Registrar pago en sede para reservas player en played → paid (abre RegisterPaymentSheet con depositCOP). */
-    onRegisterBookingPayment?: (booking: Booking) => void;
+    /**
+     * Registrar pago en sede para reservas player en played → paid, o editar un pago
+     * ya registrado en una reserva paid. `existingPayment` es null cuando se crea,
+     * o el pago si se edita.
+     */
+    onRegisterBookingPayment?: (booking: Booking, existingPayment: ManualReservationPayment | null) => void;
     /** Notifica al padre que se avanzó el estado (refresh local). */
     onBookingAdvanced?: () => void;
     onBlockClick?: (block: BlockedSlot, targetDate: string) => void;
@@ -53,7 +58,7 @@ function isSameDay(a: Date, b: Date): boolean {
 export default function AdminBookingCalendar({
     venueId,
     venueFormats,
-    onBookingClick,
+    onBookingCancel,
     onConfirmAttendance,
     onRegisterBookingPayment,
     onBookingAdvanced,
@@ -298,7 +303,8 @@ export default function AdminBookingCalendar({
                                         key={`b-${row.booking.id}`}
                                         booking={row.booking}
                                         venueFormats={venueFormats}
-                                        onClick={onBookingClick}
+                                        existingPayment={paymentByReservationId.get(row.booking.id) ?? null}
+                                        onCancel={onBookingCancel}
                                         onConfirmAttendance={onConfirmAttendance}
                                         onRegisterPayment={onRegisterBookingPayment}
                                         onAdvanced={() => {

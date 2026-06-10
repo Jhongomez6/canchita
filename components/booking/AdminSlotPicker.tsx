@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { getAvailableFormats, getDayOfWeek, generateTimeSlots, tierLabelFromCount, formatCourtList } from "@/lib/domain/venue";
+import { getAvailableFormats, getDayOfWeek, generateTimeSlots, tierLabelFromCount, formatCourtList, formatLabel } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot, allocateCourts } from "@/lib/domain/court-allocation";
 import { getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
-import { subscribeToBookingsForDate } from "@/lib/bookings";
+import { subscribeToAllBookingsForDate, SLOT_BLOCKING_BOOKING_STATUSES } from "@/lib/bookings";
 import { handleError } from "@/lib/utils/error";
 import FormatSelector from "./FormatSelector";
 import DateCarousel from "./DateCarousel";
@@ -76,7 +76,9 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
 
     useEffect(() => {
         if (!venueId || !selectedDate) return;
-        const unsubBookings = subscribeToBookingsForDate(venueId, selectedDate, setExistingBookings);
+        // Trae TODAS las reservas del día (incluyendo no_show, paid, cancelled).
+        // El filtrado por status para disponibilidad se hace inline más abajo.
+        const unsubBookings = subscribeToAllBookingsForDate(venueId, selectedDate, setExistingBookings);
         const unsubBlocked = subscribeToBlockedSlots(venueId, selectedDate, setBlockedSlots, true);
         return () => {
             unsubBookings();
@@ -155,7 +157,12 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
             const activeBlocks = overlappingBlocks.filter((b) => b.status !== "cancelled");
             const cancelledBlocks = overlappingBlocks.filter((b) => b.status === "cancelled");
 
-            const occupiedCourtIds = overlappingBookings.flatMap((b) => b.courtIds);
+            // Solo las reservas en estados que bloquean slot ocupan canchas.
+            // no_show/paid/cancelled/expired no impiden re-reservar la cancha (aunque las
+            // mostramos en la card para que el admin vea el histórico del slot).
+            const occupiedCourtIds = overlappingBookings
+                .filter((b) => (SLOT_BLOCKING_BOOKING_STATUSES as readonly string[]).includes(b.status))
+                .flatMap((b) => b.courtIds);
             // Solo los bloques activos ocupan canchas; los cancelados no bloquean disponibilidad.
             const blockedCourtIds = activeBlocks.flatMap((b) => b.courtIds);
 
@@ -181,17 +188,43 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                     return { who, detail: where ? `${tier} · ${where}` : tier, isBirthday: !!b.isBirthday };
                 };
 
-                const activeEntries: OccupantLabel[] = [];
-                for (const b of overlappingBookings.filter((b) => b.format === selectedFormat)) {
-                    const who = b.bookedByName || "Reservado";
+                // Construye la label de una reserva online (jugador).
+                const bookingLabel = (b: typeof overlappingBookings[0]): OccupantLabel => {
+                    let who = b.bookedByName || "Reservado";
+                    if (b.bookedByName && b.bookedByPhone) {
+                        who = `${b.bookedByName} · ${b.bookedByPhone}`;
+                    }
+                    const tier = b.formatLabel || formatLabel(b.format, venueFormats);
                     const where = courtListFor(b.courtIds);
-                    activeEntries.push({ who, detail: where });
+                    return { who, detail: where ? `${tier} · ${where}` : tier };
+                };
+
+                // Una reserva online se considera "muerta" para esta vista si está
+                // cancelled, expired, no_show, o si su TTL ya venció estando en
+                // pending_payment (cron aún no la marcó).
+                const nowMs = Date.now();
+                const isDeadBooking = (b: typeof overlappingBookings[0]): boolean => {
+                    if (b.status === "cancelled" || b.status === "expired" || b.status === "no_show") return true;
+                    if (b.status === "pending_payment" && b.expiresAt && new Date(b.expiresAt).getTime() <= nowMs) return true;
+                    return false;
+                };
+
+                const activeEntries: OccupantLabel[] = [];
+                const cancelledEntries: OccupantLabel[] = [];
+
+                for (const b of overlappingBookings.filter((b) => b.format === selectedFormat)) {
+                    if (isDeadBooking(b)) {
+                        cancelledEntries.push(bookingLabel(b));
+                    } else {
+                        activeEntries.push(bookingLabel(b));
+                    }
                 }
                 for (const b of activeBlocks.filter(blockTouchesFormat)) {
                     activeEntries.push(blockLabel(b));
                 }
-
-                const cancelledEntries = cancelledBlocks.filter(blockTouchesFormat).map(blockLabel);
+                for (const b of cancelledBlocks.filter(blockTouchesFormat)) {
+                    cancelledEntries.push(blockLabel(b));
+                }
 
                 if (activeEntries.length > 0) occupantLabels = activeEntries;
                 if (cancelledEntries.length > 0) cancelledLabels = cancelledEntries;
@@ -217,7 +250,12 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
             (b) => b.startTime < slot.endTime && b.endTime > slot.startTime,
         );
         const activeBlocks = overlappingBlocks.filter((b) => b.status !== "cancelled");
-        const occupiedCourtIds = overlappingBookings.flatMap((b) => b.courtIds);
+        // Solo cuentan como "occupied" las reservas en estados que efectivamente bloquean
+        // el slot. Cancelled / no_show / paid / expired no impiden re-reservar la cancha
+        // (mismo criterio que el cálculo de disponibilidad en `timeSlots`).
+        const occupiedCourtIds = overlappingBookings
+            .filter((b) => (SLOT_BLOCKING_BOOKING_STATUSES as readonly string[]).includes(b.status))
+            .flatMap((b) => b.courtIds);
         const blockedCourtIds = activeBlocks.flatMap((b) => b.courtIds);
 
         const allocation = allocateCourts({

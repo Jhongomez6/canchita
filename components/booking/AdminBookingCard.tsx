@@ -1,23 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Users, ChevronRight, CheckCircle2, Banknote, Calendar } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Users, ChevronRight, Banknote, Trash2, Landmark } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel, formatCourtList } from "@/lib/domain/venue";
-import type { VenueFormat } from "@/lib/domain/venue";
+import type { VenueFormat, ManualReservationPayment } from "@/lib/domain/venue";
 import {
     bookingStatusLabel,
     bookingStatusColor,
     getNextBookingStatus,
     nextBookingStatusActionLabel,
+    isBookingExpired,
+    getValidPickerTransitions,
 } from "@/lib/domain/booking";
-import type { Booking } from "@/lib/domain/booking";
-import { advanceBookingStatus } from "@/lib/bookings";
+import type { Booking, BookingStatus } from "@/lib/domain/booking";
+import { advanceBookingStatus, type AdvanceBookingTargetStatus } from "@/lib/bookings";
 import { logBookingStatusAdvanced } from "@/lib/analytics";
 import { handleError } from "@/lib/utils/error";
 import BookingOriginBadge from "./BookingOriginBadge";
 import DepositSummary from "./DepositSummary";
+
+/**
+ * Orden visual del picker. Las transiciones permitidas REALES por estado origen
+ * vienen de `getValidPickerTransitions(booking.status)` — esto solo controla el
+ * orden en que se renderizan los items disponibles.
+ */
+const STATUS_PICKER_ORDER: BookingStatus[] = ["deposit_confirmed", "confirmed", "played", "paid", "no_show"];
 
 const STATUS_DOT: Record<string, string> = {
     yellow: "bg-amber-400",
@@ -52,31 +62,62 @@ function fmt12h(time: string): string {
 interface AdminBookingCardProps {
     booking: Booking;
     venueFormats?: VenueFormat[];
-    /** Callback al tap principal — abre cancel sheet o detalle según el estado. */
-    onClick?: (booking: Booking) => void;
+    /** Abre el sheet de cancelación de la reserva. Mismo patrón que la card manual: icono de tarro. */
+    onCancel?: (booking: Booking) => void;
     /** Abre el sheet de confirmar asistencia para `deposit_confirmed`. */
     onConfirmAttendance?: (booking: Booking) => void;
-    /** Abre el sheet de registrar pago para `played` (transición a `paid`). */
-    onRegisterPayment?: (booking: Booking) => void;
+    /**
+     * Abre el sheet de registrar pago para `played` (transición a `paid`) o
+     * para editar un pago ya registrado cuando se tap el chip en estado `paid`.
+     * El segundo parámetro es el pago existente (null si va a crear nuevo).
+     */
+    onRegisterPayment?: (booking: Booking, existingPayment: ManualReservationPayment | null) => void;
     /** Tras advance exitoso, notifica al padre para refrescar. */
     onAdvanced?: () => void;
+    /** Pago registrado para esta reserva (cuando ya pasó por RegisterPaymentSheet). */
+    existingPayment?: ManualReservationPayment | null;
 }
 
 export default function AdminBookingCard({
     booking,
     venueFormats,
-    onClick,
+    onCancel,
     onConfirmAttendance,
     onRegisterPayment,
     onAdvanced,
+    existingPayment,
 }: AdminBookingCardProps) {
     const [advancing, setAdvancing] = useState(false);
+    const [pickerChanging, setPickerChanging] = useState(false);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const pickerRef = useRef<HTMLDivElement | null>(null);
 
-    const color = bookingStatusColor(booking.status);
+    // Cerrar picker al hacer click fuera
+    useEffect(() => {
+        if (!pickerOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+                setPickerOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [pickerOpen]);
+
+    // Si el TTL ya venció en un pending_payment, lo tratamos como ya-expirado para UI:
+    // no permitimos cancelar (el cron lo va a marcar expired en máximo 5min). El
+    // badge muestra "Expirada", el card va griseado/tachado, pero NO se oculta —
+    // queda visible para tracking del admin en la vista por hora.
+    const ttlElapsed = booking.status === "pending_payment"
+        && isBookingExpired(booking.expiresAt ?? undefined);
+    const effectiveStatus = ttlElapsed ? "expired" : booking.status;
+
+    const color = bookingStatusColor(effectiveStatus);
     const dotClass = STATUS_DOT[color] || STATUS_DOT.gray;
     const badgeClass = STATUS_BADGE[color] || STATUS_BADGE.gray;
 
-    const isClickable = [
+    // Estados donde la cancelación tiene sentido (pre-terminales).
+    const isCancellable = !ttlElapsed && [
         "pending_payment",
         "pending_approval",
         "deposit_confirmed",
@@ -84,8 +125,49 @@ export default function AdminBookingCard({
         "played",
     ].includes(booking.status);
 
-    const handleClick = () => {
-        if (isClickable && onClick) onClick(booking);
+    // Transiciones válidas para el estado actual (matriz en domain/booking.ts).
+    // Aplica solo a bookings online — manuales tienen su propia lógica.
+    const validTransitions = getValidPickerTransitions(booking.status);
+    // Picker disponible solo si hay al menos una transición válida desde el estado actual.
+    const pickerAvailable = validTransitions.length > 0;
+    // Items a renderizar en el picker: solo los válidos, en el orden del array maestro.
+    const pickerItems = STATUS_PICKER_ORDER.filter((s) => validTransitions.includes(s));
+
+    const handlePickStatus = async (nextStatus: BookingStatus) => {
+        if (nextStatus === booking.status) {
+            setPickerOpen(false);
+            return;
+        }
+        // Si va a "paid": delegamos al sheet de registrar pago (igual que el botón inline)
+        if (nextStatus === "paid" && onRegisterPayment) {
+            setPickerOpen(false);
+            onRegisterPayment(booking, existingPayment ?? null);
+            return;
+        }
+        // Si va a "confirmed" desde "deposit_confirmed": delegamos al sheet de confirmar asistencia
+        if (nextStatus === "confirmed" && booking.status === "deposit_confirmed" && onConfirmAttendance) {
+            setPickerOpen(false);
+            onConfirmAttendance(booking);
+            return;
+        }
+
+        setPickerChanging(true);
+        try {
+            await advanceBookingStatus(booking.id, nextStatus as AdvanceBookingTargetStatus);
+            await logBookingStatusAdvanced({
+                venueId: booking.venueId,
+                bookingId: booking.id,
+                fromStatus: booking.status,
+                toStatus: nextStatus,
+            });
+            toast.success(`Reserva → ${bookingStatusLabel(nextStatus)}`);
+            onAdvanced?.();
+        } catch (err) {
+            handleError(err, "No pudimos cambiar el estado");
+        } finally {
+            setPickerChanging(false);
+            setPickerOpen(false);
+        }
     };
 
     const handleAdvance = async (e: React.MouseEvent) => {
@@ -95,7 +177,7 @@ export default function AdminBookingCard({
 
         // Para "paid": delegar al sheet de registrar pago (no avanzar directo).
         if (next === "paid" && onRegisterPayment) {
-            onRegisterPayment(booking);
+            onRegisterPayment(booking, null);
             return;
         }
 
@@ -103,7 +185,7 @@ export default function AdminBookingCard({
         try {
             // `getNextBookingStatus` solo retorna "played" o "paid" en el ciclo lineal
             // post-confirmed, ambos válidos para advanceBookingStatus.
-            await advanceBookingStatus(booking.id, next as "played" | "paid");
+            await advanceBookingStatus(booking.id, next as AdvanceBookingTargetStatus);
             await logBookingStatusAdvanced({
                 venueId: booking.venueId,
                 bookingId: booking.id,
@@ -122,46 +204,98 @@ export default function AdminBookingCard({
     const nextLabel = nextBookingStatusActionLabel(booking.status);
     const showAdvanceBtn = !!nextLabel;
     const showConfirmAttendanceBtn = booking.status === "deposit_confirmed" && !!onConfirmAttendance;
+    // Tratamiento visual "muerto" (gris + tachado): cancelled, expired, no_show.
+    // Aplica tanto para los status reales como para el TTL-vencido (effectiveStatus).
+    const dimmed = effectiveStatus === "cancelled"
+        || effectiveStatus === "expired"
+        || effectiveStatus === "no_show";
 
     return (
-        <div
-            className={`w-full text-left bg-white rounded-xl border border-slate-200 p-3 ${isClickable ? "hover:border-slate-300" : ""}`}
-        >
-            <button
-                type="button"
-                onClick={handleClick}
-                disabled={!isClickable}
-                className="w-full text-left"
-            >
-                <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotClass}`} />
-                        <span className="text-sm font-semibold text-slate-700">
-                            {fmt12h(booking.startTime)} – {fmt12h(booking.endTime)}
-                        </span>
-                        <BookingOriginBadge origin="player" />
-                    </div>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${badgeClass}`}>
-                        {bookingStatusLabel(booking.status)}
+        <div className={`w-full text-left rounded-xl border p-3 ${
+            dimmed
+                ? "bg-slate-50/40 border-slate-100 opacity-60"
+                : "bg-white border-slate-200"
+        }`}>
+            <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotClass}`} />
+                    <span className={`text-sm font-semibold ${dimmed ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                        {fmt12h(booking.startTime)} – {fmt12h(booking.endTime)}
                     </span>
+                    <BookingOriginBadge origin="player" />
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0 flex-1">
-                        <Users className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{booking.bookedByName}</span>
-                        <span className="text-slate-300">·</span>
-                        <span className="truncate">{formatLabel(booking.format, venueFormats)}</span>
-                    </div>
-                    <span className="text-xs font-semibold text-slate-600 flex-shrink-0">
-                        {formatCOP(booking.totalPriceCOP)}
-                    </span>
+                <div className="relative" ref={pickerRef}>
+                    <button
+                        type="button"
+                        disabled={!pickerAvailable || pickerChanging}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (pickerAvailable) setPickerOpen((o) => !o);
+                        }}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap transition-colors ${badgeClass} ${
+                            pickerAvailable ? "hover:brightness-95 cursor-pointer" : "cursor-default"
+                        } ${pickerChanging ? "opacity-60" : ""}`}
+                    >
+                        {bookingStatusLabel(effectiveStatus)}
+                    </button>
+
+                    <AnimatePresence>
+                        {pickerOpen && pickerAvailable && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                                transition={{ duration: 0.12 }}
+                                className="absolute right-0 top-full mt-1 z-30 w-44 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"
+                            >
+                                {pickerItems.map((s) => {
+                                    const dotForOption = STATUS_DOT[bookingStatusColor(s)] || STATUS_DOT.gray;
+                                    return (
+                                        <button
+                                            key={s}
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                void handlePickStatus(s);
+                                            }}
+                                            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 text-slate-700 transition-colors"
+                                        >
+                                            <span className="flex items-center gap-2">
+                                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotForOption}`} />
+                                                {bookingStatusLabel(s)}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0">
+                <Users className="w-3 h-3 flex-shrink-0" />
+                <span className={`truncate ${dimmed ? "line-through" : ""}`}>{booking.bookedByName}</span>
+                <span className="text-slate-300">·</span>
+                <span className={`truncate ${dimmed ? "line-through" : ""} ${booking.bookedByPhone ? "text-slate-500" : "italic text-slate-400"}`}>
+                    {booking.bookedByPhone || "Sin celular"}
+                </span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+                {booking.formatLabel || formatLabel(booking.format, venueFormats)}
                 {booking.courtNames.length > 0 && (
-                    <p className="text-[10px] text-slate-400 mt-1">
-                        {formatCourtList(booking.courtNames)}
-                    </p>
+                    <span className="text-slate-400"> ({formatCourtList(booking.courtNames)})</span>
                 )}
-            </button>
+            </p>
+
+            {/* Precio — mismo patrón que reservas manuales (AdminBlockCard) */}
+            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100/80">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    Precio
+                </span>
+                <span className="text-sm font-bold text-[#1f7a4f]">
+                    {formatCOP(booking.totalPriceCOP)}
+                </span>
+            </div>
 
             {/* Deposit summary (compacto) cuando hay abono y la reserva está en estado post-aprobación */}
             {(["deposit_confirmed", "confirmed", "played", "paid"].includes(booking.status) && booking.depositCOP > 0) && (
@@ -174,20 +308,67 @@ export default function AdminBookingCard({
                 </div>
             )}
 
-            {/* Acciones inline según estado */}
-            {(showAdvanceBtn || showConfirmAttendanceBtn) && (
+            {/* Motivo de cancelación cuando aplica — mismo patrón que AdminBlockCard. */}
+            {effectiveStatus === "cancelled" && booking.cancellationReason && (
+                <p className="text-[11px] text-slate-400 italic mt-1">
+                    {booking.cancelledByRole === "admin" ? "Cancelada por admin" : "Cancelada por el cliente"}:{" "}
+                    {booking.cancellationReason}
+                </p>
+            )}
+            {/* Mensaje informativo para reservas que expiraron por TTL (cron aún no procesó
+                o ya marcó como expired). */}
+            {effectiveStatus === "expired" && (
+                <p className="text-[11px] text-slate-400 italic mt-1">
+                    El cliente no completó el pago en el tiempo configurado.
+                </p>
+            )}
+
+            {/* Chip de pago registrado — visible cuando status=paid y existe el doc de pago.
+                Mismo patrón que AdminBlockCard: muestra desglose efectivo/transferencia,
+                tap para editar. */}
+            {booking.status === "paid" && existingPayment && onRegisterPayment && (
+                <div className="mt-2 flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => onRegisterPayment(booking, existingPayment)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors text-xs font-semibold text-emerald-800"
+                        aria-label="Editar pago"
+                    >
+                        {existingPayment.cashCOP > 0 && (
+                            <span className="flex items-center gap-0.5">
+                                <Banknote className="w-3 h-3" />
+                                {formatCOP(existingPayment.cashCOP)}
+                            </span>
+                        )}
+                        {existingPayment.cashCOP > 0 && existingPayment.transferCOP > 0 && (
+                            <span className="text-emerald-400">+</span>
+                        )}
+                        {existingPayment.transferCOP > 0 && (
+                            <span className="flex items-center gap-0.5">
+                                <Landmark className="w-3 h-3" />
+                                {formatCOP(existingPayment.transferCOP)}
+                            </span>
+                        )}
+                    </button>
+                </div>
+            )}
+
+            {/* Acciones inline: avance/confirmar a la izquierda + cancelar (tarro) a la derecha.
+                Mismo estilo visual que AdminBlockCard (bg verde tint claro + text verde marca).
+                No se muestran si la reserva está en estado terminal (cancelled/expired/no_show),
+                o si el chip de pago ya cubre la posición (paid con existingPayment). */}
+            {!dimmed
+                && !(booking.status === "paid" && existingPayment)
+                && (showAdvanceBtn || showConfirmAttendanceBtn || (isCancellable && onCancel)) && (
                 <div className="mt-2 flex items-center gap-2">
                     {showConfirmAttendanceBtn && (
                         <button
                             type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onConfirmAttendance?.(booking);
-                            }}
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-white bg-[#1f7a4f] hover:bg-[#16603c] rounded-lg"
+                            onClick={() => onConfirmAttendance?.(booking)}
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-[#1f7a4f]/10 text-[#1f7a4f] text-xs font-semibold hover:bg-[#1f7a4f]/15 transition-colors"
                         >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
                             Confirmar asistencia
+                            <ChevronRight className="w-3 h-3" />
                         </button>
                     )}
                     {!showConfirmAttendanceBtn && showAdvanceBtn && (
@@ -195,15 +376,23 @@ export default function AdminBookingCard({
                             type="button"
                             onClick={handleAdvance}
                             disabled={advancing}
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-60"
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-[#1f7a4f]/10 text-[#1f7a4f] text-xs font-semibold hover:bg-[#1f7a4f]/15 transition-colors disabled:opacity-60"
                         >
-                            {getNextBookingStatus(booking.status) === "paid" ? (
-                                <Banknote className="w-3.5 h-3.5" />
-                            ) : (
-                                <Calendar className="w-3.5 h-3.5" />
-                            )}
                             {nextLabel}
-                            <ChevronRight className="w-3 h-3 -ml-0.5" />
+                            <ChevronRight className="w-3 h-3" />
+                        </button>
+                    )}
+                    {/* Si no hay botón de acción, el tarro debe ser full-width-ish, lo dejamos a la derecha y
+                        usamos un spacer flex-1 invisible. */}
+                    {!showConfirmAttendanceBtn && !showAdvanceBtn && <div className="flex-1" />}
+                    {isCancellable && onCancel && (
+                        <button
+                            type="button"
+                            onClick={() => onCancel(booking)}
+                            aria-label="Cancelar reserva"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     )}
                 </div>

@@ -99,6 +99,36 @@ export function subscribeToBookingsForDate(
 }
 
 /**
+ * Suscripción a TODAS las reservas del día (sin filtro de status). Para vistas
+ * admin que necesitan mostrar histórico completo (incluye no_show, paid, cancelled,
+ * expired). Para queries de disponibilidad usar `subscribeToBookingsForDate` que
+ * solo trae estados que bloquean slot.
+ */
+export function subscribeToAllBookingsForDate(
+    venueId: string,
+    date: string,
+    callback: (bookings: Booking[]) => void,
+): () => void {
+    const q = query(
+        collection(db, "bookings"),
+        where("venueId", "==", venueId),
+        where("date", "==", date),
+    );
+    return onSnapshot(q, (snap) => {
+        callback(snap.docs.map((d) => d.data() as Booking));
+    });
+}
+
+/** Estados que efectivamente bloquean un slot (impiden que otro reserve esa cancha). */
+export const SLOT_BLOCKING_BOOKING_STATUSES = [
+    "pending_payment",
+    "pending_approval",
+    "deposit_confirmed",
+    "confirmed",
+    "played",
+] as const;
+
+/**
  * Suscripción a las reservas pendientes (sin comprobante o por aprobar) de un venue.
  * Para la vista admin "Reservas pendientes".
  */
@@ -254,9 +284,16 @@ export async function rejectPaymentProof(
 /**
  * Admin avanza estado post-aprobación: confirmed → played → paid, o → no_show.
  */
+export type AdvanceBookingTargetStatus =
+    | "deposit_confirmed"
+    | "confirmed"
+    | "played"
+    | "paid"
+    | "no_show";
+
 export async function advanceBookingStatus(
     bookingId: string,
-    nextStatus: "confirmed" | "played" | "paid" | "no_show",
+    nextStatus: AdvanceBookingTargetStatus,
 ): Promise<{ status: string }> {
     const fn = httpsCallable<
         { bookingId: string; nextStatus: string },

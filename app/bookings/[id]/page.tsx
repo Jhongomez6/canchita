@@ -11,7 +11,8 @@ import type { VenueFormat, Venue } from "@/lib/domain/venue";
 import { getVenue } from "@/lib/venues";
 import {
     isBookingRefundable,
-    bookingStatusLabel,
+    isBookingExpired,
+    bookingStatusLabelForPlayer,
     bookingStatusColor,
     MAX_PAYMENT_PROOF_ATTEMPTS,
 } from "@/lib/domain/booking";
@@ -26,7 +27,6 @@ import PaymentProofUploader from "@/components/booking/PaymentProofUploader";
 import PaymentProofPreview from "@/components/booking/PaymentProofPreview";
 import RejectionBanner from "@/components/booking/RejectionBanner";
 import WhatsAppNotifyButton from "@/components/booking/WhatsAppNotifyButton";
-import DepositSummary from "@/components/booking/DepositSummary";
 import type { Booking } from "@/lib/domain/booking";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -103,7 +103,10 @@ function BookingDetailContent() {
         : false;
 
     const isOwner = !!(booking && user && booking.bookedBy === user.uid);
-    const canCancel = !!booking && [
+    // No permitimos cancelar si el TTL ya venció (aunque el cron aún no haya marcado expired).
+    const ttlExpiredAlready = booking?.status === "pending_payment"
+        && isBookingExpired(booking.expiresAt ?? undefined);
+    const canCancel = !!booking && !ttlExpiredAlready && [
         "pending_payment",
         "pending_approval",
         "deposit_confirmed",
@@ -111,7 +114,7 @@ function BookingDetailContent() {
     ].includes(booking.status);
 
     const formatNice = useMemo(
-        () => booking ? formatLabel(booking.format, venueFormats) : "",
+        () => booking ? (booking.formatLabel || formatLabel(booking.format, venueFormats)) : "",
         [booking, venueFormats],
     );
 
@@ -190,7 +193,14 @@ function BookingDetailContent() {
         );
     }
 
-    const color = bookingStatusColor(booking.status);
+    // Si TTL ya venció pero el cron `expirePendingBookings` aún no procesó este booking,
+    // tratamos la UI como si ya estuviera "expired". Evita la ventana de hasta 5min
+    // donde el cliente vería el flujo de pago en una reserva que ya no se puede pagar.
+    const isFunctionallyExpired = booking.status === "pending_payment"
+        && isBookingExpired(booking.expiresAt ?? undefined);
+    const effectiveStatus = isFunctionallyExpired ? "expired" : booking.status;
+
+    const color = bookingStatusColor(effectiveStatus);
     const statusStyle = STATUS_STYLES[color] || STATUS_STYLES.gray;
     const attemptsUsed = booking.paymentProofHistory?.length ?? 0;
     const attemptsRemaining = Math.max(0, MAX_PAYMENT_PROOF_ATTEMPTS - attemptsUsed);
@@ -218,11 +228,11 @@ function BookingDetailContent() {
                         <div className="flex items-center justify-between mb-2">
                             <h2 className="text-lg font-bold text-slate-800">{formatNice}</h2>
                             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusStyle}`}>
-                                {bookingStatusLabel(booking.status)}
+                                {bookingStatusLabelForPlayer(effectiveStatus)}
                             </span>
                         </div>
 
-                        {booking.status === "pending_payment" && booking.expiresAt && (
+                        {effectiveStatus === "pending_payment" && booking.expiresAt && (
                             <div className="mb-3">
                                 <BookingExpirationTimer expiresAt={booking.expiresAt} />
                             </div>
@@ -292,19 +302,10 @@ function BookingDetailContent() {
                             )}
                         </div>
 
-                        {/* Resumen del abono (visible desde deposit_confirmed en adelante) */}
-                        {(["deposit_confirmed", "confirmed", "played", "paid"].includes(booking.status) && booking.depositCOP > 0) && (
-                            <div className="mt-4">
-                                <DepositSummary
-                                    depositCOP={booking.depositCOP}
-                                    remainingCOP={booking.remainingCOP}
-                                />
-                            </div>
-                        )}
                     </div>
 
                     {/* ── PENDING PAYMENT ──────────────────────────────────────── */}
-                    {booking.status === "pending_payment" && isOwner && (
+                    {effectiveStatus === "pending_payment" && isOwner && (
                         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4">
                             {/* Rejection banner si hubo intentos previos */}
                             {booking.lastRejectionReason && (
@@ -397,8 +398,8 @@ function BookingDetailContent() {
                         </div>
                     )}
 
-                    {/* ── EXPIRED ──────────────────────────────────────────────── */}
-                    {booking.status === "expired" && (
+                    {/* ── EXPIRED (incluye TTL agotado aunque el cron no haya corrido) ─ */}
+                    {effectiveStatus === "expired" && (
                         <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 flex items-start gap-2.5">
                             <AlertTriangle className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
@@ -453,6 +454,7 @@ function BookingDetailContent() {
                         depositCOP: booking.depositCOP,
                     }}
                     willRefund={refundable && booking.depositCOP > 0 && booking.paymentMethod === "wallet_deposit"}
+                    attendanceConfirmed={booking.status === "confirmed"}
                 />
             </div>
         </div>

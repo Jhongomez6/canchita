@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings } from "lucide-react";
+import { Settings, Plus } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isLocationAdmin, isPendingLocationAdmin, isSuperAdmin, canCreateBooking } from "@/lib/domain/user";
 import { getUserBookings } from "@/lib/bookings";
@@ -82,8 +82,18 @@ function BookingsContent() {
     // Split into upcoming and past
     const today = new Date();
     const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const upcoming = bookings.filter((b) => b.date >= todayISO && b.status !== "cancelled" && b.status !== "expired");
-    const past = bookings.filter((b) => b.date < todayISO || b.status === "cancelled" || b.status === "expired");
+    const nowMs = Date.now();
+    // Una reserva con pending_payment + TTL vencido es funcionalmente expired aunque el
+    // cron no la haya marcado todavía. La tratamos como past para que no quede colgada
+    // en "Próximas" con la pill de "Pendiente de pago" engañosa.
+    const isTtlExpired = (b: Booking) =>
+        b.status === "pending_payment" && !!b.expiresAt && new Date(b.expiresAt).getTime() <= nowMs;
+    const upcoming = bookings.filter(
+        (b) => b.date >= todayISO && b.status !== "cancelled" && b.status !== "expired" && !isTtlExpired(b),
+    );
+    const past = bookings.filter(
+        (b) => b.date < todayISO || b.status === "cancelled" || b.status === "expired" || isTtlExpired(b),
+    );
 
     if (profile && isPendingLocationAdmin(profile)) {
         return <PendingAssignmentEmptyState />;
@@ -119,35 +129,37 @@ function BookingsContent() {
         <div className="min-h-screen bg-slate-50 pb-24 md:pb-0">
             <div className="max-w-md mx-auto">
                 {/* Header */}
-                <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] p-6 pb-8 rounded-b-3xl shadow-lg flex items-start justify-between gap-3">
-                    <div>
-                        <h1 className="text-xl font-bold text-white">
-                            {profile && isLocationAdmin(profile)
-                                ? "Sedes asignadas"
-                                : "Mis reservas"}
-                        </h1>
-                        <p className="text-sm text-white/70 mt-1">
-                            {profile && isLocationAdmin(profile)
-                                ? adminVenues.length > 0
-                                    ? `${adminVenues.length} sede${adminVenues.length > 1 ? "s" : ""} que administras`
-                                    : "Aún no tienes sedes asignadas"
-                                : upcoming.length > 0
-                                    ? `${upcoming.length} reserva${upcoming.length > 1 ? "s" : ""} próxima${upcoming.length > 1 ? "s" : ""}`
-                                    : "Sin reservas próximas"
-                            }
-                        </p>
-                    </div>
-                    {profile && canCreateBooking(profile) && (bookings.length > 0 || adminVenues.length > 0) && (
-                        <button
-                            onClick={() => router.push("/venues")}
-                            className="flex-shrink-0 px-4 py-2 bg-white text-[#1f7a4f] text-sm font-bold rounded-xl shadow hover:bg-slate-50 active:scale-95 transition-all"
-                        >
-                            + Reservar
-                        </button>
-                    )}
+                <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] p-6 pb-8 rounded-b-3xl shadow-lg">
+                    <h1 className="text-xl font-bold text-white">
+                        {profile && isLocationAdmin(profile)
+                            ? "Sedes asignadas"
+                            : "Mis reservas"}
+                    </h1>
+                    <p className="text-sm text-white/70 mt-1">
+                        {profile && isLocationAdmin(profile)
+                            ? adminVenues.length > 0
+                                ? `${adminVenues.length} sede${adminVenues.length > 1 ? "s" : ""} que administras`
+                                : "Aún no tienes sedes asignadas"
+                            : upcoming.length > 0
+                                ? `${upcoming.length} reserva${upcoming.length > 1 ? "s" : ""} próxima${upcoming.length > 1 ? "s" : ""}`
+                                : "Sin reservas próximas"
+                        }
+                    </p>
                 </div>
 
                 <div className="px-4 mt-5">
+                    {/* CTA primario: reservar nueva cancha. Solo aparece cuando ya hay
+                        bookings o sedes que administra; el empty state tiene su propio CTA. */}
+                    {profile && canCreateBooking(profile) && (bookings.length > 0 || adminVenues.length > 0) && (
+                        <button
+                            onClick={() => router.push("/venues")}
+                            className="w-full mb-5 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#1f7a4f] text-white text-sm font-bold shadow-sm hover:bg-[#145c3a] active:scale-[0.99] transition-all"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Reservar nueva cancha
+                        </button>
+                    )}
+
                     {/* Admin venues section */}
                     {adminVenues.length > 0 && (
                         <div className="mb-6">

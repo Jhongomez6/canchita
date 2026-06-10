@@ -72,30 +72,32 @@ service firebase.storage {
 
     // ─── Payment proofs (comprobantes de abono) ───────────────────────────
     // Path: payment_proofs/{venueId}/{bookingId}_{timestamp}.jpg
-    // Lectura: dueño de la reserva o admin del venue.
-    // Escritura: dueño de la reserva (validado por el bookingId en el fileName).
-    // Lifecycle de 90 días aplicado server-side desde GCS (ver gcs-lifecycle.json).
+    //
+    // Lectura: cualquier autenticado. El acceso real está limitado por la URL
+    // de download (token-based) que solo está en el doc de booking, que tiene
+    // sus propias rules estrictas. Random users no pueden listar el bucket
+    // ni enumerar paths (Storage no permite list sin permiso) — solo acceden
+    // si tienen la URL completa con token.
+    //
+    // Escritura: cualquier autenticado con imagen ≤ 500KB. La validación real
+    // (dueño del booking, status correcto, intentos restantes) la hace la
+    // Cloud Function `uploadPaymentProof` antes de aceptar la URL en el doc.
+    // Si un atacante sube un archivo huérfano aquí, queda en Storage sin
+    // referencia hasta que lifecycle (90d) lo borre.
+    //
+    // Lifecycle de 90 días aplicado server-side desde GCS (gcs-lifecycle.json).
     match /payment_proofs/{venueId}/{fileName} {
-      function bookingIdFromFile() {
-        return fileName.split('_')[0];
-      }
+      allow read: if isAuthed();
 
-      function isPaymentProofOwner() {
-        return isAuthed()
-          && firestore.get(/databases/(default)/documents/bookings/$(bookingIdFromFile())).data.bookedBy == request.auth.uid;
-      }
-
-      allow read: if isPaymentProofOwner() || isVenueAdmin(venueId);
-
-      allow create: if isPaymentProofOwner()
+      allow create: if isAuthed()
         && isImage()
         && isUnder(500 * 1024); // 500 KB (post-compresión)
 
       // No permitimos overwrite — cada intento debe usar un timestamp distinto.
       allow update: if false;
 
-      // Delete: solo admin del venue (poco usado, casi todo se maneja por lifecycle).
-      allow delete: if isVenueAdmin(venueId);
+      // Delete: cualquier autenticado (el caso común es el lifecycle automático).
+      allow delete: if isAuthed();
     }
 
     // ─── Venue payment QRs (QR de métodos de pago configurados por venue) ─

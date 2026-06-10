@@ -4,7 +4,7 @@ import { Calendar, Clock, MapPin } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel } from "@/lib/domain/venue";
 import type { VenueFormat } from "@/lib/domain/venue";
-import { bookingStatusLabel, bookingStatusColor } from "@/lib/domain/booking";
+import { bookingStatusLabelForPlayer, bookingStatusColor, isBookingExpired } from "@/lib/domain/booking";
 import type { Booking } from "@/lib/domain/booking";
 
 interface BookingDetailCardProps {
@@ -40,7 +40,12 @@ function formatDateDisplay(dateStr: string): string {
 }
 
 export default function BookingDetailCard({ booking, compact, venueFormats, onClick }: BookingDetailCardProps) {
-    const color = bookingStatusColor(booking.status);
+    // Si el TTL ya venció pero el cron no marcó expired todavía, lo tratamos como expired
+    // para que la pill no muestre "Pendiente de pago" en una reserva que ya no se puede pagar.
+    const ttlElapsed = booking.status === "pending_payment" && isBookingExpired(booking.expiresAt ?? undefined);
+    const effectiveStatus = ttlElapsed ? "expired" : booking.status;
+
+    const color = bookingStatusColor(effectiveStatus);
     const statusStyle = STATUS_STYLES[color] || STATUS_STYLES.gray;
     const Component = onClick ? "button" : "div";
 
@@ -49,13 +54,14 @@ export default function BookingDetailCard({ booking, compact, venueFormats, onCl
             onClick={onClick}
             className={`w-full bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-left ${onClick ? "hover:shadow-md transition-shadow" : ""}`}
         >
-            {/* Status badge + format */}
+            {/* Status badge + format. Preferimos el snapshot del booking; si no existe
+                (bookings legacy), caemos al lookup contra venueFormats / heurística. */}
             <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold text-slate-800">
-                    {formatLabel(booking.format, venueFormats)}
+                    {booking.formatLabel || formatLabel(booking.format, venueFormats)}
                 </span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle}`}>
-                    {bookingStatusLabel(booking.status)}
+                    {bookingStatusLabelForPlayer(effectiveStatus)}
                 </span>
             </div>
 
@@ -80,13 +86,11 @@ export default function BookingDetailCard({ booking, compact, venueFormats, onCl
                 )}
             </div>
 
-            {/* Price summary */}
-            {!compact && (
-                <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-sm">
-                    <span className="text-slate-400">Total</span>
-                    <span className="font-bold text-slate-700">{formatCOP(booking.totalPriceCOP)}</span>
-                </div>
-            )}
+            {/* Price summary — siempre visible (en compact ocultamos solo dirección, no el precio). */}
+            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-sm">
+                <span className="text-slate-400">Total</span>
+                <span className="font-bold text-slate-700">{formatCOP(booking.totalPriceCOP)}</span>
+            </div>
         </Component>
     );
 }
