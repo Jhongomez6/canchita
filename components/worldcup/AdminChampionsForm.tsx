@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Crown, Loader2, Check } from "lucide-react";
-import { setChampions } from "@/lib/worldcup";
+import { Crown, Loader2, Check, Trash2 } from "lucide-react";
+import { setChampions, clearChampions } from "@/lib/worldcup";
 import { handleError } from "@/lib/utils/error";
 import { flagEmoji, type WCMatch, type WCConfig } from "@/lib/domain/worldcup";
 
@@ -32,6 +32,9 @@ export default function AdminChampionsForm({
     const [champion, setChampion] = useState(config.champion ?? "");
     const [runnerUp, setRunnerUp] = useState(config.runnerUp ?? "");
     const [saving, setSaving] = useState(false);
+    const [clearing, setClearing] = useState(false);
+
+    const isDefined = Boolean(config.champion);
 
     const handleSave = async () => {
         if (!champion || !runnerUp) return toast.error("Elegí campeón y subcampeón");
@@ -45,6 +48,21 @@ export default function AdminChampionsForm({
             handleError(err, "No se pudo definir el campeón");
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleClear = async () => {
+        setClearing(true);
+        try {
+            await clearChampions();
+            setChampion("");
+            setRunnerUp("");
+            toast.success("Campeón borrado");
+            onSaved?.();
+        } catch (err) {
+            handleError(err, "No se pudo borrar el campeón");
+        } finally {
+            setClearing(false);
         }
     };
 
@@ -78,11 +96,22 @@ export default function AdminChampionsForm({
             <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || clearing}
                 className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-amber-500 text-white font-semibold disabled:opacity-50 active:scale-[0.99] transition"
             >
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Check className="w-5 h-5" />{config.champion ? "Actualizar campeón" : "Definir campeón"}</>}
+                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Check className="w-5 h-5" />{isDefined ? "Actualizar campeón" : "Definir campeón"}</>}
             </button>
+
+            {isDefined && (
+                <button
+                    type="button"
+                    onClick={handleClear}
+                    disabled={saving || clearing}
+                    className="w-full h-10 mt-2 flex items-center justify-center gap-2 rounded-xl border border-red-200 text-red-600 font-semibold disabled:opacity-50 active:scale-[0.99] transition"
+                >
+                    {clearing ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Trash2 className="w-4 h-4" />Borrar campeón</>}
+                </button>
+            )}
         </div>
     );
 }

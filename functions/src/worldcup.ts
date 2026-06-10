@@ -140,6 +140,37 @@ export const setWorldCupChampions = onCall(
 );
 
 // ========================
+// clearWorldCupChampions — onCall (solo super_admin)
+// Deja campeón/subcampeón en blanco y quita el bonus del leaderboard.
+// ========================
+
+export const clearWorldCupChampions = onCall(
+    { region: REGION },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+        }
+        const userSnap = await db.collection("users").doc(request.auth.uid).get();
+        if (userSnap.data()?.adminType !== "super_admin") {
+            throw new HttpsError("permission-denied", "Solo el administrador puede borrar el campeón");
+        }
+
+        await db.collection("config").doc("worldcup").update({
+            champion: admin.firestore.FieldValue.delete(),
+            runnerUp: admin.firestore.FieldValue.delete(),
+        });
+
+        // Recalcular para quitar el bonus de todos los usuarios con bracket.
+        const bracketSnap = await db.collection("worldcupBracketPredictions").get();
+        for (const doc of bracketSnap.docs) {
+            await recalcUserLeaderboard(doc.id);
+        }
+
+        return { ok: true, recalculated: bracketSnap.size };
+    },
+);
+
+// ========================
 // onWorldCupMatchFinished — trigger de recálculo
 // ========================
 

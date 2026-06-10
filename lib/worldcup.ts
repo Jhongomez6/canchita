@@ -228,3 +228,12 @@ export async function setChampions(champion: string, runnerUp: string): Promise<
     const fn = httpsCallable(functions, "setWorldCupChampions");
     await fn({ champion, runnerUp });
 }
+
+/**
+ * Borra el campeón/subcampeón definidos (los deja en blanco) y quita el bonus.
+ * Solo super_admin (validado en la CF).
+ */
+export async function clearChampions(): Promise<void> {
+    const fn = httpsCallable(functions, "clearWorldCupChampions");
+    await fn({});
+}
