@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasWorldCupAccess } from "@/lib/domain/user";
+import { WC_PRIZE_FREE_MATCHES } from "@/lib/domain/worldcup";
 import { getWorldCupConfig, getLeaderboard } from "@/lib/worldcup";
 import { logWorldCupLeaderboardViewed } from "@/lib/analytics";
 import { handleError } from "@/lib/utils/error";
@@ -62,6 +63,10 @@ function LeaderboardContent() {
                 </Link>
                 <h1 className="text-xl font-bold text-gray-900">Tabla de la polla</h1>
             </header>
+
+            <p className="text-xs text-gray-500 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-3">
+                🎁 El 1º al final del Mundial gana <strong>{WC_PRIZE_FREE_MATCHES} partidos gratis</strong> (no paga su cuota).
+            </p>
 
             <MyPositionBanner position={myPosition} entry={myEntry} />
             <WorldCupLeaderboard entries={entries} currentUserId={user!.uid} />

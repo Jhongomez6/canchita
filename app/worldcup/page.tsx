@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Trophy, BarChart3 } from "lucide-react";
+import { Trophy, BarChart3, HelpCircle } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasWorldCupAccess } from "@/lib/domain/user";
 import { getWorldCupConfig, getWorldCupMatches, getUserPredictions, getUserBracketPrediction } from "@/lib/worldcup";
@@ -14,6 +14,7 @@ import WorldCupSkeleton from "@/components/skeletons/WorldCupSkeleton";
 import WorldCupDayFilter from "@/components/worldcup/WorldCupDayFilter";
 import WorldCupMatchCard from "@/components/worldcup/WorldCupMatchCard";
 import BracketPredictor from "@/components/worldcup/BracketPredictor";
+import WorldCupRules from "@/components/worldcup/WorldCupRules";
 import type { WCMatch, WCPrediction, WCConfig, WCBracketPrediction } from "@/lib/domain/worldcup";
 
 // Clave de día (YYYY-MM-DD) y label corto en TZ Colombia
@@ -39,6 +40,7 @@ function WorldCupContent() {
     const [bracket, setBracket] = useState<WCBracketPrediction | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedDay, setSelectedDay] = useState<string>("");
+    const [rulesOpen, setRulesOpen] = useState(false);
 
     const snapshot = useMemo(
         () => ({ displayName: profile?.name ?? "Jugador", photoURLThumb: profile?.photoURLThumb }),
@@ -132,13 +134,24 @@ function WorldCupContent() {
                     <Trophy className="w-6 h-6 text-[#1f7a4f]" />
                     <h1 className="text-xl font-bold text-gray-900">Polla Mundial</h1>
                 </div>
-                <Link
-                    href="/worldcup/leaderboard"
-                    className="flex items-center gap-1.5 text-sm font-semibold text-[#1f7a4f] bg-[#1f7a4f]/10 px-3 py-1.5 rounded-full"
-                >
-                    <BarChart3 className="w-4 h-4" /> Tabla
-                </Link>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setRulesOpen(true)}
+                        className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full"
+                    >
+                        <HelpCircle className="w-4 h-4" /> Reglas
+                    </button>
+                    <Link
+                        href="/worldcup/leaderboard"
+                        className="flex items-center gap-1.5 text-sm font-semibold text-[#1f7a4f] bg-[#1f7a4f]/10 px-3 py-1.5 rounded-full"
+                    >
+                        <BarChart3 className="w-4 h-4" /> Tabla
+                    </Link>
+                </div>
             </header>
+
+            <WorldCupRules open={rulesOpen} onClose={() => setRulesOpen(false)} />
 
             {config && matches.length > 0 && (
                 <div className="mb-4">

@@ -565,6 +565,11 @@ scoreBracket(pred, result) => {
 ### Seed
 - El seed calcula `bracketDeadlineMs` (primer kickoff del día 2 calendario) y lo escribe en `/config/worldcup` con merge (sin pisar `pollEnabled`).
 
+### Premio y reglas visibles
+- **Premio**: el 1º del leaderboard al final del Mundial gana `WC_PRIZE_FREE_MATCHES` (= 5) **partidos gratis** (no paga su cuota). Constante en `lib/domain/worldcup.ts`.
+- `WorldCupRules` — bottom sheet accesible desde el botón "Reglas" en `/worldcup`: explica el puntaje por partido (3/1/0), el bonus de campeón/subcampeón y el premio. El leaderboard muestra una nota corta del premio.
+- El admin puede **borrar** el campeón/subcampeón (botón "Borrar campeón" + CF `clearWorldCupChampions`), por si lo cargó por error.
+
 ---
 
 ## 14. FUERA DE SCOPE v1 / POR DEFINIR
