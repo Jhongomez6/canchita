@@ -78,6 +78,7 @@ export interface UserProfile {
     walletEnabled?: boolean;           // Acceso a la billetera (feature flag por usuario)
     bookingEnabled?: boolean;          // Acceso al módulo de reservas (feature flag por usuario)
     xpEnabled?: boolean;               // Acceso al sistema de XP / Niveles / Achievements (feature flag por usuario)
+    worldCupEnabled?: boolean;         // Acceso a la polla mundialista (feature flag por usuario — beta testers)
     // Soft-anonymization (set on account deletion — personal data wiped, traza conservada)
     deleted?: boolean;
     deletedAt?: string;                // ISO date of anonymization
@@ -350,11 +351,11 @@ export function hasBookingAccess(profile: UserProfile): boolean {
 
 /**
  * Verifica si el usuario tiene acceso a la polla mundialista 2026 (feature temporal).
- * Super admins siempre tienen acceso (para probar antes del lanzamiento); el resto
- * solo cuando el flag global `pollEnabled` está prendido.
+ * Acceso si: es super_admin (prueba pre-lanzamiento), el flag global `pollEnabled`
+ * está prendido (público), o tiene el flag por usuario `worldCupEnabled` (beta testers).
  */
 export function hasWorldCupAccess(profile: UserProfile, pollEnabled: boolean): boolean {
-    return isSuperAdmin(profile) || pollEnabled === true;
+    return isSuperAdmin(profile) || pollEnabled === true || profile.worldCupEnabled === true;
 }
 
 /**

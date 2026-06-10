@@ -28,6 +28,7 @@ import type {
     WCPrediction,
     WCLeaderboardEntry,
     WCConfig,
+    WCBracketPrediction,
 } from "./domain/worldcup";
 
 const functions = getFunctions(app);
@@ -36,11 +37,17 @@ const functions = getFunctions(app);
 // CONFIG
 // ========================
 
-/** Lee el flag global de la polla. Si el doc no existe, la polla está apagada. */
+/** Lee la config global de la polla. Si el doc no existe, la polla está apagada. */
 export async function getWorldCupConfig(): Promise<WCConfig> {
     const snap = await getDoc(doc(db, "config", "worldcup"));
     if (!snap.exists()) return { pollEnabled: false };
-    return { pollEnabled: snap.data().pollEnabled === true };
+    const d = snap.data();
+    return {
+        pollEnabled: d.pollEnabled === true,
+        bracketDeadlineMs: typeof d.bracketDeadlineMs === "number" ? d.bracketDeadlineMs : undefined,
+        champion: d.champion ?? undefined,
+        runnerUp: d.runnerUp ?? undefined,
+    };
 }
 
 // ========================
@@ -154,6 +161,49 @@ export async function getUserLeaderboardEntry(userId: string): Promise<WCLeaderb
 }
 
 // ========================
+// BRACKET — CAMPEÓN / SUBCAMPEÓN
+// ========================
+
+/** Predicción de bracket del usuario (null si no eligió aún). */
+export async function getUserBracketPrediction(userId: string): Promise<WCBracketPrediction | null> {
+    const snap = await getDoc(doc(db, "worldcupBracketPredictions", userId));
+    return snap.exists() ? (snap.data() as WCBracketPrediction) : null;
+}
+
+/**
+ * Guarda/actualiza la elección de campeón y subcampeón.
+ * El candado por deadline lo refuerzan las Firestore rules.
+ *
+ * @param createdAt - ISO de creación previa (desde la UI) para no leer el doc.
+ */
+export async function saveBracketPrediction(
+    userId: string,
+    champion: string,
+    runnerUp: string,
+    snapshot: { displayName: string; photoURLThumb?: string },
+    createdAt?: string,
+): Promise<void> {
+    const ref = doc(db, "worldcupBracketPredictions", userId);
+    const nowISO = new Date().toISOString();
+    const data: Record<string, unknown> = {
+        userId,
+        champion,
+        runnerUp,
+        displayName: snapshot.displayName,
+        updatedAt: nowISO,
+        createdAt: createdAt ?? nowISO,
+    };
+    if (snapshot.photoURLThumb) data.photoURLThumb = snapshot.photoURLThumb;
+    await setDoc(ref, data, { merge: true });
+}
+
+/** Elecciones de bracket de todos (solo legible tras el deadline por las rules). */
+export async function getBracketPredictions(): Promise<WCBracketPrediction[]> {
+    const snap = await getDocs(collection(db, "worldcupBracketPredictions"));
+    return snap.docs.map((d) => d.data() as WCBracketPrediction);
+}
+
+// ========================
 // ADMIN — CARGA DE RESULTADOS (Cloud Function)
 // ========================
 
@@ -168,4 +218,13 @@ export async function updateMatchResult(
 ): Promise<void> {
     const fn = httpsCallable(functions, "updateWorldCupMatchResult");
     await fn({ matchId, homeGoals, awayGoals });
+}
+
+/**
+ * Define el campeón y subcampeón real del torneo. Solo super_admin (validado en CF).
+ * Recalcula el bonus de bracket de todos los usuarios.
+ */
+export async function setChampions(champion: string, runnerUp: string): Promise<void> {
+    const fn = httpsCallable(functions, "setWorldCupChampions");
+    await fn({ champion, runnerUp });
 }

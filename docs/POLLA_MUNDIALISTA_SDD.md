@@ -498,7 +498,76 @@ Firestore: /config/worldcup
 
 ---
 
-## 13. FUERA DE SCOPE v1 / POR DEFINIR
+## 13. EXTENSIÓN: PREDICCIÓN DE CAMPEÓN Y SUBCAMPEÓN (BONUS)
+
+Predicción a largo plazo, independiente de los partidos: el usuario elige **campeón** y **subcampeón** del torneo desde el inicio. Otorga puntos bonus que se suman al leaderboard.
+
+### Reglas
+| # | Regla |
+|---|-------|
+| 1 | Se elige **campeón** y **subcampeón** de la lista de 48 selecciones |
+| 2 | Editable libremente hasta el **deadline**: inicio del 2º día del Mundial (`bracketDeadlineMs` = kickoff del primer partido del día 2). Después se bloquea |
+| 3 | Bonus por **posición exacta**: campeón correcto = **10 pts**, subcampeón correcto = **5 pts**. Sin parciales |
+| 4 | Campeón y subcampeón deben ser equipos **distintos** |
+| 5 | Los puntos bonus se suman al total del leaderboard cuando el admin carga el resultado real (campeón/subcampeón) al terminar el torneo |
+| 6 | Las elecciones ajenas se revelan tras el deadline (igual que las predicciones de partidos) |
+
+### Modelo de datos
+```typescript
+// Predicción de bracket del usuario
+export interface WCBracketPrediction {
+  userId: string;
+  champion: string;      // nombre del equipo
+  runnerUp: string;      // nombre del equipo
+  championPoints?: number;   // 0 | 10 — calculado al resolver
+  runnerUpPoints?: number;   // 0 | 5  — calculado al resolver
+  displayName: string;
+  photoURLThumb?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Ampliación de WCConfig
+export interface WCConfig {
+  pollEnabled: boolean;
+  bracketDeadlineMs?: number;  // epoch ms — cierre de elección de campeón/subcampeón
+  champion?: string;           // resultado real (lo carga el admin)
+  runnerUp?: string;
+}
+
+// Ampliación de WCLeaderboardEntry
+//   bracketPoints, championHit, runnerUpHit (informativos)
+//   points = matchPoints + bracketPoints (total, para el orden)
+```
+
+### Scoring (puro)
+```typescript
+scoreBracket(pred, result) => {
+  championPoints: pred.champion === result.champion ? 10 : 0,
+  runnerUpPoints: pred.runnerUp === result.runnerUp ? 5 : 0,
+}
+```
+
+### Colección y rules
+- `/worldcupBracketPredictions/{userId}` — id = uid.
+- Crear/editar: solo el propio, solo si `request.time < config.bracketDeadlineMs`, con champion≠runnerUp, ambos strings no vacíos.
+- Leer: el propio siempre; ajenos solo tras el deadline.
+
+### Backend
+- `recalcUserLeaderboard()` (functions) ahora suma también el bracket: lee la predicción de bracket del usuario + `champion`/`runnerUp` de `/config/worldcup`, calcula bonus, y `points = matchPoints + bracketPoints`.
+- Nueva CF callable `setWorldCupChampions(champion, runnerUp)` — solo super_admin: escribe el resultado en `/config/worldcup` y recalcula el leaderboard de todos los usuarios con predicción de bracket.
+
+### Frontend
+- `BracketPredictor` — card destacada en `/worldcup` con dos selectores (campeón/subcampeón) de las 48 selecciones. Estados: sin elegir / elegido (editable) / cerrado / resuelto (con bonus).
+- Sección en `/worldcup/admin` para cargar campeón/subcampeón reales al final del torneo.
+- El leaderboard muestra el desglose de bonus.
+
+### Seed
+- El seed calcula `bracketDeadlineMs` (primer kickoff del día 2 calendario) y lo escribe en `/config/worldcup` con merge (sin pisar `pollEnabled`).
+
+---
+
+## 14. FUERA DE SCOPE v1 / POR DEFINIR
 
 | Tema | Estado | Nota |
 |------|--------|------|

@@ -67,15 +67,37 @@ export interface WCLeaderboardEntry {
     userId: string;
     displayName: string;
     photoURLThumb?: string;
-    points: number;       // total acumulado
-    exactHits: number;    // predicciones exactas (3 pts)
-    resultHits: number;   // resultado correcto (1 pt)
-    predictions: number;  // total de predicciones hechas
+    points: number;       // TOTAL = matchPoints + bracketPoints (campo de orden)
+    exactHits: number;    // predicciones exactas de partido (3 pts)
+    resultHits: number;   // resultado correcto de partido (1 pt)
+    predictions: number;  // total de predicciones de partido hechas
+    bracketPoints?: number;   // bonus por campeón/subcampeón (0–15)
+    championHit?: boolean;    // acertó el campeón
+    runnerUpHit?: boolean;    // acertó el subcampeón
     updatedAt: string;
 }
 
 export interface WCConfig {
     pollEnabled: boolean;
+    bracketDeadlineMs?: number;  // epoch ms — cierre de elección de campeón/subcampeón
+    champion?: string;           // resultado real del torneo (lo carga el admin)
+    runnerUp?: string;
+}
+
+/**
+ * Predicción a largo plazo del usuario: campeón y subcampeón del torneo.
+ * Doc id = userId en /worldcupBracketPredictions.
+ */
+export interface WCBracketPrediction {
+    userId: string;
+    champion: string;          // nombre del equipo
+    runnerUp: string;          // nombre del equipo
+    championPoints?: number;   // 0 | WC_CHAMPION_POINTS — calculado al resolver
+    runnerUpPoints?: number;   // 0 | WC_RUNNERUP_POINTS — calculado al resolver
+    displayName: string;
+    photoURLThumb?: string;
+    createdAt: string;
+    updatedAt: string;
 }
 
 // ========================
@@ -87,6 +109,12 @@ export const WC_MAX_GOALS = 20;
 
 /** Horas tras el kickoff sin resultado para mostrar badge "Resultado pendiente". */
 export const WC_PENDING_RESULT_HOURS = 3;
+
+/** Bonus por acertar el campeón del torneo. */
+export const WC_CHAMPION_POINTS = 10;
+
+/** Bonus por acertar el subcampeón del torneo. */
+export const WC_RUNNERUP_POINTS = 5;
 
 // ========================
 // REGLAS DE NEGOCIO (puras)
@@ -168,6 +196,33 @@ export function aggregateLeaderboard(
         resultHits,
         predictions: scored.length,
         updatedAt: now,
+    };
+}
+
+// ========================
+// BRACKET (campeón / subcampeón) — bonus
+// ========================
+
+/**
+ * Candado de la elección de campeón/subcampeón. Cerrada cuando se llegó al
+ * deadline (inicio del 2º día). Si no hay deadline configurado, se considera
+ * abierta (fail-open en cliente; el server reafirma con las rules).
+ */
+export function isBracketLocked(deadlineMs: number | undefined, now: number = Date.now()): boolean {
+    if (deadlineMs == null) return false;
+    return now >= deadlineMs;
+}
+
+/**
+ * Scoring puro del bracket. Bonus solo por posición exacta.
+ */
+export function scoreBracket(
+    pred: Pick<WCBracketPrediction, "champion" | "runnerUp">,
+    result: { champion: string; runnerUp: string },
+): { championPoints: number; runnerUpPoints: number } {
+    return {
+        championPoints: pred.champion === result.champion ? WC_CHAMPION_POINTS : 0,
+        runnerUpPoints: pred.runnerUp === result.runnerUp ? WC_RUNNERUP_POINTS : 0,
     };
 }
 

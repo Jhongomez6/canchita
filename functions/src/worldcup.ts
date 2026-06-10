@@ -21,6 +21,8 @@ const db = admin.firestore();
 
 const MAX_GOALS = 20;
 const REGION = "us-central1";
+const CHAMPION_POINTS = 10;
+const RUNNERUP_POINTS = 5;
 
 // ========================
 // SCORING (mirror de lib/domain/worldcup.ts — mantener en sync)
@@ -100,6 +102,44 @@ export const updateWorldCupMatchResult = onCall(
 );
 
 // ========================
+// setWorldCupChampions — onCall (solo super_admin)
+// ========================
+
+export const setWorldCupChampions = onCall(
+    { region: REGION },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+        }
+        const userSnap = await db.collection("users").doc(request.auth.uid).get();
+        if (userSnap.data()?.adminType !== "super_admin") {
+            throw new HttpsError("permission-denied", "Solo el administrador puede definir el campeón");
+        }
+
+        const { champion, runnerUp } = request.data ?? {};
+        if (typeof champion !== "string" || champion.length === 0) {
+            throw new HttpsError("invalid-argument", "Campeón inválido");
+        }
+        if (typeof runnerUp !== "string" || runnerUp.length === 0) {
+            throw new HttpsError("invalid-argument", "Subcampeón inválido");
+        }
+        if (champion === runnerUp) {
+            throw new HttpsError("invalid-argument", "Campeón y subcampeón deben ser distintos");
+        }
+
+        await db.collection("config").doc("worldcup").set({ champion, runnerUp }, { merge: true });
+
+        // Recalcular el leaderboard de todos los usuarios con predicción de bracket.
+        const bracketSnap = await db.collection("worldcupBracketPredictions").get();
+        for (const doc of bracketSnap.docs) {
+            await recalcUserLeaderboard(doc.id);
+        }
+
+        return { ok: true, recalculated: bracketSnap.size };
+    },
+);
+
+// ========================
 // onWorldCupMatchFinished — trigger de recálculo
 // ========================
 
@@ -159,7 +199,7 @@ async function recalcUserLeaderboard(userId: string): Promise<void> {
         .where("userId", "==", userId)
         .get();
 
-    let points = 0;
+    let matchPoints = 0;
     let exactHits = 0;
     let resultHits = 0;
     let predictions = 0;
@@ -171,11 +211,28 @@ async function recalcUserLeaderboard(userId: string): Promise<void> {
         predictions++;
         if (p.displayName) displayName = p.displayName;
         if (p.photoURLThumb) photoURLThumb = p.photoURLThumb;
-        if (p.points === 3) { points += 3; exactHits++; }
-        else if (p.points === 1) { points += 1; resultHits++; }
+        if (p.points === 3) { matchPoints += 3; exactHits++; }
+        else if (p.points === 1) { matchPoints += 1; resultHits++; }
     }
 
-    // Fallback al perfil si las predicciones no traían snapshot de nombre.
+    // Bonus de bracket (campeón/subcampeón) si el torneo ya tiene resultado real.
+    const [bracketSnap, configSnap] = await Promise.all([
+        db.collection("worldcupBracketPredictions").doc(userId).get(),
+        db.collection("config").doc("worldcup").get(),
+    ]);
+    const config = configSnap.data() as { champion?: string; runnerUp?: string } | undefined;
+    let bracketPoints = 0;
+    let championHit = false;
+    let runnerUpHit = false;
+    if (bracketSnap.exists && config?.champion && config?.runnerUp) {
+        const b = bracketSnap.data() as { champion?: string; runnerUp?: string; displayName?: string; photoURLThumb?: string };
+        if (b.champion === config.champion) { bracketPoints += CHAMPION_POINTS; championHit = true; }
+        if (b.runnerUp === config.runnerUp) { bracketPoints += RUNNERUP_POINTS; runnerUpHit = true; }
+        if (!displayName && b.displayName) displayName = b.displayName;
+        if (!photoURLThumb && b.photoURLThumb) photoURLThumb = b.photoURLThumb;
+    }
+
+    // Fallback al perfil si nada traía snapshot de nombre.
     if (!displayName) {
         const userSnap = await db.collection("users").doc(userId).get();
         displayName = userSnap.data()?.name ?? "Jugador";
@@ -185,10 +242,13 @@ async function recalcUserLeaderboard(userId: string): Promise<void> {
     const entry: Record<string, unknown> = {
         userId,
         displayName,
-        points,
+        points: matchPoints + bracketPoints,
         exactHits,
         resultHits,
         predictions,
+        bracketPoints,
+        championHit,
+        runnerUpHit,
         updatedAt: new Date().toISOString(),
     };
     if (photoURLThumb) entry.photoURLThumb = photoURLThumb;

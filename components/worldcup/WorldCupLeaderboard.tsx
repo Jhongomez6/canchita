@@ -53,6 +53,7 @@ export default function WorldCupLeaderboard({
                             </p>
                             <p className="text-[11px] text-gray-400">
                                 {e.exactHits} exactos · {e.resultHits} resultados · {e.predictions} jugadas
+                                {e.bracketPoints ? ` · 🏆 +${e.bracketPoints}` : ""}
                             </p>
                         </div>
                         <span className="text-lg font-bold tabular-nums text-[#1f7a4f]">{e.points}</span>

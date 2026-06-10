@@ -6,14 +6,15 @@ import Link from "next/link";
 import { Trophy, BarChart3 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasWorldCupAccess } from "@/lib/domain/user";
-import { getWorldCupConfig, getWorldCupMatches, getUserPredictions } from "@/lib/worldcup";
+import { getWorldCupConfig, getWorldCupMatches, getUserPredictions, getUserBracketPrediction } from "@/lib/worldcup";
 import { logWorldCupPollOpened } from "@/lib/analytics";
 import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import WorldCupSkeleton from "@/components/skeletons/WorldCupSkeleton";
 import WorldCupDayFilter from "@/components/worldcup/WorldCupDayFilter";
 import WorldCupMatchCard from "@/components/worldcup/WorldCupMatchCard";
-import type { WCMatch, WCPrediction } from "@/lib/domain/worldcup";
+import BracketPredictor from "@/components/worldcup/BracketPredictor";
+import type { WCMatch, WCPrediction, WCConfig, WCBracketPrediction } from "@/lib/domain/worldcup";
 
 // Clave de día (YYYY-MM-DD) y label corto en TZ Colombia
 const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
@@ -34,6 +35,8 @@ function WorldCupContent() {
     const router = useRouter();
     const [matches, setMatches] = useState<WCMatch[]>([]);
     const [predictions, setPredictions] = useState<Record<string, WCPrediction>>({});
+    const [config, setConfig] = useState<WCConfig | null>(null);
+    const [bracket, setBracket] = useState<WCBracketPrediction | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedDay, setSelectedDay] = useState<string>("");
 
@@ -47,18 +50,21 @@ function WorldCupContent() {
 
         (async () => {
             try {
-                const config = await getWorldCupConfig();
-                if (!hasWorldCupAccess(profile, config.pollEnabled)) {
+                const cfg = await getWorldCupConfig();
+                if (!hasWorldCupAccess(profile, cfg.pollEnabled)) {
                     router.replace("/");
                     return;
                 }
                 logWorldCupPollOpened();
+                setConfig(cfg);
 
-                const [ms, preds] = await Promise.all([
+                const [ms, preds, br] = await Promise.all([
                     getWorldCupMatches(),
                     getUserPredictions(user.uid),
+                    getUserBracketPrediction(user.uid),
                 ]);
                 setMatches(ms);
+                setBracket(br);
                 const map: Record<string, WCPrediction> = {};
                 for (const p of preds) map[p.matchId] = p;
                 setPredictions(map);
@@ -133,6 +139,31 @@ function WorldCupContent() {
                     <BarChart3 className="w-4 h-4" /> Tabla
                 </Link>
             </header>
+
+            {config && matches.length > 0 && (
+                <div className="mb-4">
+                    <BracketPredictor
+                        matches={matches}
+                        userId={user!.uid}
+                        snapshot={snapshot}
+                        config={config}
+                        existing={bracket}
+                        onSaved={(champion, runnerUp) =>
+                            setBracket((prev) => ({
+                                ...(prev ?? {
+                                    userId: user!.uid,
+                                    displayName: snapshot.displayName,
+                                    photoURLThumb: snapshot.photoURLThumb,
+                                    createdAt: new Date().toISOString(),
+                                }),
+                                champion,
+                                runnerUp,
+                                updatedAt: new Date().toISOString(),
+                            } as WCBracketPrediction))
+                        }
+                    />
+                </div>
+            )}
 
             {days.length === 0 ? (
                 <p className="text-center text-gray-400 bg-gray-50 rounded-xl p-8 mt-8">

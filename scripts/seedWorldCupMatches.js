@@ -174,14 +174,28 @@ async function main() {
     }
     console.log(`💾 ${transformed.length} partidos guardados en /worldcupMatches`);
 
-    // Config: crear solo si no existe (no pisar el flag si el admin ya lo prendió)
+    // bracketDeadlineMs = primer kickoff del 2º día calendario (UTC) del torneo.
+    // Cierre de la elección de campeón/subcampeón.
+    const sorted = [...transformed].sort((a, b) => a.kickoffMs - b.kickoffMs);
+    const day1 = sorted[0].utcDate.slice(0, 10); // YYYY-MM-DD del primer partido
+    const firstDay2 = sorted.find((m) => m.utcDate.slice(0, 10) > day1);
+    const bracketDeadlineMs = firstDay2 ? firstDay2.kickoffMs : null;
+    if (bracketDeadlineMs) {
+        console.log(`🏆 bracketDeadlineMs: ${new Date(bracketDeadlineMs).toISOString()} (inicio día 2)`);
+    } else {
+        console.warn("⚠️  No se pudo calcular bracketDeadlineMs (¿un solo día de partidos?)");
+    }
+
+    // Config: merge para no pisar pollEnabled si ya existe; setea pollEnabled:false solo al crear.
     const configRef = db.collection("config").doc("worldcup");
     const configSnap = await configRef.get();
+    const configUpdate = { bracketDeadlineMs };
     if (!configSnap.exists) {
-        await configRef.set({ pollEnabled: false });
+        await configRef.set({ pollEnabled: false, ...configUpdate });
         console.log("🚩 /config/worldcup creado con pollEnabled: false (apagado)");
     } else {
-        console.log(`🚩 /config/worldcup ya existe (pollEnabled: ${configSnap.data().pollEnabled}) — no se toca`);
+        await configRef.set(configUpdate, { merge: true });
+        console.log(`🚩 /config/worldcup actualizado (pollEnabled sin tocar: ${configSnap.data().pollEnabled})`);
     }
 
     console.log("\n🎉 Seed completado.");

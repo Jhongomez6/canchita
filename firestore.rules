@@ -79,7 +79,7 @@ service cloud.firestore {
               'kudosSummary', '_reportsSummary',
               'xp', 'xpLevel', 'xpTier', 'xpLastEvent', 'achievements',
               'firstMatchAt', 'earlyConfirmCount', 'reviewCount', 'perfectMonths',
-              'xpEnabled'
+              'xpEnabled', 'worldCupEnabled'
             ]))
           )
           ||
@@ -90,7 +90,7 @@ service cloud.firestore {
               'kudosSummary', '_reportsSummary',
               'xp', 'xpLevel', 'xpTier', 'xpLastEvent', 'achievements',
               'firstMatchAt', 'earlyConfirmCount', 'reviewCount', 'perfectMonths',
-              'xpEnabled'
+              'xpEnabled', 'worldCupEnabled'
             ]) || isSuperAdmin())
           )
         );
@@ -476,6 +476,28 @@ service cloud.firestore {
     match /worldcupLeaderboard/{userId} {
       allow read: if request.auth != null;
       allow write: if false;
+    }
+
+    // Predicción de campeón/subcampeón (bonus). Doc id = uid.
+    match /worldcupBracketPredictions/{userId} {
+      // Lectura: la propia siempre; las ajenas solo tras el deadline.
+      allow read: if request.auth != null && (
+        userId == request.auth.uid ||
+        get(/databases/$(database)/documents/config/worldcup).data.bracketDeadlineMs <= request.time.toMillis()
+      );
+
+      // Crear/editar: solo la propia, solo antes del deadline, con equipos válidos y distintos.
+      allow create, update: if request.auth != null
+        && userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.champion is string
+        && request.resource.data.runnerUp is string
+        && request.resource.data.champion.size() > 0
+        && request.resource.data.runnerUp.size() > 0
+        && request.resource.data.champion != request.resource.data.runnerUp
+        && get(/databases/$(database)/documents/config/worldcup).data.bracketDeadlineMs > request.time.toMillis();
+
+      allow delete: if false;
     }
 
   }

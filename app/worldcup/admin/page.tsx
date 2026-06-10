@@ -6,27 +6,33 @@ import Link from "next/link";
 import { Trophy, Loader2, Eye } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin } from "@/lib/domain/user";
-import { getWorldCupMatches, getPendingResultMatches } from "@/lib/worldcup";
+import { getWorldCupMatches, getPendingResultMatches, getWorldCupConfig } from "@/lib/worldcup";
 import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import AdminMatchResultForm from "@/components/worldcup/AdminMatchResultForm";
-import type { WCMatch } from "@/lib/domain/worldcup";
+import AdminChampionsForm from "@/components/worldcup/AdminChampionsForm";
+import type { WCMatch, WCConfig } from "@/lib/domain/worldcup";
 
 function WorldCupAdminContent() {
     const { user, profile } = useAuth();
     const router = useRouter();
     const [pending, setPending] = useState<WCMatch[]>([]);
     const [finished, setFinished] = useState<WCMatch[]>([]);
+    const [allMatches, setAllMatches] = useState<WCMatch[]>([]);
+    const [config, setConfig] = useState<WCConfig | null>(null);
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
         try {
-            const [pend, all] = await Promise.all([
+            const [pend, all, cfg] = await Promise.all([
                 getPendingResultMatches(),
                 getWorldCupMatches(),
+                getWorldCupConfig(),
             ]);
             setPending(pend);
+            setAllMatches(all);
             setFinished(all.filter((m) => m.status === "FINISHED"));
+            setConfig(cfg);
         } catch (err) {
             handleError(err, "Error al cargar partidos");
         } finally {
@@ -83,6 +89,14 @@ function WorldCupAdminContent() {
                     </div>
                 )}
             </section>
+
+            {/* Campeón y subcampeón (bonus) — al final del torneo */}
+            {config && allMatches.length > 0 && (
+                <section className="mb-8">
+                    <h2 className="text-sm font-semibold text-gray-500 mb-3">Campeón del torneo (bonus)</h2>
+                    <AdminChampionsForm matches={allMatches} config={config} onSaved={load} />
+                </section>
+            )}
 
             {/* Ya finalizados — corregir si hace falta */}
             {finished.length > 0 && (
