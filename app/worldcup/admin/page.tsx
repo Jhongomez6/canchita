@@ -11,6 +11,7 @@ import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import AdminMatchResultForm from "@/components/worldcup/AdminMatchResultForm";
 import AdminChampionsForm from "@/components/worldcup/AdminChampionsForm";
+import AdminAccessCodeForm from "@/components/worldcup/AdminAccessCodeForm";
 import type { WCMatch, WCConfig } from "@/lib/domain/worldcup";
 
 function WorldCupAdminContent() {
@@ -88,6 +89,12 @@ function WorldCupAdminContent() {
                         ))}
                     </div>
                 )}
+            </section>
+
+            {/* Código de acceso — para sumar gente sin abrir a todos */}
+            <section className="mb-8">
+                <h2 className="text-sm font-semibold text-gray-500 mb-3">Acceso por código</h2>
+                <AdminAccessCodeForm />
             </section>
 
             {/* Campeón y subcampeón (bonus) — al final del torneo */}

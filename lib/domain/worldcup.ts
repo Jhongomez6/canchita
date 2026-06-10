@@ -82,6 +82,7 @@ export interface WCConfig {
     bracketDeadlineMs?: number;  // epoch ms — cierre de elección de campeón/subcampeón
     champion?: string;           // resultado real del torneo (lo carga el admin)
     runnerUp?: string;
+    joinByCodeOpen?: boolean;    // muestra el acceso por código en el menú para todos
 }
 
 /**

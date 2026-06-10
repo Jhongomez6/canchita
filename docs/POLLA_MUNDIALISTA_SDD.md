@@ -572,7 +572,20 @@ scoreBracket(pred, result) => {
 
 ---
 
-## 14. FUERA DE SCOPE v1 / POR DEFINIR
+## 14. ACCESO POR CÓDIGO (grupo cerrado)
+
+Permite habilitar la polla a un grupo específico sin abrirla a todos, vía un código compartido que activa el flag por usuario `worldCupEnabled`.
+
+- **Código secreto**: en `/config/worldcupSecret` `{ accessCode }`. Rules: lee/escribe **solo super_admin** — los usuarios NO pueden leerlo (si pudieran, lo verían en DevTools y se saltarían el sistema).
+- **Canje**: CF callable `redeemWorldCupCode(code)` — corre con Admin SDK (ignora rules), compara el código (trim + uppercase) contra el real y, si coincide, setea `worldCupEnabled: true` en el perfil del usuario.
+- **Página de canje**: `app/worldcup/join/page.tsx` — solo requiere auth (es la puerta de entrada, no exige acceso previo). Si el usuario ya tiene acceso, redirige a `/worldcup`. Tras canjear, el perfil se actualiza por `onSnapshot` y redirige solo.
+- **Admin**: `AdminAccessCodeForm` en `/worldcup/admin` — define/cambia el código y copia un mensaje con el link `…/worldcup/join` + el código para compartir por WhatsApp.
+- **Compatibilidad**: `hasWorldCupAccess` ya contempla `worldCupEnabled`, así que el código simplemente activa ese flag. El flag global `pollEnabled` sigue independiente (para abrir a todos cuando se quiera).
+- **Descubrimiento desde la app**: flag público `joinByCodeOpen` en `/config/worldcup` (lo prende el admin con un toggle en `AdminAccessCodeForm`). Cuando está activo, el botón "Mundial" del nav (BottomNav + Header) aparece **para todos**; el destino es `/worldcup/admin` (super_admin), `/worldcup` (con acceso) o `/worldcup/join` (sin acceso → ingresar código). `/worldcup` redirige a `/worldcup/join` si no hay acceso y `joinByCodeOpen` está activo. La escritura de `/config/worldcup` pasó a `allow write: if isSuperAdmin()` para que el admin maneje el toggle desde la app.
+
+---
+
+## 15. FUERA DE SCOPE v1 / POR DEFINIR
 
 | Tema | Estado | Nota |
 |------|--------|------|

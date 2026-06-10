@@ -54,7 +54,9 @@ function WorldCupContent() {
             try {
                 const cfg = await getWorldCupConfig();
                 if (!hasWorldCupAccess(profile, cfg.pollEnabled)) {
-                    router.replace("/");
+                    // Si el acceso por código está abierto, mandamos a ingresar el código;
+                    // si no, de vuelta al home.
+                    router.replace(cfg.joinByCodeOpen ? "/worldcup/join" : "/");
                     return;
                 }
                 logWorldCupPollOpened();

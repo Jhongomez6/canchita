@@ -19,7 +19,10 @@ export default function BottomNav() {
     const [pendingApps, setPendingApps] = useState(0);
     const [pendingReports, setPendingReports] = useState(0);
     const [pollEnabled, setPollEnabled] = useState(false);
-    const showWorldCup = profile ? hasWorldCupAccess(profile, pollEnabled) : false;
+    const [joinByCodeOpen, setJoinByCodeOpen] = useState(false);
+    const hasWcAccess = profile ? hasWorldCupAccess(profile, pollEnabled) : false;
+    const showWorldCup = hasWcAccess || joinByCodeOpen;
+    const worldCupHref = isSuperAdminUser ? "/worldcup/admin" : hasWcAccess ? "/worldcup" : "/worldcup/join";
 
     useEffect(() => {
         if (!isSuperAdminUser) return;
@@ -31,11 +34,14 @@ export default function BottomNav() {
             .catch(() => {/* silencioso */});
     }, [isSuperAdminUser]);
 
-    // Polla mundialista — flag global + flag por usuario (hasWorldCupAccess)
+    // Polla mundialista — flag global + flag por usuario + acceso por código abierto
     useEffect(() => {
         if (!user) return;
         getWorldCupConfig()
-            .then((cfg) => setPollEnabled(cfg.pollEnabled))
+            .then((cfg) => {
+                setPollEnabled(cfg.pollEnabled);
+                setJoinByCodeOpen(cfg.joinByCodeOpen === true);
+            })
             .catch(() => {/* silencioso */});
     }, [user]);
 
@@ -263,11 +269,11 @@ export default function BottomNav() {
                     </Link>
                 )}
 
-                {/* MUNDIAL (polla). Admin → carga de resultados; jugador → polla.
-                    Acceso: super_admin siempre, flag global pollEnabled, o flag por usuario worldCupEnabled. */}
+                {/* MUNDIAL (polla). Admin → resultados; con acceso → polla; sin acceso → ingresar código.
+                    Visible si tenés acceso o si el admin abrió el acceso por código (joinByCodeOpen). */}
                 {showWorldCup && (isPlayer || isSuperAdminUser) && (
                     <Link
-                        href={isSuperAdminUser ? "/worldcup/admin" : "/worldcup"}
+                        href={worldCupHref}
                         className={navItemClass(pathname.startsWith("/worldcup"))}
                     >
                         <svg

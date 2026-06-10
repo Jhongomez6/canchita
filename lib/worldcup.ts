@@ -47,6 +47,7 @@ export async function getWorldCupConfig(): Promise<WCConfig> {
         bracketDeadlineMs: typeof d.bracketDeadlineMs === "number" ? d.bracketDeadlineMs : undefined,
         champion: d.champion ?? undefined,
         runnerUp: d.runnerUp ?? undefined,
+        joinByCodeOpen: d.joinByCodeOpen === true,
     };
 }
 
@@ -236,4 +237,33 @@ export async function setChampions(champion: string, runnerUp: string): Promise<
 export async function clearChampions(): Promise<void> {
     const fn = httpsCallable(functions, "clearWorldCupChampions");
     await fn({});
+}
+
+// ========================
+// CÓDIGO DE ACCESO (activación por código)
+// ========================
+
+/**
+ * Canjea el código de acceso. Si es válido, la CF activa worldCupEnabled del usuario.
+ * El perfil se refresca solo (AuthContext) o el caller redirige tras el éxito.
+ */
+export async function redeemAccessCode(code: string): Promise<void> {
+    const fn = httpsCallable(functions, "redeemWorldCupCode");
+    await fn({ code });
+}
+
+/** Lee el código de acceso actual (solo super_admin por rules). "" si no hay. */
+export async function getAccessCode(): Promise<string> {
+    const snap = await getDoc(doc(db, "config", "worldcupSecret"));
+    return snap.exists() ? (snap.data().accessCode ?? "") : "";
+}
+
+/** Define/cambia el código de acceso (solo super_admin por rules). */
+export async function setAccessCode(code: string): Promise<void> {
+    await setDoc(doc(db, "config", "worldcupSecret"), { accessCode: code.trim() }, { merge: true });
+}
+
+/** Muestra/oculta el acceso por código en el menú para todos (solo super_admin). */
+export async function setJoinByCodeOpen(open: boolean): Promise<void> {
+    await setDoc(doc(db, "config", "worldcup"), { joinByCodeOpen: open }, { merge: true });
 }

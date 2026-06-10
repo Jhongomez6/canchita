@@ -437,10 +437,17 @@ service cloud.firestore {
        Ref: docs/POLLA_MUNDIALISTA_SDD.md
     ========================= */
 
-    // Config global de la polla (flag pollEnabled). Solo lectura.
+    // Config global de la polla (flag pollEnabled, joinByCodeOpen, etc.).
+    // Lectura: todos. Escritura: super_admin (toggles desde el panel admin).
     match /config/worldcup {
       allow read: if request.auth != null;
-      allow write: if false; // super_admin lo cambia desde Firestore Console
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+
+    // Código de acceso (secreto): solo el super_admin lo lee/escribe.
+    // El canje lo valida la CF redeemWorldCupCode con Admin SDK.
+    match /config/worldcupSecret {
+      allow read, write: if request.auth != null && isSuperAdmin();
     }
 
     // Partidos — solo lectura; escritura solo Admin SDK (CF de carga de resultados)

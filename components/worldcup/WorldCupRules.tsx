@@ -39,6 +39,17 @@ export default function WorldCupRules({ open, onClose }: { open: boolean; onClos
                         </div>
 
                         <div className="px-5 py-5 space-y-6 pb-8">
+                            {/* Importante (primero) */}
+                            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                                <h3 className="font-bold text-gray-900 text-sm">⚠️ Importante</h3>
+                                <p className="text-sm text-gray-700">
+                                    <strong>Registrá tu predicción antes de que empiece el partido.</strong> Cuando el partido arranca se bloquea: ya no podés predecirlo y perdés la oportunidad de sumar esos puntos. (Al cerrarse, se revelan las predicciones de todos.)
+                                </p>
+                                <p className="text-sm text-gray-700">
+                                    Por ahora están disponibles los partidos de la <strong>fase de grupos</strong>. Cuando se definan los ganadores de cada grupo, se habilitarán los partidos de eliminatorias para predecir su marcador.
+                                </p>
+                            </section>
+
                             {/* Puntaje por partido */}
                             <section>
                                 <div className="flex items-center gap-2 mb-3">
@@ -84,10 +95,6 @@ export default function WorldCupRules({ open, onClose }: { open: boolean; onClos
                                     ¿Sos arquero? Como pagás media cuota, son <strong>{WC_PRIZE_FREE_MATCHES_GK} partidos gratis</strong> por el mismo valor.
                                 </p>
                             </section>
-
-                            <p className="text-xs text-gray-400 text-center">
-                                Una vez que empieza un partido ya no podés cambiar tu predicción, y se revelan las de todos.
-                            </p>
                         </div>
                     </motion.div>
                 </>

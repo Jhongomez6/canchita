@@ -171,6 +171,40 @@ export const clearWorldCupChampions = onCall(
 );
 
 // ========================
+// redeemWorldCupCode — onCall
+// Activa el acceso del usuario (worldCupEnabled) si el código coincide.
+// ========================
+
+export const redeemWorldCupCode = onCall(
+    { region: REGION },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+        }
+        const uid = request.auth.uid;
+
+        const raw = request.data?.code;
+        if (typeof raw !== "string" || raw.trim().length === 0) {
+            throw new HttpsError("invalid-argument", "Ingresá un código");
+        }
+        const code = raw.trim().toUpperCase();
+
+        const secretSnap = await db.collection("config").doc("worldcupSecret").get();
+        const realCode = (secretSnap.data()?.accessCode as string | undefined)?.trim().toUpperCase();
+
+        if (!realCode) {
+            throw new HttpsError("failed-precondition", "La polla aún no tiene un código activo");
+        }
+        if (code !== realCode) {
+            throw new HttpsError("permission-denied", "Código inválido");
+        }
+
+        await db.collection("users").doc(uid).update({ worldCupEnabled: true });
+        return { ok: true };
+    },
+);
+
+// ========================
 // onWorldCupMatchFinished — trigger de recálculo
 // ========================
 

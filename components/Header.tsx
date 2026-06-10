@@ -23,12 +23,15 @@ export default function Header() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [worldCupEnabled, setWorldCupEnabled] = useState(false);
+  const [worldCupJoinOpen, setWorldCupJoinOpen] = useState(false);
   const skipFetchRef = useRef(false);
 
   const isAdmin = profile?.roles?.includes("admin") ?? false;
   const isSuperAdminUser = profile ? isSuperAdmin(profile) : false;
   const isLocationAdminUser = profile ? isLocationAdmin(profile) : false;
-  const showWorldCup = profile ? hasWorldCupAccess(profile, worldCupEnabled) : false;
+  const hasWcAccess = profile ? hasWorldCupAccess(profile, worldCupEnabled) : false;
+  const showWorldCup = hasWcAccess || worldCupJoinOpen;
+  const worldCupHref = isSuperAdminUser ? "/worldcup/admin" : hasWcAccess ? "/worldcup" : "/worldcup/join";
 
   const getAdminBadge = () => {
     if (!isAdmin) return null;
@@ -77,11 +80,14 @@ export default function Header() {
     return () => unsub();
   }, [user, profile]);
 
-  // Polla mundialista — feature flag global temporal
+  // Polla mundialista — flag global + acceso por código abierto
   useEffect(() => {
     if (!user) return;
     getWorldCupConfig()
-      .then((cfg) => setWorldCupEnabled(cfg.pollEnabled))
+      .then((cfg) => {
+        setWorldCupEnabled(cfg.pollEnabled);
+        setWorldCupJoinOpen(cfg.joinByCodeOpen === true);
+      })
       .catch(() => { });
   }, [user]);
 
@@ -211,7 +217,7 @@ export default function Header() {
 
               {showWorldCup && (
                 <Link
-                  href={isSuperAdminUser ? "/worldcup/admin" : "/worldcup"}
+                  href={worldCupHref}
                   className="hidden md:block"
                   style={{
                     color: "#e6f6ed",
