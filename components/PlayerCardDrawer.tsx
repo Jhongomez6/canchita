@@ -276,7 +276,7 @@ export default function PlayerCardDrawer({ isOpen, onClose, playerUid }: PlayerC
                         transition={{ duration: 0.4, delay: 0.35 }}
                         className="mt-3"
                       >
-                        <XpBadge tier={tr} level={lvl} size="md" />
+                        <XpBadge tier={tr} level={lvl} size="md" showLevel={false} />
                       </motion.div>
                     );
                   })()}

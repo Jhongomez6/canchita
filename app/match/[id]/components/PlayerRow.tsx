@@ -139,7 +139,7 @@ export default function PlayerRow({
           {/* Level selector */}
           {isOwner && !isClosed && (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500">Nivel:</span>
+              <span className="text-xs font-bold text-slate-500">Categoría:</span>
               <select
                 value={p.level ?? 2}
                 onChange={(e) => onUpdateLevel(Number(e.target.value))}

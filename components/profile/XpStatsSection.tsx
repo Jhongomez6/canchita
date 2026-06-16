@@ -77,14 +77,14 @@ export default function XpStatsSection({
                 {/* Tier + Badge + OVR */}
                 <div className="px-5 pb-3 flex items-center justify-between">
                     <div>
-                        <XpBadge tier={effectiveTier} level={effectiveLevel} size="md" />
+                        <XpBadge tier={effectiveTier} level={effectiveLevel} size="md" showLevel={false} />
                         <p className="text-xs text-slate-500 mt-1.5">
                             <span className="font-bold text-slate-700 tabular-nums">{xp.toLocaleString("es-AR")}</span>{" "}
                             XP totales
                         </p>
                     </div>
                     <div className="text-right">
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">OVR</p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Nivel</p>
                         <p className="text-4xl font-black text-emerald-600 leading-none">{ovr}</p>
                     </div>
                 </div>
@@ -110,7 +110,7 @@ export default function XpStatsSection({
                                         <span className="tabular-nums font-bold text-emerald-600">
                                             {progress.needed.toLocaleString("es-AR")}
                                         </span>{" "}
-                                        XP al nivel {effectiveLevel + 1}
+                                        XP al Nivel {ovr + 1}
                                     </>
                                 )}
                         </p>

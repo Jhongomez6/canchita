@@ -274,7 +274,7 @@ export default function PlayersTab({
                               <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
                                 {posLabel && <span>{posLabel}</span>}
                                 <span className="text-slate-300">·</span>
-                                <span>Lvl {u.level ?? 2} ({levelLabel})</span>
+                                <span>{levelLabel}</span>
                               </div>
                             </div>
 

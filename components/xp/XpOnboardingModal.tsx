@@ -152,7 +152,7 @@ export default function XpOnboardingModal({
                                                     {meta.label}
                                                 </p>
                                                 <p className="text-[9px] text-white/80 tabular-nums">
-                                                    OVR {meta.minOvr}+
+                                                    Nivel {meta.minOvr}+
                                                 </p>
                                             </motion.div>
                                         );

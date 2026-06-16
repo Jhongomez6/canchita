@@ -173,7 +173,7 @@ const STAT_TOOLTIPS: Record<string, string> = {
   PJ: "Partidos Jugados",
   PG: "Partidos Ganados",
   MVP: "Veces elegido MVP del partido",
-  OVR: "Overall — tu nivel general en Canchita (50-99). Sube ganando XP.",
+  OVR: "Nivel — tu nivel general en Canchita (50-99). Sube ganando XP.",
   POS_GK: "Posición principal: Portero",
   POS_DEF: "Posición principal: Defensa",
   POS_MID: "Posición principal: Medio",
@@ -376,9 +376,9 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
                 {/* Edge blur overlay — on top of the image */}
                 <div className="absolute inset-0 rounded-full pointer-events-none" style={{ boxShadow: "inset 0 0 5px 0px rgb(0, 58, 28)" }} />
                 {/* Rating + Position overlay (top-left sobre la foto) */}
-                <div className="absolute top-0 left-0 -translate-x-[5%] flex flex-col items-center cursor-pointer select-none z-10">
+                <div className="absolute top-0 left-0 translate-x-[12%] translate-y-[7%] flex flex-col items-center cursor-pointer select-none z-10">
                   <span
-                    className={`text-[38px] font-black ${rarity.textPrimary} leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] tabular-nums`}
+                    className={`text-[34px] font-black ${rarity.textPrimary} leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] tabular-nums`}
                     onClick={(e) => { e.stopPropagation(); toggleTooltip("OVR"); }}
                   >
                     {ovrDisplay}

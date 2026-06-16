@@ -548,8 +548,8 @@ export default function ProfilePage() {
                             const Icon = LEVEL_ICONS[level];
                             return Icon ? <Icon className="w-3.5 h-3.5 text-amber-500" /> : null;
                           })()}
-                          <span className="text-emerald-600 font-medium">Nivel</span>
-                          <span className="font-bold text-emerald-800">{level} — {LEVEL_LABELS[level]}</span>
+                          <span className="text-emerald-600 font-medium">Categoría</span>
+                          <span className="font-bold text-emerald-800">{LEVEL_LABELS[level]}</span>
                         </span>
                       )}
                     </div>

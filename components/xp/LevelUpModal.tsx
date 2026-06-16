@@ -69,15 +69,15 @@ export default function LevelUpModal({
                             ¡Subiste de Nivel!
                         </h2>
                         <p className="text-xs text-emerald-200/80 mb-4">
-                            Nivel {fromLevel} → Nivel {toLevel}
+                            Nivel {ovrFromLevel(fromLevel)} → Nivel {ovrFromLevel(toLevel)}
                         </p>
 
                         <div className="flex justify-center mb-4">
-                            <XpBadge tier={tier} level={toLevel} size="lg" pulse />
+                            <XpBadge tier={tier} level={toLevel} size="lg" pulse showLevel={false} />
                         </div>
 
                         <p className="text-sm text-emerald-50 mb-1">
-                            Tu OVR ahora es
+                            Tu nivel ahora es
                         </p>
                         <p className="text-5xl font-black text-amber-300 leading-none mb-4">
                             {ovrFromLevel(toLevel)}

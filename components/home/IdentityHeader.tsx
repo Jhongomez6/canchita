@@ -16,7 +16,7 @@ interface IdentityHeaderProps {
 
 function getLevelLabel(level?: number): string {
     const LEVEL_LABELS = ["", "Básico", "Intermedio", "Avanzado", "Elite"];
-    if (!level || level < 1 || level >= LEVEL_LABELS.length) return "Nivel desconocido";
+    if (!level || level < 1 || level >= LEVEL_LABELS.length) return "Sin categoría";
     return LEVEL_LABELS[level];
 }
 
@@ -79,11 +79,11 @@ export default function IdentityHeader({ profile, isAdmin, pendingConfirmations,
                         {profile.level && (
                             <div className="group relative inline-block" tabIndex={0} onMouseEnter={() => logTooltipOpened("player_level")}>
                                 <span className="bg-white/15 text-white text-[11px] font-semibold px-2 py-0.5 rounded-full cursor-help">
-                                    ⚡ {getLevelLabel(profile.level)}
+                                    🏅 {getLevelLabel(profile.level)}
                                 </span>
                                 <div className="absolute left-0 bottom-full mb-2 w-56 p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus:opacity-100 group-focus:visible focus-within:opacity-100 focus-within:visible transition-all pointer-events-none z-50">
-                                    <div className="font-semibold mb-1">Nivel de juego</div>
-                                    <div className="text-slate-300">Tu nivel calculado de la autoevaluación inicial</div>
+                                    <div className="font-semibold mb-1">Categoría de juego</div>
+                                    <div className="text-slate-300">Tu categoría calculada de la autoevaluación inicial</div>
                                     <div className="absolute left-2 top-full border-4 border-transparent border-t-slate-800"></div>
                                 </div>
                             </div>

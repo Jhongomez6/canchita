@@ -116,10 +116,10 @@ export default function TierUpModal({
                                 {TIER_LABEL[fromTier]} → {TIER_LABEL[toTier]}
                             </p>
                             <p className="text-2xl font-black text-white mb-2">
-                                Nivel {level} · OVR {ovrFromLevel(level)}
+                                Nivel {ovrFromLevel(level)}
                             </p>
                             <div className="flex justify-center">
-                                <XpBadge tier={toTier} level={level} size="md" pulse />
+                                <XpBadge tier={toTier} level={level} size="md" pulse showLevel={false} />
                             </div>
                         </div>
 

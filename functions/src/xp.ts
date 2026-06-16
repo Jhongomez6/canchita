@@ -339,10 +339,10 @@ async function sendLevelUpNotif(uid: string, result: AwardXpResult) {
         const ovr = ovrFromLevel(result.toLevel);
         const title = result.tierChanged
             ? `🎉 ¡Nuevo Tier: ${TIER_LABEL[result.toTier]}!`
-            : `⚡ Subiste al Nivel ${result.toLevel}`;
+            : `⚡ Subiste al Nivel ${ovr}`;
         const body = result.tierChanged
-            ? `Pasaste de ${TIER_LABEL[result.fromTier]} a ${TIER_LABEL[result.toTier]}. Tu OVR ahora es ${ovr}.`
-            : `Tu OVR ahora es ${ovr}. ¡Seguí así!`;
+            ? `Pasaste de ${TIER_LABEL[result.fromTier]} a ${TIER_LABEL[result.toTier]}. Tu nivel ahora es ${ovr}.`
+            : `Tu nivel ahora es ${ovr}. ¡Seguí así!`;
 
         await db.collection("notifications").doc(uid).collection("items").add({
             title,

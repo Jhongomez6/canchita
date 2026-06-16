@@ -12,7 +12,7 @@
 
 import { motion } from "framer-motion";
 import XpTierIcon from "./XpTierIcon";
-import type { XpTier } from "@/lib/domain/xp";
+import { ovrFromLevel, type XpTier } from "@/lib/domain/xp";
 
 const TIER_GRADIENT: Record<XpTier, string> = {
     suplente: "from-amber-700 to-orange-900",
@@ -44,6 +44,12 @@ interface XpBadgeProps {
     size?: "sm" | "md" | "lg";
     pulse?: boolean;
     className?: string;
+    /**
+     * Muestra "· Nivel N" junto al tier (N en escala 50-99). Default `true`.
+     * Se pasa `false` donde el número de Nivel ya está visible aparte
+     * (ficha técnica, "Tu progreso", modales) para no repetirlo.
+     */
+    showLevel?: boolean;
 }
 
 const SIZE_CLASSES: Record<"sm" | "md" | "lg", { wrap: string; icon: number; text: string }> = {
@@ -52,7 +58,7 @@ const SIZE_CLASSES: Record<"sm" | "md" | "lg", { wrap: string; icon: number; tex
     lg: { wrap: "px-3 py-1.5 gap-2 text-sm", icon: 16, text: "text-sm" },
 };
 
-export default function XpBadge({ tier, level, size = "md", pulse = false, className = "" }: XpBadgeProps) {
+export default function XpBadge({ tier, level, size = "md", pulse = false, className = "", showLevel = true }: XpBadgeProps) {
     const sz = SIZE_CLASSES[size];
 
     return (
@@ -65,7 +71,7 @@ export default function XpBadge({ tier, level, size = "md", pulse = false, class
         >
             <XpTierIcon tier={tier} size={sz.icon} className="drop-shadow" />
             <span className="leading-none">
-                {TIER_LABEL[tier]} · Nivel {level}
+                {TIER_LABEL[tier]}{showLevel ? ` · Nivel ${ovrFromLevel(level)}` : ""}
             </span>
         </motion.div>
     );

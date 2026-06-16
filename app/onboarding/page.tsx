@@ -813,13 +813,13 @@ export default function OnboardingPage() {
                     {/* LEVEL CARD */}
                     <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] rounded-3xl p-8 text-white mb-8 shadow-xl transform hover:scale-105 transition-transform duration-300">
                         <div className="text-sm font-semibold opacity-80 uppercase tracking-widest mb-2">
-                            Tu Nivel
+                            Tu Categoría
                         </div>
                         <div className="text-6xl font-black leading-none mb-3">
                             {levelEmojis[result.level]}
                         </div>
                         <div className="text-2xl font-bold">
-                            Nivel {result.level} — {levelLabels[result.level]}
+                            {levelLabels[result.level]}
                         </div>
                     </div>
 
