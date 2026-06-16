@@ -228,7 +228,38 @@ export async function getPendingReports(limitN = 50): Promise<PlayerReport[]> {
         limit(limitN),
     );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PlayerReport);
+    const reports = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PlayerReport);
+    return enrichReportsWithReporterNames(reports);
+}
+
+/**
+ * Completa `reporterName` en reportes que no traen el snapshot (datos creados antes
+ * de que la Cloud Function lo persistiera). Hace una lectura por reporter único
+ * faltante — acotado al tamaño de la cola de moderación. Best-effort: si falla una
+ * lectura, el reporte queda sin nombre y la UI muestra un fallback.
+ */
+export async function enrichReportsWithReporterNames(
+    reports: PlayerReport[],
+): Promise<PlayerReport[]> {
+    const missing = [...new Set(
+        reports.filter((r) => !r.reporterName && r.reporterUid).map((r) => r.reporterUid),
+    )];
+    if (missing.length === 0) return reports;
+
+    const names = new Map<string, string>();
+    await Promise.all(
+        missing.map(async (uid) => {
+            try {
+                const snap = await getDoc(doc(db, "users", uid));
+                const name = snap.data()?.name as string | undefined;
+                if (name) names.set(uid, name);
+            } catch { /* best-effort */ }
+        }),
+    );
+
+    return reports.map((r) =>
+        r.reporterName ? r : { ...r, reporterName: names.get(r.reporterUid) },
+    );
 }
 
 /** Lee todos los reportes contra un jugador específico (admin). */

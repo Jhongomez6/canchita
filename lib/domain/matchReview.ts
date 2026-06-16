@@ -90,6 +90,7 @@ export interface PlayerReport {
     id?: string;           // {matchId}_{reporterUid}_{reportedUid}
     matchId: string;
     reporterUid: string;
+    reporterName?: string; // snapshot del autor — solo visible para admin. Opcional por compat con reportes viejos
     reportedUid: string;
     reportedName: string;  // snapshot
     reason: ReportReason;

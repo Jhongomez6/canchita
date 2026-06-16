@@ -492,6 +492,7 @@ export const submitMatchReview = onCall(
                     data: {
                         matchId: input.matchId,
                         reporterUid: uid,
+                        reporterName: giverName,
                         reportedUid: r.reportedUid,
                         reportedName: r.reportedName,
                         reason: r.reason,

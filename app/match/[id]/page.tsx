@@ -935,7 +935,7 @@ export default function MatchDetailPage() {
           )}
 
           {activeTab === "reviews" && match.status === "closed" && (
-            <ReviewsTab matchId={id} />
+            <ReviewsTab matchId={id} players={match.players} />
           )}
         </div>
 

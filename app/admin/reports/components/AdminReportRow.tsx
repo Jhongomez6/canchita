@@ -29,7 +29,9 @@ export default function AdminReportRow({ report, onTap }: Props) {
                     {report.reportedName}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5 truncate">{reasonLabel}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{date}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                    {date} · por {report.reporterName ?? "—"}
+                </p>
             </div>
             <ChevronRight size={16} className="text-slate-300 shrink-0" />
         </button>

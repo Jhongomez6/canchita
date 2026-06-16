@@ -37,6 +37,13 @@ export default function AdminUsersPage() {
     getActiveVenues().then(setVenues).catch(() => setVenues([]));
   }, []);
 
+  // Prefill de búsqueda vía ?q= (ej. link desde el detalle de un reporte).
+  // Se lee de window.location para no requerir Suspense boundary en el build.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearch(q);
+  }, []);
+
   useEffect(() => {
     if (profile && !isSuperAdmin(profile)) {
       router.replace("/");

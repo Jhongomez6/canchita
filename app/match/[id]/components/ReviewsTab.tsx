@@ -1,12 +1,30 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Star, ThumbsUp, ThumbsDown, MessageSquare, Inbox } from "lucide-react";
+import { Star, ThumbsUp, ThumbsDown, Inbox } from "lucide-react";
 import { getReviewsForMatch } from "@/lib/matchReview";
 import type { MatchReview, DimensionValue } from "@/lib/domain/matchReview";
+import type { Player } from "@/lib/domain/player";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 interface Props {
     matchId: string;
+    /** Jugadores del partido — fuente para mostrar nombre + avatar del autor de cada review. */
+    players?: Player[];
+}
+
+interface ReviewerInfo {
+    name: string;
+    photoURL?: string;
+}
+
+/** Construye un lookup uid → {name, photoURL} desde los jugadores del partido. */
+function buildReviewerLookup(players: Player[] | undefined): Map<string, ReviewerInfo> {
+    const map = new Map<string, ReviewerInfo>();
+    for (const p of players ?? []) {
+        if (p.uid) map.set(p.uid, { name: p.name, photoURL: p.photoURLThumb ?? p.photoURL });
+    }
+    return map;
 }
 
 interface DimensionStats {
@@ -31,9 +49,11 @@ function calcDimensionStats(
     );
 }
 
-export default function ReviewsTab({ matchId }: Props) {
+export default function ReviewsTab({ matchId, players }: Props) {
     const [reviews, setReviews] = useState<MatchReview[] | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    const reviewerLookup = useMemo(() => buildReviewerLookup(players), [players]);
 
     // matchId no cambia durante la vida del tab (es el partido del path), pero por
     // seguridad invalidamos resultados pasados con `cancelled`. El reset visual al
@@ -64,8 +84,8 @@ export default function ReviewsTab({ matchId }: Props) {
     const orgStats = useMemo(() => calcDimensionStats(reviews ?? [], "organization"), [reviews]);
     const balanceStats = useMemo(() => calcDimensionStats(reviews ?? [], "levelBalance"), [reviews]);
 
-    const comments = useMemo(
-        () => (reviews ?? []).filter((r) => r.comment && r.comment.trim().length > 0),
+    const withComment = useMemo(
+        () => (reviews ?? []).filter((r) => r.comment && r.comment.trim().length > 0).length,
         [reviews],
     );
 
@@ -155,37 +175,66 @@ export default function ReviewsTab({ matchId }: Props) {
                 <DimensionCard label="Nivel parejo" stats={balanceStats} />
             </div>
 
-            {/* Comments */}
-            {comments.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-                    <div className="px-5 pt-4 pb-2 flex items-center gap-2">
-                        <MessageSquare size={14} className="text-slate-400" />
-                        <h3 className="text-sm font-bold text-slate-700">Comentarios</h3>
-                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
-                            {comments.length}
+            {/* Calificaciones individuales (con autor) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
+                <div className="px-5 pt-4 pb-2 flex items-center gap-2">
+                    <Star size={14} className="text-amber-400 fill-amber-400" />
+                    <h3 className="text-sm font-bold text-slate-700">Calificaciones</h3>
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
+                        {reviews.length}
+                    </span>
+                    {withComment > 0 && (
+                        <span className="text-[10px] font-medium text-slate-400 ml-auto">
+                            {withComment} con comentario
                         </span>
-                    </div>
-                    <ul className="divide-y divide-slate-100">
-                        {comments.map((c) => (
-                            <li key={c.id} className="px-5 py-3">
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                    {[1, 2, 3, 4, 5].map((n) => (
-                                        <Star
-                                            key={n}
-                                            size={10}
-                                            className={n <= c.rating ? "text-amber-400 fill-amber-400" : "text-slate-200 fill-slate-200"}
-                                        />
-                                    ))}
-                                    <span className="text-[10px] text-slate-400 ml-1">
-                                        {new Date(c.createdAt).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-slate-700 leading-relaxed">&quot;{c.comment}&quot;</p>
-                            </li>
-                        ))}
-                    </ul>
+                    )}
                 </div>
-            )}
+                <ul className="divide-y divide-slate-100">
+                    {reviews.map((r) => {
+                        const reviewer = reviewerLookup.get(r.userUid);
+                        const name = reviewer?.name ?? "Jugador";
+                        const photoURL = reviewer?.photoURL;
+                        return (
+                            <li key={r.id} className="px-5 py-3">
+                                <div className="flex items-center gap-2.5">
+                                    {photoURL ? (
+                                        <PlayerAvatar
+                                            src={photoURL}
+                                            alt={name}
+                                            className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shrink-0"
+                                            sizes="32px"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-bold shrink-0">
+                                            {name.charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-bold text-slate-700 truncate">{name}</p>
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                            {[1, 2, 3, 4, 5].map((n) => (
+                                                <Star
+                                                    key={n}
+                                                    size={10}
+                                                    className={n <= r.rating ? "text-amber-400 fill-amber-400" : "text-slate-200 fill-slate-200"}
+                                                />
+                                            ))}
+                                            <span className="text-[10px] text-slate-400 ml-1">
+                                                {new Date(r.createdAt).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {r.comment && r.comment.trim().length > 0 && (
+                                    <p className="text-sm text-slate-600 leading-relaxed mt-2 pl-[42px]">
+                                        &quot;{r.comment}&quot;
+                                    </p>
+                                )}
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
         </div>
     );
 }

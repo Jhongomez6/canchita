@@ -34,6 +34,8 @@ Sistema postpartido que permite a cada jugador (a) calificar su experiencia del 
 | 9 | **Alerta automática al admin**: si un usuario recibe ≥3 reportes con motivos distintos en 30 días, se crea un evento de moderación destacado. | Badge rojo + ordering prioritario en `/admin/reports`. |
 | 10 | El **trigger del review** es **inmediato**: al cerrar el partido, una Cloud Function crea una **notificación in-app** a cada jugador con link a `/match/[id]/review`. La card en home aparece de inmediato (client-side filter: `status === "closed"` + sin review enviado). Sin push. | Card visible apenas el user abre la app después del cierre. Notif in-app visible en el centro de notificaciones. |
 | 11 | Al recibir un kudo, el destinatario recibe una **notificación in-app** (sin push). | Centro de notificaciones: "⚽ [Nombre] te dio un kudo de Buen toque". |
+| 12 | **Visibilidad para el admin (no para jugadores):** en la tab de Reviews del partido, el admin ve el **nombre y avatar** del autor de cada calificación y de cada comentario. La identidad del reviewer **nunca** se expone a otros jugadores — sigue siendo una vista exclusiva del admin/owner del partido. | `ReviewsTab` muestra una lista de calificaciones individuales con avatar + nombre + estrellas + comentario. |
+| 13 | **Identidad del reportante para el admin:** en `/admin/reports` el admin ve **quién hizo el reporte** (nombre + acceso a su perfil) tanto en la fila como en el detalle. El reportado sigue **sin** ver nunca quién lo reportó (regla 7 intacta). | Fila muestra "por [Nombre]"; drawer muestra sección "Reportado por" con link al perfil en `/admin/users`. |
 
 ### Lista canónica de kudos
 
@@ -320,7 +322,7 @@ Toda validación se duplica en (1) `lib/domain/matchReview.ts` (lanza `Validatio
 2. Toca "Reportes" → `/admin/reports` muestra cola ordenada:
    - Alertas de moderación primero (`moderationAlerts` con `status: "open"`).
    - Reportes individuales pendientes por `createdAt DESC`.
-3. Toca un reporte → drawer con: jugador reportado (link a perfil), partido (link), motivo, comentario, histórico del reportado.
+3. Toca un reporte → drawer con: jugador reportado (link a perfil), **autor del reporte (nombre + link a su perfil en `/admin/users`)**, partido (link), motivo, comentario, histórico del reportado.
 4. Acciones disponibles (solo registran la acción — no hay suspensión automática):
    - **Descartar** → `status: "dismissed"`.
    - **Advertencia** → `status: "reviewed"`, `adminAction: "warning"`, nota libre.
@@ -453,6 +455,7 @@ export interface PlayerReport {
   id?: string;          // {matchId}_{reporterUid}_{reportedUid}
   matchId: string;
   reporterUid: string;
+  reporterName?: string; // snapshot del autor — visible solo para admin. Opcional por compat con reportes viejos
   reportedUid: string;
   reportedName: string; // snapshot
   reason: ReportReason;
@@ -630,6 +633,8 @@ components/
 - [ ] Tab `/admin/reports` con cola ordenada (alertas primero, luego pendientes).
 - [ ] Badge rojo en navegación admin si hay reportes pendientes.
 - [ ] Drawer de detalle muestra motivo, comentario, histórico del reportado.
+- [ ] Drawer y fila muestran el **autor del reporte** (nombre + link a su perfil); reportes viejos sin snapshot resuelven el nombre vía lookup.
+- [ ] Tab de Reviews del partido muestra **nombre + avatar** del autor de cada calificación y comentario (solo admin/owner).
 - [ ] Acciones: descartar, advertencia, suspensión (todas solo registran — sin bloqueo automático).
 - [ ] Al accionar un reporte, libera cupo de "reportes activos" del reporter.
 - [ ] Auto-alerta cuando un user acumula ≥3 reportes con motivos distintos en 30d.
@@ -720,3 +725,5 @@ Cada sesión termina en estado deployable. Feature flag `NEXT_PUBLIC_POST_MATCH_
 | Límite de reportes | Máximo 2 `pending` por par reporter→reportado (cross-partidos). Sin cooldown temporal. |
 | Ventana MVP | 2 horas (código fuente: `hoursSinceClosed > 2` en `lib/mvp.ts`). SDD del MVP tiene un error tipográfico (dice 3h). |
 | Ranking público de kudos | Fase 2. Por ahora solo perfil individual. |
+| Atribución de reviews | El admin/owner ve nombre + avatar del autor de cada calificación y comentario en la tab de Reviews del partido. **No** es anónimo para el admin; sí sigue oculto para el resto de jugadores. Se deriva de `match.players` (sin lectura extra). |
+| Identidad del reportante | Visible para el admin (nombre + link al perfil). Snapshot `reporterName` en el doc para reportes nuevos; lookup de `users/{reporterUid}` como fallback para reportes viejos. El reportado nunca la ve. |

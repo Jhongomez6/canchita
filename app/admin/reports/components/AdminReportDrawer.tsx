@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { X, Flag, ExternalLink, History } from "lucide-react";
+import { X, Flag, ExternalLink, History, User } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { PlayerReport, UserReportsSummary } from "@/lib/domain/matchReview";
@@ -174,6 +174,25 @@ export default function AdminReportDrawer({ report, adminUid, onClose, onActione
                                     <p className="text-sm text-slate-500 mt-2 bg-slate-50 rounded-xl p-3 italic leading-relaxed">
                                         &quot;{report.comment}&quot;
                                     </p>
+                                )}
+                            </div>
+
+                            {/* Reporter (autor del reporte) — solo visible para admin */}
+                            <div>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                                    Reportado por
+                                </p>
+                                {report?.reporterName ? (
+                                    <Link
+                                        href={`/admin/users?q=${encodeURIComponent(report.reporterName)}`}
+                                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 active:opacity-70"
+                                    >
+                                        <User size={14} />
+                                        {report.reporterName}
+                                        <ExternalLink size={13} />
+                                    </Link>
+                                ) : (
+                                    <p className="text-sm text-slate-400 italic">Autor no disponible</p>
                                 )}
                             </div>
 
