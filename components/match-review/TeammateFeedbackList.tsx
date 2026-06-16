@@ -106,7 +106,7 @@ export default function TeammateFeedbackList({
                                     type="button"
                                     onClick={() => !disabled && onKudoTap(tm)}
                                     disabled={disabled}
-                                    aria-label={`Dar kudo a ${tm.name}`}
+                                    aria-label={`Dar reconocimiento a ${tm.name}`}
                                     className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
                                         kudo
                                             ? "bg-amber-50 border-amber-300"

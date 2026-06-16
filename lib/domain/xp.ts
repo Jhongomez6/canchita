@@ -235,8 +235,8 @@ export const SOURCE_META: Record<XpSource, { label: string; icon: string }> = {
     match_mvp: { label: "Fuiste MVP", icon: "👑" },
     match_no_show: { label: "Faltaste sin avisar", icon: "❌" },
     match_late: { label: "Llegaste tarde", icon: "🐢" },
-    kudo_received: { label: "Recibiste un kudo", icon: "👏" },
-    kudo_given: { label: "Diste un kudo", icon: "🌟" },
+    kudo_received: { label: "Recibiste un reconocimiento", icon: "👏" },
+    kudo_given: { label: "Diste un reconocimiento", icon: "🌟" },
     post_match_review_done: { label: "Calificaste el partido", icon: "📝" },
     weekly_streak_milestone: { label: "Mantuviste tu racha semanal", icon: "🔥" },
     commitment_streak_milestone: { label: "Racha de compromiso", icon: "💪" },
@@ -558,27 +558,27 @@ export const ACHIEVEMENT_DEFS: Record<AchievementId, AchievementDef> = {
     },
     // Sociales
     first_kudo_received: {
-        id: "first_kudo_received", label: "Primer Kudo", description: "Recibiste tu primer kudo",
+        id: "first_kudo_received", label: "Primer Reconocimiento", description: "Recibiste tu primer reconocimiento",
         icon: "👏", xpBonus: 50, tier: "bronze", category: "social",
         check: (c) => c.kudosTotal >= 1,
     },
     kudos_10: {
-        id: "kudos_10", label: "Apreciado", description: "10 kudos recibidos",
+        id: "kudos_10", label: "Apreciado", description: "10 reconocimientos recibidos",
         icon: "💚", xpBonus: 100, tier: "bronze", category: "social",
         check: (c) => c.kudosTotal >= 10,
     },
     kudos_25: {
-        id: "kudos_25", label: "Querido", description: "25 kudos recibidos",
+        id: "kudos_25", label: "Querido", description: "25 reconocimientos recibidos",
         icon: "💛", xpBonus: 200, tier: "silver", category: "social",
         check: (c) => c.kudosTotal >= 25,
     },
     kudos_50: {
-        id: "kudos_50", label: "Admirado", description: "50 kudos recibidos",
+        id: "kudos_50", label: "Admirado", description: "50 reconocimientos recibidos",
         icon: "🧡", xpBonus: 400, tier: "gold", category: "social",
         check: (c) => c.kudosTotal >= 50,
     },
     kudos_100: {
-        id: "kudos_100", label: "Ídolo", description: "100 kudos recibidos",
+        id: "kudos_100", label: "Ídolo", description: "100 reconocimientos recibidos",
         icon: "❤️", xpBonus: 800, tier: "platinum", category: "social",
         check: (c) => c.kudosTotal >= 100,
     },

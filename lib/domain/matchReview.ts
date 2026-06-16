@@ -329,7 +329,7 @@ export function validateComment(comment: unknown): asserts comment is string | u
 
 export function validateKudoType(t: unknown): asserts t is KudoType {
     if (typeof t !== "string" || !KUDO_TYPES.includes(t as KudoType)) {
-        throw new ValidationError("Tipo de kudo inválido");
+        throw new ValidationError("Tipo de reconocimiento inválido");
     }
 }
 

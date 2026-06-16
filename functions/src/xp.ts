@@ -144,7 +144,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
     { id: "commitment_streak_10", label: "Puntual", xpBonus: 150, check: (c) => c.commitmentStreak >= 10 },
     { id: "commitment_streak_25", label: "Reloj Suizo", xpBonus: 400, check: (c) => c.commitmentStreak >= 25 },
     { id: "commitment_streak_50", label: "Compromiso Total", xpBonus: 1000, check: (c) => c.commitmentStreak >= 50 },
-    { id: "first_kudo_received", label: "Primer Kudo", xpBonus: 50, check: (c) => c.kudosTotal >= 1 },
+    { id: "first_kudo_received", label: "Primer Reconocimiento", xpBonus: 50, check: (c) => c.kudosTotal >= 1 },
     { id: "kudos_10", label: "Apreciado", xpBonus: 100, check: (c) => c.kudosTotal >= 10 },
     { id: "kudos_25", label: "Querido", xpBonus: 200, check: (c) => c.kudosTotal >= 25 },
     { id: "kudos_50", label: "Admirado", xpBonus: 400, check: (c) => c.kudosTotal >= 50 },
@@ -522,7 +522,7 @@ export const awardXpOnKudoCreated = onDocumentCreated(
                 source: "kudo_received",
                 contextId: `${matchId}_${giverUid}`,
                 amount: XP_AMOUNTS.KUDO_RECEIVED,
-                reason: "Recibiste un kudo de un compañero",
+                reason: "Recibiste un reconocimiento de un compañero",
             });
             if (!recRes.skipped) await sendLevelUpNotif(recipientUid, recRes);
 
@@ -532,7 +532,7 @@ export const awardXpOnKudoCreated = onDocumentCreated(
                 source: "kudo_given",
                 contextId: `${matchId}_${recipientUid}`,
                 amount: XP_AMOUNTS.KUDO_GIVEN,
-                reason: "Diste un kudo a un compañero",
+                reason: "Diste un reconocimiento a un compañero",
             });
             if (!giverRes.skipped) await sendLevelUpNotif(giverUid, giverRes);
         } catch (err) {

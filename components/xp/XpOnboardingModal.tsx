@@ -40,7 +40,7 @@ const POSITIVE_RULES: Array<{ icon: string; label: string; amount: number }> = [
     { icon: "⚽", label: "Jugar un partido", amount: XP_AMOUNTS.MATCH_PLAYED },
     { icon: "🏆", label: "Ganar el partido (bonus)", amount: XP_AMOUNTS.MATCH_WON_BONUS },
     { icon: "👑", label: "Ser MVP del partido", amount: XP_AMOUNTS.MATCH_MVP },
-    { icon: "👏", label: "Recibir un kudo", amount: XP_AMOUNTS.KUDO_RECEIVED },
+    { icon: "👏", label: "Recibir un reconocimiento", amount: XP_AMOUNTS.KUDO_RECEIVED },
     { icon: "🔥", label: "Mantener racha semanal", amount: XP_AMOUNTS.WEEKLY_STREAK_MILESTONE },
     { icon: "📝", label: "Calificar el partido", amount: XP_AMOUNTS.POST_MATCH_REVIEW },
 ];

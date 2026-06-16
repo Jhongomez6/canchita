@@ -214,7 +214,7 @@ export class ActiveReportLimitError extends BusinessError {
 
 export class SelfTargetError extends BusinessError {
     constructor() {
-        super("No podés dar kudos ni reportarte a vos mismo");
+        super("No podés dar reconocimientos ni reportarte a vos mismo");
         this.name = "SelfTargetError";
     }
 }
