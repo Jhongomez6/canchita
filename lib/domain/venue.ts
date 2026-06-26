@@ -247,15 +247,15 @@ export interface BlockedSlotRecurrence {
     endDate?: string;             // YYYY-MM-DD (opcional, indefinido si falta)
 }
 
-export type ManualReservationStatus = "pending" | "confirmed" | "played" | "paid" | "no_show" | "free" | "cancelled";
+export type ManualReservationStatus = "pending" | "confirmed" | "delivered" | "played" | "paid" | "no_show" | "free" | "cancelled";
 
 // Excluye "cancelled" — no aparece en el popover del badge (solo se llega desde el sheet de cancelación).
 export const MANUAL_RESERVATION_STATUS_ORDER: ManualReservationStatus[] = [
-    "pending", "confirmed", "played", "paid", "no_show", "free",
+    "pending", "confirmed", "delivered", "played", "paid", "no_show", "free",
 ];
 
 // Orden lineal para el quick-advance (no incluye no_show, que es un estado terminal paralelo).
-const ADVANCE_ORDER: ManualReservationStatus[] = ["pending", "confirmed", "played", "paid"];
+const ADVANCE_ORDER: ManualReservationStatus[] = ["pending", "confirmed", "delivered", "played", "paid"];
 
 export interface BlockedSlot {
     id: string;
@@ -313,6 +313,8 @@ export function statusBadge(status: ManualReservationStatus): { label: string; c
             return { label: "Pendiente", classes: "bg-amber-50 text-amber-700" };
         case "confirmed":
             return { label: "Confirmado", classes: "bg-blue-50 text-blue-700" };
+        case "delivered":
+            return { label: "Entregado", classes: "bg-cyan-50 text-cyan-700" };
         case "played":
             return { label: "Jugado", classes: "bg-slate-100 text-slate-700" };
         case "paid":
@@ -336,6 +338,7 @@ export function nextStatusActionLabel(current: ManualReservationStatus): string 
     if (!next) return null;
     switch (next) {
         case "confirmed": return "Confirmar";
+        case "delivered": return "Marcar entregado";
         case "played": return "Marcar jugado";
         case "paid": return "Marcar pagado";
         default: return null;
