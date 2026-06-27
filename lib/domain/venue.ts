@@ -368,6 +368,7 @@ export interface ManualReservationPayment {
     cashCOP: number;             // centavos, >= 0
     transferCOP: number;         // centavos, >= 0
     totalCOP: number;            // cashCOP + transferCOP (denormalizado)
+    note?: string;               // nota opcional del admin (máx 200 chars). Ausente si vacía.
 
     // Snapshot denormalizado para el balance (evita N+1 reads)
     startTime: string;
@@ -380,6 +381,16 @@ export interface ManualReservationPayment {
     registeredAt: string;
     updatedAt?: string;
     slotStatus?: ManualReservationStatus; // denormalizado: "cancelled" si la reserva fue cancelada
+}
+
+/** Largo máximo de la nota opcional de un pago manual. */
+export const PAYMENT_NOTE_MAX_LENGTH = 200;
+
+/** Normaliza la nota de un pago: trim + cap. Devuelve undefined si queda vacía. */
+export function normalizePaymentNote(note: string | undefined | null): string | undefined {
+    if (!note) return undefined;
+    const trimmed = note.trim().slice(0, PAYMENT_NOTE_MAX_LENGTH);
+    return trimmed.length > 0 ? trimmed : undefined;
 }
 
 // ========================

@@ -21,7 +21,8 @@ Hoy el `location_admin` cierra el día sin saber cuánta plata entró, ni cómo 
 | 5 | **Reservas no cobrables**: las reservas en estado `cancelled`, `free` o `no_show` no permiten registrar pago — el botón no aparece. Tampoco se permite registrar pago en una reserva con `isMonthly: true` (Mensualidad), ya que el cobro se hace en flujo aparte (fuera de este SDD). | CTA oculto en estos casos |
 | 6 | Registrar un pago **escribe atómicamente**: el doc en `payments` y la actualización de `status: "paid"` (sólo para reservas puntuales — no recurrentes; en recurrentes la instancia se considera "paga" por la existencia del payment doc). | Una sola operación |
 | 7 | Borrar un pago revierte el `status` del `BlockedSlot` a `"played"` si estaba en `"paid"` (para puntuales). Para recurrentes, el doc maestro no se toca. | Optimistic revert |
-| 8 | Editar un pago modifica `cashCOP`, `transferCOP`, `totalCOP` y `updatedAt`. La fecha y la reserva no son editables. | Edit sheet con campos limitados |
+| 8 | Editar un pago modifica `cashCOP`, `transferCOP`, `totalCOP`, `note` y `updatedAt`. La fecha y la reserva no son editables. | Edit sheet con campos limitados |
+| 8b | Un pago puede llevar una **nota opcional** (`note: string`, máx 200 chars, trim). Es texto libre del admin (ej. "abonó el resto la próxima semana"). Si queda vacía no se persiste el campo (y al editar se elimina con `deleteField()`). No afecta montos ni el balance. | Textarea opcional + nota visible en la row del balance |
 | 9 | El **balance del día** muestra la suma de `cashCOP`, `transferCOP` y `totalCOP` de todos los pagos con `date === selectedDate` para el venue actual. Una sola query por fecha. | 3 cards arriba + lista de pagos |
 | 10 | El balance es accesible a `location_admin` y `super_admin` con acceso al venue. Para `location_admin` se agrega un nuevo tab "Balance" en el admin de venue (hoy sólo ve el tab "Reservas"). | Nuevo tab |
 | 11 | El monto inicial del input efectivo se pre-rellena con el `priceCOP` de la reserva (el caso más común: el cliente paga el precio completo en efectivo). El admin lo edita si corresponde. | Default UX |
@@ -55,9 +56,9 @@ Hoy el `location_admin` cierra el día sin saber cuánta plata entró, ni cómo 
 ## 3. CONCURRENCIA SEGURA
 
 ### Operaciones que requieren `runTransaction()`
-1. **`registerPayment(venueId, reservationId, date, cashCOP, transferCOP)`**: lee si ya existe el doc (`payment_${reservationId}_${date}`). Si existe → falla con `AlreadyExists` y la UI redirecciona a edit. Si no existe → crea payment + actualiza `status: "paid"` del slot (si es puntual). Todo en una transacción.
+1. **`registerPayment(venueId, reservationId, date, cashCOP, transferCOP, { note? })`**: lee si ya existe el doc (`payment_${reservationId}_${date}`). Si existe → falla con `AlreadyExists` y la UI redirecciona a edit. Si no existe → crea payment (con `note` si viene) + actualiza `status: "paid"` del slot (si es puntual). Todo en una transacción.
 2. **`deletePayment(venueId, paymentId)`**: lee el payment; si la reserva asociada está en `paid`, revierte a `played`. Borra el payment. Atómico.
-3. **`updatePayment(venueId, paymentId, { cashCOP, transferCOP })`**: lee + escribe `cashCOP`, `transferCOP`, `totalCOP`, `updatedAt` en transacción para evitar last-write-wins con dos admins editando simultáneamente.
+3. **`updatePayment(venueId, paymentId, { cashCOP, transferCOP }, { note? })`**: lee + escribe `cashCOP`, `transferCOP`, `totalCOP`, `note` (o `deleteField()` si vacía) y `updatedAt` en transacción para evitar last-write-wins con dos admins editando simultáneamente.
 
 ### Race conditions identificadas
 - **Escenario**: Admin A y B ven el mismo slot sin pago, ambos tapean "Marcar pagado" y registran montos distintos. → **Mitigación**: el `id` determinístico + transacción. El segundo write falla con `AlreadyExists`; la UI le muestra "ya hay un pago, abre edit".
@@ -92,7 +93,8 @@ match /payments/{paymentId} {
     && (request.resource.data.cashCOP + request.resource.data.transferCOP) > 0
     && request.resource.data.totalCOP == request.resource.data.cashCOP + request.resource.data.transferCOP
     && request.resource.data.registeredBy == request.auth.uid
-    && request.resource.data.date is string;
+    && request.resource.data.date is string
+    && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 200));
 
   allow update: if isSignedIn()
     && (isSuperAdmin() || isLocationAdminFor(venueId))
@@ -103,7 +105,8 @@ match /payments/{paymentId} {
     // No se puede cambiar reservationId, date, registeredBy
     && request.resource.data.reservationId == resource.data.reservationId
     && request.resource.data.date == resource.data.date
-    && request.resource.data.registeredBy == resource.data.registeredBy;
+    && request.resource.data.registeredBy == resource.data.registeredBy
+    && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 200));
 
   allow delete: if isSignedIn()
     && (isSuperAdmin() || isLocationAdminFor(venueId));
@@ -116,6 +119,7 @@ match /payments/{paymentId} {
 - `cashCOP + transferCOP > 0`: al menos un monto positivo.
 - `totalCOP === cashCOP + transferCOP`: cliente lo calcula y persiste; reglas Firestore lo verifican.
 - `date`: string `YYYY-MM-DD`. Validado regex en cliente; reglas verifican `is string`.
+- `note`: opcional. Trim + cap a 200 chars en cliente (`normalizePaymentNote`); reglas verifican `is string` y `size() <= 200` si está presente.
 - `reservationId`: debe existir como doc en `venues/{venueId}/blocked_slots/`. **Sólo validable en transacción** (rules no pueden hacer `get()` cross-doc en la misma op atómica fácilmente — la transacción cliente sí puede leer el slot y validar).
 
 ### Datos sensibles
@@ -290,6 +294,7 @@ export interface ManualReservationPayment {
     cashCOP: number;             // centavos, ≥ 0
     transferCOP: number;         // centavos, ≥ 0
     totalCOP: number;            // cashCOP + transferCOP (denormalizado)
+    note?: string;               // nota opcional del admin (máx 200 chars). Ausente si vacía.
 
     // Snapshot denormalizado para la vista de balance (evita N+1 reads)
     startTime: string;

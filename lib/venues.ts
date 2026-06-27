@@ -31,7 +31,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
 import { expandBlockedSlotsForDate } from "./domain/blocked-slots";
 import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus, ManualReservationPayment, PaymentMethod } from "./domain/venue";
-import { validatePaymentMethods } from "./domain/venue";
+import { validatePaymentMethods, normalizePaymentNote } from "./domain/venue";
 import { validatePendingApprovalTTL } from "./domain/booking";
 import { validateWhatsAppNumber } from "./domain/venue";
 import { buildPaymentId, validatePaymentAmounts } from "./domain/payments";
@@ -569,10 +569,11 @@ export async function registerManualReservationPayment(
     cashCOP: number,
     transferCOP: number,
     registeredBy: string,
-    options?: { skipSlotUpdate?: boolean },
+    options?: { skipSlotUpdate?: boolean; note?: string },
 ): Promise<{ id: string }> {
     validatePaymentAmounts(cashCOP, transferCOP);
 
+    const note = normalizePaymentNote(options?.note);
     const paymentId = buildPaymentId(slot.id, targetDate);
     const slotRef = doc(db, "venues", venueId, "blocked_slots", slot.id);
     const paymentRef = doc(db, "venues", venueId, "payments", paymentId);
@@ -610,6 +611,7 @@ export async function registerManualReservationPayment(
             courtIds: src.courtIds,
             ...(src.clientName ? { clientName: src.clientName } : {}),
             ...(typeof src.priceCOP === "number" ? { priceCOP: src.priceCOP } : {}),
+            ...(note ? { note } : {}),
             registeredBy,
             registeredAt: now,
         };
@@ -640,9 +642,11 @@ export async function updateManualReservationPayment(
     paymentId: string,
     cashCOP: number,
     transferCOP: number,
+    options?: { note?: string },
 ): Promise<void> {
     validatePaymentAmounts(cashCOP, transferCOP);
 
+    const note = normalizePaymentNote(options?.note);
     const paymentRef = doc(db, "venues", venueId, "payments", paymentId);
     const now = new Date().toISOString();
     const totalCOP = cashCOP + transferCOP;
@@ -656,6 +660,8 @@ export async function updateManualReservationPayment(
             cashCOP,
             transferCOP,
             totalCOP,
+            // Si la nota quedó vacía, se elimina el campo del documento.
+            note: note ?? deleteField(),
             updatedAt: now,
         });
     });

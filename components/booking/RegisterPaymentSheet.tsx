@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, X, Banknote, Landmark, Trash2 } from "lucide-react";
+import { Loader2, X, Banknote, Landmark, Trash2, StickyNote } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
     registerManualReservationPayment,
@@ -19,6 +19,7 @@ import {
     logManualReservationPaymentEdited,
     logManualReservationPaymentDeleted,
 } from "@/lib/analytics";
+import { PAYMENT_NOTE_MAX_LENGTH, normalizePaymentNote } from "@/lib/domain/venue";
 import type { BlockedSlot, ManualReservationPayment } from "@/lib/domain/venue";
 
 interface RegisterPaymentSheetProps {
@@ -95,6 +96,7 @@ export default function RegisterPaymentSheet({
     const isEditMode = !!existingPayment;
     const [cashPesos, setCashPesos] = useState(0);
     const [transferPesos, setTransferPesos] = useState(0);
+    const [note, setNote] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -104,6 +106,7 @@ export default function RegisterPaymentSheet({
         if (existingPayment) {
             setCashPesos(centavosToPesos(existingPayment.cashCOP));
             setTransferPesos(centavosToPesos(existingPayment.transferCOP));
+            setNote(existingPayment.note ?? "");
         } else if (typeof depositCOP === "number" && depositCOP > 0 && typeof slot.priceCOP === "number") {
             // Reserva de jugador con abono: transferencia = abono, efectivo = resto.
             // El admin puede ajustar si en sede el cliente paga distinto.
@@ -111,11 +114,13 @@ export default function RegisterPaymentSheet({
             const restCOP = Math.max(0, slot.priceCOP - depositCOP);
             setTransferPesos(transferPesosInit);
             setCashPesos(centavosToPesos(restCOP));
+            setNote("");
         } else {
             // Reserva manual o reserva sin abono: efectivo pre-rellenado con precio total.
             const pricePesos = typeof slot.priceCOP === "number" ? centavosToPesos(slot.priceCOP) : 0;
             setCashPesos(pricePesos);
             setTransferPesos(0);
+            setNote("");
         }
         setConfirmingDelete(false);
     }, [open, existingPayment, slot.priceCOP, depositCOP]);
@@ -130,10 +135,13 @@ export default function RegisterPaymentSheet({
         [totalCOP, slot.priceCOP],
     );
 
+    const normalizedNote = normalizePaymentNote(note);
     const hasChanges =
         !isEditMode ||
         (existingPayment !== null &&
-            (cashCOP !== existingPayment.cashCOP || transferCOP !== existingPayment.transferCOP));
+            (cashCOP !== existingPayment.cashCOP ||
+                transferCOP !== existingPayment.transferCOP ||
+                normalizedNote !== (existingPayment.note ?? undefined)));
 
     const handleClose = () => {
         if (submitting) return;
@@ -147,7 +155,7 @@ export default function RegisterPaymentSheet({
             if (isEditMode && existingPayment) {
                 const previousCashCOP = existingPayment.cashCOP;
                 const previousTransferCOP = existingPayment.transferCOP;
-                await updateManualReservationPayment(venueId, existingPayment.id, cashCOP, transferCOP);
+                await updateManualReservationPayment(venueId, existingPayment.id, cashCOP, transferCOP, { note });
                 logManualReservationPaymentEdited({
                     venueId,
                     paymentId: existingPayment.id,
@@ -166,7 +174,7 @@ export default function RegisterPaymentSheet({
                     cashCOP,
                     transferCOP,
                     registeredBy,
-                    { skipSlotUpdate },
+                    { skipSlotUpdate, note },
                 );
                 logManualReservationPaymentRegistered({
                     venueId,
@@ -331,6 +339,25 @@ export default function RegisterPaymentSheet({
                                         </span>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Nota opcional */}
+                            <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                                    <StickyNote className="w-3.5 h-3.5" />
+                                    Nota <span className="font-normal normal-case text-slate-400">(opcional)</span>
+                                </label>
+                                <textarea
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    maxLength={PAYMENT_NOTE_MAX_LENGTH}
+                                    rows={2}
+                                    placeholder="Ej. abonó el resto la próxima semana"
+                                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white resize-none focus:outline-none focus:ring-2 focus:ring-slate-400/30 focus:border-slate-400/50"
+                                />
+                                <div className="mt-1 text-right text-[11px] text-slate-400 tabular-nums">
+                                    {note.length}/{PAYMENT_NOTE_MAX_LENGTH}
+                                </div>
                             </div>
 
                             {/* Total + diff badge */}

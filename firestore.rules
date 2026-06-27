@@ -314,7 +314,8 @@ service cloud.firestore {
           && request.resource.data.totalCOP == request.resource.data.cashCOP + request.resource.data.transferCOP
           && request.resource.data.registeredBy == request.auth.uid
           && request.resource.data.date is string
-          && request.resource.data.reservationId is string;
+          && request.resource.data.reservationId is string
+          && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 200));
 
         allow update: if request.auth != null
           && (isSuperAdmin() || isLocationAdminFor(venueId))
@@ -327,7 +328,8 @@ service cloud.firestore {
           // Inmutables: no se puede cambiar reservationId, date, registeredBy
           && request.resource.data.reservationId == resource.data.reservationId
           && request.resource.data.date == resource.data.date
-          && request.resource.data.registeredBy == resource.data.registeredBy;
+          && request.resource.data.registeredBy == resource.data.registeredBy
+          && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 200));
 
         allow delete: if request.auth != null
           && (isSuperAdmin() || isLocationAdminFor(venueId));

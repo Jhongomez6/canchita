@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Banknote, Landmark } from "lucide-react";
+import { Banknote, Landmark, StickyNote } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatCourtList, tierLabelFromCount } from "@/lib/domain/venue";
 import type { Court, ManualReservationPayment } from "@/lib/domain/venue";
@@ -82,6 +82,14 @@ export default function PaymentRow({ payment, courts, onTap }: PaymentRowProps) 
                     </span>
                 )}
             </div>
+
+            {/* Nota opcional */}
+            {payment.note && (
+                <div className="mt-2 flex items-start gap-1.5 text-[11px] text-slate-500">
+                    <StickyNote className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
+                    <span className="break-words">{payment.note}</span>
+                </div>
+            )}
         </motion.button>
     );
 }
