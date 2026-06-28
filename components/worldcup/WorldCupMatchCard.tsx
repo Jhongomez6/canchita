@@ -5,8 +5,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Lock, Clock } from "lucide-react";
 import {
     flagEmoji,
+    isMatchReady,
     isPredictionLocked,
     isResultPending,
+    matchStageLabel,
     scoreForPrediction,
     type WCMatch,
     type WCPrediction,
@@ -47,6 +49,7 @@ export default function WorldCupMatchCard({
     userPrediction?: WCPrediction;
     onPredictionSaved: (matchId: string, home: number, away: number) => void;
 }) {
+    const ready = isMatchReady(match); // eliminación: ambos equipos resueltos
     const locked = isPredictionLocked(match);
     const finished = match.status === "FINISHED";
     const pendingResult = isResultPending(match);
@@ -62,7 +65,7 @@ export default function WorldCupMatchCard({
         <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
             {/* Cabecera: grupo + estado */}
             <div className="flex items-center justify-between px-4 pt-3 text-xs">
-                <span className="font-semibold text-gray-400">{match.group}</span>
+                <span className="font-semibold text-gray-400">{matchStageLabel(match)}</span>
                 {finished ? (
                     <span className="font-bold uppercase tracking-wide text-[#1f7a4f]">Finalizado</span>
                 ) : pendingResult ? (
@@ -86,7 +89,12 @@ export default function WorldCupMatchCard({
 
             {/* Estado de predicción del usuario */}
             <div className="px-4 pb-3">
-                {!locked ? (
+                {!ready ? (
+                    // Eliminación sin equipos definidos todavía
+                    <span className="flex items-center gap-1 text-sm text-gray-400">
+                        <Clock className="w-3.5 h-3.5" /> Se define al terminar la ronda anterior
+                    </span>
+                ) : !locked ? (
                     // ABIERTO — predecir o editar
                     <button
                         type="button"

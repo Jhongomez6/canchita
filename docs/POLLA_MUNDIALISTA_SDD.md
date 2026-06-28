@@ -589,6 +589,53 @@ Permite habilitar la polla a un grupo específico sin abrirla a todos, vía un c
 
 | Tema | Estado | Nota |
 |------|--------|------|
-| **Playoffs (octavos → final)** | Por definir | Requiere resolver: scoring de partidos con prórroga/penales, y siembra de bracket con equipos TBD ("1A vs 2B") hasta que terminan los grupos |
+| **Playoffs (dieciseisavos → final)** | ✅ Implementado v2 (ver §16) | Scoring: marcador 90'+alargue, penales = empate (reutiliza scoring de grupos). Equipos cargados desde bracket confirmado, ronda a ronda |
 | **Notificaciones push** | Descartado v1 | No se envían recordatorios ni avisos de resultados |
 | **Teardown post-torneo** | Por definir | Intención: **apagar el flag** (`pollEnabled = false`) el 20 de julio. Pendiente decidir si se conservan las colecciones como "hall of fame" del ganador o se archivan |
+
+---
+
+## 16. EXTENSIÓN v2: FASE DE ELIMINACIÓN (dieciseisavos → final)
+
+### Objetivo
+Extender la polla a la fase de eliminación (32 partidos, nums 73–104) reutilizando al máximo la infraestructura de grupos.
+
+### Decisiones de diseño
+
+| # | Decisión | Razón |
+|---|----------|-------|
+| 1 | **Scoring sin cambios**: se predice el marcador con que el partido va a los libros (incl. tiempo extra). Si se define por **penales, cuenta como empate** | Reutiliza `scoreForPrediction` tal cual. Acertar el avance por penales NO da puntos extra (simplicidad v2) |
+| 2 | **Candado y reglas**: idénticos a grupos (por `kickoffMs`). No requieren cambios en `firestore.rules` ni en las Cloud Functions | Las rules son agnósticas a fase; solo miran tiempo y matchId |
+| 3 | **Dieciseisavos desde bracket confirmado** (no desde los placeholders de openfootball) | openfootball llega atrasado con los nombres del cuadro; los 16 cruces de R32 se fijan a mano en `CONFIRMED_TEAMS` (cruzados contra el standings de Firestore) |
+| 4 | **Auto-avance de octavos → final**: una Cloud Function propaga el ganador/perdedor al slot de la ronda siguiente al finalizar cada partido | El esquema del cuadro es fijo (`BRACKET_FEED`); solo el avance por penales requiere un dato humano |
+
+### Auto-avance del cuadro (octavos → final)
+- Cada slot de 89–104 se siembra con su **llave** (`homeSource` / `awaySource`: `{ type: "winner" | "loser", matchId }`) y un equipo placeholder (`code: ""` → "Por definir" en la UI).
+- El trigger `onWorldCupMatchFinished`, tras puntuar, llama a `propagateBracket()`: calcula el ganador (`knockoutWinnerSide`) y escribe el `WCTeam` resuelto en el/los slot(s) que referencian ese partido. Idempotente; actualizar `homeTeam` no re-dispara scoring (el trigger solo reacciona a `status→FINISHED` o cambio de marcador).
+- **Penales**: si un partido de eliminación termina **empatado**, el marcador puntúa como empate (sin cambios), pero el avance necesita saber quién pasó. El form de admin pide **"¿Quién avanzó?"** y lo guarda en `WCMatch.advancedTeam`; `knockoutWinnerSide` lo usa. Sin ese dato, `propagateBracket` no avanza (espera la corrección).
+- Las queries `where("homeSource.matchId","==",id)` usan índices de campo único (auto-creados) — **no requieren índice compuesto**.
+
+### Modelo de datos
+- `WCPhase` extendido: `GROUP_STAGE | ROUND_OF_32 | ROUND_OF_16 | QUARTER_FINAL | SEMI_FINAL | THIRD_PLACE | FINAL`.
+- `WCMatch.group` **opcional** (`undefined` en eliminación); `homeSource` / `awaySource` (llaves) y `advancedTeam` (penales) **opcionales**.
+- `WCTeam.code === ""` = slot sin resolver. Helpers: `isTeamResolved`, `isMatchReady` (gate de predicción), `knockoutWinnerSide`.
+- `WC_PHASE_LABELS` + `matchStageLabel(match)`: cabecera muestra el grupo o el nombre de la ronda.
+
+### Siembra (`scripts/seedWorldCupKnockout.js`)
+- **Merge-safe / reejecutable**: si el partido existe NO toca `homeTeam`/`awayTeam` (los pone el auto-avance), `status`, `score` ni `adminUpdatedAt`; solo refresca schedule + llaves. A diferencia de `seedWorldCupMatches.js` (grupos), que es **destructivo y NO debe re-correrse**.
+- R32: equipos desde `CONFIRMED_TEAMS`. Octavos→final: placeholders + `BRACKET_FEED`. Schedule (fecha/sede) siempre desde openfootball.
+
+### Estado de carga
+- ✅ Dieciseisavos (73–88): equipos confirmados.
+- ✅ Octavos → final (89–104): sembrados con llaves; se llenan solos vía auto-avance.
+- ⚠️ **Requiere deploy de Cloud Functions** para que el auto-avance opere.
+
+### Archivos involucrados
+| Archivo | Cambio |
+|---------|--------|
+| `lib/domain/worldcup.ts` | `WCPhase`, `group` opcional, `WCMatchSource`, `homeSource`/`awaySource`/`advancedTeam`, `WC_PHASE_LABELS`, `matchStageLabel()`, `isMatchReady()`, `knockoutWinnerSide()` |
+| `functions/src/worldcup.ts` | `propagateBracket()` en el trigger; `advancedTeam` en `updateWorldCupMatchResult` |
+| `lib/worldcup.ts` | `updateMatchResult()` acepta `advancedTeam` |
+| `components/worldcup/AdminMatchResultForm.tsx` | selector "¿Quién avanzó?" en empates de eliminación |
+| `components/worldcup/WorldCupMatchCard.tsx` | gate "Por definir" para partidos sin equipos resueltos |
+| `scripts/seedWorldCupKnockout.js` | **nuevo** — siembra merge-safe + `BRACKET_FEED` |

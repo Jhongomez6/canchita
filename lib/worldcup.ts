@@ -210,15 +210,19 @@ export async function getBracketPredictions(): Promise<WCBracketPrediction[]> {
 
 /**
  * Carga o corrige el resultado de un partido. Solo super_admin (validado en la CF).
- * Dispara el recálculo automático del leaderboard.
+ * Dispara el recálculo automático del leaderboard y, en eliminación, el auto-avance.
+ *
+ * `advancedTeam` es obligatorio cuando un partido de eliminación termina empatado
+ * (define quién avanzó por penales); se ignora en el resto de los casos.
  */
 export async function updateMatchResult(
     matchId: string,
     homeGoals: number,
     awayGoals: number,
+    advancedTeam?: "home" | "away",
 ): Promise<void> {
     const fn = httpsCallable(functions, "updateWorldCupMatchResult");
-    await fn({ matchId, homeGoals, awayGoals });
+    await fn({ matchId, homeGoals, awayGoals, advancedTeam });
 }
 
 /**

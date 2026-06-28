@@ -24,28 +24,53 @@
 // v1: sin IN_PLAY (el cierre es por tiempo, no por estado del admin).
 export type WCMatchStatus = "SCHEDULED" | "FINISHED" | "POSTPONED";
 
-// v1 solo GROUP_STAGE. Enum extensible para playoffs (fuera de scope v1).
-export type WCPhase = "GROUP_STAGE";
+// v1 cubría solo GROUP_STAGE; v2 agrega la eliminación directa (octavos → final).
+// El scoring de eliminación reutiliza el de grupos: se predice el marcador con
+// que el partido "va a los libros" (incl. tiempo extra); si se define por penales
+// cuenta como empate. Ver docs/POLLA_MUNDIALISTA_SDD.md §16.
+export type WCPhase =
+    | "GROUP_STAGE"
+    | "ROUND_OF_32"
+    | "ROUND_OF_16"
+    | "QUARTER_FINAL"
+    | "SEMI_FINAL"
+    | "THIRD_PLACE"
+    | "FINAL";
 
 export interface WCTeam {
-    name: string;   // "Argentina"
-    code: string;   // ISO-2 en mayúsculas ("AR") para bandera, o fallback de 3 letras
+    name: string;   // "Argentina"; en knockout sin resolver: "Ganador 74" / "Perdedor 101"
+    code: string;   // ISO-2 en mayúsculas ("AR") para bandera, o fallback de 3 letras; "" si sin resolver
+}
+
+/**
+ * Origen de un slot de eliminación: el ganador o perdedor de un partido previo.
+ * El auto-avance (CF) lo usa para escribir el equipo cuando ese partido finaliza.
+ */
+export interface WCMatchSource {
+    type: "winner" | "loser";
+    matchId: string;   // "74"
 }
 
 export interface WCMatch {
-    id: string;          // match number como string: "1" … "48"
+    id: string;          // match number como string: "1" … "104"
     utcDate: string;     // ISO 8601 para display: "2026-06-11T19:00:00.000Z"
     kickoffMs: number;   // epoch ms UTC — fuente de verdad del candado (rules + queries)
     status: WCMatchStatus;
     phase: WCPhase;
-    group: string;       // "Group A" … "Group L"
+    group?: string;      // "Group A" … "Group L" — solo en fase de grupos; undefined en eliminación
     ground?: string;     // estadio / ciudad (informativo)
     homeTeam: WCTeam;
     awayTeam: WCTeam;
+    // Llaves del cuadro (solo eliminación): de qué partido sale cada lado.
+    homeSource?: WCMatchSource;
+    awaySource?: WCMatchSource;
     score: {
         home: number | null;   // null hasta que el admin carga el resultado
         away: number | null;
     };
+    // Solo knockout: si el partido terminó EMPATADO (se definió por penales), qué
+    // lado avanzó. El marcador puntúa como empate; esto solo sirve para el avance.
+    advancedTeam?: "home" | "away";
     adminUpdatedAt?: string; // ISO — cuándo el admin cargó el resultado
 }
 
@@ -122,6 +147,58 @@ export const WC_PRIZE_FREE_MATCHES = 5;
 
 /** Premio equivalente para arqueros: pagan media cuota, así que el mismo valor son 10 partidos. */
 export const WC_PRIZE_FREE_MATCHES_GK = 10;
+
+/** Etiqueta en español de cada fase, para la cabecera de la tarjeta de partido. */
+export const WC_PHASE_LABELS: Record<WCPhase, string> = {
+    GROUP_STAGE: "Fase de grupos",
+    ROUND_OF_32: "Dieciseisavos",
+    ROUND_OF_16: "Octavos de final",
+    QUARTER_FINAL: "Cuartos de final",
+    SEMI_FINAL: "Semifinal",
+    THIRD_PLACE: "Tercer puesto",
+    FINAL: "Final",
+};
+
+/**
+ * Etiqueta de cabecera de un partido: el grupo si es fase de grupos ("Group A"),
+ * o el nombre de la ronda de eliminación. Garantiza un label aunque falte `group`.
+ */
+export function matchStageLabel(match: Pick<WCMatch, "group" | "phase">): string {
+    return match.group || WC_PHASE_LABELS[match.phase] || "";
+}
+
+// ========================
+// AVANCE DE ELIMINACIÓN (llaves del cuadro)
+// ========================
+
+/** Un slot de equipo está sin resolver si no tiene código (placeholder "Ganador 74"). */
+export function isTeamResolved(team: Pick<WCTeam, "code">): boolean {
+    return !!team.code;
+}
+
+/**
+ * El partido está listo para predecir cuando ambos equipos están resueltos.
+ * En grupos siempre es true; en eliminación, hasta que el auto-avance llena los slots.
+ */
+export function isMatchReady(match: Pick<WCMatch, "homeTeam" | "awayTeam">): boolean {
+    return isTeamResolved(match.homeTeam) && isTeamResolved(match.awayTeam);
+}
+
+/**
+ * Lado ganador de un partido de eliminación FINISHED.
+ * - Por marcador si hubo diferencia.
+ * - Si terminó empatado (penales), por `advancedTeam`.
+ * - null si no se puede determinar todavía (sin resultado, o empate sin definir avance).
+ */
+export function knockoutWinnerSide(
+    match: Pick<WCMatch, "score" | "advancedTeam">,
+): "home" | "away" | null {
+    const { home, away } = match.score;
+    if (home == null || away == null) return null;
+    if (home > away) return "home";
+    if (away > home) return "away";
+    return match.advancedTeam ?? null;
+}
 
 // ========================
 // REGLAS DE NEGOCIO (puras)

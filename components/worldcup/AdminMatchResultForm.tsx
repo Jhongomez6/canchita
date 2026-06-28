@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { Check, Loader2 } from "lucide-react";
 import { updateMatchResult } from "@/lib/worldcup";
 import { handleError } from "@/lib/utils/error";
-import { flagEmoji, type WCMatch } from "@/lib/domain/worldcup";
+import { flagEmoji, matchStageLabel, type WCMatch } from "@/lib/domain/worldcup";
 import GoalStepper from "./GoalStepper";
 
 /**
@@ -21,14 +21,22 @@ export default function AdminMatchResultForm({
 }) {
     const [home, setHome] = useState(match.score.home ?? 0);
     const [away, setAway] = useState(match.score.away ?? 0);
+    const [advanced, setAdvanced] = useState<"home" | "away" | null>(match.advancedTeam ?? null);
     const [saving, setSaving] = useState(false);
 
     const isFinished = match.status === "FINISHED";
+    // En eliminación, un empate se define por penales → hay que indicar quién avanzó.
+    const isKnockout = match.phase !== "GROUP_STAGE";
+    const needsAdvance = isKnockout && home === away;
 
     const handleSave = async () => {
+        if (needsAdvance && advanced === null) {
+            toast.error("Indicá qué equipo avanzó por penales");
+            return;
+        }
         setSaving(true);
         try {
-            await updateMatchResult(match.id, home, away);
+            await updateMatchResult(match.id, home, away, needsAdvance ? advanced! : undefined);
             toast.success(isFinished ? "Resultado corregido" : "Resultado cargado");
             onSaved?.();
         } catch (err) {
@@ -41,7 +49,7 @@ export default function AdminMatchResultForm({
     return (
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-gray-400">{match.group}</span>
+                <span className="text-xs font-semibold text-gray-400">{matchStageLabel(match)}</span>
                 {isFinished && (
                     <span className="text-[10px] font-bold uppercase tracking-wide text-[#1f7a4f] bg-[#1f7a4f]/10 px-2 py-0.5 rounded-full">
                         Finalizado
@@ -64,6 +72,35 @@ export default function AdminMatchResultForm({
                     disabled={saving}
                 />
             </div>
+
+            {needsAdvance && (
+                <div className="mb-4">
+                    <p className="text-xs font-semibold text-gray-500 mb-2">
+                        Empate — ¿quién avanzó por penales?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                        {(["home", "away"] as const).map((side) => {
+                            const team = side === "home" ? match.homeTeam : match.awayTeam;
+                            const selected = advanced === side;
+                            return (
+                                <button
+                                    key={side}
+                                    type="button"
+                                    onClick={() => setAdvanced(side)}
+                                    disabled={saving}
+                                    className={`h-11 rounded-xl border text-base font-semibold transition active:scale-[0.99] ${
+                                        selected
+                                            ? "border-[#1f7a4f] bg-[#1f7a4f]/10 text-[#1f7a4f]"
+                                            : "border-gray-200 text-gray-600"
+                                    }`}
+                                >
+                                    {flagEmoji(team.code)} {team.name}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             <button
                 type="button"

@@ -42,6 +42,21 @@ function scoreForPrediction(
     return outcome(pred.homeGoals, pred.awayGoals) === outcome(result.home, result.away) ? 1 : 0;
 }
 
+/**
+ * Lado ganador de un partido de eliminación FINISHED (mirror de lib/domain/worldcup.ts).
+ * Por marcador; si terminó empatado (penales) por `advancedTeam`; null si no se puede determinar.
+ */
+function knockoutWinnerSide(
+    match: { score?: { home: number | null; away: number | null }; advancedTeam?: "home" | "away" },
+): "home" | "away" | null {
+    const home = match.score?.home;
+    const away = match.score?.away;
+    if (home == null || away == null) return null;
+    if (home > away) return "home";
+    if (away > home) return "away";
+    return match.advancedTeam ?? null;
+}
+
 // ========================
 // updateWorldCupMatchResult — onCall (solo super_admin)
 // ========================
@@ -60,7 +75,7 @@ export const updateWorldCupMatchResult = onCall(
             throw new HttpsError("permission-denied", "Solo el administrador puede cargar resultados");
         }
 
-        const { matchId, homeGoals, awayGoals } = request.data ?? {};
+        const { matchId, homeGoals, awayGoals, advancedTeam } = request.data ?? {};
 
         if (typeof matchId !== "string" || matchId.length === 0) {
             throw new HttpsError("invalid-argument", "matchId es requerido");
@@ -78,13 +93,32 @@ export const updateWorldCupMatchResult = onCall(
             throw new HttpsError("not-found", "El partido no existe");
         }
 
-        const match = matchSnap.data() as { status?: string; score?: { home: number | null; away: number | null } };
+        const match = matchSnap.data() as {
+            status?: string;
+            phase?: string;
+            score?: { home: number | null; away: number | null };
+            advancedTeam?: "home" | "away";
+        };
 
-        // Idempotencia: si ya está FINISHED con el mismo marcador, no reescribir.
+        // En eliminación, si el partido terminó EMPATADO necesitamos saber quién avanzó
+        // (penales). El marcador igual se puntúa como empate; advancedTeam solo sirve
+        // para el auto-avance al siguiente cruce.
+        const isKnockout = match.phase != null && match.phase !== "GROUP_STAGE";
+        const isDraw = homeGoals === awayGoals;
+        let advanced: "home" | "away" | null = null;
+        if (isKnockout && isDraw) {
+            if (advancedTeam !== "home" && advancedTeam !== "away") {
+                throw new HttpsError("invalid-argument", "Empate en eliminación: indicá qué equipo avanzó");
+            }
+            advanced = advancedTeam;
+        }
+
+        // Idempotencia: si ya está FINISHED con el mismo marcador y mismo avance, no reescribir.
         if (
             match.status === "FINISHED" &&
             match.score?.home === homeGoals &&
-            match.score?.away === awayGoals
+            match.score?.away === awayGoals &&
+            (match.advancedTeam ?? null) === advanced
         ) {
             return { ok: true, unchanged: true };
         }
@@ -93,10 +127,12 @@ export const updateWorldCupMatchResult = onCall(
             "score.home": homeGoals,
             "score.away": awayGoals,
             status: "FINISHED",
+            // Guarda el avance solo si aplica; si no, lo limpia (corrección de empate → resultado decisivo).
+            advancedTeam: advanced ?? admin.firestore.FieldValue.delete(),
             adminUpdatedAt: new Date().toISOString(),
         });
 
-        // El recálculo del leaderboard lo dispara el trigger onWorldCupMatchFinished.
+        // El recálculo del leaderboard y el auto-avance los dispara onWorldCupMatchFinished.
         return { ok: true };
     },
 );
@@ -250,9 +286,55 @@ export const onWorldCupMatchFinished = onDocumentUpdated(
             await recalcUserLeaderboard(userId);
         }
 
+        // 3. Auto-avance del cuadro: si es eliminación, propagar el ganador/perdedor
+        //    al slot de la ronda siguiente (octavos → final se llenan solos).
+        if (after.phase && after.phase !== "GROUP_STAGE") {
+            await propagateBracket(matchId, after);
+        }
+
         console.log(`[WorldCup] match ${matchId} FINISHED → ${predsSnap.size} predicciones, ${affectedUserIds.size} usuarios`);
     },
 );
+
+/**
+ * Auto-avance del cuadro: cuando un partido de eliminación finaliza, escribe el
+ * equipo ganador (o perdedor, para el 3er puesto) en el slot de la ronda siguiente
+ * que lo referencia vía homeSource/awaySource. Idempotente.
+ */
+async function propagateBracket(
+    matchId: string,
+    match: FirebaseFirestore.DocumentData,
+): Promise<void> {
+    const winnerSide = knockoutWinnerSide(match);
+    if (!winnerSide) {
+        console.log(`[WorldCup] #${matchId} empate sin avance definido — no se propaga aún`);
+        return;
+    }
+    const winner = winnerSide === "home" ? match.homeTeam : match.awayTeam;
+    const loser = winnerSide === "home" ? match.awayTeam : match.homeTeam;
+    if (!winner?.code) {
+        // El ganador todavía es placeholder (no debería pasar si las rondas terminan en orden).
+        console.warn(`[WorldCup] #${matchId} ganador sin resolver — no se propaga`);
+        return;
+    }
+
+    const [homeDeps, awayDeps] = await Promise.all([
+        db.collection("worldcupMatches").where("homeSource.matchId", "==", matchId).get(),
+        db.collection("worldcupMatches").where("awaySource.matchId", "==", matchId).get(),
+    ]);
+
+    const writes: Promise<unknown>[] = [];
+    for (const doc of homeDeps.docs) {
+        const src = doc.data().homeSource as { type: "winner" | "loser" };
+        writes.push(doc.ref.update({ homeTeam: src.type === "winner" ? winner : loser }));
+    }
+    for (const doc of awayDeps.docs) {
+        const src = doc.data().awaySource as { type: "winner" | "loser" };
+        writes.push(doc.ref.update({ awayTeam: src.type === "winner" ? winner : loser }));
+    }
+    await Promise.all(writes);
+    console.log(`[WorldCup] #${matchId} → propagado ${winner.name} a ${writes.length} slot(s)`);
+}
 
 /**
  * Recalcula el entry de leaderboard de un usuario desde todas sus predicciones puntuadas.
