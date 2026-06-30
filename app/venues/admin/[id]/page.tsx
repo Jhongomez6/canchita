@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon, Inbox } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon, Inbox, AlertTriangle, RefreshCw } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/venues";
 import { uploadVenueImage } from "@/lib/storage";
 import { handleError } from "@/lib/utils/error";
+import { withTimeout } from "@/lib/utils/withTimeout";
 import { logVenueAdminCourtConfigured, logVenueAdminScheduleUpdated } from "@/lib/analytics";
 import AuthGuard from "@/components/AuthGuard";
 import CourtConfigEditor from "@/components/booking/CourtConfigEditor";
@@ -102,6 +103,7 @@ function VenueAdminContent() {
     const [schedules, setSchedules] = useState<DaySchedule[]>([]);
     const [venueFormats, setVenueFormats] = useState<VenueFormat[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // Payment settings
@@ -343,13 +345,16 @@ function VenueAdminContent() {
     const loadData = useCallback(async () => {
         if (!venueId) return;
         setLoading(true);
+        setLoadError(false);
         try {
-            const [v, c, co, sched] = await Promise.all([
+            // withTimeout: si alguno de los getDocs se cuelga (iOS suspende Firestore),
+            // no dejamos el skeleton colgado para siempre — cae al estado de error.
+            const [v, c, co, sched] = await withTimeout(Promise.all([
                 getVenue(venueId),
                 getVenueCourts(venueId),
                 getVenueCombos(venueId),
                 getVenueFullSchedule(venueId),
-            ]);
+            ]));
 
             if (!v) {
                 toast.error("Sede no encontrada");
@@ -381,6 +386,7 @@ function VenueAdminContent() {
             setVenueActive(v.active);
             setImagePreview(null);
         } catch (err) {
+            setLoadError(true);
             handleError(err, "Error al cargar datos de la sede");
         } finally {
             setLoading(false);
@@ -504,6 +510,29 @@ function VenueAdminContent() {
         });
         markDirty();
     };
+
+    // Error de carga sin datos: estado con reintentar (antes el `!venue` dejaba el
+    // skeleton colgado para siempre incluso tras un error ya atrapado).
+    if (loadError && !venue) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+                <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 text-center max-w-sm w-full">
+                    <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <AlertTriangle size={22} className="text-amber-500" />
+                    </div>
+                    <p className="font-bold text-slate-800">No pudimos cargar la sede</p>
+                    <p className="text-sm text-slate-500 mt-1 mb-5">Revisá tu conexión e intentá de nuevo.</p>
+                    <button
+                        onClick={loadData}
+                        className="inline-flex items-center justify-center gap-2 w-full py-3 bg-[#1f7a4f] text-white rounded-xl font-bold active:scale-[0.98] transition-transform"
+                    >
+                        <RefreshCw size={16} />
+                        Reintentar
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // Skeleton
     if (loading || !venue) {
