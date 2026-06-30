@@ -1,21 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Trophy, BarChart3, HelpCircle } from "lucide-react";
+import { Trophy, BarChart3, HelpCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasWorldCupAccess } from "@/lib/domain/user";
-import { getWorldCupConfig, getWorldCupMatches, getUserPredictions, getUserBracketPrediction } from "@/lib/worldcup";
+import { useWorldCupData } from "@/lib/hooks/useWorldCupData";
 import { logWorldCupPollOpened } from "@/lib/analytics";
-import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
 import WorldCupSkeleton from "@/components/skeletons/WorldCupSkeleton";
 import WorldCupDayFilter from "@/components/worldcup/WorldCupDayFilter";
 import WorldCupMatchCard from "@/components/worldcup/WorldCupMatchCard";
 import BracketPredictor from "@/components/worldcup/BracketPredictor";
 import WorldCupRules from "@/components/worldcup/WorldCupRules";
-import type { WCMatch, WCPrediction, WCConfig, WCBracketPrediction } from "@/lib/domain/worldcup";
+import type { WCPrediction, WCBracketPrediction } from "@/lib/domain/worldcup";
 
 // Clave de día (YYYY-MM-DD) y label corto en TZ Colombia
 const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
@@ -34,51 +33,36 @@ const dayLabelFmt = new Intl.DateTimeFormat("es-CO", {
 function WorldCupContent() {
     const { user, profile } = useAuth();
     const router = useRouter();
-    const [matches, setMatches] = useState<WCMatch[]>([]);
-    const [predictions, setPredictions] = useState<Record<string, WCPrediction>>({});
-    const [config, setConfig] = useState<WCConfig | null>(null);
-    const [bracket, setBracket] = useState<WCBracketPrediction | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [selectedDay, setSelectedDay] = useState<string>("");
+    // Datos de la polla con caché en memoria (revisitas no refetchean).
+    const { data, loading, error, retry, setPrediction, setBracket } = useWorldCupData(user?.uid ?? null);
+    const [selectedDayRaw, setSelectedDay] = useState<string>("");
     const [rulesOpen, setRulesOpen] = useState(false);
+    const loggedOpenRef = useRef(false);
 
     const snapshot = useMemo(
         () => ({ displayName: profile?.name ?? "Jugador", photoURLThumb: profile?.photoURLThumb }),
         [profile?.name, profile?.photoURLThumb],
     );
 
+    const config = data?.config ?? null;
+    const matches = useMemo(() => data?.matches ?? [], [data]);
+    const predictions = useMemo(() => data?.predictions ?? {}, [data]);
+    const bracket = data?.bracket ?? null;
+
+    // Gate de acceso + log de apertura, una vez que la config llega.
     useEffect(() => {
-        if (!user || !profile) return;
-
-        (async () => {
-            try {
-                const cfg = await getWorldCupConfig();
-                if (!hasWorldCupAccess(profile, cfg.pollEnabled)) {
-                    // Si el acceso por código está abierto, mandamos a ingresar el código;
-                    // si no, de vuelta al home.
-                    router.replace(cfg.joinByCodeOpen ? "/worldcup/join" : "/");
-                    return;
-                }
-                logWorldCupPollOpened();
-                setConfig(cfg);
-
-                const [ms, preds, br] = await Promise.all([
-                    getWorldCupMatches(),
-                    getUserPredictions(user.uid),
-                    getUserBracketPrediction(user.uid),
-                ]);
-                setMatches(ms);
-                setBracket(br);
-                const map: Record<string, WCPrediction> = {};
-                for (const p of preds) map[p.matchId] = p;
-                setPredictions(map);
-            } catch (err) {
-                handleError(err, "Error al cargar la polla");
-            } finally {
-                setLoading(false);
-            }
-        })();
-    }, [user, profile, router]);
+        if (!profile || !config) return;
+        if (!hasWorldCupAccess(profile, config.pollEnabled)) {
+            // Si el acceso por código está abierto, mandamos a ingresar el código;
+            // si no, de vuelta al home.
+            router.replace(config.joinByCodeOpen ? "/worldcup/join" : "/");
+            return;
+        }
+        if (!loggedOpenRef.current) {
+            loggedOpenRef.current = true;
+            logWorldCupPollOpened();
+        }
+    }, [profile, config, router]);
 
     // Agrupar partidos por día (TZ Colombia)
     const days = useMemo(() => {
@@ -91,13 +75,14 @@ function WorldCupContent() {
         return Array.from(seen.entries()).map(([key, label]) => ({ key, label }));
     }, [matches]);
 
-    // Día por defecto: el primero con partidos hoy o el más próximo futuro
-    useEffect(() => {
-        if (selectedDay || days.length === 0) return;
+    // Día por defecto (derivado en render, no en effect): el primero con partidos hoy
+    // o el más próximo futuro. El usuario lo puede sobrescribir con el filtro.
+    const defaultDay = useMemo(() => {
+        if (days.length === 0) return "";
         const todayKey = dayKeyFmt.format(new Date());
-        const upcoming = days.find((d) => d.key >= todayKey);
-        setSelectedDay(upcoming?.key ?? days[0].key);
-    }, [days, selectedDay]);
+        return days.find((d) => d.key >= todayKey)?.key ?? days[0].key;
+    }, [days]);
+    const selectedDay = selectedDayRaw || defaultDay;
 
     const visibleMatches = useMemo(
         () => matches.filter((m) => dayKeyFmt.format(new Date(m.kickoffMs)) === selectedDay),
@@ -107,27 +92,53 @@ function WorldCupContent() {
     const handlePredictionSaved = useCallback(
         (matchId: string, home: number, away: number) => {
             if (!user) return;
-            setPredictions((prev) => ({
-                ...prev,
-                [matchId]: {
-                    ...(prev[matchId] ?? {
-                        id: `${user.uid}_${matchId}`,
-                        userId: user.uid,
-                        matchId,
-                        displayName: snapshot.displayName,
-                        photoURLThumb: snapshot.photoURLThumb,
-                        createdAt: new Date().toISOString(),
-                    }),
-                    homeGoals: home,
-                    awayGoals: away,
-                    updatedAt: new Date().toISOString(),
-                } as WCPrediction,
-            }));
+            const prev = predictions[matchId];
+            setPrediction(matchId, {
+                ...(prev ?? {
+                    id: `${user.uid}_${matchId}`,
+                    userId: user.uid,
+                    matchId,
+                    displayName: snapshot.displayName,
+                    photoURLThumb: snapshot.photoURLThumb,
+                    createdAt: new Date().toISOString(),
+                }),
+                homeGoals: home,
+                awayGoals: away,
+                updatedAt: new Date().toISOString(),
+            } as WCPrediction);
         },
-        [user, snapshot],
+        [user, snapshot, predictions, setPrediction],
     );
 
-    if (loading) return <WorldCupSkeleton />;
+    // Carga inicial sin caché.
+    if (!data && loading) return <WorldCupSkeleton />;
+
+    // Error sin datos: estado de error con reintentar (no pantalla en blanco ni cuelgue).
+    if (!data && error) {
+        return (
+            <div className="max-w-2xl mx-auto px-4 pt-20 flex justify-center">
+                <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 text-center max-w-sm w-full">
+                    <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <AlertTriangle size={22} className="text-amber-500" />
+                    </div>
+                    <p className="font-bold text-slate-800">No pudimos cargar la polla</p>
+                    <p className="text-sm text-slate-500 mt-1 mb-5">Revisá tu conexión e intentá de nuevo.</p>
+                    <button
+                        onClick={retry}
+                        className="inline-flex items-center justify-center gap-2 w-full py-3 bg-[#1f7a4f] text-white rounded-xl font-bold active:scale-[0.98] transition-transform"
+                    >
+                        <RefreshCw size={16} /> Reintentar
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!data) return <WorldCupSkeleton />;
+
+    // Sin acceso (o resolviéndose): el effect de arriba redirige; mostramos skeleton
+    // para no parpadear el contenido de la polla antes del redirect.
+    if (!profile || !hasWorldCupAccess(profile, data.config.pollEnabled)) return <WorldCupSkeleton />;
 
     return (
         <div className="max-w-2xl mx-auto px-4 pt-6 pb-24 md:pb-8">
@@ -164,8 +175,8 @@ function WorldCupContent() {
                         config={config}
                         existing={bracket}
                         onSaved={(champion, runnerUp) =>
-                            setBracket((prev) => ({
-                                ...(prev ?? {
+                            setBracket({
+                                ...(bracket ?? {
                                     userId: user!.uid,
                                     displayName: snapshot.displayName,
                                     photoURLThumb: snapshot.photoURLThumb,
@@ -174,7 +185,7 @@ function WorldCupContent() {
                                 champion,
                                 runnerUp,
                                 updatedAt: new Date().toISOString(),
-                            } as WCBracketPrediction))
+                            } as WCBracketPrediction)
                         }
                     />
                 </div>
