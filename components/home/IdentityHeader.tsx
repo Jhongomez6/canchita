@@ -1,11 +1,21 @@
 'use client';
 
 import type { UserProfile } from "@/lib/domain/user";
-import { calcCommitmentScore } from "@/lib/domain/user";
+import { calcCommitmentScore, hasXpAccess } from "@/lib/domain/user";
+import { calcLevelFromXp, calcTierFromLevel, ovrFromLevel, TIER_META, type XpTier } from "@/lib/domain/xp";
 import { Heart } from "lucide-react";
 import Link from "next/link";
 import { logTooltipOpened } from "@/lib/analytics";
 import PlayerAvatar from "@/components/PlayerAvatar";
+
+// Color del número del Nivel según tier — espejo de TIER_TEXT_COLOR en XpBadge
+const TIER_NUM_TEXT: Record<XpTier, string> = {
+    suplente: "text-amber-50",
+    titular: "text-slate-900",
+    estrella: "text-amber-950",
+    capitan: "text-emerald-50",
+    leyenda: "text-white",
+};
 
 interface IdentityHeaderProps {
     profile: UserProfile;
@@ -33,15 +43,23 @@ function getComHeartColor(score: number): string {
 export default function IdentityHeader({ profile, isAdmin, pendingConfirmations, activeMatchesCount }: IdentityHeaderProps) {
     const com = profile.stats ? calcCommitmentScore(profile.stats) : null;
 
+    // Nivel de XP (escala 50-99) — solo si el user tiene acceso al feature y datos cargados
+    const xpOn = hasXpAccess(profile) && typeof profile.xp === "number";
+    const xpLevelNum = xpOn ? (profile.xpLevel ?? calcLevelFromXp(profile.xp!)) : undefined;
+    const xpTier: XpTier | undefined = xpOn
+        ? (profile.xpTier ?? calcTierFromLevel(xpLevelNum!))
+        : undefined;
+    const xpNivel = xpLevelNum !== undefined ? ovrFromLevel(xpLevelNum) : undefined;
+
     const initials = profile.name
         ? profile.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()
         : "?";
 
     return (
         <div className="flex items-center gap-3">
-            {/* Avatar */}
-            <Link href="/profile" className="block active:scale-95 transition-transform">
-                <div className="w-12 h-12 rounded-full shrink-0 border-2 border-white/30">
+            {/* Avatar + badge de Nivel */}
+            <Link href="/profile" className="relative block shrink-0 active:scale-95 transition-transform">
+                <div className="w-12 h-12 rounded-full border-2 border-white/30">
                     {(profile.photoURLThumb ?? profile.photoURL) ? (
                         <PlayerAvatar
                             src={profile.photoURLThumb ?? profile.photoURL!}
@@ -55,6 +73,16 @@ export default function IdentityHeader({ profile, isAdmin, pendingConfirmations,
                         </div>
                     )}
                 </div>
+                {xpNivel !== undefined && xpTier && (
+                    <div
+                        className={`absolute -bottom-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-gradient-to-br ${TIER_META[xpTier].badgeGradient} border-2 border-[#1f7a4f] flex items-center justify-center shadow-md`}
+                        aria-label={`Nivel ${xpNivel}`}
+                    >
+                        <span className={`text-[10px] font-black tabular-nums leading-none ${TIER_NUM_TEXT[xpTier]}`}>
+                            {xpNivel}
+                        </span>
+                    </div>
+                )}
             </Link>
 
             <div className="flex-1 min-w-0">
