@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import { type Court } from "@/lib/domain/venue";
-import { getBookingsForDate } from "@/lib/bookings";
+import { getBookingsForDate, getBookingsInDateRange, SLOT_BLOCKING_BOOKING_STATUSES } from "@/lib/bookings";
 import { subscribeToBlockedSlots, subscribeDailyPayments, getVenueCourts, getAllBlockedSlots } from "@/lib/venues";
 import { expandBlockedSlotsForDate } from "@/lib/domain/blocked-slots";
 import { handleError } from "@/lib/utils/error";
@@ -134,20 +134,26 @@ export default function AdminBookingCalendar({
             for (let d = 1; d <= daysInMonth; d++) {
                 checkDates.push(toISO(new Date(year, month, d)));
             }
+            const firstISO = checkDates[0];
+            const lastISO = checkDates[checkDates.length - 1];
 
             const bookingDates = new Set<string>();
             const blockDates = new Set<string>();
             const birthdayDates = new Set<string>();
 
-            const [, allBlocks] = await Promise.all([
-                Promise.allSettled(
-                    checkDates.map(async (date) => {
-                        const b = await getBookingsForDate(venueId, date);
-                        if (b.length > 0) bookingDates.add(date);
-                    }),
-                ),
+            // Una sola query de rango para todo el mes (antes: una por día → ~30 round-trips).
+            const [monthBookings, allBlocks] = await Promise.all([
+                getBookingsInDateRange(venueId, firstISO, lastISO).catch(() => [] as Booking[]),
                 getAllBlockedSlots(venueId).catch(() => [] as BlockedSlot[]),
             ]);
+
+            // Marcamos el día si tiene al menos una reserva en estado que bloquea slot
+            // (mismo criterio que getBookingsForDate; el filtro de status va en cliente).
+            for (const b of monthBookings) {
+                if ((SLOT_BLOCKING_BOOKING_STATUSES as readonly string[]).includes(b.status)) {
+                    bookingDates.add(b.date);
+                }
+            }
 
             for (const date of checkDates) {
                 const expanded = expandBlockedSlotsForDate(allBlocks, date);

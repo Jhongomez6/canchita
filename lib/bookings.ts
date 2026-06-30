@@ -76,7 +76,29 @@ export async function getBookingsForDate(
         where("date", "==", date),
         where("status", "in", SLOT_BLOCKING_STATUSES as unknown as string[]),
     );
-    const snap = await getDocs(q);
+    const snap = await withTimeout(getDocs(q));
+    return snap.docs.map((d) => d.data() as Booking);
+}
+
+/**
+ * Reservas de un venue en un rango de fechas (inclusive). `date` es "YYYY-MM-DD",
+ * así que el orden lexicográfico coincide con el cronológico. Una sola query en vez
+ * de una por día — usado por el calendario admin para marcar los días con reservas.
+ * Sin filtro de status (el caller filtra en cliente) para reusar el prefijo del índice
+ * existente `(venueId, date)` y no requerir uno nuevo.
+ */
+export async function getBookingsInDateRange(
+    venueId: string,
+    startDate: string,
+    endDate: string,
+): Promise<Booking[]> {
+    const q = query(
+        collection(db, "bookings"),
+        where("venueId", "==", venueId),
+        where("date", ">=", startDate),
+        where("date", "<=", endDate),
+    );
+    const snap = await withTimeout(getDocs(q));
     return snap.docs.map((d) => d.data() as Booking);
 }
 
