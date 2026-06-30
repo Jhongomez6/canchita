@@ -9,6 +9,7 @@ import Image from "next/image";
 import { isInAppBrowser } from "@/lib/browser";
 import { isLocationAdmin } from "@/lib/domain/user";
 import LandingPage from "./LandingPage";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function AuthGuard({
   children,
@@ -27,7 +28,7 @@ function AuthGuardInner({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, profileError } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -80,6 +81,32 @@ function AuthGuardInner({
       router.replace(newUrl);
     }
   }, [loading, user, pathname, searchParams, router]);
+
+  // ⚠️ El perfil no pudo cargar (watchdog del AuthContext o error del snapshot).
+  // En iOS PWA el canal de Firestore puede quedar suspendido y el perfil no llega nunca:
+  // en vez de un loader infinito, ofrecemos reintentar recargando la app.
+  if (profileError && user && !profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center">
+          <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle size={22} className="text-amber-500" />
+          </div>
+          <p className="font-bold text-slate-800">No pudimos cargar tu perfil</p>
+          <p className="text-sm text-slate-500 mt-1 mb-6">
+            Revisá tu conexión e intentá de nuevo.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center justify-center gap-2 w-full py-3 bg-[#1f7a4f] text-white rounded-xl font-bold active:scale-[0.98] transition-transform"
+          >
+            <RefreshCw size={16} />
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ⏳ Auth o perfil cargando
   if (loading || (user && !profile)) {

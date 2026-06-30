@@ -15,6 +15,8 @@ import {
   setAnalyticsUserProperties,
   logUserRegistered,
   logLocationAdminSignupCompleted,
+  logQueryTimeout,
+  logQueryError,
 } from "@/lib/analytics";
 
 const SIGNUP_INTENT_KEY = "signupIntent";
@@ -37,6 +39,8 @@ type AuthContextType = {
   loading: boolean;
   initialLoad: boolean;
   justLoggedIn: boolean;
+  /** true si el perfil no pudo cargar (timeout del watchdog o error del snapshot). */
+  profileError: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -45,7 +49,16 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   initialLoad: true,
   justLoggedIn: false,
+  profileError: false,
 });
+
+/**
+ * Tiempo máximo que esperamos al perfil antes de dejar de bloquear la UI.
+ * En iOS PWA el canal de Firestore puede quedar suspendido al volver de background
+ * y el `getDoc`/primer emit del `onSnapshot` no resuelve nunca. Pasado este tiempo
+ * degradamos a un estado de error con "Reintentar" en vez de un loader infinito.
+ */
+const PROFILE_LOAD_TIMEOUT_MS = 12_000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -53,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
+  const [profileError, setProfileError] = useState(false);
 
   // 🔔 Escuchar mensajes push SOLO una vez (deferred 3s para no competir con auth)
   useEffect(() => {
@@ -88,90 +102,137 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useTokenRefresh(user, profile);
 
   useEffect(() => {
-    let unsubscribeProfile: () => void;
+    let unsubscribeProfile: (() => void) | undefined;
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
 
-    const unsub = onAuthStateChanged(auth, async currentUser => {
-      if (currentUser) {
-        setUser(currentUser);
+    const clearWatchdog = () => {
+      if (watchdog) {
+        clearTimeout(watchdog);
+        watchdog = undefined;
+      }
+    };
 
-        // 📊 Identificar usuario en Analytics
-        identifyUser(currentUser.uid);
+    const unsub = onAuthStateChanged(auth, currentUser => {
+      // Limpiar la suscripción y el watchdog de la sesión anterior (cambio de usuario / logout).
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = undefined;
+      }
+      clearWatchdog();
 
-        // 👤 Asegurar perfil (solo crea si no existe o actualiza email/foto faltante)
-        const signupIntent = consumeSignupIntent();
-        const { isNewUser } = await ensureUserProfile(
-          currentUser.uid,
-          currentUser.displayName || "Jugador",
-          currentUser.email,
-          currentUser.photoURL,
-          signupIntent
-        );
-
-        // 📊 Log registro de usuario nuevo
-        if (isNewUser) {
-          logUserRegistered();
-          if (signupIntent === "location_admin") {
-            logLocationAdminSignupCompleted();
-          }
-        }
-
-        // ✅ Marca login reciente (se consume en la UI)
-        setJustLoggedIn(true);
-
-        // Subscribirse al documento del perfil en tiempo real
-        unsubscribeProfile = onSnapshot(
-          doc(db, "users", currentUser.uid),
-          (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              const roles = data.roles ?? (data.role ? [data.role] : ["player"]);
-              const userProfile = { uid: docSnap.id, ...data, roles } as UserProfile;
-              setProfile(userProfile);
-              // Migración automática: si tiene URL de Google y no tiene thumb, migrar todo a Storage
-              if (
-                userProfile.photoURL?.includes("lh3.googleusercontent.com") &&
-                !userProfile.photoURLThumb
-              ) {
-                migrateGooglePhotoToStorage(userProfile.uid, userProfile.photoURL).catch(() => {});
-              // Usuarios con foto legacy en Storage (avatars/{uid}.webp) sin thumb
-              } else if (
-                userProfile.photoURL?.includes("firebasestorage.googleapis.com") &&
-                !userProfile.photoURLThumb
-              ) {
-                generateThumbFromStorageURL(userProfile.uid, userProfile.photoURL).catch(() => {});
-              }
-              // 📊 Set user properties para segmentación en Analytics
-              setAnalyticsUserProperties({
-                user_role: roles.join(","),
-                ...(data.age && { user_age: String(data.age) }),
-                ...(data.sex && { user_sex: data.sex }),
-              });
-            } else {
-              setProfile(null);
-            }
-            setLoading(false); // Termina de cargar solo cuando tenemos el perfil
-            setInitialLoad(false);
-          },
-          (error) => {
-            console.error("Error escuchando el perfil de usuario:", error);
-            setLoading(false);
-          }
-        );
-
-      } else {
+      if (!currentUser) {
         setUser(null);
         setProfile(null);
         setJustLoggedIn(false);
+        setProfileError(false);
         setLoading(false);
         setInitialLoad(false);
         identifyUser("");
-        if (unsubscribeProfile) unsubscribeProfile();
+        return;
       }
+
+      setUser(currentUser);
+      setProfileError(false);
+      setJustLoggedIn(true); // ✅ Marca login reciente (se consume en la UI)
+
+      // 📊 Identificar usuario en Analytics
+      identifyUser(currentUser.uid);
+
+      // 👤 Asegurar perfil (crea si no existe o actualiza email/foto faltante).
+      // Corre en PARALELO — NO bloquea la suscripción al snapshot. Si `ensureUserProfile`
+      // se cuelga (iOS suspende Firestore), el `onSnapshot` y el watchdog siguen su curso:
+      // para usuarios existentes el perfil llega igual; para usuarios nuevos llega en cuanto
+      // se termina de crear el doc. (Antes este `await` bloqueaba todo → skeleton infinito.)
+      const signupIntent = consumeSignupIntent();
+      ensureUserProfile(
+        currentUser.uid,
+        currentUser.displayName || "Jugador",
+        currentUser.email,
+        currentUser.photoURL,
+        signupIntent
+      )
+        .then(({ isNewUser }) => {
+          if (isNewUser) {
+            logUserRegistered();
+            if (signupIntent === "location_admin") {
+              logLocationAdminSignupCompleted();
+            }
+          }
+        })
+        .catch((err) => {
+          console.error("ensureUserProfile falló (no bloquea la carga):", err);
+        });
+
+      // ⏱️ Watchdog: si el perfil no llega en PROFILE_LOAD_TIMEOUT_MS (canal de Firestore
+      // suspendido en iOS), dejamos de bloquear la UI y marcamos error para que AuthGuard
+      // ofrezca "Reintentar" en vez de un loader infinito.
+      watchdog = setTimeout(() => {
+        watchdog = undefined;
+        logQueryTimeout({ source: "auth_profile", fromVisibility: false, hadCache: false });
+        setProfileError(true);
+        setLoading(false);
+        setInitialLoad(false);
+      }, PROFILE_LOAD_TIMEOUT_MS);
+
+      // Subscribirse al documento del perfil en tiempo real (ya, sin esperar a ensureUserProfile).
+      unsubscribeProfile = onSnapshot(
+        doc(db, "users", currentUser.uid),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            // Perfil real disponible → cancelamos el watchdog y limpiamos cualquier error.
+            clearWatchdog();
+            setProfileError(false);
+            const data = docSnap.data();
+            const roles = data.roles ?? (data.role ? [data.role] : ["player"]);
+            const userProfile = { uid: docSnap.id, ...data, roles } as UserProfile;
+            setProfile(userProfile);
+            // Migración automática: si tiene URL de Google y no tiene thumb, migrar todo a Storage
+            if (
+              userProfile.photoURL?.includes("lh3.googleusercontent.com") &&
+              !userProfile.photoURLThumb
+            ) {
+              migrateGooglePhotoToStorage(userProfile.uid, userProfile.photoURL).catch(() => {});
+            // Usuarios con foto legacy en Storage (avatars/{uid}.webp) sin thumb
+            } else if (
+              userProfile.photoURL?.includes("firebasestorage.googleapis.com") &&
+              !userProfile.photoURLThumb
+            ) {
+              generateThumbFromStorageURL(userProfile.uid, userProfile.photoURL).catch(() => {});
+            }
+            // 📊 Set user properties para segmentación en Analytics
+            setAnalyticsUserProperties({
+              user_role: roles.join(","),
+              ...(data.age && { user_age: String(data.age) }),
+              ...(data.sex && { user_sex: data.sex }),
+            });
+          } else {
+            // Doc todavía no existe (usuario nuevo: ensureUserProfile lo está creando).
+            // NO cancelamos el watchdog: si la creación se cuelga, el watchdog rescata igual.
+            setProfile(null);
+          }
+          setLoading(false);
+          setInitialLoad(false);
+        },
+        (error) => {
+          clearWatchdog();
+          console.error("Error escuchando el perfil de usuario:", error);
+          logQueryError({
+            source: "auth_profile",
+            fromVisibility: false,
+            hadCache: false,
+            errorCode: error.name || "snapshot_error",
+          });
+          setProfileError(true);
+          setLoading(false);
+          setInitialLoad(false);
+        }
+      );
     });
 
     return () => {
       unsub();
       if (unsubscribeProfile) unsubscribeProfile();
+      clearWatchdog();
     };
   }, []);
 
@@ -196,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         initialLoad,
         justLoggedIn,
+        profileError,
       }}
     >
       {children}
