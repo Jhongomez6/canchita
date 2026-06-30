@@ -24,8 +24,11 @@ Eliminar el estado "skeleton infinito" en Home cuando el usuario vuelve a la app
 | 3 | Al volver a `visible` (de background o de otra ruta), si pasaron > 30 s desde el último fetch exitoso, refrescamos en background sin bloquear la UI. | Datos frescos sin parpadeo. |
 | 4 | Re-emisiones del `profile` que no cambian campos relevantes para Home **no** re-disparan el fetch. | Estable contra el ruido de `onSnapshot`. |
 
+### Alcance (actualizado 2026-06-30)
+La implementación se generalizó: en vez de un hook único para Home se construyó un **primitivo reutilizable** `createCachedQueryHook` (timeout + caché en memoria + token de generación + refresh por visibility) y un hook de dominio `useUserMatches` compartido por **Home e History** (fetchean exactamente lo mismo: `getMyMatches`/`getAllMatches` + locations → comparten caché). El mismo primitivo se aplica al resto de páginas basadas en `getDocs`.
+
 ### Fuera de alcance
-- Aplicar el mismo patrón a otras páginas (`/explore`, `/venues`, `/history`, etc.). Se trackeará como follow-up — este SDD solo cubre Home porque es el punto de entrada y el caso reproducible reportado.
+- Páginas que usan `onSnapshot` (ej. `/explore`, `/match/[id]`, `/join/[id]`): la suscripción se reconecta sola y el patrón timeout/Promise.race no aplica a un stream. Se trackeará aparte si siguen mostrando staleness en iOS.
 - Cambiar el modelo de datos o moverse a `onSnapshot` en lugar de `getDocs` para matches (cambio mayor, otro SDD).
 
 ---
@@ -137,12 +140,14 @@ Eliminar el estado "skeleton infinito" en Home cuando el usuario vuelve a la app
 
 ## 8. ANALYTICS
 
+Eventos genéricos (sirven para cualquier página que use el primitivo, con `source` para segmentar):
+
 | Evento | Trigger | Propiedades |
 |--------|---------|-------------|
-| `home_fetch_timeout` | El fetch de Home pasa de 10 s | `from_visibility: boolean`, `had_cache: boolean` |
-| `home_fetch_error` | El fetch de Home rechaza | `from_visibility: boolean`, `had_cache: boolean`, `error_code: string` |
+| `query_timeout` | Un fetch del hook pasa de `timeoutMs` (10 s) | `source: string`, `from_visibility`, `had_cache` |
+| `query_error` | Un fetch del hook rechaza | `source: string`, `from_visibility`, `had_cache`, `error_code: string` |
 
-Estos eventos sirven para validar que el fix funciona y para detectar regresiones en producción. Si los timeouts caen a casi cero después del deploy, la hipótesis se confirma.
+Estos eventos sirven para validar que el fix funciona y para detectar regresiones en producción. Si los `query_timeout` con `source: "user_matches"` caen a casi cero después del deploy, la hipótesis se confirma.
 
 ---
 
@@ -155,7 +160,8 @@ Estos eventos sirven para validar que el fix funciona y para detectar regresione
 - Sin cambios.
 
 ### Capa de API (`lib/`)
-- **Nuevo módulo**: `lib/hooks/useHomeMatches.ts` — encapsula el fetch, el caché en memoria, el timeout, el token de generación y la suscripción a `visibilitychange`/`pageshow`. La página queda libre de esa lógica.
+- **Nuevo primitivo**: `lib/hooks/createCachedQueryHook.ts` — factory genérica `createCachedQueryHook<Params, T>(fetcher, keyOf, { source, timeoutMs, staleMs })` que devuelve un hook `(params) => { data, loading, refreshing, error, retry }`. Encapsula: caché en memoria a nivel módulo por `key`, `Promise.race` con timeout duro, token de generación contra respuestas tardías, refresh automático en `visibilitychange`/`pageshow` si el caché está stale, y logging de timeout/error. `loading` solo es `true` cuando NO hay caché; con caché, los refrescos usan `refreshing`.
+- **Nuevo hook de dominio**: `lib/hooks/useUserMatches.ts` — `createCachedQueryHook` configurado para `{ uid, isSuperAdmin }` → `{ matches, locationsMap }`. `key = "${uid}:${admin|player}"`. Compartido por Home e History (misma caché, un solo fetch al navegar entre ambas dentro de la ventana de stale).
 - **Caché en memoria** (módulo-level, no global state):
   ```typescript
   // Cache vive en el módulo del hook. Se invalida al cambiar uid o al logout.
@@ -221,10 +227,12 @@ function useHomeMatches(): {
 
 | Archivo | Cambio |
 |---------|--------|
-| `lib/hooks/useHomeMatches.ts` | **Nuevo**. Hook que encapsula fetch, caché en memoria, timeout, token de generación y refresh por visibility. |
-| `app/page.tsx` | Reemplazar el `useEffect` de fetch + estado local por el hook. Añadir UI de error con/sin caché y botón reintentar. |
-| `lib/analytics.ts` | Añadir `logHomeFetchTimeout({ fromVisibility, hadCache })` y `logHomeFetchError({ fromVisibility, hadCache, errorCode })`. |
-| `lib/domain/errors.ts` *(opcional)* | Añadir `TimeoutError` si no existe ya. |
+| `lib/hooks/createCachedQueryHook.ts` | **Nuevo**. Primitivo genérico: caché en memoria, timeout (`Promise.race`), token de generación y refresh por visibility. |
+| `lib/hooks/useUserMatches.ts` | **Nuevo**. Hook de dominio sobre el primitivo, compartido por Home e History. |
+| `app/page.tsx` | Reemplazar el `useEffect` de fetch + estado local por `useUserMatches`. Añadir UI de error con/sin caché y botón reintentar. |
+| `app/history/page.tsx` | Idem: usar `useUserMatches` (deriva los `closed`). |
+| `lib/analytics.ts` | Añadir `logQueryTimeout({ source, fromVisibility, hadCache })` y `logQueryError({ source, fromVisibility, hadCache, errorCode })`. |
+| `lib/domain/errors.ts` | Añadir `TimeoutError`. |
 
 ---
 

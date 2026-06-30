@@ -220,6 +220,17 @@ export class SelfTargetError extends BusinessError {
 }
 
 // ========================
+// ERRORES DE INFRAESTRUCTURA
+// ========================
+
+export class TimeoutError extends Error {
+    constructor(message = "La operación tardó demasiado en responder") {
+        super(message);
+        this.name = "TimeoutError";
+    }
+}
+
+// ========================
 // ERRORES DE XP / NIVELES
 // ========================
 

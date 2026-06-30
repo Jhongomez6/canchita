@@ -1,40 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Settings, CalendarCheck } from "lucide-react";
+import { Plus, Settings, CalendarCheck, AlertTriangle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isSuperAdmin, isLocationAdmin } from "@/lib/domain/user";
-import { getActiveVenues } from "@/lib/venues";
-import { handleError } from "@/lib/utils/error";
+import { useActiveVenues } from "@/lib/hooks/useActiveVenues";
 import AuthGuard from "@/components/AuthGuard";
 import VenueCard from "@/components/booking/VenueCard";
-import type { Venue } from "@/lib/domain/venue";
 
 function VenuesContent() {
     const { profile } = useAuth();
     const router = useRouter();
-    const [venues, setVenues] = useState<Venue[]>([]);
-    const [loading, setLoading] = useState(true);
     const isAdmin = profile ? isSuperAdmin(profile) : false;
+    // Solo fetcheamos si el usuario realmente verá esta página (los demás redirigen).
+    const canBook = !!profile && hasBookingAccess(profile) && !isLocationAdmin(profile);
+
+    const { data, loading: venuesLoading, error, retry } = useActiveVenues({ enabled: canBook });
+    const venues = data ?? [];
+    // Skeleton mientras no haya profile, mientras se decide el redirect, o en la
+    // primera carga real de sedes (sin caché).
+    const loading = !canBook || (venuesLoading && venues.length === 0);
 
     useEffect(() => {
         if (!profile) return;
-
         if (!hasBookingAccess(profile)) {
             router.replace("/");
             return;
         }
-
         if (isLocationAdmin(profile)) {
             router.replace("/bookings");
-            return;
         }
-
-        getActiveVenues()
-            .then(setVenues)
-            .catch((err) => handleError(err, "Error al cargar sedes"))
-            .finally(() => setLoading(false));
     }, [profile, router]);
 
     if (loading) {
@@ -105,7 +101,32 @@ function VenuesContent() {
                         </button>
                     )}
 
-                    {venues.length === 0 && (
+                    {error && venues.length > 0 && (
+                        <button
+                            onClick={retry}
+                            className="w-full flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 border border-amber-100 rounded-xl text-xs font-semibold active:scale-[0.99] transition-transform"
+                        >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            No se pudo actualizar. Tocá para reintentar.
+                        </button>
+                    )}
+
+                    {error && venues.length === 0 ? (
+                        <div className="text-center py-16">
+                            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                            </div>
+                            <p className="text-base font-medium text-slate-600">No pudimos cargar las sedes</p>
+                            <p className="text-sm text-slate-400 mt-1 mb-4">Revisá tu conexión e intentá de nuevo.</p>
+                            <button
+                                onClick={retry}
+                                className="inline-flex items-center justify-center gap-2 py-2.5 px-5 bg-[#1f7a4f] text-white rounded-xl font-bold active:scale-[0.98] transition-transform"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Reintentar
+                            </button>
+                        </div>
+                    ) : venues.length === 0 && (
                         <div className="text-center py-16">
                             <p className="text-4xl mb-3">&#127967;</p>
                             <p className="text-base font-medium text-slate-500">No hay sedes disponibles</p>

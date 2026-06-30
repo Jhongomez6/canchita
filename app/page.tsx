@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState } from "react";
-import { getMyMatches, getAllMatches } from "@/lib/matches";
+import { useUserMatches } from "@/lib/hooks/useUserMatches";
 import { isSuperAdmin, isAdmin, isLocationAdmin } from "@/lib/domain/user";
 import AuthGuard from "@/components/AuthGuard";
 
@@ -11,20 +11,15 @@ import { enablePushNotifications } from "@/lib/push";
 import toast from "react-hot-toast";
 import {formatTime12h } from "@/lib/date";
 import { sanitizeMatchCode } from "@/lib/matchCode";
-import { documentId, getDocs, collection, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import MatchCard from "@/components/MatchCard";
 import { useRouter } from "next/navigation";
-import type { Match } from "@/lib/domain/match";
 import { getMatchFormat } from "@/lib/domain/match";
-
-import type { Location } from "@/lib/domain/location";
 import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
 import PlayerAvatars from "@/components/PlayerAvatars";
 import { logPushEnabled, logPushPromptDismissed, logApplyCTAShown, logApplyCTAClicked, logApplyCTADismissed, logHeroCardClicked, logJoinByCodeClicked, logFullHistoryClicked } from "@/lib/analytics";
 import { dismissApplyCTA } from "@/lib/users";
 import { getPendingApplicationsCount } from "@/lib/teamAdminApplications";
-import { Clock, Users, LandPlot, MapPin, Trophy, Plus, ChevronRight, Search, ArrowRight, X, Wallet } from "lucide-react";
+import { Clock, Users, LandPlot, MapPin, Trophy, Plus, ChevronRight, Search, ArrowRight, X, Wallet, RefreshCw, AlertTriangle } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 import IdentityHeader from "@/components/home/IdentityHeader";
 import QuickStats from "@/components/home/QuickStats";
@@ -36,11 +31,20 @@ import { reviewCardDismissKey, isReviewWindowExpired, wasUserInMatch } from "@/l
 export default function Home() {
   const router = useRouter();
   const { user, profile, justLoggedIn, loading: authLoading } = useAuth();
-  const [matches, setMatches] = useState<Match[]>([]);
+  const isSuperAdminUser = !!(profile && isSuperAdmin(profile));
+  const {
+    data: matchesData,
+    loading: matchesLoading,
+    error: matchesError,
+    retry: retryMatches,
+  } = useUserMatches({ uid: user?.uid ?? null, isSuperAdmin: isSuperAdminUser });
+  const matches = matchesData?.matches ?? [];
+  const locationsMap = matchesData?.locationsMap ?? {};
+  // Skeleton solo en la primera carga real (sin datos cacheados todavía).
+  const loadingMatches = (authLoading || matchesLoading) && matches.length === 0;
+
   const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
-  const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
-  const [loadingMatches, setLoadingMatches] = useState(true);
   const [joinCode, setJoinCode] = useState("");
   const [pendingApps, setPendingApps] = useState(0);
   const [reviewedMatchIds, setReviewedMatchIds] = useState<Set<string>>(new Set());
@@ -73,69 +77,44 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [user]);
 
+  // Conteo de solicitudes pendientes (solo super admin)
   useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
-      setLoadingMatches(false);
-      return;
-    }
-
-    setLoadingMatches(true);
-    
-    const fetchMatches = profile && isSuperAdmin(profile)
-      ? getAllMatches()
-      : getMyMatches(user.uid);
-
-    fetchMatches
-      .then(async matchesData => {
-        try {
-          // Sort matches by date DESCENDING (most recent first)
-          const sorted = [...matchesData].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
-          setMatches(sorted);
-
-          const locationIds = Array.from(
-            new Set(
-              matchesData
-                .map(m => m.locationId)
-                .filter(Boolean)
-            )
-          );
-
-          // Batch fetch locations (Firestore 'in' supports up to 30 items per query)
-          const map: Record<string, Location> = {};
-          for (let i = 0; i < locationIds.length; i += 30) {
-            const batch = locationIds.slice(i, i + 30);
-            const snap = await getDocs(
-              query(collection(db, "locations"), where(documentId(), "in", batch))
-            );
-            snap.docs.forEach(d => {
-              map[d.id] = { id: d.id, ...d.data() } as Location;
-            });
-          }
-
-          setLocationsMap(map);
-        } catch (error) {
-          console.error("Error processing matches or locations:", error);
-        } finally {
-          setLoadingMatches(false);
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching matches:", error);
-        setLoadingMatches(false);
-      });
-    // Fetch pending apps count if super admin
-    if (profile && isSuperAdmin(profile)) {
-      getPendingApplicationsCount()
-        .then(count => setPendingApps(count))
-        .catch(() => {/* silence */});
-    }
-
-  }, [user, authLoading, profile]);
+    if (!isSuperAdminUser) return;
+    let cancelled = false;
+    getPendingApplicationsCount()
+      .then(count => { if (!cancelled) setPendingApps(count); })
+      .catch(() => {/* silence */});
+    return () => { cancelled = true; };
+  }, [isSuperAdminUser]);
 
   if (loadingMatches) {
     return <HomeSkeleton />;
+  }
+
+  // Error sin datos cacheados: no hay nada que mostrar → estado de error con reintentar.
+  if (matchesError && matches.length === 0 && !authLoading) {
+    return (
+      <AuthGuard>
+        <main className="min-h-screen bg-slate-50 flex items-center justify-center px-6 pb-24 md:pb-8">
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 text-center max-w-sm w-full">
+            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle size={22} className="text-amber-500" />
+            </div>
+            <p className="font-bold text-slate-800">No pudimos cargar tus partidos</p>
+            <p className="text-sm text-slate-500 mt-1 mb-5">
+              Revisá tu conexión e intentá de nuevo.
+            </p>
+            <button
+              onClick={retryMatches}
+              className="inline-flex items-center justify-center gap-2 w-full py-3 bg-[#1f7a4f] text-white rounded-xl font-bold active:scale-[0.98] transition-transform"
+            >
+              <RefreshCw size={16} />
+              Reintentar
+            </button>
+          </div>
+        </main>
+      </AuthGuard>
+    );
   }
 
   const now = new Date().getTime();
@@ -226,6 +205,17 @@ export default function Home() {
           </div>
 
           <div className="px-5">
+            {/* REFRESH FALLIDO CON CACHÉ — banner sutil, no bloquea la UI */}
+            {matchesError && matches.length > 0 && (
+              <button
+                onClick={retryMatches}
+                className="mt-5 w-full flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 border border-amber-100 rounded-xl text-xs font-semibold active:scale-[0.99] transition-transform"
+              >
+                <RefreshCw size={13} />
+                No se pudo actualizar. Tocá para reintentar.
+              </button>
+            )}
+
             {/* POST-MATCH REVIEW — card for most recent unreviewed closed match */}
             {user && pendingReviewMatch && (
               <div className="mt-5 mb-2">

@@ -336,6 +336,37 @@ export async function logCampaignWhatsappShared(campaign: string) {
   await trackEvent("campaign_whatsapp_shared", { campaign });
 }
 
+/* =========================
+   PERFORMANCE / CARGA DE DATOS
+   (ver docs/IOS_PWA_HOME_STALE_LOADING_SDD.md)
+========================= */
+
+export async function logQueryTimeout(p: {
+  source: string;
+  fromVisibility: boolean;
+  hadCache: boolean;
+}) {
+  await trackEvent("query_timeout", {
+    source: p.source,
+    from_visibility: p.fromVisibility ? "true" : "false",
+    had_cache: p.hadCache ? "true" : "false",
+  });
+}
+
+export async function logQueryError(p: {
+  source: string;
+  fromVisibility: boolean;
+  hadCache: boolean;
+  errorCode: string;
+}) {
+  await trackEvent("query_error", {
+    source: p.source,
+    from_visibility: p.fromVisibility ? "true" : "false",
+    had_cache: p.hadCache ? "true" : "false",
+    error_code: p.errorCode,
+  });
+}
+
 export async function logCampaignLinkCopied(campaign: string) {
   await trackEvent("campaign_link_copied", { campaign });
 }

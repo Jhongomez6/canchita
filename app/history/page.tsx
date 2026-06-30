@@ -1,80 +1,25 @@
 "use client";
 
 import { useAuth } from "@/lib/AuthContext";
-import { useEffect, useState } from "react";
-import { getMyMatches, getAllMatches } from "@/lib/matches";
 import { isSuperAdmin, isAdmin } from "@/lib/domain/user";
+import { useUserMatches } from "@/lib/hooks/useUserMatches";
 import AuthGuard from "@/components/AuthGuard";
-import { documentId, getDocs, collection, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import type { Match } from "@/lib/domain/match";
-import type { Location } from "@/lib/domain/location";
 import HistoryRow from "@/components/home/HistoryRow";
-import { ArrowLeft, Trophy } from "lucide-react";
+import { ArrowLeft, Trophy, AlertTriangle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 
 export default function HistoryPage() {
   const { user, profile, loading: authLoading } = useAuth();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [locationsMap, setLocationsMap] = useState<Record<string, Location>>({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    const fetchMatches = profile && isSuperAdmin(profile)
-      ? getAllMatches()
-      : getMyMatches(user.uid);
-
-    fetchMatches
-      .then(async (matchesData) => {
-        try {
-          // Filter only closed matches and sort by date descending
-          const closed = matchesData
-            .filter(m => m.status === "closed")
-            .sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
-
-          setMatches(closed);
-
-          // Fetch locations
-          const locationIds = Array.from(
-            new Set(
-              closed
-                .map(m => m.locationId)
-                .filter(Boolean)
-            )
-          );
-
-          const map: Record<string, Location> = {};
-          for (let i = 0; i < locationIds.length; i += 30) {
-            const batch = locationIds.slice(i, i + 30);
-            const snap = await getDocs(
-              query(collection(db, "locations"), where(documentId(), "in", batch))
-            );
-            snap.docs.forEach(d => {
-              map[d.id] = { id: d.id, ...d.data() } as Location;
-            });
-          }
-
-          setLocationsMap(map);
-        } catch (error) {
-          console.error("Error processing matches or locations:", error);
-        } finally {
-          setLoading(false);
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching matches:", error);
-        setLoading(false);
-      });
-  }, [user, authLoading, profile]);
+  const isSuperAdminUser = !!(profile && isSuperAdmin(profile));
+  const { data, loading: matchesLoading, error, retry } = useUserMatches({
+    uid: user?.uid ?? null,
+    isSuperAdmin: isSuperAdminUser,
+  });
+  // Solo partidos cerrados (ya vienen ordenados por fecha DESC desde el hook).
+  const matches = (data?.matches ?? []).filter(m => m.status === "closed");
+  const locationsMap = data?.locationsMap ?? {};
+  // Skeleton solo en la primera carga real (sin datos cacheados todavía).
+  const loading = (authLoading || matchesLoading) && matches.length === 0;
 
   const isAdminUser = profile && isAdmin(profile);
 
@@ -113,6 +58,21 @@ export default function HistoryPage() {
                   </div>
                 ))}
               </div>
+            ) : error && matches.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
+                <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <AlertTriangle size={22} className="text-amber-500" />
+                </div>
+                <p className="text-slate-700 font-semibold mb-1">No pudimos cargar tu historial</p>
+                <p className="text-sm text-slate-500 mb-5">Revisá tu conexión e intentá de nuevo.</p>
+                <button
+                  onClick={retry}
+                  className="inline-flex items-center justify-center gap-2 py-2.5 px-5 bg-[#1f7a4f] text-white rounded-xl font-bold active:scale-[0.98] transition-transform"
+                >
+                  <RefreshCw size={16} />
+                  Reintentar
+                </button>
+              </div>
             ) : matches.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
                 <Trophy size={40} className="text-slate-300 mx-auto mb-3" />
@@ -121,6 +81,15 @@ export default function HistoryPage() {
               </div>
             ) : (
               <div className="space-y-2">
+                {error && (
+                  <button
+                    onClick={retry}
+                    className="w-full flex items-center justify-center gap-2 py-2 mb-1 bg-amber-50 text-amber-700 border border-amber-100 rounded-xl text-xs font-semibold active:scale-[0.99] transition-transform"
+                  >
+                    <RefreshCw size={13} />
+                    No se pudo actualizar. Tocá para reintentar.
+                  </button>
+                )}
                 {matches.map(m => {
                   const href = isAdminUser ? `/match/${m.id}` : `/join/${m.id}`;
                   return (
