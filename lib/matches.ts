@@ -16,14 +16,19 @@ import {
   query,
   where,
   orderBy,
+  limit as firestoreLimit,
+  startAfter,
   doc,
   updateDoc,
   arrayUnion,
   arrayRemove,
   runTransaction,
   deleteDoc,
+  type DocumentSnapshot,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { withTimeout } from "./utils/withTimeout";
 import { getUserProfile } from "./users";
 import { Timestamp } from "firebase/firestore";
 import type { Player, Position } from "./domain/player";
@@ -45,6 +50,13 @@ import {
 export type { Match };
 
 const matchesRef = collection(db, "matches");
+
+/** Tope de partidos recientes por usuario (Home/History del jugador). Los abiertos,
+ *  recientes por naturaleza, siempre entran; el corte solo afecta historial viejo. */
+const MY_MATCHES_LIMIT = 100;
+/** Tope de partidos recientes a nivel plataforma (Home del super admin). Se suma a
+ *  TODOS los abiertos, que se traen aparte para no perder los accionables. */
+const ALL_MATCHES_RECENT_LIMIT = 150;
 
 /* =========================
    HELPER: ASIGNAR AL EQUIPO MÁS PEQUEÑO
@@ -127,18 +139,22 @@ export async function createMatch(match: {
    (ADMIN + PLAYER)
 ========================= */
 export async function getMyMatches(uid: string): Promise<Match[]> {
-  // Query 1: partidos donde el usuario es jugador
+  // Acotamos cada query a los N partidos más recientes por creación. Los partidos
+  // abiertos son recientes por naturaleza (se cierran al jugarse), así que siempre
+  // entran en la ventana; lo que queda fuera es historial viejo (paginación = follow-up).
   const playerQ = query(
     matchesRef,
     where("playerUids", "array-contains", uid),
-    orderBy("createdAt", "desc")
+    orderBy("createdAt", "desc"),
+    firestoreLimit(MY_MATCHES_LIMIT)
   );
 
   // Query 2: partidos creados por el usuario (cubre caso donde admin no está en playerUids)
   const creatorQ = query(
     matchesRef,
     where("createdBy", "==", uid),
-    orderBy("createdAt", "desc")
+    orderBy("createdAt", "desc"),
+    firestoreLimit(MY_MATCHES_LIMIT)
   );
 
   const [playerSnap, creatorSnap] = await Promise.all([
@@ -163,16 +179,59 @@ export async function getMyMatches(uid: string): Promise<Match[]> {
    OBTENER TODOS LOS PARTIDOS (SUPER ADMIN)
 ========================= */
 export async function getAllMatches(): Promise<Match[]> {
-  const q = query(
-    matchesRef,
-    orderBy("createdAt", "desc")
-  );
-  
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({
-    id: d.id,
-    ...(d.data() as Omit<Match, "id">),
-  }));
+  // Evitamos leer la colección entera (crece sin techo a nivel plataforma). Traemos:
+  //  (1) TODOS los partidos abiertos → accionables y naturalmente acotados (se cierran);
+  //      garantiza que el "próximo partido" del admin nunca se pierda por el límite.
+  //  (2) los N más recientes por creación → historial reciente.
+  // Merge + dedupe. Ninguna de las dos queries requiere índice compuesto nuevo.
+  const openQ = query(matchesRef, where("status", "==", "open"));
+  const recentQ = query(matchesRef, orderBy("createdAt", "desc"), firestoreLimit(ALL_MATCHES_RECENT_LIMIT));
+
+  const [openSnap, recentSnap] = await Promise.all([getDocs(openQ), getDocs(recentQ)]);
+
+  const matchMap = new Map<string, Match>();
+  for (const snap of [openSnap, recentSnap]) {
+    for (const d of snap.docs) {
+      if (!matchMap.has(d.id)) {
+        matchMap.set(d.id, { id: d.id, ...(d.data() as Omit<Match, "id">) });
+      }
+    }
+  }
+  return Array.from(matchMap.values());
+}
+
+/* =========================
+   HISTORIAL PAGINADO (cursor) — /history
+   Una sola query ordenada por createdAt desc (índices ya existentes), filtrando
+   `closed` en cliente. Jugador → sus partidos (`playerUids` = "partidos jugados");
+   super admin → todos. `reachedEnd` se calcula sobre los docs CRUDOS (antes del
+   filtro) para saber si quedan más páginas.
+========================= */
+export interface ClosedMatchesPage {
+  matches: Match[];
+  lastDoc: DocumentSnapshot | null;
+  reachedEnd: boolean;
+}
+
+export async function getClosedMatchesPage(
+  uid: string,
+  isSuperAdmin: boolean,
+  pageSize = 20,
+  cursor?: DocumentSnapshot,
+): Promise<ClosedMatchesPage> {
+  const constraints: QueryConstraint[] = [
+    ...(isSuperAdmin ? [] : [where("playerUids", "array-contains", uid)]),
+    orderBy("createdAt", "desc"),
+    ...(cursor ? [startAfter(cursor)] : []),
+    firestoreLimit(pageSize),
+  ];
+
+  const snap = await withTimeout(getDocs(query(matchesRef, ...constraints)));
+  const matches = snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<Match, "id">) }))
+    .filter((m) => m.status === "closed");
+  const lastDoc = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+  return { matches, lastDoc, reachedEnd: snap.docs.length < pageSize };
 }
 
 /* =========================
