@@ -16,6 +16,14 @@ Eliminar el estado "skeleton infinito" en Home cuando el usuario vuelve a la app
 2. **Effect re-disparado con `setLoadingMatches(true)` incondicional** ([app/page.tsx:69](../app/page.tsx#L69), [app/page.tsx:120](../app/page.tsx#L120)). El effect depende de `profile`, que viene del `onSnapshot` de [AuthContext.tsx:122](../lib/AuthContext.tsx#L122). Cada emisión del snapshot produce una **nueva referencia** del objeto (aunque los datos sean iguales), re-corre el effect, y vuelve a marcar `loadingMatches = true` aunque ya tengamos datos en memoria — borrando la UI por una recarga que puede colgarse.
 3. **Sin recuperación al volver del background.** No hay listener de `visibilitychange`/`pageshow` que fuerce una recarga cuando el documento vuelve a ser visible.
 
+### Causa raíz P0 — descubierta en la iteración 2 (2026-06-30): el cuelgue está en `AuthContext`, una capa ARRIBA del fetch de matches
+La iteración 1 (puntos 1-3) blindó `getMyMatches`/`getAllMatches`, pero el usuario reportó que el skeleton **sigue** colgándose. El cuelgue real está antes del fetch de matches y afecta a **todas** las páginas (todas pasan por `AuthGuard` + `AuthContext`):
+
+4. **`AuthContext` resuelve `loading` solo dentro del `onSnapshot` del perfil, y ese snapshot se suscribe DESPUÉS de un `await ensureUserProfile()` sin timeout** ([AuthContext.tsx:93-159](../lib/AuthContext.tsx#L93-L159)).
+   - `ensureUserProfile` ([lib/users.ts:43-44](../lib/users.ts#L43-L44)) hace `getDoc`/`setDoc`/`updateDoc` crudos sin timeout. Si iOS suspendió el canal de Firestore, ese `await` **nunca resuelve** → el `onSnapshot` jamás se suscribe → `setLoading(false)`/`setInitialLoad(false)` jamás se llaman.
+   - Aun resolviendo `ensureUserProfile`, `setLoading(false)` vive **solo** en el primer emit del `onSnapshot`; si ese primer emit no llega, mismo cuelgue.
+   - **Cascada de 3 loaders encadenados a `loading`/`profile`**: el splash HTML inline (`app-splash`, se oculta cuando `initialLoad=false`) queda visible para siempre; [AuthGuard.tsx:85](../components/AuthGuard.tsx#L85) (`if (loading || (user && !profile))`) muestra el loader de puntitos eterno; [app/page.tsx:44](../app/page.tsx#L44) (`authLoading || matchesLoading`) muestra `HomeSkeleton` eterno.
+
 ### Reglas de Negocio
 | # | Regla | Impacto UI |
 |---|-------|------------|
@@ -206,8 +214,14 @@ function useHomeMatches(): {
   ```
 - **Estabilidad contra re-emisiones de `profile`**: el hook solo depende de `user.uid` y un boolean derivado `isSuperAdmin(profile)`. Cambios cosméticos de `profile` (foto, stats) **no** disparan refetch.
 
-### Cambios en `AuthContext` (opcional, mínimos)
-- No es estrictamente necesario tocar `AuthContext` si el hook se aísla bien de la identidad del objeto `profile`. **Decisión**: no tocar `AuthContext` en este PR para mantener el blast radius pequeño.
+### Cambios en `AuthContext` (iteración 1 → iteración 2)
+- **Iteración 1 (decisión original)**: no tocar `AuthContext` para mantener el blast radius pequeño. **Esta decisión resultó insuficiente** — el cuelgue real estaba ahí (ver Causa raíz P0).
+- **Iteración 2 (P0 — este cambio)**: hacer `AuthContext` robusto a las suspensiones de iOS con el mismo principio de la iteración 1 (timeout + degradación elegante). Tres cambios:
+  1. **Desacoplar la suscripción del `await ensureUserProfile`.** Suscribir el `onSnapshot` del perfil **inmediatamente** al resolver `onAuthStateChanged`, y correr `ensureUserProfile` en **paralelo** (fire-and-forget con su propio `.catch`). El `onSnapshot` es la fuente de verdad del `profile`: para usuarios existentes entrega el doc sin depender de `ensureUserProfile`; para usuarios nuevos lo entrega en cuanto `ensureUserProfile` termina de crearlo. Así un cuelgue de `ensureUserProfile` ya **no** bloquea el `loading`.
+  2. **Watchdog de loading.** Al autenticarse, arrancar un `setTimeout(PROFILE_LOAD_TIMEOUT_MS = 12 s)`. Si el perfil no llegó para entonces (canal de Firestore suspendido), forzar `setLoading(false)` + `setInitialLoad(false)` y marcar `profileError = true`. El primer emit con `exists()` o un error del snapshot **cancelan** el watchdog. Un emit con `!exists()` (usuario nuevo en creación) lo deja correr: si la creación se cuelga, el watchdog rescata igual.
+  3. **Nuevo estado expuesto `profileError`** + manejo en `AuthGuard`: cuando `profileError && user && !profile`, mostrar pantalla de error con botón **"Reintentar"** (`window.location.reload()`) en vez del loader infinito. Default `false`; un emit exitoso lo limpia.
+- **Observabilidad**: el watchdog dispara `logQueryTimeout({ source: "auth_profile", fromVisibility: false, hadCache: false })`; el error del snapshot dispara `logQueryError({ source: "auth_profile", ... })`. Reutiliza los eventos `query_timeout`/`query_error` ya existentes — si `query_timeout` con `source: "auth_profile"` cae a casi cero tras el deploy, el fix se confirma.
+- **Blast radius**: el cambio toca únicamente el effect de `onAuthStateChanged` (orden de operaciones) y agrega un campo opcional al contexto. Los consumidores existentes de `useAuth()` que no leen `profileError` no se ven afectados.
 
 ---
 
@@ -221,6 +235,13 @@ function useHomeMatches(): {
 - [ ] El evento `home_fetch_timeout` se registra cuando aplica.
 - [ ] No hay regresión visual en el happy path (primera carga).
 
+### Criterios P0 — robustez de `AuthContext` (iteración 2)
+- [ ] Si `ensureUserProfile` se cuelga (getDoc que nunca resuelve), el `onSnapshot` del perfil **igual** se suscribe y `loading` resuelve cuando llega el perfil.
+- [ ] Si el perfil no llega en 12 s, la app deja de mostrar el splash/loader global y muestra una pantalla de error con "Reintentar" (no se queda colgada para siempre en ninguna página).
+- [ ] El happy path (perfil llega en < 1 s) no muestra la pantalla de error ni regresión visual.
+- [ ] El watchdog se cancela correctamente al recibir el perfil y al cambiar de sesión (login/logout) — sin fugas de timers.
+- [ ] El evento `query_timeout` con `source: "auth_profile"` se registra cuando el watchdog dispara.
+
 ---
 
 ## 11. ARCHIVOS INVOLUCRADOS
@@ -233,10 +254,103 @@ function useHomeMatches(): {
 | `app/history/page.tsx` | Idem: usar `useUserMatches` (deriva los `closed`). |
 | `lib/analytics.ts` | Añadir `logQueryTimeout({ source, fromVisibility, hadCache })` y `logQueryError({ source, fromVisibility, hadCache, errorCode })`. |
 | `lib/domain/errors.ts` | Añadir `TimeoutError`. |
+| `lib/AuthContext.tsx` | **P0 (iteración 2)**. Suscribir el `onSnapshot` del perfil sin esperar a `ensureUserProfile` (paralelo); watchdog de 12 s que fuerza `loading=false` + `profileError=true`; exponer `profileError` en el contexto; logging `auth_profile`. |
+| `components/AuthGuard.tsx` | **P0 (iteración 2)**. Cuando `profileError && user && !profile`, mostrar pantalla de error con "Reintentar" (`window.location.reload()`) en vez del loader infinito. |
+| `lib/utils/withTimeout.ts` | **P1 (iteración 3)**. Nuevo. Primitivo `withTimeout(promise, ms)` extraído del inline del hook (DRY + limpia el timer al ganar la carrera). |
+| `lib/locations.ts` | **P1 (iteración 3)**. Nuevo `getLocationsByIds(ids)` — lectura en lote (`in` de a 30) con timeout. Mata el N+1 de `/explore`. |
+| `lib/hooks/createCachedQueryHook.ts`, `lib/hooks/useUserMatches.ts` | **P1**. Reusan `withTimeout` / `getLocationsByIds` (sin cambio de comportamiento). |
+| `lib/wallet.ts`, `lib/bookings.ts`, `lib/venues.ts` | **P1**. `getWalletTransactions` / `getUserBookings` / `getActiveVenues` envuelven su `getDocs` en `withTimeout`. |
+| `app/explore/page.tsx` | **P1**. `setLoading(false)` se desacopla del fetch de sedes (se resuelve con el primer snapshot); sedes en lote vía `getLocationsByIds`. |
+| `app/worldcup/page.tsx` | **P1**. `getWorldCupConfig()` y el `Promise.all` de matches/predictions/bracket envueltos en `withTimeout` → `WorldCupSkeleton` ya no queda colgado. |
 
 ---
 
-## 12. NOTAS DE FOLLOW-UP (fuera de alcance de este PR)
+## 12. NOTAS DE FOLLOW-UP
 
-- Aplicar el mismo patrón (`useXxx` con caché en memoria + timeout + visibility refresh) a otras páginas que sufren del mismo problema en iOS PWA: `/explore`, `/venues`, `/history`, `/bookings`, `/profile`, `/wallet`. La firma del hook (`useHomeMatches`) puede generalizarse a un util `createCachedQueryHook(fetcher, options)` cuando confirmemos que el patrón es estable.
+### P2 — IMPLEMENTADO (iteración 4, 2026-06-30) — ver sección 14
+Acotadas `getAllMatches()` y `getMyMatches()` para no leer colecciones sin techo, sin perder los partidos accionables. Pendiente sólo:
+- Paginación real ("ver más") en `/history` para usuarios/admins que superen la ventana acotada.
 - Investigar si conviene reemplazar `getDocs` por `onSnapshot` en Home para tener datos siempre frescos. Tiene costo y requiere SDD propio.
+
+---
+
+## 13. ITERACIÓN 3 — P1: blindar páginas con patrón viejo + N+1
+
+**Problema**: tras P0, varias páginas seguían gateando su skeleton en un `getDocs` sin timeout (mismo modo de cuelgue, una por una). Además `/explore` tenía un **N+1** de lecturas de sedes.
+
+**Estrategia** (mismo principio: timeout duro + degradación elegante; sin migrar todo al hook de un disparo, que no encaja con paginación ni con `onSnapshot`):
+1. **`withTimeout(promise, ms=10s)`** — primitivo reutilizable. El timeout antes vivía inline en `createCachedQueryHook`; se extrae y se reusa en todos los fetchers. Limpia el timer al resolver.
+2. **`getLocationsByIds(ids)`** — lectura de sedes en lote (`where(documentId(), "in", batch)` de a 30) con timeout. Reemplaza tanto el `fetchLocationsMap` privado de `useUserMatches` como el **N+1** de `/explore` (antes: un `getDoc` por sede).
+3. **Timeout en los fetchers paginados/directos**: `getWalletTransactions`, `getUserBookings`, `getActiveVenues` envuelven su `getDocs` en `withTimeout` → todos sus callers (incluido "Ver más") quedan protegidos.
+4. **`/explore` (onSnapshot)**: se desacopla `setLoading(false)` del fetch de sedes. El skeleton se resuelve con el **primer snapshot** de partidos; las sedes son mejora progresiva y, si su fetch falla/cuelga, no dejan el skeleton colgado. (El stream de `onSnapshot` reconecta solo al volver a `visible` — sigue fuera de alcance forzar su timeout.)
+5. **`/worldcup`**: `getWorldCupConfig()` y el `Promise.all` de matches/predictions/bracket se envuelven en `withTimeout`. Su `catch`→`handleError` + `finally`→`setLoading(false)` ya existían, así que un timeout degrada a toast + página vacía en vez de `WorldCupSkeleton` infinito.
+
+**Criterios de aceptación P1**
+- [ ] Si `getWalletTransactions`/`getUserBookings`/`getActiveVenues` no resuelven en 10 s, la página sale del skeleton (toast de error, no cuelgue).
+- [ ] `/explore` muestra los partidos apenas llega el primer snapshot, aunque el fetch de sedes tarde o falle.
+- [ ] `/explore` hace **una** query de sedes por lote (≤30) en vez de un `getDoc` por partido.
+- [ ] `/worldcup` nunca queda colgado en `WorldCupSkeleton` si una de sus lecturas se cuelga.
+- [ ] `useUserMatches` mantiene el mismo comportamiento (la caché y el timeout del hook siguen iguales).
+
+**Fuera de alcance de P1**: P2 (limit/paginación en `getAllMatches`/`getMyMatches`); forzar timeout sobre streams `onSnapshot` (reconectan solos).
+
+---
+
+## 14. ITERACIÓN 4 — Velocidad: paralelizar `/worldcup` + acotar queries de partidos (P2)
+
+### 14.1 `/worldcup` — un round-trip en vez de dos
+**Antes**: `await getWorldCupConfig()` y, recién al volver, `Promise.all([matches, predictions, bracket])` → dos viajes a la red en serie antes de pintar.
+**Después**: las 4 lecturas en un solo `Promise.all` (envuelto en `withTimeout`); el gate de acceso (`hasWorldCupAccess`) se evalúa con `cfg` ya disponible. Corta ~a la mitad la latencia de datos en la primera carga.
+**Por qué es rules-safe** (`firestore.rules`): `config/worldcup` y `worldcupMatches` son legibles por cualquier autenticado; `worldcupPredictions`/`worldcupBracketPredictions` consultados son los del **propio** user (siempre legibles). Un usuario sin acceso lee unos ~64 docs de más antes de ser redirigido (caso de borde raro, sin fuga de datos).
+
+### 14.2 P2 — `getAllMatches` / `getMyMatches` acotadas (escala/costo)
+**Problema**: ambas leían colecciones sin `limit`. `getAllMatches` (Home del super admin) leía **toda** la colección `matches` → crece sin techo a nivel plataforma.
+
+**`getAllMatches()`** → dos queries en paralelo + merge/dedupe:
+- `where status == open` → **todos** los abiertos (accionables, acotados por naturaleza: se cierran). Garantiza que el "próximo partido" del admin nunca caiga fuera del límite.
+- `orderBy createdAt desc, limit(150)` → historial reciente.
+
+**`getMyMatches()`** → `limit(100)` en cada una de sus dos subqueries (`playerUids array-contains` y `createdBy ==`). Los abiertos son recientes por naturaleza, así que siempre entran; el corte solo afecta historial viejo.
+
+**Sin índices nuevos**: `where status==open` y `orderBy createdAt + limit` usan índices de campo único (automáticos); los compuestos existentes (`playerUids+createdAt`, `createdBy+createdAt`) siguen sirviendo con `limit`.
+
+**Trade-off documentado**: usuarios/admins con más partidos que la ventana no ven el historial más viejo en `/history` (pendiente: paginación "ver más"). Riesgo de perder un abierto: nulo en `getAllMatches` (query dedicada de abiertos); despreciable en `getMyMatches` (un abierto tan viejo que queden 100 partidos más nuevos del mismo user es patológico).
+
+**Criterios de aceptación iteración 4**
+- [ ] `/worldcup` dispara las 4 lecturas en paralelo (un round-trip).
+- [ ] Super admin: Home muestra todos los partidos abiertos + los 150 más recientes; no lee la colección entera.
+- [ ] Jugador: Home/History acotan a ~100 por subquery sin perder el próximo partido abierto.
+- [ ] No se requieren índices Firestore nuevos.
+
+---
+
+## 15. ITERACIÓN 5 — Paginación de `/history` + caché de `/worldcup`
+
+### 15.1 `/history` — paginación por cursor ("ver más antiguos")
+La iteración 4 acotó el historial a ~100/150; faltaba dejar ver el resto. `/history` deja de usar `useUserMatches` (que es de un solo disparo, compartido con Home) y pasa a **paginación por cursor propia** (mismo patrón que `/wallet` y `/bookings`: estado inline, `startAfter(lastDoc)`).
+
+**Fetcher**: `getClosedMatchesPage(uid, isSuperAdmin, pageSize=20, cursor?)` en `lib/matches.ts`:
+- **Una sola query** ordenada por `createdAt desc` (índices ya existentes: `playerUids+createdAt` para jugador, single-field para super admin), filtrando `status==closed` en cliente. `reachedEnd` se calcula sobre los docs CRUDOS (< pageSize ⇒ no hay más).
+- Jugador → `where playerUids array-contains uid` (= "partidos jugados", coherente con el header). Super admin → sin filtro de usuario (todos los cerrados).
+- Sin índices nuevos.
+
+**Página**: estado inline (`matches`, `lastDoc`, `hasMore`, `loadingMore`), botón "Ver más antiguos", sedes por página vía `getLocationsByIds` mergeadas, orden de display por fecha/hora desc.
+
+**Trade-off**: para un location/team admin, los partidos que **creó pero no jugó** ya no aparecen en `/history` (sí en Home y en `/match/[id]`). Es semánticamente correcto ("partidos jugados") y habilita paginación con una sola query. `/history` ya no comparte la caché en memoria de Home (hace su propio fetch de la primera página).
+
+### 15.2 `/worldcup` — caché en memoria con updates optimistas
+Reabrir/volver a `/worldcup` refetcheaba las 4 queries (~64 docs de partidos + predicciones + bracket) cada vez. Nuevo hook `lib/hooks/useWorldCupData.ts`:
+- **Caché de módulo** por `uid` (`{config, matches, predictions, bracket, fetchedAt}`); revisitas dentro de la ventana **no** refetchean (sin skeleton, instantáneo).
+- **Refresh en background** si stale (>60 s) al montar y por `visibilitychange`/`pageshow` — mantiene resultados/marcadores razonablemente frescos durante el torneo sin bloquear la UI.
+- **Updates optimistas a la caché**: `setPrediction`/`setBracket` escriben en estado local **y** en la caché de módulo. Resuelve el riesgo señalado: sin esto, una predicción recién guardada (que se aplica en estado local) "desaparecería" al revisitar con caché stale.
+- Mismo patrón de robustez que `createCachedQueryHook`: reconciliación de estado en render al cambiar `uid` (sin `setState` en effect), token de generación (`reqId`) contra respuestas tardías, `withTimeout` en el fetch.
+- La página deriva `config/matches/predictions/bracket` del hook; el gate de acceso (`hasWorldCupAccess`) y `logWorldCupPollOpened` corren en un effect cuando llega la config; estados de error (sin datos) con "Reintentar".
+
+**Criterios de aceptación iteración 5**
+- [ ] `/history` carga la primera página y "Ver más antiguos" trae las siguientes hasta agotar.
+- [ ] El historial de un jugador muestra los partidos que jugó, ordenados por fecha desc.
+- [ ] Revisitar `/worldcup` dentro de 60 s no muestra skeleton ni refetchea.
+- [ ] Una predicción/bracket recién guardada sigue visible al volver a `/worldcup` (caché actualizada).
+- [ ] Sin índices Firestore nuevos.
+
+**Pendiente (no en alcance)**: P2 sigue cerrado; queda solo la idea de mover Home a `onSnapshot` (SDD propio).
