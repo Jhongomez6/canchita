@@ -11,18 +11,19 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import type { Player } from "@/lib/domain/player";
-import { getTeamSummary } from "@/lib/domain/team";
+import { getTeamSummary, getBalanceQuality } from "@/lib/domain/team";
 import { type TeamColor, TEAM_COLOR_CONFIG, getTeamColors } from "@/lib/domain/team-colors";
 import TeamColumn from "./TeamColumn";
 import { logMatchReportCopied, logTeamsConfirmed } from "@/lib/analytics";
 import { 
-  Scale, 
-  Loader2, 
-  ChevronDown, 
-  Check, 
-  Copy, 
-  Hand, 
-  CheckCircle2
+  Scale,
+  Loader2,
+  ChevronDown,
+  Check,
+  Copy,
+  Hand,
+  CheckCircle2,
+  ShieldCheck
 } from "lucide-react";
 
 interface TeamsTabProps {
@@ -146,6 +147,15 @@ export default function TeamsTab({
   const summaryB = getTeamSummary(balanced.teamB.players);
   const diffLevel = Math.abs(summaryA.totalLevel - summaryB.totalLevel);
 
+  // Calidad de balanceo en vivo (refleja también ediciones manuales por drag-and-drop)
+  const quality = getBalanceQuality(balanced.teamA.players, balanced.teamB.players);
+  const isBalanced = quality.cost === 0;
+  const secondaryBadges = [
+    { show: quality.positionImbalance > 0, label: `Posición ±${quality.positionImbalance}` },
+    { show: quality.starDiff > 0, label: `Cracks ±${quality.starDiff}` },
+    { show: quality.sexDiff > 0, label: `Mixto ±${quality.sexDiff}` },
+  ].filter((b) => b.show);
+
   return (
     <div role="tabpanel" id="panel-teams" className="space-y-4 animate-in fade-in duration-200">
       {/* Balance summary header + share buttons */}
@@ -161,6 +171,22 @@ export default function TeamsTab({
                 Diferencia de nivel
               </div>
               <div className="text-xl font-black text-slate-800">{diffLevel} pts</div>
+              {isBalanced ? (
+                <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[11px] font-bold border border-emerald-200">
+                  <ShieldCheck size={11} /> Equipos parejos
+                </span>
+              ) : secondaryBadges.length > 0 && (
+                <span className="mt-1 inline-flex flex-wrap items-center gap-1">
+                  {secondaryBadges.map((b) => (
+                    <span
+                      key={b.label}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[11px] font-bold border border-amber-200"
+                    >
+                      {b.label}
+                    </span>
+                  ))}
+                </span>
+              )}
             </div>
           </div>
 

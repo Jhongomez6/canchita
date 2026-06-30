@@ -10,6 +10,13 @@
  */
 
 // Re-export todo desde el dominio
-export { balanceTeams, getTeamSummary, sortTeamForDisplay } from "./domain/team";
-export type { Team, BalanceResult, TeamSummary } from "./domain/team";
+export { balanceTeams, getTeamSummary, sortTeamForDisplay, getBalanceQuality, DEFAULT_WEIGHTS } from "./domain/team";
+export type {
+    Team,
+    BalanceResult,
+    TeamSummary,
+    BalanceWeights,
+    BalanceOptions,
+    BalanceQuality,
+} from "./domain/team";
 export type { Player } from "./domain/player";

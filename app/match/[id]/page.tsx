@@ -318,7 +318,7 @@ export default function MatchDetailPage() {
         A: cleanObject(result.teamA.players),
         B: cleanObject(result.teamB.players),
       });
-      logTeamsBalanced(id);
+      logTeamsBalanced(id, result.quality);
       setIsSavingTeams(false);
       toast.success("Equipos balanceados y guardados");
     } catch (err: unknown) {

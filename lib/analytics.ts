@@ -53,7 +53,7 @@ async function getAnalyticsInstance(): Promise<Analytics | null> {
   return analyticsInstance ?? initAnalytics();
 }
 
-async function trackEvent(eventName: string, params?: Record<string, string>) {
+async function trackEvent(eventName: string, params?: Record<string, string | number>) {
   const analytics = await getAnalyticsInstance();
   if (!analytics) return;
   const { logEvent } = await loadAnalyticsSDK();
@@ -152,8 +152,18 @@ export async function logMatchCreated(matchId: string) {
   await trackEvent("match_created", { match_id: matchId });
 }
 
-export async function logTeamsBalanced(matchId: string) {
-  await trackEvent("teams_balanced", { match_id: matchId });
+export async function logTeamsBalanced(
+  matchId: string,
+  quality?: { levelDiff: number; positionImbalance: number; candidatesEvaluated: number },
+) {
+  await trackEvent("teams_balanced", {
+    match_id: matchId,
+    ...(quality && {
+      level_diff: quality.levelDiff,
+      position_imbalance: quality.positionImbalance,
+      candidates_evaluated: quality.candidatesEvaluated,
+    }),
+  });
 }
 
 export async function logTeamsConfirmed(matchId: string) {
