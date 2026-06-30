@@ -354,3 +354,28 @@ Reabrir/volver a `/worldcup` refetcheaba las 4 queries (~64 docs de partidos + p
 - [ ] Sin índices Firestore nuevos.
 
 **Pendiente (no en alcance)**: P2 sigue cerrado; queda solo la idea de mover Home a `onSnapshot` (SDD propio).
+
+---
+
+## 16. ITERACIÓN 6 — `/venues/admin/[id]`: skeleton colgado + calendario lento
+
+Misma familia de problemas en la vista de admin de sede. Ref. funcional: `docs/BOOKING_SYSTEM_SDD.md`.
+
+### 16.1 "No carga la información" — skeleton infinito
+`loadData` hacía `Promise.all([getVenue, getVenueCourts, getVenueCombos, getVenueFullSchedule])` (todos `getDocs` sin timeout) y el skeleton se mostraba mientras `loading || !venue`. Dos cuelgues:
+1. Si un `getDocs` se colgaba (iOS) → skeleton infinito.
+2. **Bug**: ante un error atrapado, `finally` ponía `loading=false` pero `venue` quedaba `null` → `loading || !venue` → el skeleton **seguía igual** para siempre, solo con un toast.
+
+**Fix** (`app/venues/admin/[id]/page.tsx`): `withTimeout` sobre el `Promise.all` + nuevo estado `loadError`; si `loadError && !venue` se muestra pantalla de error con "Reintentar" (`loadData`) en vez del skeleton.
+
+### 16.2 "Lentitud" — calendario mensual con ~30 queries
+`AdminBookingCalendar` disparaba **una query `getBookingsForDate` por cada día del mes** (~28-31 round-trips en paralelo) solo para marcar los días con reservas.
+
+**Fix**: nuevo `getBookingsInDateRange(venueId, startDate, endDate)` en `lib/bookings.ts` — **una sola** query de rango (`where venueId== + date>=first + date<=last`, sin filtro de status para usar el prefijo `(venueId, date)` del índice existente). El componente agrupa por día en cliente filtrando `SLOT_BLOCKING_BOOKING_STATUSES` (mismo criterio de dots que antes). Pasa de ~30 round-trips a **1**. Sin índices nuevos.
+
+**Criterios de aceptación iteración 6**
+- [ ] Si los fetchers de la sede no resuelven en 10 s, la página sale del skeleton (estado de error con Reintentar, no cuelgue).
+- [ ] Un error de carga (permiso/red) ya no deja el skeleton colgado para siempre.
+- [ ] El calendario mensual hace una sola query de rango para marcar los días con reservas.
+- [ ] Los dots del calendario marcan los mismos días que antes (criterio de status idéntico).
+- [ ] Sin índices Firestore nuevos.
