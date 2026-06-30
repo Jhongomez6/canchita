@@ -15,15 +15,37 @@ import {
   getDocs,
   query,
   where,
+  documentId,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { withTimeout } from "./utils/withTimeout";
 import type { Location, CreateLocationInput } from "./domain/location";
 import type { UserProfile } from "./domain/user";
 import { DuplicateLocationError } from "./domain/errors";
 import { isSuperAdmin } from "./domain/user";
 
 const locationsRef = collection(db, "locations");
+
+/* =========================
+   OBTENER CANCHAS POR IDS (EN LOTE)
+   Trae varias locations en queries de a 30 ids (límite de `in` en Firestore),
+   en vez de un getDoc por id (N+1). Devuelve un mapa id → Location.
+========================= */
+export async function getLocationsByIds(ids: string[]): Promise<Record<string, Location>> {
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  const map: Record<string, Location> = {};
+  for (let i = 0; i < unique.length; i += 30) {
+    const batch = unique.slice(i, i + 30);
+    const snap = await withTimeout(
+      getDocs(query(locationsRef, where(documentId(), "in", batch)))
+    );
+    snap.docs.forEach((d) => {
+      map[d.id] = { id: d.id, ...d.data() } as Location;
+    });
+  }
+  return map;
+}
 
 /* =========================
    CREAR CANCHA

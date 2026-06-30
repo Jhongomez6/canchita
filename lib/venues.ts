@@ -29,6 +29,7 @@ import {
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
+import { withTimeout } from "./utils/withTimeout";
 import { expandBlockedSlotsForDate } from "./domain/blocked-slots";
 import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus, ManualReservationPayment, PaymentMethod } from "./domain/venue";
 import { validatePaymentMethods, normalizePaymentNote } from "./domain/venue";
@@ -51,7 +52,7 @@ export async function getActiveVenues(): Promise<Venue[]> {
         collection(db, "venues"),
         where("active", "==", true),
     );
-    const snap = await getDocs(q);
+    const snap = await withTimeout(getDocs(q));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Venue);
 }
 

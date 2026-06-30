@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TimeoutError } from "@/lib/domain/errors";
+import { withTimeout } from "@/lib/utils/withTimeout";
 import { logQueryError, logQueryTimeout } from "@/lib/analytics";
 
 interface CachedQueryOptions {
@@ -109,11 +110,7 @@ export function createCachedQueryHook<Params, T>(
           hadCache ? { ...s, refreshing: true } : { ...s, loading: true }
         );
 
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new TimeoutError()), timeoutMs)
-        );
-
-        Promise.race([fetcher(paramsRef.current), timeout])
+        withTimeout(fetcher(paramsRef.current), timeoutMs)
           .then((result) => {
             if (id !== fetchIdRef.current) return;
             cache.set(key, { data: result, fetchedAt: Date.now() });

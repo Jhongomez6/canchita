@@ -3,8 +3,9 @@
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
-import { collection, doc, getDoc, onSnapshot, query, where, QuerySnapshot, QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, query, where, QuerySnapshot, QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getLocationsByIds } from "@/lib/locations";
 import { useRouter } from "next/navigation";
 import MatchCard from "@/components/MatchCard";
 import type { Match } from "@/lib/domain/match";
@@ -38,37 +39,17 @@ export default function ExplorePage() {
             where("status", "==", "open")
         );
 
-        const unsubscribe = onSnapshot(q, async (snapshot: QuerySnapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot) => {
             const allOpenMatches = snapshot.docs.map((d: QueryDocumentSnapshot) => ({ id: d.id, ...d.data() } as Match));
             const visibleMatches = isSuperAdmin ? allOpenMatches : allOpenMatches.filter(m => !m.isPrivate);
             setMatches(visibleMatches);
-
-            // Fetch locations for these matches
-            const locationIds: string[] = Array.from(
-                new Set(
-                    visibleMatches
-                        .map((m: Match) => m.locationId as string)
-                        .filter(Boolean)
-                )
-            );
-
-            const entries: [string, Location][] = (
-                await Promise.all(
-                    locationIds.map(async id => {
-                        const snap = await getDoc(doc(db, "locations", id));
-                        if (!snap.exists()) return null;
-                        return [snap.id, { id: snap.id, ...snap.data() }] as [string, Location];
-                    })
-                )
-            ).filter(Boolean) as [string, Location][];
-
-            const map: Record<string, Location> = {};
-            entries.forEach(([id, data]) => {
-                map[id] = data;
-            });
-
-            setLocationsMap(map);
+            // El skeleton se resuelve YA con los partidos. Las sedes son mejora progresiva:
+            // se cargan en lote (mata el N+1 de un getDoc por sede) y no bloquean la lista —
+            // si su fetch se cuelga, el skeleton no queda colgado por eso.
             setLoading(false);
+            getLocationsByIds(visibleMatches.map((m) => m.locationId))
+                .then(setLocationsMap)
+                .catch((err) => console.error("[explore] No se pudieron cargar las sedes:", err));
         }, (err: Error) => {
             handleError(err, "Error al buscar partidos abiertos");
             setLoading(false);

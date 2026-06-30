@@ -23,6 +23,7 @@ import {
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
+import { withTimeout } from "./utils/withTimeout";
 import type { Booking } from "./domain/booking";
 
 const functions = getFunctions(app);
@@ -45,7 +46,7 @@ export async function getUserBookings(
         ? query(ref, where("bookedBy", "==", uid), orderBy("date", "desc"), startAfter(lastDoc), firestoreLimit(pageSize))
         : query(ref, where("bookedBy", "==", uid), orderBy("date", "desc"), firestoreLimit(pageSize));
 
-    const snap = await getDocs(q);
+    const snap = await withTimeout(getDocs(q));
     const bookings = snap.docs.map((d) => d.data() as Booking);
     const last = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
 
