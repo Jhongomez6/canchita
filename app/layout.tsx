@@ -89,7 +89,7 @@ export default function RootLayout({
         <AuthProvider>
           <Header />
 
-          <div className="pb-24 md:pb-0">
+          <div className="pb-28 md:pb-0">
             {children}
             <Toaster
               position="bottom-center"
