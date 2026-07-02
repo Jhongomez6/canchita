@@ -94,7 +94,7 @@ export default function XpOnboardingModal({
                                 <Zap size={28} className="text-amber-950" fill="currentColor" />
                             </div>
                             <h1 className="text-2xl font-black text-white mb-1">
-                                Tu historia en Canchita
+                                Tu historia en la Canchita
                             </h1>
                             <p className="text-sm text-emerald-100">
                                 Cada partido suma a tu progreso

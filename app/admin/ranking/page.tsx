@@ -7,9 +7,19 @@ import { getPlayersRanking, type PlayerRanking } from "@/lib/usersList";
 import AuthGuard from "@/components/AuthGuard";
 import RankingListSkeleton from "@/components/skeletons/RankingListSkeleton";
 import { isSuperAdmin } from "@/lib/domain/user";
+import { ovrFromLevel, TIER_META, type XpTier } from "@/lib/domain/xp";
 import { Flame } from "lucide-react";
 
-type SortField = "played" | "won" | "lost" | "draw" | "winRate" | "commitmentStreak" | "weeklyStreak" | "mvpAwards";
+type SortField = "played" | "won" | "lost" | "draw" | "winRate" | "commitmentStreak" | "weeklyStreak" | "mvpAwards" | "xp";
+
+// Color por tier para la columna Nivel (legible sobre fondo blanco)
+const TIER_COLOR: Record<XpTier, string> = {
+    suplente: "#b45309",  // bronce
+    titular: "#64748b",   // plata
+    estrella: "#ca8a04",  // oro
+    capitan: "#16a34a",   // verde
+    leyenda: "#9333ea",   // cosmic
+};
 
 export default function RankingPage() {
     const { profile } = useAuth();
@@ -168,6 +178,13 @@ export default function RankingPage() {
                                             Jugador
                                         </th>
                                         <th
+                                            style={headerStyle("xp")}
+                                            onClick={() => handleSort("xp")}
+                                            title="Nivel de experiencia (OVR 50-99)"
+                                        >
+                                            Nivel{arrow("xp")}
+                                        </th>
+                                        <th
                                             style={headerStyle("played")}
                                             onClick={() => handleSort("played")}
                                         >
@@ -263,6 +280,20 @@ export default function RankingPage() {
                                                 }}
                                             >
                                                 {p.name}
+                                            </td>
+                                            <td
+                                                style={{
+                                                    ...cellStyle,
+                                                    fontWeight: 700,
+                                                    color: TIER_COLOR[p.xpTier],
+                                                    background: sortField === "xp" ? "#f0fdf4" : undefined,
+                                                }}
+                                                title={`${TIER_META[p.xpTier].label} · ${p.xp} XP`}
+                                            >
+                                                {ovrFromLevel(p.xpLevel)}
+                                                <span style={{ display: "block", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                                    {TIER_META[p.xpTier].label}
+                                                </span>
                                             </td>
                                             <td
                                                 style={{

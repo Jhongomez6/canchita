@@ -65,14 +65,15 @@ type XpSource =
     | "backfill_v1";
 
 type AchievementId =
-    | "first_match" | "matches_10" | "matches_25" | "matches_50" | "matches_100" | "matches_250"
-    | "first_win" | "wins_10" | "wins_25" | "wins_50"
-    | "first_mvp" | "mvp_5" | "mvp_10" | "mvp_25"
-    | "weekly_streak_3" | "weekly_streak_5" | "weekly_streak_10" | "weekly_streak_25"
-    | "commitment_streak_10" | "commitment_streak_25" | "commitment_streak_50"
+    | "first_match" | "matches_10" | "matches_25" | "matches_50" | "matches_100" | "matches_250" | "matches_500"
+    | "first_win" | "wins_10" | "wins_25" | "wins_50" | "wins_100"
+    | "first_mvp" | "mvp_5" | "mvp_10" | "mvp_25" | "mvp_50"
+    | "weekly_streak_3" | "weekly_streak_5" | "weekly_streak_10" | "weekly_streak_25" | "weekly_streak_50"
+    | "commitment_streak_10" | "commitment_streak_25" | "commitment_streak_50" | "commitment_streak_100"
     | "first_kudo_received" | "kudos_10" | "kudos_25" | "kudos_50" | "kudos_100"
-    | "perfect_month" | "early_bird"
-    | "veteran_year" | "review_master" | "all_tiers";
+    | "perfect_month" | "perfect_months_3" | "perfect_months_6" | "perfect_months_12"
+    | "veteran_year" | "first_review" | "review_master" | "reviews_50"
+    | "reach_titular" | "reach_estrella" | "reach_capitan" | "all_tiers";
 
 const XP_AMOUNTS = {
     MATCH_CONFIRMED: 5,
@@ -81,7 +82,7 @@ const XP_AMOUNTS = {
     MATCH_WON_BONUS: 10,
     MATCH_DRAWN_BONUS: 5,
     MATCH_PUNCTUAL: 5,
-    MATCH_MVP: 50,
+    MATCH_MVP: 100,
     MATCH_NO_SHOW: -50,
     MATCH_LATE: -10,
     KUDO_RECEIVED: 5,
@@ -129,30 +130,42 @@ const ACHIEVEMENTS: AchievementDef[] = [
     { id: "matches_50", label: "Imparable", xpBonus: 400, check: (c) => c.played >= 50 },
     { id: "matches_100", label: "Centenario", xpBonus: 1000, check: (c) => c.played >= 100 },
     { id: "matches_250", label: "Inquilino del Predio", xpBonus: 2500, check: (c) => c.played >= 250 },
+    { id: "matches_500", label: "Eterno del Predio", xpBonus: 5000, check: (c) => c.played >= 500 },
     { id: "first_win", label: "Primera Victoria", xpBonus: 50, check: (c) => c.won >= 1 },
     { id: "wins_10", label: "Ganador", xpBonus: 150, check: (c) => c.won >= 10 },
     { id: "wins_25", label: "Triunfador", xpBonus: 300, check: (c) => c.won >= 25 },
     { id: "wins_50", label: "Implacable", xpBonus: 600, check: (c) => c.won >= 50 },
+    { id: "wins_100", label: "Invencible", xpBonus: 1200, check: (c) => c.won >= 100 },
     { id: "first_mvp", label: "Primer MVP", xpBonus: 100, check: (c) => c.mvpAwards >= 1 },
     { id: "mvp_5", label: "Figura Repetida", xpBonus: 300, check: (c) => c.mvpAwards >= 5 },
     { id: "mvp_10", label: "Figura del Predio", xpBonus: 600, check: (c) => c.mvpAwards >= 10 },
     { id: "mvp_25", label: "Crack Indiscutido", xpBonus: 1500, check: (c) => c.mvpAwards >= 25 },
+    { id: "mvp_50", label: "Ídolo Absoluto", xpBonus: 3000, check: (c) => c.mvpAwards >= 50 },
     { id: "weekly_streak_3", label: "Constante", xpBonus: 50, check: (c) => c.weeklyStreak >= 3 },
     { id: "weekly_streak_5", label: "Constancia", xpBonus: 200, check: (c) => c.weeklyStreak >= 5 },
     { id: "weekly_streak_10", label: "Inquebrantable", xpBonus: 500, check: (c) => c.weeklyStreak >= 10 },
     { id: "weekly_streak_25", label: "Maratonista", xpBonus: 1500, check: (c) => c.weeklyStreak >= 25 },
+    { id: "weekly_streak_50", label: "Todo el Año", xpBonus: 3000, check: (c) => c.weeklyStreak >= 50 },
     { id: "commitment_streak_10", label: "Puntual", xpBonus: 150, check: (c) => c.commitmentStreak >= 10 },
     { id: "commitment_streak_25", label: "Reloj Suizo", xpBonus: 400, check: (c) => c.commitmentStreak >= 25 },
     { id: "commitment_streak_50", label: "Compromiso Total", xpBonus: 1000, check: (c) => c.commitmentStreak >= 50 },
+    { id: "commitment_streak_100", label: "Puntualidad Perfecta", xpBonus: 2000, check: (c) => c.commitmentStreak >= 100 },
     { id: "first_kudo_received", label: "Primer Reconocimiento", xpBonus: 50, check: (c) => c.kudosTotal >= 1 },
     { id: "kudos_10", label: "Apreciado", xpBonus: 100, check: (c) => c.kudosTotal >= 10 },
     { id: "kudos_25", label: "Querido", xpBonus: 200, check: (c) => c.kudosTotal >= 25 },
     { id: "kudos_50", label: "Admirado", xpBonus: 400, check: (c) => c.kudosTotal >= 50 },
     { id: "kudos_100", label: "Ídolo", xpBonus: 800, check: (c) => c.kudosTotal >= 100 },
     { id: "perfect_month", label: "Mes Perfecto", xpBonus: 300, check: (c) => c.perfectMonths >= 1 },
-    { id: "early_bird", label: "Madrugador", xpBonus: 150, check: (c) => c.earlyConfirmCount >= 10 },
+    { id: "perfect_months_3", label: "Trimestre Perfecto", xpBonus: 600, check: (c) => c.perfectMonths >= 3 },
+    { id: "perfect_months_6", label: "Semestre Perfecto", xpBonus: 1200, check: (c) => c.perfectMonths >= 6 },
+    { id: "perfect_months_12", label: "Año Perfecto", xpBonus: 2500, check: (c) => c.perfectMonths >= 12 },
     { id: "veteran_year", label: "Aniversario", xpBonus: 500, check: (c) => c.daysSinceFirstMatch >= 365 },
+    { id: "first_review", label: "Opinador", xpBonus: 50, check: (c) => c.reviewCount >= 1 },
     { id: "review_master", label: "Crítico", xpBonus: 200, check: (c) => c.reviewCount >= 20 },
+    { id: "reviews_50", label: "Analista", xpBonus: 500, check: (c) => c.reviewCount >= 50 },
+    { id: "reach_titular", label: "Ascenso a Titular", xpBonus: 150, check: (c) => ["titular", "estrella", "capitan", "leyenda"].includes(c.xpTier) },
+    { id: "reach_estrella", label: "Ascenso a Estrella", xpBonus: 400, check: (c) => ["estrella", "capitan", "leyenda"].includes(c.xpTier) },
+    { id: "reach_capitan", label: "La Cinta de Capitán", xpBonus: 1000, check: (c) => ["capitan", "leyenda"].includes(c.xpTier) },
     { id: "all_tiers", label: "Leyenda Confirmada", xpBonus: 2000, check: (c) => c.xpTier === "leyenda" },
 ];
 
@@ -192,15 +205,14 @@ function buildXpEventId(uid: string, source: XpSource, contextId: string): strin
 
 /**
  * Espejo server-side de `hasXpAccess(profile)` en lib/domain/user.ts.
- * Solo super_admins o usuarios con la FF `xpEnabled === true` acumulan XP,
- * desbloquean achievements y reciben notifs del sistema. El retroactivo al activar
- * la FF se hace mediante el script `scripts/backfillXp.js` (no por background accumulation).
+ *
+ * Desde 2026-07-02 el sistema de XP está habilitado globalmente: todos los usuarios
+ * acumulan XP, desbloquean achievements y reciben notifs del sistema. Se removió el
+ * gate por-usuario `xpEnabled`. Se conserva la función para tener un único punto de
+ * retorno por si se necesita re-gatear. `userData` queda sin uso.
  */
-function hasXpAccess(userData: Record<string, unknown>): boolean {
-    if (userData.xpEnabled === true) return true;
-    const roles = userData.roles;
-    const isAdmin = Array.isArray(roles) && roles.includes("admin");
-    return isAdmin && userData.adminType === "super_admin";
+function hasXpAccess(_userData: Record<string, unknown>): boolean {
+    return true;
 }
 
 // ========================
@@ -638,8 +650,14 @@ export const awardXpAndCheckAchievements = onDocumentUpdated(
     },
 );
 
-async function checkAndUnlockAchievements(uid: string, userData: Record<string, unknown>) {
-    // Feature flag: usuarios sin xpEnabled no desbloquean logros ni reciben notifs.
+async function checkAndUnlockAchievements(
+    uid: string,
+    userData: Record<string, unknown>,
+    options?: { silent?: boolean },
+) {
+    // `silent` (usado por el backfill masivo): desbloquea logros y otorga su XP bonus
+    // pero NO envía notifs, para no inundar la campana de cada usuario en la migración.
+    const silent = options?.silent === true;
     if (!hasXpAccess(userData)) return;
 
     const stats = (userData.stats as { played?: number; won?: number } | undefined) ?? {};
@@ -691,8 +709,10 @@ async function checkAndUnlockAchievements(uid: string, userData: Record<string, 
                 amount: ach.xpBonus,
                 reason: `Logro: ${ach.label}`,
             });
-            await sendAchievementNotif(uid, ach);
-            if (!res.skipped) await sendLevelUpNotif(uid, res);
+            if (!silent) {
+                await sendAchievementNotif(uid, ach);
+                if (!res.skipped) await sendLevelUpNotif(uid, res);
+            }
         } catch (err) {
             console.error(`[checkAndUnlockAchievements] ${uid} ${ach.id}:`, err);
         }
@@ -774,13 +794,27 @@ export const recalculateUserXp = onCall(
         const xp = estimateHistoricalXp(userData);
         const level = calcLevelFromXp(xp);
         const tier = calcTierFromLevel(level);
+        const now = new Date().toISOString();
 
-        await db.collection("users").doc(targetUid).update({
+        // Sembrar firstMatchAt (habilita veteran_year) si aún no existe — igual que el backfill masivo.
+        const existingFirstMatchAt = typeof userData.firstMatchAt === "string" ? userData.firstMatchAt : undefined;
+        const firstMatchAt = existingFirstMatchAt ?? await findFirstMatchAt(targetUid);
+
+        const userUpdate: Record<string, unknown> = {
             xp,
             xpLevel: level,
             xpTier: tier,
-            xpLastEvent: new Date().toISOString(),
-        });
+            xpLastEvent: now,
+        };
+        if (firstMatchAt && !existingFirstMatchAt) userUpdate.firstMatchAt = firstMatchAt;
+        await db.collection("users").doc(targetUid).update(userUpdate);
+
+        // Desbloquear achievements retroactivos + su XP bonus (silent, sin notifs) — consistente con backfillAllUsersXp.
+        await checkAndUnlockAchievements(
+            targetUid,
+            { ...userData, xp, xpLevel: level, xpTier: tier, firstMatchAt },
+            { silent: true },
+        );
 
         return { uid: targetUid, xp, level, tier };
     },
@@ -833,14 +867,20 @@ export const backfillAllUsersXp = onCall(
             const now = new Date().toISOString();
 
             try {
-                // 1) Setear xp/level/tier
-                await doc.ref.update({
+                // Sembrar firstMatchAt (habilita el achievement veteran_year) si aún no existe.
+                const existingFirstMatchAt = typeof data.firstMatchAt === "string" ? data.firstMatchAt : undefined;
+                const firstMatchAt = existingFirstMatchAt ?? await findFirstMatchAt(doc.id);
+
+                // 1) Setear xp/level/tier (+ firstMatchAt si se resolvió)
+                const userUpdate: Record<string, unknown> = {
                     xp,
                     xpLevel: level,
                     xpTier: tier,
                     xpLastEvent: now,
                     "_migration.xpBackfillV1": { runAt: now, version: 1 },
-                });
+                };
+                if (firstMatchAt && !existingFirstMatchAt) userUpdate.firstMatchAt = firstMatchAt;
+                await doc.ref.update(userUpdate);
 
                 // 2) Crear evento de auditoría para que aparezca en historial
                 const eventId = buildXpEventId(doc.id, "backfill_v1", "history");
@@ -852,6 +892,14 @@ export const backfillAllUsersXp = onCall(
                     reason: "XP calculado desde tu historia previa",
                     createdAt: now,
                 });
+
+                // 3) Desbloquear achievements retroactivos + su XP bonus.
+                //    silent: sin notifs (evita inundar la campana en la migración masiva).
+                await checkAndUnlockAchievements(
+                    doc.id,
+                    { ...data, xp, xpLevel: level, xpTier: tier, firstMatchAt },
+                    { silent: true },
+                );
 
                 processed += 1;
             } catch (err) {
@@ -893,4 +941,29 @@ function estimateHistoricalXp(userData: Record<string, unknown>): number {
         + lateArrivals * XP_AMOUNTS.MATCH_LATE;
 
     return Math.max(0, xp);
+}
+
+/**
+ * Fecha (ISO) del partido cerrado más antiguo del usuario. Usado por el backfill
+ * para sembrar `firstMatchAt`, que habilita el achievement `veteran_year`.
+ * Usa solo `array-contains` sobre `playerUids` (auto-indexado, sin índice compuesto)
+ * y calcula el mínimo en memoria. Devuelve undefined si no tiene partidos cerrados.
+ */
+async function findFirstMatchAt(uid: string): Promise<string | undefined> {
+    const snap = await db.collection("matches")
+        .where("playerUids", "array-contains", uid)
+        .get();
+    let earliestTs: number | undefined;
+    let earliestIso: string | undefined;
+    for (const doc of snap.docs) {
+        const m = doc.data() as { date?: string; time?: string; status?: string };
+        if (m.status !== "closed" || !m.date) continue;
+        const ts = new Date(`${m.date}T${m.time || "00:00"}`).getTime();
+        if (Number.isNaN(ts)) continue;
+        if (earliestTs === undefined || ts < earliestTs) {
+            earliestTs = ts;
+            earliestIso = new Date(ts).toISOString();
+        }
+    }
+    return earliestIso;
 }

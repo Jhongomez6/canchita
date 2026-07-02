@@ -16,6 +16,7 @@
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import { getDisplayedWeeklyStreak } from "./domain/user";
+import { calcLevelFromXp, calcTierFromLevel, type XpTier } from "./domain/xp";
 
 // ========================
 // TIPOS
@@ -32,6 +33,9 @@ export interface PlayerRanking {
     commitmentStreak: number;
     weeklyStreak: number;
     mvpAwards: number;
+    xp: number;          // XP total acumulado (ordenamiento fino)
+    xpLevel: number;     // Nivel 1-50 (derivado de xp si falta)
+    xpTier: XpTier;      // Tier actual (cacheado o derivado)
 }
 
 // ========================
@@ -51,6 +55,9 @@ export async function getPlayersRanking(): Promise<PlayerRanking[]> {
         const stats = data.stats ?? {};
         const played = Math.max(0, stats.played ?? 0);
         const won = Math.max(0, stats.won ?? 0);
+        const xp = Math.max(0, data.xp ?? 0);
+        const xpLevel = data.xpLevel ?? calcLevelFromXp(xp);
+        const xpTier: XpTier = data.xpTier ?? calcTierFromLevel(xpLevel);
 
         return {
             uid: d.id,
@@ -66,6 +73,9 @@ export async function getPlayersRanking(): Promise<PlayerRanking[]> {
                 lastPlayedWeek: data.lastPlayedWeek,
             }),
             mvpAwards: Math.max(0, data.mvpAwards ?? 0),
+            xp,
+            xpLevel,
+            xpTier,
         };
     });
 }

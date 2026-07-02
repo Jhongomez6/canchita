@@ -360,17 +360,19 @@ export function hasWorldCupAccess(profile: UserProfile, pollEnabled: boolean): b
 
 /**
  * Verifica si el usuario tiene acceso al sistema de XP / Niveles / Achievements.
- * Super admins siempre tienen acceso; otros usuarios requieren el flag xpEnabled.
  *
- * Cuando está OFF: la FIFA card muestra "?" como OVR + rarity verde (legacy),
- * y XpStatsSection / AchievementsGrid / XpOnboardingModal / XpBadge no se renderizan.
- * Las Cloud Functions también respetan el flag (ver `hasXpAccess` espejo en
- * `functions/src/xp.ts`): sin FF no se acumula XP, no se desbloquean logros
- * ni llegan notifs. Al activar el flag, el script `scripts/backfillXp.js` /
- * callable `backfillAllUsersXp` aplican el retroactivo desde stats.
+ * Desde 2026-07-02 el sistema de XP está **habilitado globalmente** para todos los
+ * usuarios: se removió el flag por-usuario `xpEnabled` en favor de un rollout total.
+ * La función se conserva (en lugar de borrar los call sites) para dejar un único punto
+ * de retorno por si en el futuro se necesita volver a gatear. El campo `xpEnabled`
+ * queda vestigial y ya no se lee.
+ *
+ * El espejo server-side vive en `functions/src/xp.ts → hasXpAccess(userData)`.
+ * La UI igual degrada elegante cuando el user aún no tiene datos de XP (pre-backfill):
+ * los call sites que muestran valores concretos chequean además `typeof profile.xp === "number"`.
  */
-export function hasXpAccess(profile: UserProfile): boolean {
-    return isSuperAdmin(profile) || profile.xpEnabled === true;
+export function hasXpAccess(_profile: UserProfile): boolean {
+    return true;
 }
 
 /**

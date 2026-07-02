@@ -61,23 +61,24 @@ interface CardRarityVisuals {
 }
 
 const RARITY_VISUALS: Record<XpTier, CardRarityVisuals> = {
+  // Bronce/cobre — metálico apagado, tono rojizo-marrón para diferenciarlo del oro
   suplente: {
-    frameOuter: "linear-gradient(to bottom, #d4a373, #92580a, #5d3a06)",
-    frameInner: "linear-gradient(to bottom, #6b4318, #4a2c0a, #2a1805)",
-    shimmerVia: "via-amber-200/20",
+    frameOuter: "linear-gradient(to bottom, #9c6636, #613b1c, #34200f)",
+    frameInner: "linear-gradient(to bottom, #5a3410, #3d2408, #241405)",
+    shimmerVia: "via-orange-200/5",
     isCosmic: false,
-    textPrimary: "text-amber-50",
-    textSecondary: "text-amber-300",
-    accentLine: "via-amber-400/40",
-    pillGradient: "from-amber-800 to-amber-950",
-    pillBorder: "border-amber-400/50",
-    pillIcon: "text-amber-300",
-    photoSkeleton: "bg-amber-900/80",
+    textPrimary: "text-orange-50",
+    textSecondary: "text-amber-500",
+    accentLine: "via-amber-600/40",
+    pillGradient: "from-amber-900 to-orange-950",
+    pillBorder: "border-amber-600/50",
+    pillIcon: "text-amber-500",
+    photoSkeleton: "bg-orange-950/80",
   },
   titular: {
     frameOuter: "linear-gradient(to bottom, #e2e8f0, #94a3b8, #475569)",
     frameInner: "linear-gradient(to bottom, #475569, #334155, #1e293b)",
-    shimmerVia: "via-white/30",
+    shimmerVia: "via-white/18",
     isCosmic: false,
     textPrimary: "text-slate-50",
     textSecondary: "text-slate-300",
@@ -87,18 +88,19 @@ const RARITY_VISUALS: Record<XpTier, CardRarityVisuals> = {
     pillIcon: "text-slate-300",
     photoSkeleton: "bg-slate-700/80",
   },
+  // Oro vivo — amarillo-dorado brillante y saturado, claramente por encima del bronce
   estrella: {
-    frameOuter: "linear-gradient(to bottom, #fcd34d, #f59e0b, #b45309)",
-    frameInner: "linear-gradient(to bottom, #92400e, #78350f, #451a03)",
-    shimmerVia: "via-yellow-200/30",
+    frameOuter: "linear-gradient(to bottom, #ffe873, #fbbf24, #b47d09)",
+    frameInner: "linear-gradient(to bottom, #a87d16, #77530c, #4a3208)",
+    shimmerVia: "via-yellow-100/40",
     isCosmic: false,
-    textPrimary: "text-amber-50",
+    textPrimary: "text-yellow-50",
     textSecondary: "text-yellow-200",
-    accentLine: "via-yellow-300/50",
-    pillGradient: "from-amber-700 to-amber-900",
-    pillBorder: "border-amber-300/50",
+    accentLine: "via-yellow-300/60",
+    pillGradient: "from-yellow-600 to-amber-800",
+    pillBorder: "border-yellow-300/50",
     pillIcon: "text-yellow-200",
-    photoSkeleton: "bg-amber-900/80",
+    photoSkeleton: "bg-amber-800/80",
   },
   // La rarity actual de la app — verde Canchita (identidad de marca)
   capitan: {
@@ -337,13 +339,15 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
           {/* Diamond pattern background */}
           <DiamondPattern />
 
-          {/* Shimmer effect — color varía según rarity */}
-          <motion.div
-            className={`absolute inset-0 bg-gradient-to-r from-transparent ${rarity.shimmerVia} to-transparent skew-x-12 pointer-events-none z-30`}
-            initial={{ x: "-200%" }}
-            animate={{ x: "200%" }}
-            transition={{ duration: 3, repeat: Infinity, repeatDelay: rarity.isCosmic ? 2 : 5, ease: "easeInOut" }}
-          />
+          {/* Shimmer effect — color varía según rarity. Omitido en Bronce/Suplente (look mate, sin brillo). */}
+          {tier !== "suplente" && (
+            <motion.div
+              className={`absolute inset-0 bg-gradient-to-r from-transparent ${rarity.shimmerVia} to-transparent skew-x-12 pointer-events-none z-30`}
+              initial={{ x: "-200%" }}
+              animate={{ x: "200%" }}
+              transition={{ duration: 3, repeat: Infinity, repeatDelay: rarity.isCosmic ? 2 : 5, ease: "easeInOut" }}
+            />
+          )}
 
           {/* ========================= */}
           {/*   TOP SECTION             */}

@@ -52,22 +52,23 @@ export type XpSource =
 
 export type AchievementId =
     // Partidos jugados
-    | "first_match" | "matches_10" | "matches_25" | "matches_50" | "matches_100" | "matches_250"
+    | "first_match" | "matches_10" | "matches_25" | "matches_50" | "matches_100" | "matches_250" | "matches_500"
     // Victorias
-    | "first_win" | "wins_10" | "wins_25" | "wins_50"
+    | "first_win" | "wins_10" | "wins_25" | "wins_50" | "wins_100"
     // MVP
-    | "first_mvp" | "mvp_5" | "mvp_10" | "mvp_25"
+    | "first_mvp" | "mvp_5" | "mvp_10" | "mvp_25" | "mvp_50"
     // Rachas
-    | "weekly_streak_3" | "weekly_streak_5" | "weekly_streak_10" | "weekly_streak_25"
-    | "commitment_streak_10" | "commitment_streak_25" | "commitment_streak_50"
+    | "weekly_streak_3" | "weekly_streak_5" | "weekly_streak_10" | "weekly_streak_25" | "weekly_streak_50"
+    | "commitment_streak_10" | "commitment_streak_25" | "commitment_streak_50" | "commitment_streak_100"
     // Sociales
     | "first_kudo_received" | "kudos_10" | "kudos_25" | "kudos_50" | "kudos_100"
     // Compromiso
-    | "perfect_month"
-    | "early_bird"
+    | "perfect_month" | "perfect_months_3" | "perfect_months_6" | "perfect_months_12"
     // Especiales
     | "veteran_year"
-    | "review_master"
+    | "first_review" | "review_master" | "reviews_50"
+    // Tiers alcanzados
+    | "reach_titular" | "reach_estrella" | "reach_capitan"
     | "all_tiers";
 
 export type AchievementTier = "bronze" | "silver" | "gold" | "platinum";
@@ -214,7 +215,7 @@ export const XP_AMOUNTS = {
     MATCH_WON_BONUS: 10,
     MATCH_DRAWN_BONUS: 5,
     MATCH_PUNCTUAL: 5,
-    MATCH_MVP: 50,
+    MATCH_MVP: 100,
     MATCH_NO_SHOW: -50,
     MATCH_LATE: -10,
     KUDO_RECEIVED: 5,
@@ -478,6 +479,11 @@ export const ACHIEVEMENT_DEFS: Record<AchievementId, AchievementDef> = {
         icon: "🏛️", xpBonus: 2500, tier: "platinum", category: "matches",
         check: (c) => c.played >= 250,
     },
+    matches_500: {
+        id: "matches_500", label: "Eterno del Predio", description: "500 partidos jugados",
+        icon: "♾️", xpBonus: 5000, tier: "platinum", category: "matches",
+        check: (c) => c.played >= 500,
+    },
     // Victorias
     first_win: {
         id: "first_win", label: "Primera Victoria", description: "Ganaste tu primer partido",
@@ -498,6 +504,11 @@ export const ACHIEVEMENT_DEFS: Record<AchievementId, AchievementDef> = {
         id: "wins_50", label: "Implacable", description: "50 victorias",
         icon: "🏆", xpBonus: 600, tier: "gold", category: "wins",
         check: (c) => c.won >= 50,
+    },
+    wins_100: {
+        id: "wins_100", label: "Invencible", description: "100 victorias",
+        icon: "🛡️", xpBonus: 1200, tier: "platinum", category: "wins",
+        check: (c) => c.won >= 100,
     },
     // MVP
     first_mvp: {
@@ -520,6 +531,11 @@ export const ACHIEVEMENT_DEFS: Record<AchievementId, AchievementDef> = {
         icon: "✨", xpBonus: 1500, tier: "platinum", category: "mvp",
         check: (c) => c.mvpAwards >= 25,
     },
+    mvp_50: {
+        id: "mvp_50", label: "Ídolo Absoluto", description: "50 MVPs ganados",
+        icon: "🌠", xpBonus: 3000, tier: "platinum", category: "mvp",
+        check: (c) => c.mvpAwards >= 50,
+    },
     // Rachas
     weekly_streak_3: {
         id: "weekly_streak_3", label: "Constante", description: "3 semanas seguidas jugando",
@@ -541,6 +557,11 @@ export const ACHIEVEMENT_DEFS: Record<AchievementId, AchievementDef> = {
         icon: "🔥", xpBonus: 1500, tier: "platinum", category: "streaks",
         check: (c) => c.weeklyStreak >= 25,
     },
+    weekly_streak_50: {
+        id: "weekly_streak_50", label: "Todo el Año", description: "50 semanas seguidas jugando",
+        icon: "🔥", xpBonus: 3000, tier: "platinum", category: "streaks",
+        check: (c) => c.weeklyStreak >= 50,
+    },
     commitment_streak_10: {
         id: "commitment_streak_10", label: "Puntual", description: "10 partidos seguidos siendo puntual",
         icon: "⏰", xpBonus: 150, tier: "bronze", category: "commitment",
@@ -555,6 +576,11 @@ export const ACHIEVEMENT_DEFS: Record<AchievementId, AchievementDef> = {
         id: "commitment_streak_50", label: "Compromiso Total", description: "50 partidos seguidos puntual",
         icon: "🎯", xpBonus: 1000, tier: "gold", category: "commitment",
         check: (c) => c.commitmentStreak >= 50,
+    },
+    commitment_streak_100: {
+        id: "commitment_streak_100", label: "Puntualidad Perfecta", description: "100 partidos seguidos puntual",
+        icon: "⏱️", xpBonus: 2000, tier: "platinum", category: "commitment",
+        check: (c) => c.commitmentStreak >= 100,
     },
     // Sociales
     first_kudo_received: {
@@ -588,10 +614,20 @@ export const ACHIEVEMENT_DEFS: Record<AchievementId, AchievementDef> = {
         icon: "✨", xpBonus: 300, tier: "silver", category: "commitment",
         check: (c) => c.perfectMonths >= 1,
     },
-    early_bird: {
-        id: "early_bird", label: "Madrugador", description: "10 confirmaciones con más de 24h",
-        icon: "🐦", xpBonus: 150, tier: "bronze", category: "commitment",
-        check: (c) => c.earlyConfirmCount >= 10,
+    perfect_months_3: {
+        id: "perfect_months_3", label: "Trimestre Perfecto", description: "3 meses perfectos",
+        icon: "🗓️", xpBonus: 600, tier: "gold", category: "commitment",
+        check: (c) => c.perfectMonths >= 3,
+    },
+    perfect_months_6: {
+        id: "perfect_months_6", label: "Semestre Perfecto", description: "6 meses perfectos",
+        icon: "📆", xpBonus: 1200, tier: "platinum", category: "commitment",
+        check: (c) => c.perfectMonths >= 6,
+    },
+    perfect_months_12: {
+        id: "perfect_months_12", label: "Año Perfecto", description: "12 meses perfectos",
+        icon: "🏅", xpBonus: 2500, tier: "platinum", category: "commitment",
+        check: (c) => c.perfectMonths >= 12,
     },
     // Especiales
     veteran_year: {
@@ -599,10 +635,36 @@ export const ACHIEVEMENT_DEFS: Record<AchievementId, AchievementDef> = {
         icon: "🎂", xpBonus: 500, tier: "gold", category: "special",
         check: (c) => c.daysSinceFirstMatch >= 365,
     },
+    first_review: {
+        id: "first_review", label: "Opinador", description: "Calificaste tu primer partido",
+        icon: "📝", xpBonus: 50, tier: "bronze", category: "special",
+        check: (c) => c.reviewCount >= 1,
+    },
     review_master: {
         id: "review_master", label: "Crítico", description: "20 reviews completadas",
         icon: "📝", xpBonus: 200, tier: "silver", category: "special",
         check: (c) => c.reviewCount >= 20,
+    },
+    reviews_50: {
+        id: "reviews_50", label: "Analista", description: "50 reviews completadas",
+        icon: "📋", xpBonus: 500, tier: "gold", category: "special",
+        check: (c) => c.reviewCount >= 50,
+    },
+    // Tiers alcanzados
+    reach_titular: {
+        id: "reach_titular", label: "Ascenso a Titular", description: "Alcanzaste el tier Titular",
+        icon: "👕", xpBonus: 150, tier: "silver", category: "special",
+        check: (c) => ["titular", "estrella", "capitan", "leyenda"].includes(c.xpTier),
+    },
+    reach_estrella: {
+        id: "reach_estrella", label: "Ascenso a Estrella", description: "Alcanzaste el tier Estrella",
+        icon: "⭐", xpBonus: 400, tier: "gold", category: "special",
+        check: (c) => ["estrella", "capitan", "leyenda"].includes(c.xpTier),
+    },
+    reach_capitan: {
+        id: "reach_capitan", label: "La Cinta de Capitán", description: "Alcanzaste el tier Capitán",
+        icon: "🎖️", xpBonus: 1000, tier: "platinum", category: "special",
+        check: (c) => ["capitan", "leyenda"].includes(c.xpTier),
     },
     all_tiers: {
         id: "all_tiers", label: "Leyenda Confirmada", description: "Alcanzaste el tier Leyenda",
@@ -646,7 +708,7 @@ export function checkAchievementsToUnlock(
  *   played × 25 (jugar)
  * + won × 10 (victorias)
  * + draw × 5 (empates)
- * + mvpAwards × 50 (MVP)
+ * + mvpAwards × 100 (MVP)
  * + kudosTotal × 5 (kudos)
  * - noShows × 50 (penalización)
  * - lateArrivals × 10 (penalización)

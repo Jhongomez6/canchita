@@ -63,7 +63,7 @@ Canchita ya tiene varios sistemas de "señales del jugador". Este SDD agrega una
 - **Skill `level`** sigue siendo el único campo usado para balance de equipos. El `xpLevel` **no se usa para balance** — es solo gamification.
 - **`stats`** sigue existiendo como counters de partidos. El XP **lee de `stats`** para algunos cálculos pero no la reemplaza.
 - **Rachas** siguen visibles en sus lugares actuales (QuickStats, drawer). Algunas rachas otorgan bonus de XP al mantenerse — pero las rachas siguen funcionando aunque XP se rompa.
-- **MVP awards** siguen contándose por separado. Ser MVP otorga +50 XP además de incrementar `mvpAwards`.
+- **MVP awards** siguen contándose por separado. Ser MVP otorga +100 XP además de incrementar `mvpAwards`.
 - **FIFA Player Card** ([docs/FIFA_PLAYER_CARD_SDD.md](FIFA_PLAYER_CARD_SDD.md)) hoy muestra `?` en el OVR y es **verde emerald para todos**. Este SDD: (a) reemplaza `?` por `49 + xpLevel`, y (b) introduce **5 rarities visuales** según el tier (Bronce/Plata/Dorado/Verde/Cosmic). La card verde actual se reasocia al tier Capitán.
 
 ---
@@ -364,7 +364,7 @@ Modal blocking single-screen scrolleable (max-height `90vh`, dismissable solo co
 │  Cómo ganás XP                         │  ← Sección
 │  ⚽ Jugar un partido         +25       │
 │  🏆 Ganar / empatar         +5-10      │
-│  ⭐ Ser MVP                  +50       │
+│  ⭐ Ser MVP                  +100      │
 │  👏 Recibir un kudo          +5        │
 │  🔥 Mantener racha semanal  +20/sem    │
 │  📝 Calificar el partido    +10        │
@@ -486,22 +486,26 @@ export type XpSource =
 
 export type AchievementId =
   // Partidos jugados
-  | "first_match" | "matches_10" | "matches_25" | "matches_50" | "matches_100" | "matches_250"
+  | "first_match" | "matches_10" | "matches_25" | "matches_50" | "matches_100" | "matches_250" | "matches_500"
   // Victorias
-  | "first_win" | "wins_10" | "wins_25" | "wins_50"
+  | "first_win" | "wins_10" | "wins_25" | "wins_50" | "wins_100"
   // MVP
-  | "first_mvp" | "mvp_5" | "mvp_10" | "mvp_25"
+  | "first_mvp" | "mvp_5" | "mvp_10" | "mvp_25" | "mvp_50"
   // Rachas
-  | "weekly_streak_3" | "weekly_streak_5" | "weekly_streak_10" | "weekly_streak_25"
-  | "commitment_streak_10" | "commitment_streak_25" | "commitment_streak_50"
+  | "weekly_streak_3" | "weekly_streak_5" | "weekly_streak_10" | "weekly_streak_25" | "weekly_streak_50"
+  | "commitment_streak_10" | "commitment_streak_25" | "commitment_streak_50" | "commitment_streak_100"
   // Sociales
   | "first_kudo_received" | "kudos_10" | "kudos_25" | "kudos_50" | "kudos_100"
   // Compromiso
   | "perfect_month"            // 4 partidos en un mes sin late ni no-show
-  | "early_bird"               // 10 confirmaciones >24h antes
+  | "perfect_months_3" | "perfect_months_6" | "perfect_months_12"  // 3/6/12 meses perfectos
   // Especiales
   | "veteran_year"             // 1 año desde el primer partido
+  | "first_review"             // completó su primer review
   | "review_master"            // completó 20 reviews
+  | "reviews_50"               // completó 50 reviews
+  // Tiers alcanzados
+  | "reach_titular" | "reach_estrella" | "reach_capitan"  // alcanzó cada tier intermedio
   | "all_tiers";               // alcanzó Leyenda
 
 export interface AchievementDef {
@@ -566,7 +570,7 @@ interface UserProfile {
   xpEnabled?: boolean;
   // Contadores adicionales para achievements/penalizaciones (escritos por CF).
   firstMatchAt?: string;             // ISO del primer partido (achievement "veteran_year")
-  earlyConfirmCount?: number;        // confirmaciones >24h antes (achievement "early_bird")
+  earlyConfirmCount?: number;        // confirmaciones >24h antes (contador; sin achievement asociado)
   reviewCount?: number;              // reviews completadas (achievement "review_master")
   perfectMonths?: number;            // meses con 4+ partidos sin late/no-show (achievement "perfect_month")
 }
@@ -587,7 +591,7 @@ export function hasXpAccess(profile: UserProfile): boolean {
 | `match_won` | +10 extra | ¡Ganaron el partido! |
 | `match_drawn` | +5 extra | Empate |
 | `match_punctual` | +5 | Llegaste a tiempo |
-| `match_mvp` | +50 | Fuiste MVP |
+| `match_mvp` | +100 | Fuiste MVP |
 | `match_no_show` | **−50** | Faltaste sin avisar |
 | `match_late` | **−10** | Llegaste tarde |
 | `kudo_received` | +5 | Recibiste un kudo (max 5 por partido) |
@@ -618,7 +622,6 @@ export function hasXpAccess(profile: UserProfile): boolean {
 | `kudos_25` | Querido | 200 | `kudosSummary.total >= 25` |
 | `kudos_100` | Ídolo | 800 | `kudosSummary.total >= 100` |
 | `perfect_month` | Mes Perfecto | 300 | 4+ partidos en un mes sin late/no-show |
-| `early_bird` | Madrugador | 150 | 10 confirmaciones >24h antes |
 | `veteran_year` | Aniversario | 500 | 1 año desde el primer partido |
 | `review_master` | Crítico | 200 | 20 reviews completadas |
 | `all_tiers` | Leyenda Confirmada | 2000 | Alcanzó Leyenda (nivel 41) |
@@ -795,7 +798,7 @@ Script one-shot al desplegar (`scripts/backfillXp.ts`):
 //      xp = (stats.played * 25)              // jugar
 //         + (stats.won * 10)                  // ganar
 //         + (stats.draw * 5)                  // empatar
-//         + (mvpAwards * 50)                  // MVP
+//         + (mvpAwards * 100)                 // MVP
 //         + (kudosSummary.total * 5)          // kudos recibidos
 //         - ((stats.noShows ?? 0) * 50)       // no-shows
 //         - ((stats.lateArrivals ?? 0) * 10)  // late
@@ -1012,6 +1015,9 @@ Cada sesión termina en estado deployable detrás del feature flag.
 ## 13. DECISIONES CERRADAS
 
 ### Feature flag por usuario (no env-var global)
+
+> **Superseded 2026-07-02 — XP habilitado globalmente.** Terminado el rollout gradual, se **removió el gate por-usuario**: `hasXpAccess()` (cliente y espejo server-side en `functions/src/xp.ts`) ahora devuelve `true` para todos. El campo `UserProfile.xpEnabled` queda vestigial (ya no se lee; las rules pueden seguir protegiéndolo sin efecto). El script `scripts/cleanupXpNoFF.js` ya no aplica. El histórico se aplica una sola vez. **Ambos paths son ahora completos y equivalentes**: tanto el callable `backfillAllUsersXp` como el script standalone `scripts/backfillXp.js --all` (a) estiman el XP desde stats, (b) **desbloquean los achievements retroactivos** con su XP bonus (modo silencioso, sin notifs) y (c) **siembran `firstMatchAt`** (habilita `veteran_year`). El XP final = XP base + suma de bonuses, por lo que re-correr con `--force` es idempotente. El texto abajo se conserva como registro de la decisión original.
+
 Inicialmente el SDD proponía `NEXT_PUBLIC_XP_ENABLED` como env-var de Next. **Se descartó en favor de un flag per-usuario** (`UserProfile.xpEnabled`) por dos razones:
 
 1. **Rollout gradual**: permite activar el feature para 10 users primero, ver feedback, expandir. Imposible con env-var (todo o nada).
@@ -1029,7 +1035,7 @@ Inicialmente el SDD proponía `NEXT_PUBLIC_XP_ENABLED` como env-var de Next. **S
 | ¿El XP puede bajar? | Sí dentro del nivel actual, **nunca** por debajo del threshold del nivel actual. No hay "demote" de nivel. |
 | ¿Cuántos niveles? | 50, agrupados en 5 tiers de 10. |
 | ¿Curva exponencial? | Suave (exponente 1.45) — balance entre alcanzable para el casual y aspiracional para Leyenda. Total ~14.000 XP. Leyenda en ~3.9 años con 1 partido/sem o ~2.3 años con 2/sem. |
-| ¿Backfill histórico? | Sí. Nadie arranca de cero. Cálculo: 25/jugado + 10/ganado + 5/empatado + 50/MVP + 5/kudo - 50/no-show - 10/late. |
+| ¿Backfill histórico? | Sí. Nadie arranca de cero. Cálculo: 25/jugado + 10/ganado + 5/empatado + 100/MVP + 5/kudo - 50/no-show - 10/late. |
 | ¿Push por cada subida de nivel? | No. Solo por cambio de tier (5 veces en la vida del usuario máximo). Notif in-app sí para cada level. |
 | ¿XP por confirmar incluido o solo por jugar? | Incluido — premia el comportamiento de planificación. +5 por confirmar, +5 extra por confirmar con >24h. |
 | ¿Penalizar al perder? | No. Perder otorga lo mismo que jugar (+25). Solo se descuenta por **no aparecer** o **llegar tarde**. |
