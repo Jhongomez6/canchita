@@ -37,12 +37,18 @@ interface XpOnboardingModalProps {
 }
 
 const POSITIVE_RULES: Array<{ icon: string; label: string; amount: number }> = [
+    { icon: "✅", label: "Confirmar tu asistencia", amount: XP_AMOUNTS.MATCH_CONFIRMED },
+    { icon: "⏰", label: "Confirmar con +24h de anticipación", amount: XP_AMOUNTS.MATCH_CONFIRMED_EARLY_BONUS },
     { icon: "⚽", label: "Jugar un partido", amount: XP_AMOUNTS.MATCH_PLAYED },
     { icon: "🏆", label: "Ganar el partido (bonus)", amount: XP_AMOUNTS.MATCH_WON_BONUS },
+    { icon: "🤝", label: "Empatar (bonus)", amount: XP_AMOUNTS.MATCH_DRAWN_BONUS },
+    { icon: "🎯", label: "Llegar a tiempo", amount: XP_AMOUNTS.MATCH_PUNCTUAL },
     { icon: "👑", label: "Ser MVP del partido", amount: XP_AMOUNTS.MATCH_MVP },
+    { icon: "🌟", label: "Dar un reconocimiento", amount: XP_AMOUNTS.KUDO_GIVEN },
     { icon: "👏", label: "Recibir un reconocimiento", amount: XP_AMOUNTS.KUDO_RECEIVED },
-    { icon: "🔥", label: "Mantener racha semanal", amount: XP_AMOUNTS.WEEKLY_STREAK_MILESTONE },
     { icon: "📝", label: "Calificar el partido", amount: XP_AMOUNTS.POST_MATCH_REVIEW },
+    { icon: "🔥", label: "Mantener racha semanal", amount: XP_AMOUNTS.WEEKLY_STREAK_MILESTONE },
+    { icon: "💪", label: "Racha de compromiso", amount: XP_AMOUNTS.COMMITMENT_STREAK_MILESTONE },
 ];
 
 const NEGATIVE_RULES: Array<{ icon: string; label: string; amount: number }> = [
