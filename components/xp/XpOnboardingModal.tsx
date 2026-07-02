@@ -38,7 +38,6 @@ interface XpOnboardingModalProps {
 
 const POSITIVE_RULES: Array<{ icon: string; label: string; amount: number }> = [
     { icon: "✅", label: "Confirmar tu asistencia", amount: XP_AMOUNTS.MATCH_CONFIRMED },
-    { icon: "⏰", label: "Confirmar con +24h de anticipación", amount: XP_AMOUNTS.MATCH_CONFIRMED_EARLY_BONUS },
     { icon: "⚽", label: "Jugar un partido", amount: XP_AMOUNTS.MATCH_PLAYED },
     { icon: "🏆", label: "Ganar el partido (bonus)", amount: XP_AMOUNTS.MATCH_WON_BONUS },
     { icon: "🤝", label: "Empatar (bonus)", amount: XP_AMOUNTS.MATCH_DRAWN_BONUS },
