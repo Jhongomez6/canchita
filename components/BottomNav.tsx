@@ -136,12 +136,16 @@ export default function BottomNav() {
             className="fixed inset-x-0 bottom-0 z-50 px-3 md:hidden"
             style={{
                 paddingBottom: "max(env(safe-area-inset-bottom), 8px)",
+                // Fuerza capa compuesta: estabiliza position:fixed en iOS/WebKit
+                // (sin esto la barra "salta" al medio de la pantalla al scrollear/abrir teclado).
+                WebkitTransform: "translateZ(0)",
+                transform: "translateZ(0)",
             }}
         >
             <LayoutGroup>
                 <nav
                     aria-label="Navegación principal"
-                    className={`mx-auto flex h-16 max-w-md items-stretch justify-between rounded-full border border-black/5 bg-white/90 px-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-transform duration-300 ease-out ${isScrolling ? "scale-90 opacity-95" : "scale-100"}`}
+                    className={`mx-auto flex h-16 max-w-md items-stretch justify-between rounded-full border border-black/5 bg-white px-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-out ${isScrolling ? "scale-90 opacity-95" : "scale-100"}`}
                 >
                     {/* HOME (Players + Super Admin) */}
                     {(isPlayer || isSuperAdminUser) && (

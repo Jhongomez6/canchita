@@ -356,7 +356,8 @@ export default function MatchReviewPage() {
             <div
                 className="fixed left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]"
                 style={{
-                    bottom: 'calc(52px + max(env(safe-area-inset-bottom), 4px))',
+                    // Justo encima de la bottom nav flotante (cápsula 64px + su margen inferior).
+                    bottom: 'calc(max(env(safe-area-inset-bottom), 8px) + 76px)',
                 }}
             >
                 <div className="max-w-md mx-auto">

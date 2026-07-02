@@ -1127,7 +1127,7 @@ export default function ProfilePage() {
       {editing && (
         <div
           className="fixed left-0 right-0 z-40 bg-white border-t border-slate-200 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] md:bottom-0"
-          style={{ bottom: 'calc(52px + max(env(safe-area-inset-bottom), 4px))' }}
+          style={{ bottom: 'calc(max(env(safe-area-inset-bottom), 8px) + 76px)' }}
         >
           <div className="flex gap-3 max-w-md mx-auto">
             <button
