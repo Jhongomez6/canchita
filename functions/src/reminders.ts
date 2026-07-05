@@ -1077,13 +1077,29 @@ export const confirmFromWaitlist = onCall(
 
       const update: Record<string, unknown> = { players: updatedPlayers };
 
-      // Asignar al equipo más pequeño si existen equipos
+      // Asignar al equipo más pequeño si existen equipos (modo clásico)
       if (data.teams?.A && data.teams?.B) {
         const teamA = data.teams.A as unknown[];
         const teamB = data.teams.B as unknown[];
         update.teams = teamA.length <= teamB.length
           ? { A: [...teamA, updatedPlayers[playerIndex]], B: teamB }
           : { A: teamA, B: [...teamB, updatedPlayers[playerIndex]] };
+      }
+
+      // Modo multi-equipo: asignar al equipo con menos jugadores (fixtures no cambian)
+      const mt = data.multiTeam as { teams?: Array<{ players: unknown[] }> } | undefined;
+      if (mt?.teams?.length) {
+        const teams = mt.teams;
+        let smallest = 0;
+        for (let i = 1; i < teams.length; i++) {
+          if (teams[i].players.length < teams[smallest].players.length) smallest = i;
+        }
+        update.multiTeam = {
+          ...mt,
+          teams: teams.map((t, i) =>
+            i === smallest ? { ...t, players: [...t.players, updatedPlayers[playerIndex]] } : t
+          ),
+        };
       }
 
       transaction.update(matchRef, update);

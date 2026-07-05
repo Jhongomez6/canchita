@@ -17,6 +17,8 @@ import {
   updateTeamColors,
   updateMatchDatetime,
 } from "@/lib/matches";
+import { updateMultiTeamStats } from "@/lib/playerStats";
+import { canUseMultiTeam, allFixturesPlayed } from "@/lib/domain/multiTeam";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -63,6 +65,7 @@ import MatchAdminTabs, { type TabId } from "./components/MatchAdminTabs";
 import DashboardTab from "./components/DashboardTab";
 import PlayersTab from "./components/PlayersTab";
 import TeamsTab from "./components/TeamsTab";
+import MultiTeamsTab from "./components/MultiTeamsTab";
 import ScoreTab from "./components/ScoreTab";
 import SettingsTab from "./components/SettingsTab";
 import PaymentsTab from "./components/PaymentsTab";
@@ -89,6 +92,7 @@ export default function MatchDetailPage() {
   const [scoreA, setScoreA] = useState(0);
   const [scoreB, setScoreB] = useState(0);
   const [isSavingTeams, setIsSavingTeams] = useState(false);
+  const [showMultiSetup, setShowMultiSetup] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [guestLevels, setGuestLevels] = useState<Record<string, PlayerLevel>>({});
   const [accessDenied, setAccessDenied] = useState(false);
@@ -241,6 +245,31 @@ export default function MatchDetailPage() {
     (match.players?.filter((p: Player) => p.confirmed).length ?? 0) +
     guestCount;
   const isFull = confirmedCount >= (match?.maxPlayers || 14);
+
+  // Modo multi-equipo: activo si el partido ya tiene torneo multi, o si el admin
+  // está en el flujo de setup (showMultiSetup) tras elegir "varios equipos".
+  const inMultiMode = Boolean(match.multiTeam) || showMultiSetup;
+  const canOfferMulti = canUseMultiTeam(confirmedCount);
+
+  // Jugadores elegibles para balancear (confirmados + invitados no-waitlist), como Player[]
+  const eligiblePlayersForBalance: Player[] = [
+    ...(match.players ?? [])
+      .filter((p: Player) => p.confirmed)
+      .map((p: Player, i: number) => ({
+        id: p.uid ?? `player-${i}`,
+        uid: p.uid ?? undefined,
+        name: p.name,
+        level: p.level ?? 2,
+        positions: p.positions ?? ["MID"],
+        primaryPosition: p.primaryPosition,
+        photoURL: p.photoURL,
+        confirmed: p.confirmed,
+        sex: p.sex,
+      })),
+    ...(match.guests ?? [])
+      .filter((g: Guest) => !g.isWaitlist)
+      .map((g: Guest) => guestToPlayer(g, guestLevels[g.name] ?? 2)),
+  ];
 
   // New granular FAB state detection
   const confirmedP = match?.players?.filter(p => p.confirmed && !p.isWaitlist) || [];
@@ -475,7 +504,49 @@ export default function MatchDetailPage() {
     }
   }
 
+  async function handleCloseMultiTeam() {
+    try {
+      const snap = await getDoc(doc(db, "matches", id));
+      if (!snap.exists()) return;
+      const freshMatch = snap.data() as Match;
+
+      if (freshMatch.status === "closed") {
+        toast.error("Este partido ya está cerrado.");
+        return;
+      }
+      if (!freshMatch.multiTeam?.fixtures?.length) {
+        toast.error("Primero debes confirmar los equipos y generar los fixtures.");
+        return;
+      }
+      if (!allFixturesPlayed(freshMatch.multiTeam.fixtures)) {
+        toast.error("Debes registrar todos los marcadores antes de cerrar el partido.");
+        return;
+      }
+
+      // Procesa stats (resultado neto por jugador) + statsProcessed + previousMultiTeam
+      await updateMultiTeamStats({
+        id,
+        date: freshMatch.date,
+        multiTeam: freshMatch.multiTeam,
+        players: freshMatch.players,
+        statsProcessed: freshMatch.statsProcessed,
+        previousMultiTeam: freshMatch.previousMultiTeam,
+      });
+
+      await closeMatch(id);
+      logMatchClosed(id);
+      toast.success("¡El partido ha sido cerrado!");
+    } catch (error: unknown) {
+      handleError(error, "Error cerrando el partido multi-equipo.");
+    }
+  }
+
   async function handleCloseMatch() {
+    // Modo multi-equipo: cierre por resultado de fixtures (balance neto)
+    if (match?.multiTeam) {
+      await handleCloseMultiTeam();
+      return;
+    }
     if (!match?.teams) return;
     if (!match?.score) {
       toast.error("Debes registrar el marcador antes de cerrar el partido.");
@@ -814,7 +885,31 @@ export default function MatchDetailPage() {
             />
           )}
 
-          {activeTab === "teams" && (
+          {activeTab === "teams" && inMultiMode && (
+            <MultiTeamsTab
+              matchId={id}
+              isOwner={isOwner}
+              isClosed={isClosed}
+              confirmedCount={confirmedCount}
+              eligiblePlayers={eligiblePlayersForBalance}
+              multiTeam={match.multiTeam}
+              currentMVPs={currentMVPs}
+              voteCounts={voteCounts}
+              votingClosed={votingClosed}
+              onExitMulti={() => setShowMultiSetup(false)}
+            />
+          )}
+
+          {activeTab === "teams" && !inMultiMode && (
+            <>
+              {isOwner && !isClosed && !balanced && canOfferMulti && (
+                <button
+                  onClick={() => setShowMultiSetup(true)}
+                  className="w-full mb-3 py-2.5 rounded-xl font-bold text-sm text-emerald-700 bg-emerald-50 border-2 border-emerald-500/20 hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+                >
+                  🏆 ¿Muchos anotados? Armar varios equipos (round-robin)
+                </button>
+              )}
             <TeamsTab
               matchId={id}
               balanced={balanced}
@@ -852,6 +947,7 @@ export default function MatchDetailPage() {
               }}
               balancing={balancing}
             />
+            </>
           )}
 
           {activeTab === "score" && (

@@ -99,8 +99,9 @@ export default function NewMatchPage() {
     }
 
     try {
-      // Ensure maxPlayers is always even
-      const finalMaxPlayers = maxPlayers % 2 !== 0 ? maxPlayers + 1 : maxPlayers;
+      // maxPlayers ya no se fuerza a par: el balanceador tolera impares (paridad ≤ 1)
+      // y el modo multi-equipo requiere convocatorias grandes (15, 20, etc.).
+      const finalMaxPlayers = maxPlayers;
 
       await createMatch({
         date,
@@ -379,8 +380,8 @@ export default function NewMatchPage() {
                       <input
                         type="range"
                         min={10}
-                        max={22}
-                        step={2}
+                        max={24}
+                        step={1}
                         value={maxPlayers}
                         onChange={e => setMaxPlayers(Number(e.target.value))}
                         className="w-full accent-[#1f7a4f]"
@@ -390,7 +391,7 @@ export default function NewMatchPage() {
                       </div>
                     </div>
                     <p className="text-[10px] text-slate-400 mt-1">
-                      Número total de jugadores. Ej: 14 para Fútbol 7.
+                      Número total de jugadores. Ej: 14 para Fútbol 7. Para varios equipos (round-robin) usa 15 o más.
                     </p>
                     <div className="space-y-4">
                       {/* PRIVATE TOGGLE */}

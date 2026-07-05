@@ -397,6 +397,50 @@ interface PlayerRef {
     attendance?: "present" | "late" | "no_show";
 }
 
+// ---- Modo multi-equipo (round-robin) — tipos y helpers duplicados de lib/domain/multiTeam.ts ----
+
+interface MultiFixture {
+    id: string;
+    home: string;
+    away: string;
+    scoreHome: number | null;
+    scoreAway: number | null;
+}
+
+interface MultiTeamRef {
+    id: string;
+    players: PlayerRef[];
+}
+
+interface MultiTeamData {
+    teams: MultiTeamRef[];
+    fixtures: MultiFixture[];
+}
+
+type SessionResult = "win" | "draw" | "loss";
+
+/**
+ * Resultado de sesión de un equipo por el BALANCE NETO de sus fixtures.
+ * MANTENER EN SYNC con getTeamNetResult() en lib/domain/multiTeam.ts.
+ */
+function getTeamNetResult(teamId: string, fixtures: MultiFixture[]): SessionResult {
+    let won = 0;
+    let lost = 0;
+    for (const f of fixtures) {
+        if (f.scoreHome == null || f.scoreAway == null) continue;
+        if (f.home === teamId) {
+            if (f.scoreHome > f.scoreAway) won++;
+            else if (f.scoreHome < f.scoreAway) lost++;
+        } else if (f.away === teamId) {
+            if (f.scoreAway > f.scoreHome) won++;
+            else if (f.scoreAway < f.scoreHome) lost++;
+        }
+    }
+    if (won > lost) return "win";
+    if (won < lost) return "loss";
+    return "draw";
+}
+
 /**
  * Dispara cuando match.statsProcessed pasa false→true (admin guardó el resultado).
  * Otorga XP por jugar, ganar/empatar, puntualidad a cada jugador con uid.
@@ -423,18 +467,40 @@ export const awardXpOnMatchStatsProcessed = onDocumentUpdated(
 
         const score = after.score as { A: number; B: number } | undefined;
         const teams = after.teams as { A: PlayerRef[]; B: PlayerRef[] } | undefined;
+        const multiTeam = after.multiTeam as MultiTeamData | undefined;
         const players = (after.players ?? []) as PlayerRef[];
 
-        if (!teams) {
-            console.warn(`[awardXpOnMatchStatsProcessed] Match ${matchId} sin teams; skipping XP`);
+        // Resultado de sesión por uid (win/draw/loss). Unifica modo clásico y multi.
+        // Modo multi: balance neto de los fixtures del equipo del jugador → misma economía de XP.
+        const resultOfUid = new Map<string, SessionResult>();
+
+        if (multiTeam?.teams?.length) {
+            const fixtures = multiTeam.fixtures ?? [];
+            for (const team of multiTeam.teams) {
+                const r = getTeamNetResult(team.id, fixtures);
+                for (const p of team.players ?? []) {
+                    if (p.uid) resultOfUid.set(p.uid, r);
+                }
+            }
+        } else if (teams) {
+            const teamOfUid = new Map<string, "A" | "B">();
+            for (const p of teams.A ?? []) if (p.uid) teamOfUid.set(p.uid, "A");
+            for (const p of teams.B ?? []) if (p.uid) teamOfUid.set(p.uid, "B");
+            for (const [uid, team] of teamOfUid.entries()) {
+                let r: SessionResult = "loss"; // sin score → sin bonus (loss no otorga bonus)
+                if (score) {
+                    const myScore = team === "A" ? score.A : score.B;
+                    const oppScore = team === "A" ? score.B : score.A;
+                    if (myScore > oppScore) r = "win";
+                    else if (myScore === oppScore) r = "draw";
+                }
+                resultOfUid.set(uid, r);
+            }
+        } else {
+            console.warn(`[awardXpOnMatchStatsProcessed] Match ${matchId} sin teams ni multiTeam; skipping XP`);
             await matchRef.update({ xpAwarded: true });
             return;
         }
-
-        // Determinar a qué equipo perteneció cada uid
-        const teamOfUid = new Map<string, "A" | "B">();
-        for (const p of teams.A ?? []) if (p.uid) teamOfUid.set(p.uid, "A");
-        for (const p of teams.B ?? []) if (p.uid) teamOfUid.set(p.uid, "B");
 
         // Mapa de attendance por uid (del array players)
         const attendanceOfUid = new Map<string, PlayerRef["attendance"]>();
@@ -444,19 +510,13 @@ export const awardXpOnMatchStatsProcessed = onDocumentUpdated(
 
         // Para cada jugador con uid: calcular eventos XP
         const processed: string[] = [];
-        for (const [uid, team] of teamOfUid.entries()) {
+        for (const [uid, result] of resultOfUid.entries()) {
             const attendance = attendanceOfUid.get(uid) ?? "present";
             const wasNoShow = attendance === "no_show";
             const wasLate = attendance === "late";
 
-            let won = false;
-            let drawn = false;
-            if (score) {
-                const myScore = team === "A" ? score.A : score.B;
-                const oppScore = team === "A" ? score.B : score.A;
-                if (myScore > oppScore) won = true;
-                else if (myScore === oppScore) drawn = true;
-            }
+            const won = result === "win";
+            const drawn = result === "draw";
 
             const events: Array<{ source: XpSource; amount: number; reason: string }> = [];
 

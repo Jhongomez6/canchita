@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Match, MatchDuration } from "@/lib/domain/match";
+import { allFixturesPlayed } from "@/lib/domain/multiTeam";
 import { formatDuration } from "@/lib/date";
 import {
   Settings,
@@ -428,9 +429,20 @@ export default function SettingsTab({
             <RefreshCw size={18} className="text-[#1f7a4f]" /> Estado del partido
           </h3>
 
-          {!isClosed && (
+          {!isClosed && (() => {
+            // Multi-equipo: listo para cerrar cuando todos los fixtures tienen marcador.
+            const isMulti = !!match.multiTeam;
+            const multiReady = isMulti && allFixturesPlayed(match.multiTeam!.fixtures ?? []);
+            const canClose = isMulti ? multiReady : Boolean(match.teams && hasScore);
+            return (
             <>
-              {match.teams && !hasScore && (
+              {isMulti && !multiReady && (
+                <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 font-medium">
+                  <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                  <span>Debes registrar el marcador de todos los enfrentamientos antes de cerrar. Ve a la pestaña <strong>Equipos</strong>.</span>
+                </div>
+              )}
+              {!isMulti && match.teams && !hasScore && (
                 <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 font-medium">
                   <AlertCircle size={18} className="shrink-0 mt-0.5" />
                   <span>Debes registrar el marcador antes de cerrar el partido. Ve a la pestaña <strong>Marcador</strong> e ingresa el resultado.</span>
@@ -438,9 +450,9 @@ export default function SettingsTab({
               )}
                   <button
                     id="btn-close-match"
-                    disabled={!match.teams || !hasScore || isClosing}
+                    disabled={!canClose || isClosing}
                     onClick={async () => {
-                  if (!match.teams || !hasScore || isClosing) return;
+                  if (!canClose || isClosing) return;
                   if (!confirm("¿Cerrar partido y procesar estadísticas?")) return;
                   setIsClosing(true);
                   try {
@@ -449,7 +461,7 @@ export default function SettingsTab({
                     setIsClosing(false);
                   }
                 }}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${!match.teams || !hasScore || isClosing
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${!canClose || isClosing
                     ? "bg-slate-400 cursor-not-allowed opacity-50 shadow-none"
                     : "bg-red-600 hover:bg-red-700"
                   }`}
@@ -462,7 +474,8 @@ export default function SettingsTab({
                 {isClosing ? "Cerrando partido..." : "Cerrar partido final"}
               </button>
             </>
-          )}
+            );
+          })()}
 
           {isClosed && (
             <button

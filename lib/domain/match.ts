@@ -19,6 +19,7 @@
 import { ValidationError } from "./errors";
 import { REFUND_DEADLINE_MS } from "./wallet";
 import type { Player } from "./player";
+import type { MultiTeamTournament } from "./multiTeam";
 import type { Guest } from "./guest";
 import type { LocationSnapshot } from "./location";
 import type { AdminType, UserProfile } from "./user";
@@ -50,6 +51,9 @@ export interface Match {
     teamsConfirmed?: boolean; // true cuando el admin publica los equipos
     teamsConfirmedAt?: string; // ISO string del momento de confirmación
     score?: { A: number; B: number };
+    matchMode?: "classic" | "multi"; // "classic" = teams A/B; "multi" = torneo round-robin N equipos
+    multiTeam?: MultiTeamTournament; // modo multi: N equipos + fixtures (mutuamente excluyente con teams/score)
+    previousMultiTeam?: MultiTeamTournament; // snapshot para revertir stats en re-cierre (modo multi)
     statsProcessed?: boolean;
     previousScore?: { A: number; B: number };
     mvpVotes?: Record<string, string>; // { voterId: votedPlayerId_or_GuestName }
@@ -179,15 +183,20 @@ export type MatchPhase = "recruiting" | "full" | "gameday" | "postgame" | "close
  * Usado por la página admin para progressive disclosure.
  */
 export function getMatchPhase(
-    match: Pick<Match, "status" | "teams" | "score" | "date">,
+    match: Pick<Match, "status" | "teams" | "score" | "date" | "multiTeam">,
     confirmedCount: number,
     maxPlayers: number,
     today: string
 ): MatchPhase {
     if (match.status === "closed") return "closed";
-    if (match.score && match.teams) return "postgame";
-    if (match.date === today && match.teams) return "gameday";
-    if (confirmedCount >= maxPlayers || match.teams) return "full";
+    // Modo multi: los equipos viven en multiTeam; postgame cuando hay algún marcador cargado.
+    const hasTeams = !!match.teams || !!match.multiTeam;
+    const hasScore =
+        !!match.score ||
+        !!match.multiTeam?.fixtures?.some((f) => f.scoreHome != null && f.scoreAway != null);
+    if (hasScore && hasTeams) return "postgame";
+    if (match.date === today && hasTeams) return "gameday";
+    if (confirmedCount >= maxPlayers || hasTeams) return "full";
     return "recruiting";
 }
 

@@ -34,7 +34,15 @@ import { Timestamp } from "firebase/firestore";
 import type { Player, Position } from "./domain/player";
 import type { Match } from "./domain/match";
 import { getConfirmedCount } from "./domain/match";
-import { MatchFullError, BusinessError } from "./domain/errors";
+import type { MultiTeamTournament } from "./domain/multiTeam";
+import {
+  generateFixtures,
+  addPlayerToSmallestTeam,
+  removePlayerFromTeams,
+  getMultiTeamQuality,
+  validateFixtureScore,
+} from "./domain/multiTeam";
+import { MatchFullError, BusinessError, ValidationError } from "./domain/errors";
 import { canManageLocation, canCreatePublicMatch } from "./domain/user";
 import {
   logMatchCreated,
@@ -44,6 +52,9 @@ import {
   logMatchClosed,
   logMvpVoted,
   logTeamsConfirmed,
+  logMultiTeamsBalanced,
+  logMultiTeamsConfirmed,
+  logFixtureScoreSaved,
 } from "./analytics";
 
 // Re-export para backward compatibility
@@ -336,6 +347,15 @@ export async function joinMatch(
       updateData.teams = assignToSmallestTeam(data.teams as { A: Player[]; B: Player[] }, newPlayer as unknown as Player);
     }
 
+    // Modo multi: asignar el nuevo jugador al equipo con menos jugadores (fixtures no cambian)
+    if (data.multiTeam?.teams) {
+      const tournament = data.multiTeam as MultiTeamTournament;
+      updateData.multiTeam = {
+        ...tournament,
+        teams: addPlayerToSmallestTeam(tournament.teams, newPlayer as unknown as Player),
+      };
+    }
+
     transaction.update(ref, updateData);
   });
   logMatchJoined(matchId);
@@ -482,6 +502,10 @@ export async function moveToWaitlist(
         B: (data.teams.B as Player[]).filter((p) => p.name !== playerName),
       };
     }
+    if (data.multiTeam?.teams) {
+      const t = data.multiTeam as MultiTeamTournament;
+      updateData.multiTeam = { ...t, teams: removePlayerFromTeams(t.teams, playerName) };
+    }
 
     transaction.update(ref, updateData);
   });
@@ -529,6 +553,13 @@ export async function approveFromWaitlist(
         data.teams as { A: Player[]; B: Player[] },
         updatedPlayers[playerIndex]
       );
+    }
+    if (data.multiTeam?.teams) {
+      const t = data.multiTeam as MultiTeamTournament;
+      approveUpdate.multiTeam = {
+        ...t,
+        teams: addPlayerToSmallestTeam(t.teams, updatedPlayers[playerIndex]),
+      };
     }
 
     transaction.update(ref, approveUpdate);
@@ -586,6 +617,13 @@ export async function confirmAttendance(
         );
       }
     }
+    if (data.multiTeam?.teams) {
+      const confirmedPlayer = updatedPlayers.find((p) => p.name === playerName);
+      if (confirmedPlayer) {
+        const t = data.multiTeam as MultiTeamTournament;
+        confirmUpdate.multiTeam = { ...t, teams: addPlayerToSmallestTeam(t.teams, confirmedPlayer) };
+      }
+    }
 
     transaction.update(ref, confirmUpdate);
   });
@@ -623,6 +661,15 @@ export async function unconfirmAttendance(
       const teamA = (data.teams.A as Player[]).filter((p) => p.name !== playerName);
       const teamB = (data.teams.B as Player[]).filter((p) => p.name !== playerName);
       updateData.teams = { A: teamA, B: teamB };
+    }
+
+    // Modo multi: quitar al jugador de su equipo (por nombre)
+    if (data.multiTeam?.teams) {
+      const tournament = data.multiTeam as MultiTeamTournament;
+      updateData.multiTeam = {
+        ...tournament,
+        teams: removePlayerFromTeams(tournament.teams, playerName),
+      };
     }
 
     transaction.update(ref, updateData);
@@ -715,6 +762,13 @@ export async function addPlayerToMatch(
         match.teams as { A: Player[]; B: Player[] },
         newPlayer as unknown as Player
       );
+    }
+    if (match.multiTeam?.teams) {
+      const t = match.multiTeam as MultiTeamTournament;
+      updateData.multiTeam = {
+        ...t,
+        teams: addPlayerToSmallestTeam(t.teams, newPlayer as unknown as Player),
+      };
     }
 
     transaction.update(ref, updateData);
@@ -811,6 +865,143 @@ export async function confirmTeams(matchId: string) {
     });
   });
   logTeamsConfirmed(matchId);
+}
+
+/* =========================
+   MODO MULTI-EQUIPO (round-robin)
+========================= */
+
+/**
+ * Guarda/regenera los N equipos del modo multi. Transaccional: valida que el
+ * partido siga abierto. NO genera fixtures aún (eso lo hace confirm).
+ * Las ramas join/leave mantienen `multiTeam` consistente si la convocatoria
+ * cambia después de balancear.
+ */
+export async function saveMultiTeams(
+  matchId: string,
+  tournament: MultiTeamTournament,
+) {
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    if (data.status !== "open") throw new BusinessError("El partido no está abierto");
+    transaction.update(ref, {
+      matchMode: "multi",
+      multiTeam: { ...tournament, confirmed: false },
+      // Limpia el modo clásico para garantizar exclusividad
+      teams: null,
+      score: null,
+      teamsConfirmed: false,
+    });
+  });
+  const playersCount = tournament.teams.reduce((s, t) => s + t.players.length, 0);
+  logMultiTeamsBalanced(matchId, tournament.numTeams, playersCount, getMultiTeamQuality(tournament.teams).cost);
+}
+
+/**
+ * Publica los equipos multi y genera los fixtures round-robin si aún no existen.
+ * Transaccional. Marca `teamsConfirmed` para el timeline compartido.
+ */
+export async function confirmMultiTeams(matchId: string) {
+  const ref = doc(db, "matches", matchId);
+  let numTeams = 0;
+  let numFixtures = 0;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    const tournament = data.multiTeam as MultiTeamTournament | undefined;
+    if (!tournament?.teams?.length) throw new BusinessError("No hay equipos multi para confirmar");
+    if (data.status !== "open") throw new BusinessError("El partido no está abierto");
+
+    const fixtures = tournament.fixtures?.length
+      ? tournament.fixtures
+      : generateFixtures(tournament.teams);
+
+    numTeams = tournament.teams.length;
+    numFixtures = fixtures.length;
+
+    transaction.update(ref, {
+      multiTeam: {
+        ...tournament,
+        fixtures,
+        confirmed: true,
+        confirmedAt: new Date().toISOString(),
+      },
+      teamsConfirmed: true,
+      teamsConfirmedAt: new Date().toISOString(),
+    });
+  });
+  logMultiTeamsConfirmed(matchId, numTeams, numFixtures);
+}
+
+/**
+ * Registra el marcador de un fixture. Transaccional: lee fresco el array de
+ * fixtures y reemplaza SOLO el fixture con id coincidente → dos admins editando
+ * fixtures distintos no se pisan.
+ */
+export async function saveFixtureScore(
+  matchId: string,
+  fixtureId: string,
+  scoreHome: number,
+  scoreAway: number,
+) {
+  validateFixtureScore(scoreHome);
+  validateFixtureScore(scoreAway);
+
+  const ref = doc(db, "matches", matchId);
+  let wasFirstEdit = false;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    const tournament = data.multiTeam as MultiTeamTournament | undefined;
+    if (!tournament?.fixtures?.length) throw new BusinessError("El partido no tiene fixtures");
+
+    const target = tournament.fixtures.find((f) => f.id === fixtureId);
+    if (!target) throw new ValidationError("Fixture inexistente");
+    wasFirstEdit = target.scoreHome == null || target.scoreAway == null;
+
+    const fixtures = tournament.fixtures.map((f) =>
+      f.id === fixtureId
+        ? { ...f, scoreHome, scoreAway, playedAt: new Date().toISOString() }
+        : f,
+    );
+
+    transaction.update(ref, { "multiTeam.fixtures": fixtures });
+  });
+  logFixtureScoreSaved(matchId, fixtureId, wasFirstEdit);
+}
+
+/**
+ * Reordena un fixture una posición hacia arriba o abajo. Transaccional: lee fresco
+ * (preserva marcadores editados en paralelo) y solo intercambia dos posiciones.
+ */
+export async function reorderFixtures(
+  matchId: string,
+  fixtureId: string,
+  direction: "up" | "down",
+) {
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    const tournament = data.multiTeam as MultiTeamTournament | undefined;
+    if (!tournament?.fixtures?.length) throw new BusinessError("El partido no tiene fixtures");
+
+    const fixtures = [...tournament.fixtures];
+    const idx = fixtures.findIndex((f) => f.id === fixtureId);
+    if (idx === -1) throw new ValidationError("Fixture inexistente");
+
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= fixtures.length) return; // borde: no-op
+    [fixtures[idx], fixtures[swapIdx]] = [fixtures[swapIdx], fixtures[idx]];
+
+    transaction.update(ref, { "multiTeam.fixtures": fixtures });
+  });
 }
 
 /* =========================

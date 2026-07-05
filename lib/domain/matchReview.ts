@@ -202,13 +202,20 @@ export function reviewCardDismissKey(matchId: string, userUid: string): string {
  * sin equipos balanceados.
  */
 export function wasUserInMatch(
-    match: Pick<Match, "players" | "teams">,
+    match: Pick<Match, "players" | "teams" | "multiTeam">,
     userUid: string,
 ): boolean {
     if (match.teams) {
         const inA = match.teams.A?.some((p) => p.uid === userUid) ?? false;
         const inB = match.teams.B?.some((p) => p.uid === userUid) ?? false;
         if (inA || inB) return true;
+    }
+    // Modo multi: chequear todos los equipos del torneo
+    if (match.multiTeam?.teams) {
+        const inMulti = match.multiTeam.teams.some((t) =>
+            t.players?.some((p) => p.uid === userUid),
+        );
+        if (inMulti) return true;
     }
     return match.players?.some((p) => p.uid === userUid && p.confirmed) ?? false;
 }

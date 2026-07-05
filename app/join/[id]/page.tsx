@@ -35,6 +35,7 @@ import { buildRosterReport, buildRosterReportTelegram } from "@/lib/matchReport"
 import { promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { calculateMvpStatus } from "@/lib/mvp";
 import { triggerMvpNotification } from "@/lib/push";
+import MultiTeamJoinView from "./components/MultiTeamJoinView";
 import {
   logOrganizerContacted,
   logMatchMapOpened,
@@ -829,7 +830,32 @@ export default function JoinMatchPage() {
 
 
           {/* LISTA DE JUGADORES, EQUIPOS CONFIRMADOS O REPORTE */}
-          {isClosed && match.teams ? (() => {
+          {(isClosed || match.teamsConfirmed) && match.multiTeam?.confirmed ? (
+            <MultiTeamJoinView
+              phase={isClosed ? "closed" : "confirmed"}
+              teams={match.multiTeam.teams}
+              fixtures={match.multiTeam.fixtures}
+              userUid={user.uid}
+              mvp={{
+                currentMVPs,
+                voteCounts,
+                votingClosed,
+                myVote,
+                canVote:
+                  isClosed && !votingClosed && !myVote &&
+                  (existingPlayer?.confirmed === true || match.createdBy === user.uid),
+              }}
+              onVote={async (targetId: string) => {
+                try {
+                  await voteForMVP(id, user.uid, targetId);
+                  logMvpVoted(id, targetId);
+                  toast.success("Tu voto ha sido registrado");
+                } catch (err: unknown) {
+                  handleError(err, "Hubo un error al registrar tu voto");
+                }
+              }}
+            />
+          ) : isClosed && match.teams ? (() => {
             // LOGICA RESULTADO PERSONAL
             const userInTeamA = match.teams.A?.some((p: Player) => p.uid === user.uid);
             const userInTeamB = match.teams.B?.some((p: Player) => p.uid === user.uid);

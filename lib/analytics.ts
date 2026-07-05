@@ -175,6 +175,52 @@ export async function logMatchClosed(matchId: string) {
 }
 
 /* =========================
+   ANALYTICS — MODO MULTI-EQUIPO (round-robin)
+========================= */
+
+export async function logMultiTeamEnabled(matchId: string, confirmedCount: number) {
+  await trackEvent("multi_team_enabled", { match_id: matchId, confirmed_count: confirmedCount });
+}
+
+export async function logMultiTeamsBalanced(
+  matchId: string,
+  numTeams: number,
+  playersCount: number,
+  qualityCost?: number,
+) {
+  await trackEvent("multi_teams_balanced", {
+    match_id: matchId,
+    num_teams: numTeams,
+    players_count: playersCount,
+    ...(qualityCost != null && { quality_cost: qualityCost }),
+  });
+}
+
+export async function logMultiTeamsConfirmed(matchId: string, numTeams: number, numFixtures: number) {
+  await trackEvent("multi_teams_confirmed", {
+    match_id: matchId,
+    num_teams: numTeams,
+    num_fixtures: numFixtures,
+  });
+}
+
+export async function logFixtureScoreSaved(matchId: string, fixtureId: string, isFirstEdit: boolean) {
+  await trackEvent("fixture_score_saved", {
+    match_id: matchId,
+    fixture_id: fixtureId,
+    is_first_edit: isFirstEdit ? 1 : 0,
+  });
+}
+
+export async function logMultiTeamMatchClosed(matchId: string, numTeams: number, championTeamId: string) {
+  await trackEvent("multi_team_match_closed", {
+    match_id: matchId,
+    num_teams: numTeams,
+    champion_team_id: championTeamId,
+  });
+}
+
+/* =========================
    P4: VALOR DE LA PWA
 ========================= */
 

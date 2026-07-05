@@ -537,6 +537,15 @@ export const leaveWithRefund = onCall(
                 updates["teams.B"] = teamsB.filter((p) => p.uid !== uid);
             }
 
+            // Modo multi-equipo: quitar al jugador de su equipo (fixtures no cambian)
+            const mt = matchData.multiTeam as { teams?: Array<{ players: Array<{ uid?: string }> }> } | undefined;
+            if (mt?.teams?.length) {
+                updates["multiTeam.teams"] = mt.teams.map((t) => ({
+                    ...t,
+                    players: t.players.filter((p) => p.uid !== uid),
+                }));
+            }
+
             // ── WRITES ──
             transaction.update(matchRef, updates);
 
@@ -664,6 +673,15 @@ export const adminRemovePlayer = onCall(
                 const teamsB: Array<{ uid?: string }> = freshData.teams.B || [];
                 matchUpdates["teams.A"] = teamsA.filter((p) => p.uid !== playerUid);
                 matchUpdates["teams.B"] = teamsB.filter((p) => p.uid !== playerUid);
+            }
+
+            // Modo multi-equipo: quitar al jugador (por uid o nombre)
+            const mt = freshData.multiTeam as { teams?: Array<{ players: Array<{ uid?: string; name?: string }> }> } | undefined;
+            if (mt?.teams?.length) {
+                matchUpdates["multiTeam.teams"] = mt.teams.map((t) => ({
+                    ...t,
+                    players: t.players.filter((p) => p.uid !== playerUid && p.name !== playerName),
+                }));
             }
 
             transaction.update(matchRef, matchUpdates);
