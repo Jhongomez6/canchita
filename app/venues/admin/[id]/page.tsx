@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon, Inbox, AlertTriangle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CalendarPlus, X, CalendarDays, Receipt, LayoutGrid, Clock, CreditCard, Ban, Store, Image as ImageIcon, Inbox, AlertTriangle, RefreshCw, BarChart3 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { isSuperAdmin, isLocationAdmin } from "@/lib/domain/user";
+import { isSuperAdmin, isLocationAdmin, hasVenueAnalyticsAccess } from "@/lib/domain/user";
 import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER } from "@/lib/domain/venue";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
@@ -44,6 +44,7 @@ import PaymentMethodEditor from "@/components/booking/PaymentMethodEditor";
 import PendingBookingsAdminView from "@/components/booking/PendingBookingsAdminView";
 import ConfirmAttendanceSheet from "@/components/booking/ConfirmAttendanceSheet";
 import DailyBalanceView from "@/components/booking/DailyBalanceView";
+import VenueAnalyticsView from "@/components/booking/VenueAnalyticsView";
 import HourDetailDrawer from "@/components/booking/HourDetailDrawer";
 import { updateManualReservationStatus } from "@/lib/venues";
 import { cancelBooking, advanceBookingStatus, subscribeToAllBookingsForDate, SLOT_BLOCKING_BOOKING_STATUSES } from "@/lib/bookings";
@@ -59,7 +60,7 @@ import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, Man
 import { DEFAULT_PENDING_APPROVAL_TTL_HOURS, MIN_PENDING_APPROVAL_TTL_HOURS, MAX_PENDING_APPROVAL_TTL_HOURS } from "@/lib/domain/booking";
 import type { Booking } from "@/lib/domain/booking";
 
-type AdminTab = "info" | "courts" | "schedule" | "payments" | "blocked" | "bookings" | "pending" | "balance";
+type AdminTab = "info" | "courts" | "schedule" | "payments" | "blocked" | "bookings" | "pending" | "balance" | "analytics";
 
 const TAB_LABELS: Record<AdminTab, string> = {
     info: "Sede",
@@ -70,6 +71,7 @@ const TAB_LABELS: Record<AdminTab, string> = {
     bookings: "Reservas",
     pending: "Pendientes",
     balance: "Balance",
+    analytics: "Analítica",
 };
 
 const TAB_ICONS: Record<AdminTab, LucideIcon> = {
@@ -81,9 +83,10 @@ const TAB_ICONS: Record<AdminTab, LucideIcon> = {
     bookings: CalendarDays,
     pending: Inbox,
     balance: Receipt,
+    analytics: BarChart3,
 };
 
-const ALL_ADMIN_TABS: AdminTab[] = ["info", "courts", "schedule", "payments", "blocked", "bookings", "pending", "balance"];
+const ALL_ADMIN_TABS: AdminTab[] = ["info", "courts", "schedule", "payments", "blocked", "bookings", "pending", "balance", "analytics"];
 
 function isValidAdminTab(value: string | null | undefined): value is AdminTab {
     return !!value && (ALL_ADMIN_TABS as string[]).includes(value);
@@ -128,9 +131,14 @@ function VenueAdminContent() {
 
     // Role gating
     const isSuper = profile ? isSuperAdmin(profile) : false;
-    const visibleTabs: AdminTab[] = isSuper
-        ? ["info", "courts", "schedule", "payments", "blocked", "bookings", "pending", "balance"]
-        : ["bookings", "pending", "balance"];
+    const canSeeAnalytics = profile ? hasVenueAnalyticsAccess(profile) : false;
+    const visibleTabs: AdminTab[] = [
+        ...(isSuper
+            ? (["info", "courts", "schedule", "payments", "blocked", "bookings", "pending", "balance"] as AdminTab[])
+            : (["bookings", "pending", "balance"] as AdminTab[])),
+        // El tab "Analítica" solo aparece con acceso (super admin siempre; location admin con flag).
+        ...(canSeeAnalytics ? (["analytics"] as AdminTab[]) : []),
+    ];
 
     // Active tab. Si la URL trae ?tab=pending (deep-link desde notificación push),
     // arrancamos en ese tab. Si no, default según rol.
@@ -1095,6 +1103,11 @@ function VenueAdminContent() {
                             <DailyBalanceView venueId={venueId} />
                         </div>
                     )}
+
+                    {/* Analytics tab */}
+                    {activeTab === "analytics" && canSeeAnalytics && (
+                        <VenueAnalyticsView venueId={venueId} />
+                    )}
                 </div>
 
                 {/* Blocked slots drawer (location admin) */}
@@ -1351,7 +1364,7 @@ function VenueAdminContent() {
                 )}
 
                 {/* Save button — always visible on editable tabs */}
-                {activeTab !== "bookings" && activeTab !== "blocked" && activeTab !== "balance" && (
+                {activeTab !== "bookings" && activeTab !== "blocked" && activeTab !== "balance" && activeTab !== "analytics" && (
                     <div className="px-4 mt-6 mb-28">
                         <button
                             onClick={handleSave}

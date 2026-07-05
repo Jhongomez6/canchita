@@ -725,6 +725,45 @@ export function subscribeDailyPayments(
 }
 
 /**
+ * Analítica de sede — pagos con `date` en [start, end].
+ * Query de campo único con rango → índice automático, sin índice compuesto.
+ * Ref: docs/VENUE_ANALYTICS_DASHBOARD_SDD.md
+ */
+export async function getPaymentsInRange(
+    venueId: string,
+    start: string,
+    end: string,
+): Promise<ManualReservationPayment[]> {
+    const col = collection(db, "venues", venueId, "payments");
+    const q = query(col, where("date", ">=", start), where("date", "<=", end));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ManualReservationPayment);
+}
+
+/**
+ * Analítica de sede — reservas relevantes al rango SIN leer toda la colección.
+ * Dos queries de campo único (evita `getAllBlockedSlots`, cuya lectura full-collection
+ * crece sin límite con la historia de la sede):
+ *   1. puntuales:   where date >= start && date <= end
+ *   2. recurrentes: where date == null  (plantillas; se expanden en memoria por el dominio)
+ * Ref: docs/VENUE_ANALYTICS_DASHBOARD_SDD.md
+ */
+export async function getBlockedSlotsForRange(
+    venueId: string,
+    start: string,
+    end: string,
+): Promise<BlockedSlot[]> {
+    const col = collection(db, "venues", venueId, "blocked_slots");
+    const [oneOffSnap, recurringSnap] = await Promise.all([
+        getDocs(query(col, where("date", ">=", start), where("date", "<=", end))),
+        getDocs(query(col, where("date", "==", null))),
+    ]);
+    const map = (snap: typeof oneOffSnap) =>
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as BlockedSlot);
+    return [...map(oneOffSnap), ...map(recurringSnap)];
+}
+
+/**
  * Obtiene el pago de una reserva en una fecha concreta (si existe).
  * Útil para la card: necesita saber si renderizar el chip resumen o el botón "Marcar pagado".
  */

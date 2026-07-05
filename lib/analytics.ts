@@ -821,6 +821,59 @@ export async function logDailyBalanceDateChanged(params: {
   });
 }
 
+// ========================
+// Venue Analytics Dashboard
+// Ref: docs/VENUE_ANALYTICS_DASHBOARD_SDD.md — sin PII (nunca clientName/phone).
+// ========================
+
+export async function logVenueAnalyticsViewed(params: {
+  venueId: string;
+  periodPreset: string;
+  rangeDays: number;
+  totalRevenueCOP: number;
+  occupancyPct: number;
+  reservationsCount: number;
+  noShowRate: number;
+}) {
+  await trackEvent("venue_analytics_viewed", {
+    venue_id: params.venueId,
+    period_preset: params.periodPreset,
+    range_days: String(params.rangeDays),
+    total_revenue_cop: String(params.totalRevenueCOP),
+    occupancy_pct: String(Math.round(params.occupancyPct * 100)),
+    reservations_count: String(params.reservationsCount),
+    no_show_rate: String(Math.round(params.noShowRate * 100)),
+  });
+}
+
+export async function logVenueAnalyticsPeriodChanged(params: {
+  venueId: string;
+  previousPreset: string;
+  newPreset: string;
+  rangeDays: number;
+}) {
+  await trackEvent("venue_analytics_period_changed", {
+    venue_id: params.venueId,
+    previous_preset: params.previousPreset,
+    new_preset: params.newPreset,
+    range_days: String(params.rangeDays),
+  });
+}
+
+export async function logVenueAnalyticsHeatmapCellTapped(params: {
+  venueId: string;
+  dayOfWeek: number;
+  hour: number;
+  occupancyPct: number;
+}) {
+  await trackEvent("venue_analytics_heatmap_cell_tapped", {
+    venue_id: params.venueId,
+    day_of_week: String(params.dayOfWeek),
+    hour: String(params.hour),
+    occupancy_pct: String(Math.round(params.occupancyPct * 100)),
+  });
+}
+
 export async function logBlockedSlotRecurrenceExceptionAdded(
   venueId: string,
   blockedSlotId: string,

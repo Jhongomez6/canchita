@@ -79,6 +79,7 @@ export interface UserProfile {
     bookingEnabled?: boolean;          // Acceso al módulo de reservas (feature flag por usuario)
     xpEnabled?: boolean;               // Acceso al sistema de XP / Niveles / Achievements (feature flag por usuario)
     worldCupEnabled?: boolean;         // Acceso a la polla mundialista (feature flag por usuario — beta testers)
+    venueAnalyticsEnabled?: boolean;   // Acceso al dashboard de analítica de sede (feature flag por usuario)
     // Soft-anonymization (set on account deletion — personal data wiped, traza conservada)
     deleted?: boolean;
     deletedAt?: string;                // ISO date of anonymization
@@ -347,6 +348,15 @@ export function hasWalletAccess(profile: UserProfile): boolean {
  */
 export function hasBookingAccess(profile: UserProfile): boolean {
     return isSuperAdmin(profile) || profile.bookingEnabled === true;
+}
+
+/**
+ * Verifica si el usuario tiene acceso al dashboard de analítica de sede.
+ * Super admins siempre tienen acceso; otros usuarios (location_admin) requieren
+ * el flag venueAnalyticsEnabled (rollout piloto por sede).
+ */
+export function hasVenueAnalyticsAccess(profile: UserProfile): boolean {
+    return isSuperAdmin(profile) || profile.venueAnalyticsEnabled === true;
 }
 
 /**
