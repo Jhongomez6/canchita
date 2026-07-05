@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Trophy, Star, Crown } from "lucide-react";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import type { Player } from "@/lib/domain/player";
 import {
   computeStandings,
@@ -135,7 +136,7 @@ export default function MultiTeamJoinView({
 
       {/* Votación MVP */}
       {activeSection === "mvp" && isClosed && (
-        <MvpVoteList teams={teams} userUid={userUid} mvp={mvp} onVote={onVote} />
+        <MvpVoteList teams={teams} userUid={userUid} mvp={mvp} onVote={onVote} onPlayerTap={onPlayerTap} />
       )}
     </div>
   );
@@ -148,11 +149,13 @@ function MvpVoteList({
   userUid,
   mvp,
   onVote,
+  onPlayerTap,
 }: {
   teams: MultiTeam[];
   userUid: string;
   mvp: MultiTeamJoinViewProps["mvp"];
   onVote: (targetId: string) => Promise<void>;
+  onPlayerTap: (uid?: string) => void;
 }) {
   const [pendingVote, setPendingVote] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -181,19 +184,37 @@ function MvpVoteList({
           const cfg = TEAM_COLOR_CONFIG[(team.color ?? "slate") as TeamColor];
           const canVoteForThis =
             mvp.canVote && !!player.uid && player.uid !== userUid;
+          const tappable = !!player.uid && !player.uid.startsWith("guest_");
 
           return (
             <div
               key={`${targetId}_${i}`}
               className={`flex items-center justify-between p-1.5 rounded-lg ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border border-amber-100" : ""}`}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+              <button
+                type="button"
+                onClick={() => tappable && onPlayerTap(player.uid)}
+                className={`flex items-center gap-2 min-w-0 flex-1 text-left ${tappable ? "cursor-pointer" : "cursor-default"}`}
+              >
+                <div className="relative shrink-0">
+                  {(player.photoURLThumb ?? player.photoURL) ? (
+                    <PlayerAvatar
+                      src={player.photoURLThumb ?? player.photoURL!}
+                      alt={player.name}
+                      className="w-8 h-8 rounded-full overflow-hidden relative border border-slate-200 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-500">
+                      {player.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${cfg.dot}`} />
+                </div>
                 <span className="font-bold text-sm text-slate-700 truncate flex items-center gap-1">
                   {player.name}
                   {isMvp && <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                 </span>
-              </div>
+              </button>
 
               {mvp.myVote === targetId ? (
                 <div className="flex items-center gap-1 shrink-0">
