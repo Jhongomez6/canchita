@@ -220,6 +220,13 @@ export async function logMultiTeamMatchClosed(matchId: string, numTeams: number,
   });
 }
 
+export async function logTeamBalanceFeedback(matchId: string, value: "up" | "down" | null) {
+  await trackEvent("team_balance_feedback", {
+    match_id: matchId,
+    value: value ?? "cleared",
+  });
+}
+
 /* =========================
    P4: VALOR DE LA PWA
 ========================= */

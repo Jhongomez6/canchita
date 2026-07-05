@@ -85,12 +85,15 @@ export function buildMultiTeamReport(
   if (locName) text += `📍 ${locName}\n`;
   text += `\n`;
 
-  // Equipos conformados
+  // Equipos conformados — ordenados por posición (GK → DEF → MID → FWD), con su emoji
+  const POS_ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+  const posOf = (p: Player): Position => (p.primaryPosition ?? p.positions?.[0] ?? "MID") as Position;
   for (const t of mt.teams) {
     const emoji = TEAM_COLOR_EMOJI[t.color as TeamColor] ?? "⚫";
     text += `${emoji} *${multiTeamName(t.color)}* (${t.players.length})\n`;
-    t.players.forEach((p, i) => {
-      text += `${i + 1}. ${p.name}\n`;
+    const sorted = [...t.players].sort((a, b) => (POS_ORDER[posOf(a)] ?? 9) - (POS_ORDER[posOf(b)] ?? 9));
+    sorted.forEach((p, i) => {
+      text += `${i + 1}. ${POSITION_ICONS[posOf(p)]} ${p.name}\n`;
     });
     text += `\n`;
   }

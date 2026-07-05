@@ -30,12 +30,14 @@ import {
   joinWaitlist,
   leaveWaitlist,
   voteForMVP,
+  setTeamBalanceFeedback,
 } from "@/lib/matches";
 import { buildRosterReport, buildRosterReportTelegram } from "@/lib/matchReport";
 import { promoteGuestToMatch, removeGuestFromMatch } from "@/lib/guests";
 import { calculateMvpStatus } from "@/lib/mvp";
 import { triggerMvpNotification } from "@/lib/push";
 import MultiTeamJoinView from "./components/MultiTeamJoinView";
+import TeamBalanceFeedback from "./components/TeamBalanceFeedback";
 import {
   logOrganizerContacted,
   logMatchMapOpened,
@@ -828,6 +830,23 @@ export default function JoinMatchPage() {
 
 
 
+
+          {/* Feedback rápido: ¿los equipos quedaron parejos? (antes de listarlos) */}
+          {(isClosed || match.teamsConfirmed) && (match.multiTeam?.confirmed || match.teams) && (
+            <TeamBalanceFeedback
+              feedback={match.teamBalanceFeedback ?? {}}
+              userUid={user.uid}
+              canVote={existingPlayer?.confirmed === true || match.createdBy === user.uid}
+              isCreator={match.createdBy === user.uid}
+              onVote={async (value) => {
+                try {
+                  await setTeamBalanceFeedback(id, user.uid, value);
+                } catch (err: unknown) {
+                  handleError(err, "No se pudo registrar tu opinión");
+                }
+              }}
+            />
+          )}
 
           {/* LISTA DE JUGADORES, EQUIPOS CONFIRMADOS O REPORTE */}
           {(isClosed || match.teamsConfirmed) && match.multiTeam?.confirmed ? (

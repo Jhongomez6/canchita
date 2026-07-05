@@ -57,6 +57,7 @@ export interface Match {
     statsProcessed?: boolean;
     previousScore?: { A: number; B: number };
     mvpVotes?: Record<string, string>; // { voterId: votedPlayerId_or_GuestName }
+    teamBalanceFeedback?: Record<string, "up" | "down">; // feedback de jugadores sobre si los equipos quedaron parejos
     closedAt?: string; // ISO String to track 12-hour limit
     isPrivate?: boolean; // If true, hide from Explore
     creatorAdminType?: AdminType; // Tier del admin al crear el partido

@@ -24,6 +24,7 @@ import {
   arrayRemove,
   runTransaction,
   deleteDoc,
+  deleteField,
   type DocumentSnapshot,
   type QueryConstraint,
 } from "firebase/firestore";
@@ -56,6 +57,7 @@ import {
   logMultiTeamsBalanced,
   logMultiTeamsConfirmed,
   logFixtureScoreSaved,
+  logTeamBalanceFeedback,
 } from "./analytics";
 
 // Re-export para backward compatibility
@@ -1044,6 +1046,22 @@ export async function reorderFixtures(
 
     transaction.update(ref, { "multiTeam.fixtures": fixtures });
   });
+}
+
+/**
+ * Registra (o quita, con value=null) el feedback de un jugador sobre si los equipos
+ * quedaron parejos. Cada usuario escribe solo su propia key → sin race conditions.
+ */
+export async function setTeamBalanceFeedback(
+  matchId: string,
+  uid: string,
+  value: "up" | "down" | null,
+) {
+  const ref = doc(db, "matches", matchId);
+  await updateDoc(ref, {
+    [`teamBalanceFeedback.${uid}`]: value === null ? deleteField() : value,
+  });
+  logTeamBalanceFeedback(matchId, value);
 }
 
 /* =========================
