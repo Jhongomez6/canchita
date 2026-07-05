@@ -37,6 +37,8 @@ export default function TeamBalanceFeedback({
   const locked = myVote !== null;
   const revealed = locked || isCreator;
   const active = (v: "up" | "down") => myVote === v || pending === v;
+  const pctUp = total > 0 ? Math.round((up / total) * 100) : 0;
+  const pctDown = 100 - pctUp;
 
   async function confirm() {
     if (!pending || submitting) return;
@@ -66,7 +68,6 @@ export default function TeamBalanceFeedback({
           }`}
         >
           <ThumbsUp size={18} /> Parejos
-          {revealed && up > 0 && <span className="text-xs opacity-70">{up}</span>}
         </button>
         <button
           disabled={locked || submitting || !canVote}
@@ -78,7 +79,6 @@ export default function TeamBalanceFeedback({
           }`}
         >
           <ThumbsDown size={18} /> Desbalanceados
-          {revealed && down > 0 && <span className="text-xs opacity-70">{down}</span>}
         </button>
       </div>
 
@@ -106,18 +106,31 @@ export default function TeamBalanceFeedback({
         </div>
       )}
 
-      {/* Estado / conteo */}
+      {/* Resultado revelado: barra + porcentajes */}
+      {revealed && total > 0 && (
+        <div className="mt-3">
+          <div className="flex h-2 rounded-full overflow-hidden bg-slate-100">
+            {up > 0 && <div className="bg-emerald-400" style={{ width: `${pctUp}%` }} />}
+            {down > 0 && <div className="bg-red-400" style={{ width: `${pctDown}%` }} />}
+          </div>
+          <div className="flex justify-between text-[11px] font-bold mt-1">
+            <span className="text-emerald-600">{pctUp}% parejos ({up})</span>
+            <span className="text-red-500">({down}) {pctDown}% desbalanceados</span>
+          </div>
+          <p className="text-[10px] text-slate-400 text-center mt-1">
+            {total} {total === 1 ? "opinión" : "opiniones"}
+          </p>
+        </div>
+      )}
+
+      {/* Estado */}
       {locked ? (
-        <p className="text-[11px] text-slate-400 text-center mt-2">
-          ¡Gracias por tu opinión!{revealed && total > 0 ? ` · ${total} ${total === 1 ? "opinión" : "opiniones"}` : ""}
+        <p className="text-[11px] text-emerald-600 font-medium text-center mt-2">
+          ¡Gracias por tu opinión!
         </p>
       ) : !canVote ? (
         <p className="text-[11px] text-slate-400 text-center mt-2">
           Confirma tu asistencia para opinar
-        </p>
-      ) : isCreator && total > 0 ? (
-        <p className="text-[11px] text-slate-400 text-center mt-2">
-          {total} {total === 1 ? "opinión" : "opiniones"}
         </p>
       ) : null}
     </div>
