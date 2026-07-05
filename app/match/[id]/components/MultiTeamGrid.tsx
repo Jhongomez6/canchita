@@ -27,6 +27,8 @@ interface MultiTeamGridProps {
   currentMVPs?: string[];
   voteCounts?: Record<string, number>;
   votingClosed?: boolean;
+  /** Muestra el nivel por jugador y el puntaje total del equipo. Solo para admins. */
+  showLevels?: boolean;
 }
 
 const keyOf = (p: Player) => p.id || p.uid || p.name;
@@ -38,6 +40,7 @@ export default function MultiTeamGrid({
   currentMVPs = [],
   voteCounts = {},
   votingClosed = false,
+  showLevels = true,
 }: MultiTeamGridProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -70,6 +73,7 @@ export default function MultiTeamGrid({
           currentMVPs={currentMVPs}
           voteCounts={voteCounts}
           votingClosed={votingClosed}
+          showLevels={showLevels}
         />
       ))}
     </div>
@@ -90,12 +94,14 @@ function MultiTeamColumn({
   currentMVPs,
   voteCounts,
   votingClosed,
+  showLevels,
 }: {
   team: MultiTeam;
   editable: boolean;
   currentMVPs: string[];
   voteCounts: Record<string, number>;
   votingClosed: boolean;
+  showLevels: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `t:${team.id}`, disabled: !editable });
   const cfg = TEAM_COLOR_CONFIG[(team.color ?? "slate") as TeamColor];
@@ -112,7 +118,9 @@ function MultiTeamColumn({
         {team.name}
       </h4>
       <div className={`text-[10px] ${cfg.subtext} mb-2 opacity-80 font-medium flex items-center gap-3`}>
-        <span className="flex items-center gap-1"><Zap size={10} /> <strong>{totalLevel}</strong> pts</span>
+        {showLevels && (
+          <span className="flex items-center gap-1"><Zap size={10} /> <strong>{totalLevel}</strong> pts</span>
+        )}
         <span className="flex items-center gap-1"><Users size={10} /> {team.players.length}</span>
       </div>
 
@@ -130,6 +138,7 @@ function MultiTeamColumn({
               editable={editable}
               isMvp={isMvp}
               votes={votes}
+              showLevel={showLevels}
             />
           );
         })}
@@ -144,12 +153,14 @@ function MultiDraggablePlayer({
   editable,
   isMvp,
   votes,
+  showLevel,
 }: {
   player: Player;
   teamId: string;
   editable: boolean;
   isMvp: boolean;
   votes: number;
+  showLevel: boolean;
 }) {
   const pk = keyOf(player);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -194,8 +205,12 @@ function MultiDraggablePlayer({
             {isMvp && <Crown size={12} className="text-amber-500 fill-amber-300 shrink-0" />}
           </div>
           <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1.5">
-            <span className="flex items-center gap-0.5"><Zap size={10} className="text-amber-500" />{player.level ?? 2}</span>
-            <span className="text-slate-300">·</span>
+            {showLevel && (
+              <>
+                <span className="flex items-center gap-0.5"><Zap size={10} className="text-amber-500" />{player.level ?? 2}</span>
+                <span className="text-slate-300">·</span>
+              </>
+            )}
             <span className="text-blue-600 font-bold">{pos}</span>
           </div>
         </div>
