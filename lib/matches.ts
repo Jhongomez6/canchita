@@ -34,7 +34,7 @@ import { Timestamp } from "firebase/firestore";
 import type { Player, Position } from "./domain/player";
 import type { Match } from "./domain/match";
 import { getConfirmedCount } from "./domain/match";
-import type { MultiTeamTournament } from "./domain/multiTeam";
+import type { MultiTeamTournament, MultiTeam } from "./domain/multiTeam";
 import {
   generateFixtures,
   addPlayerToSmallestTeam,
@@ -898,6 +898,22 @@ export async function saveMultiTeams(
   });
   const playersCount = tournament.teams.reduce((s, t) => s + t.players.length, 0);
   logMultiTeamsBalanced(matchId, tournament.numTeams, playersCount, getMultiTeamQuality(tournament.teams).cost);
+}
+
+/**
+ * Actualiza SOLO el roster de los equipos multi (sin tocar fixtures ni confirmación).
+ * Permite reajustar equipos por drag después de confirmar, preservando marcadores.
+ */
+export async function updateMultiTeamRoster(matchId: string, teams: MultiTeam[]) {
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    if (!data.multiTeam?.teams) throw new BusinessError("No hay equipos multi");
+    if (data.status !== "open") throw new BusinessError("El partido no está abierto");
+    transaction.update(ref, { "multiTeam.teams": teams });
+  });
 }
 
 /**

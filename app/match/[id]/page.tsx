@@ -780,7 +780,7 @@ export default function MatchDetailPage() {
             playerCount={confirmedCount}
             isSavingTeams={isSavingTeams}
             hasUnsavedScore={hasUnsavedScore}
-            hasTeams={Boolean(match.teams)}
+            hasTeams={Boolean(match.teams) || Boolean(match.multiTeam)}
             isClosed={isClosed}
             fabPhase={fabPhase}
           />

@@ -61,6 +61,15 @@ export default function MultiTeamJoinView({
   const myResult = isClosed && myTeam ? getTeamNetResult(myTeam.id, fixtures) : null;
   const myStanding = myTeam ? standings.find((s) => s.teamId === myTeam.id) : null;
 
+  const tabs: { id: Section; label: string }[] = [
+    { id: "teams", label: "Equipos" },
+    ...(fixtures.length > 0 ? ([{ id: "table", label: "Tabla" }] as { id: Section; label: string }[]) : []),
+    ...(isClosed ? ([{ id: "mvp", label: "MVP" }] as { id: Section; label: string }[]) : []),
+  ];
+
+  const [section, setSection] = useState<Section>("teams");
+  const activeSection: Section = tabs.some((t) => t.id === section) ? section : "teams";
+
   return (
     <div className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 mb-6 space-y-4">
       <h3 className="font-black text-slate-800 flex items-center gap-2">
@@ -85,32 +94,53 @@ export default function MultiTeamJoinView({
         </div>
       )}
 
-      {/* Grilla de equipos (solo lectura) */}
-      <MultiTeamGrid
-        teams={teams}
-        editable={false}
-        showLevels={showLevels}
-        onPlayerTap={onPlayerTap}
-        currentMVPs={mvp.currentMVPs}
-        voteCounts={mvp.voteCounts}
-        votingClosed={mvp.votingClosed}
-      />
+      {/* Control segmentado: una sección a la vez */}
+      {tabs.length > 1 && (
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setSection(t.id)}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
+                activeSection === t.id ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Enfrentamientos + tabla */}
-      {fixtures.length > 0 && (
+      {/* Equipos */}
+      {activeSection === "teams" && (
+        <MultiTeamGrid
+          teams={teams}
+          editable={false}
+          showLevels={showLevels}
+          onPlayerTap={onPlayerTap}
+          currentMVPs={mvp.currentMVPs}
+          voteCounts={mvp.voteCounts}
+          votingClosed={mvp.votingClosed}
+        />
+      )}
+
+      {/* Tabla + enfrentamientos */}
+      {activeSection === "table" && fixtures.length > 0 && (
         <>
-          <FixtureList teams={teams} fixtures={fixtures} readOnly onSaveScore={async () => {}} />
           <StandingsTable teams={teams} standings={standings} final={allPlayed} />
+          <FixtureList teams={teams} fixtures={fixtures} readOnly onSaveScore={async () => {}} />
         </>
       )}
 
-      {/* Votación MVP (post-cierre) */}
-      {isClosed && (
+      {/* Votación MVP */}
+      {activeSection === "mvp" && isClosed && (
         <MvpVoteList teams={teams} userUid={userUid} mvp={mvp} onVote={onVote} />
       )}
     </div>
   );
 }
+
+type Section = "teams" | "table" | "mvp";
 
 function MvpVoteList({
   teams,

@@ -24,7 +24,7 @@ import {
   type MultiTeamTournament,
 } from "@/lib/domain/multiTeam";
 import { TEAM_COLOR_CONFIG, type TeamColor } from "@/lib/domain/team-colors";
-import { saveMultiTeams, confirmMultiTeams } from "@/lib/matches";
+import { saveMultiTeams, confirmMultiTeams, updateMultiTeamRoster } from "@/lib/matches";
 import { handleError } from "@/lib/utils/error";
 import MultiTeamGrid from "./MultiTeamGrid";
 
@@ -67,7 +67,7 @@ export default function MultiTeamsTab({
 
   const isConfirmed = !!multiTeam?.confirmed;
   const hasTeams = (multiTeam?.teams?.length ?? draftTeams.length) > 0;
-  const teamsForView = isConfirmed ? multiTeam!.teams : draftTeams;
+  const teamsForView = draftTeams.length ? draftTeams : (multiTeam?.teams ?? []);
   const fixtures = multiTeam?.fixtures ?? [];
 
   // ---- SETUP: aún sin equipos generados ----
@@ -137,7 +137,9 @@ export default function MultiTeamsTab({
   // ---- Equipos generados ----
   const quality = getMultiTeamQuality(teamsForView);
   const isBalanced = quality.cost === 0;
-  const editable = isOwner && !isClosed && !isConfirmed;
+  // Los equipos se pueden ajustar por drag incluso después de confirmar (mientras el
+  // partido esté abierto). Post-confirmación se persiste SOLO el roster (fixtures intactos).
+  const editable = isOwner && !isClosed;
 
   const standings = computeStandings(teamsForView, fixtures);
   const allPlayed = allFixturesPlayed(fixtures);
@@ -149,15 +151,20 @@ export default function MultiTeamsTab({
     if (saveRef.current) clearTimeout(saveRef.current);
     saveRef.current = setTimeout(async () => {
       try {
-        const tournament: MultiTeamTournament = {
-          format: "round_robin",
-          numTeams: next.length,
-          teams: next,
-          fixtures: [],
-          confirmed: false,
-          createdAt: multiTeam?.createdAt ?? new Date().toISOString(),
-        };
-        await saveMultiTeams(matchId, cleanObject(tournament));
+        if (isConfirmed) {
+          // Solo actualizar el roster; preservar fixtures y marcadores
+          await updateMultiTeamRoster(matchId, cleanObject(next));
+        } else {
+          const tournament: MultiTeamTournament = {
+            format: "round_robin",
+            numTeams: next.length,
+            teams: next,
+            fixtures: [],
+            confirmed: false,
+            createdAt: multiTeam?.createdAt ?? new Date().toISOString(),
+          };
+          await saveMultiTeams(matchId, cleanObject(tournament));
+        }
       } catch (err) {
         handleError(err, "Error al guardar equipos");
       } finally {
@@ -202,7 +209,7 @@ export default function MultiTeamsTab({
             )}
           </div>
         </div>
-        {editable && (
+        {editable && !isConfirmed && (
           <button
             disabled={balancing}
             onClick={async () => {
