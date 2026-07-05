@@ -56,6 +56,7 @@ export interface MultiTeamTournament {
     numTeams: number;
     teams: MultiTeam[];
     fixtures: Fixture[];
+    legs?: 1 | 2; // 1 = solo ida (default); 2 = ida y vuelta (cada par juega 2 veces)
     confirmed: boolean;
     confirmedAt?: string;
     createdAt: string;
@@ -400,17 +401,48 @@ export function makeFixtureId(home: TeamId, away: TeamId): string {
 }
 
 /**
- * Genera todos los enfrentamientos de un round-robin simple: C(N,2) fixtures.
- * N=3 → 3 fixtures; N=4 → 6 fixtures. Todos empiezan sin marcador (pendientes).
+ * Genera los enfrentamientos de un round-robin.
+ * - `legs = 1` (default): solo ida, C(N,2) fixtures. N=3 → 3; N=4 → 6.
+ * - `legs = 2`: ida y vuelta, 2·C(N,2) fixtures. En la vuelta se invierte local/visitante,
+ *   por lo que los ids (`home_away`) quedan únicos. N=3 → 6; N=4 → 12.
+ * Todos empiezan sin marcador (pendientes).
  */
-export function generateFixtures(teams: MultiTeam[]): Fixture[] {
+export function generateFixtures(teams: MultiTeam[], legs: 1 | 2 = 1): Fixture[] {
+    const fixtures: Fixture[] = [];
+    const rounds = legs === 2 ? 2 : 1;
+    for (let leg = 0; leg < rounds; leg++) {
+        for (let i = 0; i < teams.length; i++) {
+            for (let j = i + 1; j < teams.length; j++) {
+                // Vuelta: se invierte quién es local
+                const home = leg === 0 ? teams[i] : teams[j];
+                const away = leg === 0 ? teams[j] : teams[i];
+                fixtures.push({
+                    id: makeFixtureId(home.id, away.id),
+                    home: home.id,
+                    away: away.id,
+                    scoreHome: null,
+                    scoreAway: null,
+                });
+            }
+        }
+    }
+    return fixtures;
+}
+
+/**
+ * Genera solo los fixtures de VUELTA (segunda ronda) para un set de equipos:
+ * cada par con local/visitante invertido respecto a la ida. Útil para ampliar
+ * un torneo de solo-ida a ida-y-vuelta sin regenerar la ida (preserva marcadores).
+ */
+export function returnLegFixtures(teams: MultiTeam[]): Fixture[] {
     const fixtures: Fixture[] = [];
     for (let i = 0; i < teams.length; i++) {
         for (let j = i + 1; j < teams.length; j++) {
+            // Vuelta: el que fue visitante ahora es local
             fixtures.push({
-                id: makeFixtureId(teams[i].id, teams[j].id),
-                home: teams[i].id,
-                away: teams[j].id,
+                id: makeFixtureId(teams[j].id, teams[i].id),
+                home: teams[j].id,
+                away: teams[i].id,
                 scoreHome: null,
                 scoreAway: null,
             });

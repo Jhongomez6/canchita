@@ -38,6 +38,7 @@ import { getConfirmedCount } from "./domain/match";
 import type { MultiTeamTournament, MultiTeam } from "./domain/multiTeam";
 import {
   generateFixtures,
+  returnLegFixtures,
   addPlayerToSmallestTeam,
   removePlayerFromTeams,
   getMultiTeamQuality,
@@ -962,7 +963,7 @@ export async function confirmMultiTeams(matchId: string) {
 
     const fixtures = tournament.fixtures?.length
       ? tournament.fixtures
-      : generateFixtures(tournament.teams);
+      : generateFixtures(tournament.teams, tournament.legs ?? 1);
 
     numTeams = tournament.teams.length;
     numFixtures = fixtures.length;
@@ -1017,6 +1018,34 @@ export async function saveFixtureScore(
     transaction.update(ref, { "multiTeam.fixtures": fixtures });
   });
   logFixtureScoreSaved(matchId, fixtureId, wasFirstEdit);
+}
+
+/**
+ * Amplía un torneo de solo-ida a ida-y-vuelta: agrega los fixtures de vuelta al
+ * final, preservando los de ida y sus marcadores. Idempotente (no duplica) y
+ * seguro para partidos ya confirmados.
+ */
+export async function addReturnLeg(matchId: string) {
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    const tournament = data.multiTeam as MultiTeamTournament | undefined;
+    if (!tournament?.teams?.length || !tournament.fixtures?.length) {
+      throw new BusinessError("No hay fixtures para ampliar");
+    }
+    if (data.status !== "open") throw new BusinessError("El partido no está abierto");
+    if ((tournament.legs ?? 1) === 2) throw new BusinessError("El torneo ya es ida y vuelta");
+
+    const existingIds = new Set(tournament.fixtures.map((f) => f.id));
+    const ret = returnLegFixtures(tournament.teams).filter((f) => !existingIds.has(f.id));
+
+    transaction.update(ref, {
+      "multiTeam.fixtures": [...tournament.fixtures, ...ret],
+      "multiTeam.legs": 2,
+    });
+  });
 }
 
 /**

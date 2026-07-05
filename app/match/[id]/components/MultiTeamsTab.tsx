@@ -64,6 +64,7 @@ export default function MultiTeamsTab({
 }: MultiTeamsTabProps) {
   const options = validTeamCounts(confirmedCount);
   const [numTeams, setNumTeams] = useState<number>(options[0] ?? 3);
+  const [legs, setLegs] = useState<1 | 2>(multiTeam?.legs ?? 1);
   const [balancing, setBalancing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -91,6 +92,10 @@ export default function MultiTeamsTab({
 
             <TeamCountSelector value={numTeams} options={options} onChange={setNumTeams} />
 
+            <div className="mt-3">
+              <LegsToggle value={legs} onChange={setLegs} />
+            </div>
+
             <button
               disabled={balancing || options.length === 0}
               onClick={async () => {
@@ -102,6 +107,7 @@ export default function MultiTeamsTab({
                     numTeams,
                     teams: result.teams,
                     fixtures: [],
+                    legs,
                     confirmed: false,
                     createdAt: new Date().toISOString(),
                   };
@@ -165,6 +171,7 @@ export default function MultiTeamsTab({
             numTeams: next.length,
             teams: next,
             fixtures: [],
+            legs: multiTeam?.legs ?? legs,
             confirmed: false,
             createdAt: multiTeam?.createdAt ?? new Date().toISOString(),
           };
@@ -192,6 +199,29 @@ export default function MultiTeamsTab({
       return next;
     });
   }
+
+  // Cambia el formato (ida / ida y vuelta) antes de confirmar; persiste el flag.
+  async function persistLegs(newLegs: 1 | 2) {
+    setLegs(newLegs);
+    try {
+      const tournament: MultiTeamTournament = {
+        format: "round_robin",
+        numTeams: teamsForView.length,
+        teams: teamsForView,
+        fixtures: [],
+        legs: newLegs,
+        confirmed: false,
+        createdAt: multiTeam?.createdAt ?? new Date().toISOString(),
+      };
+      await saveMultiTeams(matchId, cleanObject(tournament));
+    } catch (err) {
+      handleError(err, "No se pudo cambiar el formato");
+    }
+  }
+
+  const effectiveLegs: 1 | 2 = multiTeam?.legs ?? legs;
+  const pairCount = (teamsForView.length * (teamsForView.length - 1)) / 2;
+  const fixtureCount = pairCount * (effectiveLegs === 2 ? 2 : 1);
 
   return (
     <div role="tabpanel" id="panel-teams" className="space-y-4 animate-in fade-in duration-200">
@@ -276,6 +306,19 @@ export default function MultiTeamsTab({
         </div>
       )}
 
+      {/* Formato del torneo (antes de confirmar) */}
+      {isOwner && !isClosed && !isConfirmed && !saving && (
+        <div className="bg-white rounded-xl border border-slate-200 p-3">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+            Formato del torneo
+          </p>
+          <LegsToggle value={effectiveLegs} onChange={persistLegs} />
+          <p className="text-[11px] text-slate-400 mt-2 text-center">
+            Se generarán <strong>{fixtureCount}</strong> enfrentamiento{fixtureCount !== 1 ? "s" : ""}
+          </p>
+        </div>
+      )}
+
       {/* Confirmar equipos (genera fixtures) */}
       {isOwner && !isClosed && !isConfirmed && !saving && (
         <button
@@ -318,6 +361,34 @@ export default function MultiTeamsTab({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function LegsToggle({ value, onChange }: { value: 1 | 2; onChange: (legs: 1 | 2) => void }) {
+  const opts: { legs: 1 | 2; label: string; hint: string }[] = [
+    { legs: 1, label: "Solo ida", hint: "cada par 1 vez" },
+    { legs: 2, label: "Ida y vuelta", hint: "cada par 2 veces" },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {opts.map((o) => {
+        const active = value === o.legs;
+        return (
+          <button
+            key={o.legs}
+            onClick={() => onChange(o.legs)}
+            className={`py-2 rounded-xl font-bold text-sm border-2 transition-all ${
+              active
+                ? "bg-emerald-50 border-emerald-400 text-emerald-700"
+                : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+            }`}
+          >
+            {o.label}
+            <span className="block text-[10px] font-medium opacity-70">{o.hint}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

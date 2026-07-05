@@ -174,6 +174,21 @@ describe("generateFixtures — round-robin C(N,2)", () => {
         expect(fixtures).toHaveLength(6);
     });
 
+    it("ida y vuelta (legs=2): N=3 → 6 fixtures, N=4 → 12, ids únicos", () => {
+        const f3 = generateFixtures(makeTeams(3), 2);
+        expect(f3).toHaveLength(6);
+        const f4 = generateFixtures(makeTeams(4), 2);
+        expect(f4).toHaveLength(12);
+        expect(new Set(f4.map((f) => f.id)).size).toBe(12);
+        // Cada par aparece dos veces con local/visitante invertido
+        const pairs = f3.map((f) => [f.home, f.away].sort().join("-"));
+        const counts = pairs.reduce<Record<string, number>>((acc, p) => {
+            acc[p] = (acc[p] ?? 0) + 1;
+            return acc;
+        }, {});
+        expect(Object.values(counts).every((c) => c === 2)).toBe(true);
+    });
+
     it("cada par juega exactamente una vez, ids determinísticos", () => {
         const teams = makeTeams(4);
         const fixtures = generateFixtures(teams);
