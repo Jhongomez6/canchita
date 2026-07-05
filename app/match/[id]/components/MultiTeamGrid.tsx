@@ -13,10 +13,20 @@ import {
 } from "@dnd-kit/core";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { POSITION_ICONS, type Player } from "@/lib/domain/player";
-import { sortTeamForDisplay } from "@/lib/domain/team";
 import { TEAM_COLOR_CONFIG, type TeamColor } from "@/lib/domain/team-colors";
 import { Shield, Zap, Users, Crown } from "lucide-react";
 import type { MultiTeam } from "@/lib/domain/multiTeam";
+
+/** Orden de display por posición primaria (la misma que muestra el ícono del avatar). */
+const POS_ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+function sortByPrimaryPosition(players: Player[]): Player[] {
+  return [...players].sort((a, b) => {
+    const pa = POS_ORDER[a.primaryPosition ?? a.positions?.[0] ?? "MID"] ?? 99;
+    const pb = POS_ORDER[b.primaryPosition ?? b.positions?.[0] ?? "MID"] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return (b.level ?? 0) - (a.level ?? 0);
+  });
+}
 
 interface MultiTeamGridProps {
   teams: MultiTeam[];
@@ -29,6 +39,8 @@ interface MultiTeamGridProps {
   votingClosed?: boolean;
   /** Muestra el nivel por jugador y el puntaje total del equipo. Solo para admins. */
   showLevels?: boolean;
+  /** Si se provee (y no editable), los jugadores con uid abren su profile card al tocarlos. */
+  onPlayerTap?: (uid?: string) => void;
 }
 
 const keyOf = (p: Player) => p.id || p.uid || p.name;
@@ -41,6 +53,7 @@ export default function MultiTeamGrid({
   voteCounts = {},
   votingClosed = false,
   showLevels = true,
+  onPlayerTap,
 }: MultiTeamGridProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -74,6 +87,7 @@ export default function MultiTeamGrid({
           voteCounts={voteCounts}
           votingClosed={votingClosed}
           showLevels={showLevels}
+          onPlayerTap={onPlayerTap}
         />
       ))}
     </div>
@@ -95,6 +109,7 @@ function MultiTeamColumn({
   voteCounts,
   votingClosed,
   showLevels,
+  onPlayerTap,
 }: {
   team: MultiTeam;
   editable: boolean;
@@ -102,11 +117,12 @@ function MultiTeamColumn({
   voteCounts: Record<string, number>;
   votingClosed: boolean;
   showLevels: boolean;
+  onPlayerTap?: (uid?: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `t:${team.id}`, disabled: !editable });
   const cfg = TEAM_COLOR_CONFIG[(team.color ?? "slate") as TeamColor];
   const totalLevel = team.players.reduce((s, p) => s + (p.level ?? 0), 0);
-  const sorted = sortTeamForDisplay(team.players);
+  const sorted = sortByPrimaryPosition(team.players);
 
   return (
     <div
@@ -139,6 +155,7 @@ function MultiTeamColumn({
               isMvp={isMvp}
               votes={votes}
               showLevel={showLevels}
+              onPlayerTap={onPlayerTap}
             />
           );
         })}
@@ -154,6 +171,7 @@ function MultiDraggablePlayer({
   isMvp,
   votes,
   showLevel,
+  onPlayerTap,
 }: {
   player: Player;
   teamId: string;
@@ -161,6 +179,7 @@ function MultiDraggablePlayer({
   isMvp: boolean;
   votes: number;
   showLevel: boolean;
+  onPlayerTap?: (uid?: string) => void;
 }) {
   const pk = keyOf(player);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -174,13 +193,16 @@ function MultiDraggablePlayer({
     : undefined;
 
   const pos = player.primaryPosition || player.positions?.[0] || "MID";
+  const isGuest = !player.uid || player.uid.startsWith("guest_");
+  const clickable = !editable && !!onPlayerTap && !isGuest;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...(editable ? { ...attributes, ...listeners } : {})}
-      className={`p-2.5 bg-white border rounded-lg shadow-sm flex justify-between items-center ${editable ? "cursor-grab active:cursor-grabbing hover:border-slate-300" : "cursor-default"} ${isDragging ? "ring-2 ring-emerald-500 rotate-2" : "border-slate-200"} ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border-amber-200" : ""} transition-colors`}
+      onClick={clickable ? () => onPlayerTap!(player.uid) : undefined}
+      className={`p-2.5 bg-white border rounded-lg shadow-sm flex justify-between items-center ${editable ? "cursor-grab active:cursor-grabbing hover:border-slate-300" : clickable ? "cursor-pointer hover:border-slate-300" : "cursor-default"} ${isDragging ? "ring-2 ring-emerald-500 rotate-2" : "border-slate-200"} ${isMvp ? "bg-gradient-to-r from-amber-50 to-transparent border-amber-200" : ""} transition-colors`}
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <div className="relative shrink-0">
@@ -204,15 +226,12 @@ function MultiDraggablePlayer({
             {player.name}
             {isMvp && <Crown size={12} className="text-amber-500 fill-amber-300 shrink-0" />}
           </div>
-          <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1.5">
-            {showLevel && (
-              <>
-                <span className="flex items-center gap-0.5"><Zap size={10} className="text-amber-500" />{player.level ?? 2}</span>
-                <span className="text-slate-300">·</span>
-              </>
-            )}
-            <span className="text-blue-600 font-bold">{pos}</span>
-          </div>
+          {/* La posición ya la indica el ícono del avatar; solo el creador ve el nivel. */}
+          {showLevel && (
+            <div className="text-[10px] text-slate-500 font-medium flex items-center gap-0.5">
+              <Zap size={10} className="text-amber-500" />{player.level ?? 2}
+            </div>
+          )}
         </div>
       </div>
       {votes ? (

@@ -243,14 +243,14 @@ const TIMELINE_STEPS: TimelineStep[] = ["joining", "teams_confirmed", "mvp_votin
  * Lógica pura, sin dependencias externas.
  */
 export function getMatchTimelineState(
-    match: Pick<Match, "status" | "teams" | "teamsConfirmed">,
+    match: Pick<Match, "status" | "teams" | "teamsConfirmed" | "multiTeam">,
 ): TimelineState {
     let stepIndex: number;
 
     if (match.status === "closed") {
         stepIndex = 3; // closed
-    } else if (match.teamsConfirmed && match.teams) {
-        stepIndex = 1; // teams_confirmed
+    } else if (match.teamsConfirmed && (match.teams || match.multiTeam)) {
+        stepIndex = 1; // teams_confirmed (clásico o multi)
     } else {
         stepIndex = 0; // joining
     }

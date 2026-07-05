@@ -837,6 +837,7 @@ export default function JoinMatchPage() {
               fixtures={match.multiTeam.fixtures}
               userUid={user.uid}
               showLevels={match.createdBy === user.uid}
+              onPlayerTap={handlePlayerTap}
               mvp={{
                 currentMVPs,
                 voteCounts,

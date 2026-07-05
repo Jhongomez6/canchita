@@ -23,6 +23,8 @@ interface MultiTeamJoinViewProps {
   userUid: string;
   /** Mostrar niveles y puntaje total (solo para el creador del partido). */
   showLevels: boolean;
+  /** Abrir la profile card de un jugador al tocarlo. */
+  onPlayerTap: (uid?: string) => void;
   mvp: {
     currentMVPs: string[];
     voteCounts: Record<string, number>;
@@ -45,6 +47,7 @@ export default function MultiTeamJoinView({
   fixtures,
   userUid,
   showLevels,
+  onPlayerTap,
   mvp,
   onVote,
 }: MultiTeamJoinViewProps) {
@@ -87,6 +90,7 @@ export default function MultiTeamJoinView({
         teams={teams}
         editable={false}
         showLevels={showLevels}
+        onPlayerTap={onPlayerTap}
         currentMVPs={mvp.currentMVPs}
         voteCounts={mvp.voteCounts}
         votingClosed={mvp.votingClosed}

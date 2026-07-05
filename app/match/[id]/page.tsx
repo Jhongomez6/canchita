@@ -67,6 +67,7 @@ import PlayersTab from "./components/PlayersTab";
 import TeamsTab from "./components/TeamsTab";
 import MultiTeamsTab from "./components/MultiTeamsTab";
 import ScoreTab from "./components/ScoreTab";
+import MultiScoreTab from "./components/MultiScoreTab";
 import SettingsTab from "./components/SettingsTab";
 import PaymentsTab from "./components/PaymentsTab";
 import ReviewsTab from "./components/ReviewsTab";
@@ -950,7 +951,16 @@ export default function MatchDetailPage() {
             </>
           )}
 
-          {activeTab === "score" && (
+          {activeTab === "score" && match.multiTeam && (
+            <MultiScoreTab
+              matchId={id}
+              isOwner={isOwner}
+              isClosed={isClosed}
+              multiTeam={match.multiTeam}
+            />
+          )}
+
+          {activeTab === "score" && !match.multiTeam && (
             <ScoreTab
               scoreA={scoreA}
               scoreB={scoreB}

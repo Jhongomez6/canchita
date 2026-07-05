@@ -10,13 +10,13 @@ import {
   Trophy,
   ArrowLeft,
   Users,
+  ListChecks,
 } from "lucide-react";
 import type { Player } from "@/lib/domain/player";
 import {
   balanceIntoTeams,
   computeStandings,
   allFixturesPlayed,
-  pendingFixturesCount,
   getChampion,
   getMultiTeamQuality,
   validTeamCounts,
@@ -24,11 +24,9 @@ import {
   type MultiTeamTournament,
 } from "@/lib/domain/multiTeam";
 import { TEAM_COLOR_CONFIG, type TeamColor } from "@/lib/domain/team-colors";
-import { saveMultiTeams, confirmMultiTeams, saveFixtureScore, reorderFixtures } from "@/lib/matches";
+import { saveMultiTeams, confirmMultiTeams } from "@/lib/matches";
 import { handleError } from "@/lib/utils/error";
 import MultiTeamGrid from "./MultiTeamGrid";
-import FixtureList from "./FixtureList";
-import StandingsTable from "./StandingsTable";
 
 interface MultiTeamsTabProps {
   matchId: string;
@@ -143,7 +141,6 @@ export default function MultiTeamsTab({
 
   const standings = computeStandings(teamsForView, fixtures);
   const allPlayed = allFixturesPlayed(fixtures);
-  const pending = pendingFixturesCount(fixtures);
   const championId = getChampion(standings, allPlayed);
   const champion = championId ? teamsForView.find((t) => t.id === championId) : null;
 
@@ -276,41 +273,19 @@ export default function MultiTeamsTab({
         </button>
       )}
 
-      {/* Fixtures + tabla (post-confirmación) */}
+      {/* Post-confirmación: los marcadores se registran en la pestaña Marcador */}
       {isConfirmed && fixtures.length > 0 && (
         <>
-          <FixtureList
-            teams={teamsForView}
-            fixtures={fixtures}
-            readOnly={!isOwner || isClosed}
-            onSaveScore={async (fixtureId, sh, sa) => {
-              try {
-                await saveFixtureScore(matchId, fixtureId, sh, sa);
-              } catch (err) {
-                handleError(err, "Error al guardar el marcador");
-              }
-            }}
-            onReorder={async (fixtureId, direction) => {
-              try {
-                await reorderFixtures(matchId, fixtureId, direction);
-              } catch (err) {
-                handleError(err, "Error al reordenar el enfrentamiento");
-              }
-            }}
-          />
-
-          <StandingsTable teams={teamsForView} standings={standings} final={allPlayed} />
-
           {champion ? (
             <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 px-4 py-2.5 rounded-xl text-sm font-bold border border-amber-200">
               <Trophy size={16} className="text-amber-500" />
               Campeón: {champion.name}
             </div>
           ) : (
-            isOwner && !isClosed && pending > 0 && (
-              <p className="text-center text-xs text-slate-400 font-medium">
-                Faltan {pending} marcador{pending > 1 ? "es" : ""} para cerrar el partido
-              </p>
+            isOwner && !isClosed && (
+              <div className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2.5 rounded-xl text-xs font-bold border border-emerald-200 text-center">
+                <ListChecks size={14} /> Registrá los marcadores en la pestaña <strong>Marcador</strong>
+              </div>
             )
           )}
         </>
