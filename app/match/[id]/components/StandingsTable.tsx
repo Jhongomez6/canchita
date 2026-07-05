@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
 import { TEAM_COLOR_CONFIG, type TeamColor } from "@/lib/domain/team-colors";
-import type { MultiTeam, TeamStanding } from "@/lib/domain/multiTeam";
+import { multiTeamName, type MultiTeam, type TeamStanding } from "@/lib/domain/multiTeam";
 
 interface StandingsTableProps {
   teams: MultiTeam[];
@@ -61,7 +61,7 @@ export default function StandingsTable({ teams, standings, final }: StandingsTab
                     <div className="flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
                       <span className="font-bold text-slate-700 truncate">
-                        {team?.name ?? s.teamId}
+                        {team ? multiTeamName(team.color) : s.teamId}
                       </span>
                       {isLeader && (
                         <motion.span

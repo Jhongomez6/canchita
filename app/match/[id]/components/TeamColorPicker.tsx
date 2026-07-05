@@ -4,18 +4,25 @@ import { TEAM_COLOR_CONFIG, type TeamColor } from "@/lib/domain/team-colors";
 
 interface TeamColorPickerProps {
   value: TeamColor;
-  disabledColor: TeamColor;
+  /** Un color deshabilitado (modo clásico 2 equipos). */
+  disabledColor?: TeamColor;
+  /** Varios colores deshabilitados (modo multi: los usados por otros equipos). */
+  disabledColors?: TeamColor[];
   onChange: (color: TeamColor) => void;
 }
 
 const COLORS = Object.keys(TEAM_COLOR_CONFIG) as TeamColor[];
 
-export default function TeamColorPicker({ value, disabledColor, onChange }: TeamColorPickerProps) {
+export default function TeamColorPicker({ value, disabledColor, disabledColors, onChange }: TeamColorPickerProps) {
+  const disabledSet = new Set<TeamColor>([
+    ...(disabledColors ?? []),
+    ...(disabledColor ? [disabledColor] : []),
+  ]);
   return (
     <div className="flex flex-wrap gap-1.5 mt-2">
       {COLORS.map((color) => {
         const isSelected = color === value;
-        const isDisabled = color === disabledColor;
+        const isDisabled = disabledSet.has(color);
         const cfg = TEAM_COLOR_CONFIG[color];
         return (
           <button

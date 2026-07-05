@@ -27,7 +27,7 @@
 import { ValidationError } from "./errors";
 import { DEFAULT_WEIGHTS, type BalanceWeights } from "./team";
 import type { Player, Position } from "./player";
-import type { TeamColor } from "./team-colors";
+import { TEAM_COLOR_CONFIG, type TeamColor } from "./team-colors";
 
 // ========================
 // TIPOS
@@ -127,6 +127,16 @@ const isCrack = (p: Player) => levelOf(p) >= 4;
 const isFemale = (p: Player) => p.sex === "F";
 const primaryPosOf = (p: Player): Position => p.positions?.[0] ?? "MID";
 const playerKey = (p: Player) => p.id || p.uid || p.name;
+
+/**
+ * Nombre de display de un equipo, derivado de su color (Rojo/Azul/Verde/Naranja).
+ * Se calcula en render para que sea consistente aunque el `name` guardado sea viejo
+ * ("Equipo 1") o el color cambie en vivo.
+ */
+export function multiTeamName(color: string): string {
+    const cfg = TEAM_COLOR_CONFIG[color as TeamColor];
+    return `Equipo ${cfg?.label ?? "?"}`;
+}
 
 /** Fisher-Yates shuffle con RNG inyectable — muta el array in-place y lo retorna. */
 function shuffle<T>(arr: T[], rng: () => number): T[] {
@@ -345,12 +355,16 @@ export function balanceIntoTeams(
 
     const quality: MultiBalanceQuality = { ...bestQuality!, candidatesEvaluated: evaluated };
 
-    const teams: MultiTeam[] = bestTeams.map((teamPlayers, idx) => ({
-        id: `T${idx + 1}`,
-        name: `Equipo ${idx + 1}`,
-        color: TEAM_PALETTE[idx] ?? "slate",
-        players: teamPlayers,
-    }));
+    const teams: MultiTeam[] = bestTeams.map((teamPlayers, idx) => {
+        const color = TEAM_PALETTE[idx] ?? "slate";
+        return {
+            id: `T${idx + 1}`,
+            // Nombre por color (Rojo/Azul/Verde/Naranja): más memorable que "Equipo 1"
+            name: `Equipo ${TEAM_COLOR_CONFIG[color].label}`,
+            color,
+            players: teamPlayers,
+        };
+    });
 
     // ---- Warnings ----
     const warnings: string[] = [];

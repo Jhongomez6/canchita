@@ -6,25 +6,29 @@ import {
   allFixturesPlayed,
   pendingFixturesCount,
   getChampion,
+  multiTeamName,
   type MultiTeamTournament,
 } from "@/lib/domain/multiTeam";
 import { saveFixtureScore, reorderFixtures } from "@/lib/matches";
 import { handleError } from "@/lib/utils/error";
 import FixtureList from "./FixtureList";
 import StandingsTable from "./StandingsTable";
+import ShareReportButtons from "./ShareReportButtons";
 
 interface MultiScoreTabProps {
   matchId: string;
   isOwner: boolean;
   isClosed: boolean;
   multiTeam?: MultiTeamTournament;
+  /** Genera el reporte (equipos + fixtures + tabla) para compartir. */
+  onGetReportText: () => string;
 }
 
 /**
  * Tab "Marcador" en modo multi-equipo: el admin registra el marcador de cada
  * enfrentamiento (round-robin) y ve la tabla de posiciones y el campeón.
  */
-export default function MultiScoreTab({ matchId, isOwner, isClosed, multiTeam }: MultiScoreTabProps) {
+export default function MultiScoreTab({ matchId, isOwner, isClosed, multiTeam, onGetReportText }: MultiScoreTabProps) {
   const confirmed = !!multiTeam?.confirmed;
   const fixtures = multiTeam?.fixtures ?? [];
   const teams = multiTeam?.teams ?? [];
@@ -72,9 +76,11 @@ export default function MultiScoreTab({ matchId, isOwner, isClosed, multiTeam }:
 
       <StandingsTable teams={teams} standings={standings} final={allPlayed} />
 
+      {isOwner && <ShareReportButtons getText={onGetReportText} />}
+
       {champion ? (
         <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 px-4 py-2.5 rounded-xl text-sm font-bold border border-amber-200">
-          <Trophy size={16} className="text-amber-500" /> Campeón: {champion.name}
+          <Trophy size={16} className="text-amber-500" /> Campeón: {multiTeamName(champion.color)}
         </div>
       ) : (
         isOwner && !isClosed && pending > 0 && (

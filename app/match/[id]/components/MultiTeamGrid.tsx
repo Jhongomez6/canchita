@@ -15,7 +15,8 @@ import PlayerAvatar from "@/components/PlayerAvatar";
 import { POSITION_ICONS, type Player } from "@/lib/domain/player";
 import { TEAM_COLOR_CONFIG, type TeamColor } from "@/lib/domain/team-colors";
 import { Shield, Zap, Users, Crown } from "lucide-react";
-import type { MultiTeam } from "@/lib/domain/multiTeam";
+import { multiTeamName, type MultiTeam } from "@/lib/domain/multiTeam";
+import TeamColorPicker from "./TeamColorPicker";
 
 /** Orden de display por posición primaria (la misma que muestra el ícono del avatar). */
 const POS_ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
@@ -41,6 +42,8 @@ interface MultiTeamGridProps {
   showLevels?: boolean;
   /** Si se provee (y no editable), los jugadores con uid abren su profile card al tocarlos. */
   onPlayerTap?: (uid?: string) => void;
+  /** Si se provee, cada equipo muestra un selector de color (el peto real). */
+  onColorChange?: (teamId: string, color: TeamColor) => void;
 }
 
 const keyOf = (p: Player) => p.id || p.uid || p.name;
@@ -54,6 +57,7 @@ export default function MultiTeamGrid({
   votingClosed = false,
   showLevels = true,
   onPlayerTap,
+  onColorChange,
 }: MultiTeamGridProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -88,6 +92,8 @@ export default function MultiTeamGrid({
           votingClosed={votingClosed}
           showLevels={showLevels}
           onPlayerTap={onPlayerTap}
+          onColorChange={onColorChange}
+          otherColors={teams.filter((t) => t.id !== team.id).map((t) => t.color as TeamColor)}
         />
       ))}
     </div>
@@ -110,6 +116,8 @@ function MultiTeamColumn({
   votingClosed,
   showLevels,
   onPlayerTap,
+  onColorChange,
+  otherColors,
 }: {
   team: MultiTeam;
   editable: boolean;
@@ -118,6 +126,8 @@ function MultiTeamColumn({
   votingClosed: boolean;
   showLevels: boolean;
   onPlayerTap?: (uid?: string) => void;
+  onColorChange?: (teamId: string, color: TeamColor) => void;
+  otherColors: TeamColor[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `t:${team.id}`, disabled: !editable });
   const cfg = TEAM_COLOR_CONFIG[(team.color ?? "slate") as TeamColor];
@@ -131,7 +141,7 @@ function MultiTeamColumn({
     >
       <h4 className={`font-bold ${cfg.text} mb-1 text-sm flex items-center gap-1.5`}>
         <Shield size={14} fill={cfg.shieldFill} className={cfg.shieldText} />
-        {team.name}
+        {multiTeamName(team.color)}
       </h4>
       <div className={`text-[10px] ${cfg.subtext} mb-2 opacity-80 font-medium flex items-center gap-3`}>
         {showLevels && (
@@ -139,6 +149,16 @@ function MultiTeamColumn({
         )}
         <span className="flex items-center gap-1"><Users size={10} /> {team.players.length}</span>
       </div>
+
+      {onColorChange && (
+        <div className="mb-2">
+          <TeamColorPicker
+            value={(team.color ?? "slate") as TeamColor}
+            disabledColors={otherColors}
+            onChange={(color) => onColorChange(team.id, color)}
+          />
+        </div>
+      )}
 
       <div className="space-y-1.5">
         {sorted.map((p, i) => {

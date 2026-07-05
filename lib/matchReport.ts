@@ -14,7 +14,8 @@ import type { Match } from "./domain/match";
 import type { Guest } from "./domain/guest";
 import { guestToPlayer } from "./domain/guest";
 import { formatDateSpanish, formatTime12h, formatEndTime } from "./date";
-import { getTeamColors, TEAM_COLOR_EMOJI } from "./domain/team-colors";
+import { getTeamColors, TEAM_COLOR_EMOJI, type TeamColor } from "./domain/team-colors";
+import { computeStandings, allFixturesPlayed, multiTeamName } from "./domain/multiTeam";
 
 interface ReportMatchData {
   date?: string;
@@ -57,6 +58,75 @@ ${teamBList}
 🏆 Resultado final:
 ${scoreA} - ${scoreB}
   `.trim();
+}
+
+/**
+ * Genera un reporte del torneo multi-equipo (round-robin) para compartir:
+ * equipos conformados + fixtures + tabla de posiciones (si hay marcadores).
+ * Con `plain=true` quita los `*` (para Telegram / texto plano).
+ */
+export function buildMultiTeamReport(
+  match: Pick<Match, "id" | "date" | "time" | "multiTeam" | "locationSnapshot">,
+  plain = false,
+): string {
+  const mt = match.multiTeam;
+  if (!mt?.teams?.length) return "";
+
+  const teamName = new Map(mt.teams.map((t) => [t.id, multiTeamName(t.color)]));
+  const emojiOf = (id: string) => {
+    const t = mt.teams.find((x) => x.id === id);
+    return t ? (TEAM_COLOR_EMOJI[t.color as TeamColor] ?? "⚫") : "⚫";
+  };
+
+  let text = `🏆 *TORNEO — TODOS CONTRA TODOS*\n`;
+  if (match.date) text += `📅 ${formatDateSpanish(match.date)}\n`;
+  if (match.time) text += `⏰ ${formatTime12h(match.time)}\n`;
+  const locName = match.locationSnapshot?.name;
+  if (locName) text += `📍 ${locName}\n`;
+  text += `\n`;
+
+  // Equipos conformados
+  for (const t of mt.teams) {
+    const emoji = TEAM_COLOR_EMOJI[t.color as TeamColor] ?? "⚫";
+    text += `${emoji} *${multiTeamName(t.color)}* (${t.players.length})\n`;
+    t.players.forEach((p, i) => {
+      text += `${i + 1}. ${p.name}\n`;
+    });
+    text += `\n`;
+  }
+
+  // Fixtures
+  if (mt.fixtures?.length) {
+    text += `📋 *Enfrentamientos*\n`;
+    mt.fixtures.forEach((f, i) => {
+      const home = `${emojiOf(f.home)} ${teamName.get(f.home) ?? f.home}`;
+      const away = `${teamName.get(f.away) ?? f.away} ${emojiOf(f.away)}`;
+      const mid =
+        f.scoreHome != null && f.scoreAway != null ? `${f.scoreHome} - ${f.scoreAway}` : "vs";
+      text += `${i + 1}. ${home}  ${mid}  ${away}\n`;
+    });
+    text += `\n`;
+
+    // Tabla (si hay al menos un marcador)
+    const anyPlayed = mt.fixtures.some((f) => f.scoreHome != null && f.scoreAway != null);
+    if (anyPlayed) {
+      const standings = computeStandings(mt.teams, mt.fixtures);
+      const final = allFixturesPlayed(mt.fixtures);
+      text += `📊 *Tabla${final ? "" : " (provisional)"}*\n`;
+      standings.forEach((s) => {
+        text += `${s.position}. ${emojiOf(s.teamId)} ${teamName.get(s.teamId)} — ${s.points} pts (${s.won}G ${s.drawn}E ${s.lost}P)\n`;
+      });
+      text += `\n`;
+      if (final && standings[0]) {
+        text += `🏆 Campeón: ${emojiOf(standings[0].teamId)} ${teamName.get(standings[0].teamId)}\n\n`;
+      }
+    }
+  }
+
+  if (match.id) text += `🔑 *Código del partido:* ${match.id}.ai\n`;
+
+  const result = text.trim();
+  return plain ? result.replace(/\*/g, "") : result;
 }
 
 /**

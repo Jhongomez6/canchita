@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { buildWhatsAppReport, buildRosterReport, buildRosterReportTelegram } from "@/lib/matchReport";
+import { buildWhatsAppReport, buildRosterReport, buildRosterReportTelegram, buildMultiTeamReport } from "@/lib/matchReport";
 import { useAuth } from "@/lib/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import {
@@ -898,6 +898,7 @@ export default function MatchDetailPage() {
               voteCounts={voteCounts}
               votingClosed={votingClosed}
               onExitMulti={() => setShowMultiSetup(false)}
+              onGetReportText={() => buildMultiTeamReport(match)}
             />
           )}
 
@@ -957,6 +958,7 @@ export default function MatchDetailPage() {
               isOwner={isOwner}
               isClosed={isClosed}
               multiTeam={match.multiTeam}
+              onGetReportText={() => buildMultiTeamReport(match)}
             />
           )}
 

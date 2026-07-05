@@ -8,6 +8,7 @@ import {
   allFixturesPlayed,
   getChampion,
   getTeamNetResult,
+  multiTeamName,
   type MultiTeam,
   type Fixture,
 } from "@/lib/domain/multiTeam";
@@ -90,7 +91,7 @@ export default function MultiTeamJoinView({
       {/* Campeón */}
       {champion && (
         <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 px-4 py-2.5 rounded-xl text-sm font-bold border border-amber-200">
-          <Trophy size={16} className="text-amber-500" /> Campeón: {champion.name}
+          <Trophy size={16} className="text-amber-500" /> Campeón: {multiTeamName(champion.color)}
         </div>
       )}
 

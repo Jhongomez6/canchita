@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2, Check, ChevronUp, ChevronDown } from "lucide-react";
 import { TEAM_COLOR_CONFIG, type TeamColor } from "@/lib/domain/team-colors";
-import type { MultiTeam, Fixture } from "@/lib/domain/multiTeam";
+import { multiTeamName, type MultiTeam, type Fixture } from "@/lib/domain/multiTeam";
 
 interface FixtureListProps {
   teams: MultiTeam[];
@@ -129,7 +129,7 @@ function FixtureRow({
 
       {/* Home */}
       <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-        <span className="font-bold text-slate-700 text-sm truncate text-right">{home?.name ?? fixture.home}</span>
+        <span className="font-bold text-slate-700 text-sm truncate text-right">{home ? multiTeamName(home.color) : fixture.home}</span>
         <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfgH.dot}`} />
       </div>
 
@@ -145,7 +145,7 @@ function FixtureRow({
           onChange={(e) => setH(e.target.value)}
           onBlur={commit}
           className="w-11 text-center text-base font-black text-slate-800 bg-slate-50 border border-slate-200 rounded-lg py-1.5 disabled:bg-transparent disabled:border-transparent tabular-nums"
-          aria-label={`Goles ${home?.name ?? fixture.home}`}
+          aria-label={`Goles ${home ? multiTeamName(home.color) : fixture.home}`}
         />
         <span className="text-slate-300 font-bold text-sm">-</span>
         <input
@@ -158,14 +158,14 @@ function FixtureRow({
           onChange={(e) => setA(e.target.value)}
           onBlur={commit}
           className="w-11 text-center text-base font-black text-slate-800 bg-slate-50 border border-slate-200 rounded-lg py-1.5 disabled:bg-transparent disabled:border-transparent tabular-nums"
-          aria-label={`Goles ${away?.name ?? fixture.away}`}
+          aria-label={`Goles ${away ? multiTeamName(away.color) : fixture.away}`}
         />
       </div>
 
       {/* Away */}
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfgA.dot}`} />
-        <span className="font-bold text-slate-700 text-sm truncate">{away?.name ?? fixture.away}</span>
+        <span className="font-bold text-slate-700 text-sm truncate">{away ? multiTeamName(away.color) : fixture.away}</span>
       </div>
 
       {/* Status */}

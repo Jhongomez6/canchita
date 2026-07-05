@@ -20,13 +20,15 @@ import {
   getChampion,
   getMultiTeamQuality,
   validTeamCounts,
+  multiTeamName,
   type MultiTeam,
   type MultiTeamTournament,
 } from "@/lib/domain/multiTeam";
 import { TEAM_COLOR_CONFIG, type TeamColor } from "@/lib/domain/team-colors";
-import { saveMultiTeams, confirmMultiTeams, updateMultiTeamRoster } from "@/lib/matches";
+import { saveMultiTeams, confirmMultiTeams, updateMultiTeamRoster, updateMultiTeamColor } from "@/lib/matches";
 import { handleError } from "@/lib/utils/error";
 import MultiTeamGrid from "./MultiTeamGrid";
+import ShareReportButtons from "./ShareReportButtons";
 
 interface MultiTeamsTabProps {
   matchId: string;
@@ -40,6 +42,8 @@ interface MultiTeamsTabProps {
   votingClosed: boolean;
   /** Volver al modo clásico (solo disponible antes de guardar equipos multi). */
   onExitMulti: () => void;
+  /** Genera el reporte (equipos + fixtures) para compartir. */
+  onGetReportText: () => string;
 }
 
 const cleanObject = <T,>(obj: T): T => JSON.parse(JSON.stringify(obj));
@@ -56,6 +60,7 @@ export default function MultiTeamsTab({
   voteCounts,
   votingClosed,
   onExitMulti,
+  onGetReportText,
 }: MultiTeamsTabProps) {
   const options = validTeamCounts(confirmedCount);
   const [numTeams, setNumTeams] = useState<number>(options[0] ?? 3);
@@ -246,7 +251,23 @@ export default function MultiTeamsTab({
         currentMVPs={currentMVPs}
         voteCounts={voteCounts}
         votingClosed={votingClosed}
+        onColorChange={
+          isOwner && !isClosed
+            ? async (teamId, color) => {
+                try {
+                  await updateMultiTeamColor(matchId, teamId, color);
+                } catch (err) {
+                  handleError(err, "No se pudo cambiar el color");
+                }
+              }
+            : undefined
+        }
       />
+
+      {/* Compartir equipos + fixtures */}
+      {isOwner && (
+        <ShareReportButtons getText={onGetReportText} />
+      )}
 
       {saving && (
         <div className="flex items-center gap-2 text-xs text-slate-400 px-1">
@@ -286,7 +307,7 @@ export default function MultiTeamsTab({
           {champion ? (
             <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 px-4 py-2.5 rounded-xl text-sm font-bold border border-amber-200">
               <Trophy size={16} className="text-amber-500" />
-              Campeón: {champion.name}
+              Campeón: {multiTeamName(champion.color)}
             </div>
           ) : (
             isOwner && !isClosed && (

@@ -154,7 +154,7 @@ describe("balanceIntoTeams — minimiza el rango de nivel", () => {
     it("colores y nombres por defecto asignados", () => {
         const { teams } = balanceIntoTeams(roster(4), 4, fixed(4));
         expect(teams.map((t) => t.id)).toEqual(["T1", "T2", "T3", "T4"]);
-        expect(teams.map((t) => t.name)).toEqual(["Equipo 1", "Equipo 2", "Equipo 3", "Equipo 4"]);
+        expect(teams.map((t) => t.name)).toEqual(["Equipo Rojo", "Equipo Azul", "Equipo Verde", "Equipo Naranja"]);
         expect(teams.map((t) => t.color)).toEqual(["red", "blue", "green", "orange"]);
     });
 });

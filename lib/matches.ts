@@ -42,6 +42,7 @@ import {
   getMultiTeamQuality,
   validateFixtureScore,
 } from "./domain/multiTeam";
+import { TEAM_COLOR_CONFIG, type TeamColor } from "./domain/team-colors";
 import { MatchFullError, BusinessError, ValidationError } from "./domain/errors";
 import { canManageLocation, canCreatePublicMatch } from "./domain/user";
 import {
@@ -912,6 +913,31 @@ export async function updateMultiTeamRoster(matchId: string, teams: MultiTeam[])
     const data = snap.data();
     if (!data.multiTeam?.teams) throw new BusinessError("No hay equipos multi");
     if (data.status !== "open") throw new BusinessError("El partido no está abierto");
+    transaction.update(ref, { "multiTeam.teams": teams });
+  });
+}
+
+/**
+ * Cambia el color (y por ende el nombre) de un equipo multi. El color = el peto real
+ * que usarán en cancha. Valida que el color no esté tomado por otro equipo.
+ */
+export async function updateMultiTeamColor(matchId: string, teamId: string, color: TeamColor) {
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    const tournament = data.multiTeam as MultiTeamTournament | undefined;
+    if (!tournament?.teams?.length) throw new BusinessError("No hay equipos multi");
+    if (data.status !== "open") throw new BusinessError("El partido no está abierto");
+    if (tournament.teams.some((t) => t.id !== teamId && t.color === color)) {
+      throw new BusinessError("Ese color ya está en uso por otro equipo");
+    }
+    const teams = tournament.teams.map((t) =>
+      t.id === teamId
+        ? { ...t, color, name: `Equipo ${TEAM_COLOR_CONFIG[color].label}` }
+        : t,
+    );
     transaction.update(ref, { "multiTeam.teams": teams });
   });
 }
