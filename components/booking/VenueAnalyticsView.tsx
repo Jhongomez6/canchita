@@ -292,21 +292,24 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
 // Sub-componentes
 // ========================
 
-interface DeltaInfo { text: string; good: boolean; flat: boolean; }
+// La flecha refleja la DIRECCIÓN real del número (subió/bajó); el color refleja si
+// ese cambio es BUENO (verde) o MALO (rojo). Se desacoplan a propósito: para métricas
+// de semáforo invertido (Inasistencias), bajar es bueno → flecha ↓ + verde.
+interface DeltaInfo { text: string; good: boolean; flat: boolean; direction: "up" | "down" | "flat"; }
 
 function pctDelta(deltaPct: number | null, positiveIsGood: boolean): DeltaInfo {
-    if (deltaPct === null) return { text: "—", good: true, flat: true };
+    if (deltaPct === null) return { text: "—", good: true, flat: true, direction: "flat" };
     const rounded = Math.round(deltaPct);
-    if (rounded === 0) return { text: "0%", good: true, flat: true };
+    if (rounded === 0) return { text: "0%", good: true, flat: true, direction: "flat" };
     const up = rounded > 0;
-    return { text: `${Math.abs(rounded)}%`, good: up === positiveIsGood, flat: false };
+    return { text: `${up ? "+" : "-"}${Math.abs(rounded)}%`, good: up === positiveIsGood, flat: false, direction: up ? "up" : "down" };
 }
 
 function ppDelta(cur: number, prev: number, positiveIsGood: boolean): DeltaInfo {
     const points = Math.round((cur - prev) * 100);
-    if (points === 0) return { text: "0pp", good: true, flat: true };
+    if (points === 0) return { text: "0pp", good: true, flat: true, direction: "flat" };
     const up = points > 0;
-    return { text: `${Math.abs(points)}pp`, good: up === positiveIsGood, flat: false };
+    return { text: `${up ? "+" : "-"}${Math.abs(points)}pp`, good: up === positiveIsGood, flat: false, direction: up ? "up" : "down" };
 }
 
 const TONES: Record<string, string> = {
@@ -319,7 +322,7 @@ const TONES: Record<string, string> = {
 function KpiCard({ icon, tone, label, value, delta }: {
     icon: React.ReactNode; tone: keyof typeof TONES; label: string; value: string; delta: DeltaInfo;
 }) {
-    const Arrow = delta.flat ? Minus : delta.good ? TrendingUp : TrendingDown;
+    const Arrow = delta.direction === "flat" ? Minus : delta.direction === "up" ? TrendingUp : TrendingDown;
     const deltaColor = delta.flat ? "text-slate-400" : delta.good ? "text-emerald-600" : "text-rose-500";
     return (
         <motion.div
