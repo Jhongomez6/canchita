@@ -48,6 +48,7 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState("");
   const [pendingApps, setPendingApps] = useState(0);
   const [reviewedMatchIds, setReviewedMatchIds] = useState<Set<string>>(new Set());
+  const [reviewedIdsLoaded, setReviewedIdsLoaded] = useState(false);
   const [dismissedMatchIds, setDismissedMatchIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -73,7 +74,8 @@ export default function Home() {
     let cancelled = false;
     getMyReviewedMatchIds(user.uid)
       .then((ids) => { if (!cancelled) setReviewedMatchIds(ids); })
-      .catch(() => { /* best-effort, sin filtro si falla */ });
+      .catch(() => { /* best-effort, sin filtro si falla */ })
+      .finally(() => { if (!cancelled) setReviewedIdsLoaded(true); });
     return () => { cancelled = true; };
   }, [user]);
 
@@ -143,7 +145,9 @@ export default function Home() {
 
   // Primer partido cerrado elegible para mostrar el banner de review:
   // dentro de ventana de 2d, sin review enviado, y no descartado localmente.
-  const pendingReviewMatch = user
+  // Se espera a que carguen los matchIds ya calificados para no mostrar el
+  // banner en un flash antes de saber si el usuario ya calificó (bug de parpadeo).
+  const pendingReviewMatch = user && reviewedIdsLoaded
     ? closedMatches.find((m) => {
         if (!m.id || !m.closedAt) return false;
         if (isReviewWindowExpired(m.closedAt)) return false;
