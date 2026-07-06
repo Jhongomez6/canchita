@@ -252,8 +252,18 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                 />
                             </div>
 
-                            {/* Tendencia */}
+                            {/* Tendencia + desglose por método */}
                             <Card title="Ingresos" sub={metrics.trend.granularity === "day" ? "por día" : "por semana"}>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <MethodStat
+                                        label="Efectivo" tone="emerald"
+                                        amount={metrics.revenue.cashCOP} total={metrics.revenue.totalCOP}
+                                    />
+                                    <MethodStat
+                                        label="Transferencia" tone="blue"
+                                        amount={metrics.revenue.transferCOP} total={metrics.revenue.totalCOP}
+                                    />
+                                </div>
                                 <RevenueTrendChart buckets={metrics.trend.buckets} />
                             </Card>
 
@@ -338,6 +348,24 @@ function KpiCard({ icon, tone, label, value, delta }: {
             <span className="text-[11.5px] font-semibold text-slate-500">{label}</span>
             <span className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">{value}</span>
         </motion.div>
+    );
+}
+
+function MethodStat({ label, tone, amount, total }: {
+    label: string; tone: "emerald" | "blue"; amount: number; total: number;
+}) {
+    const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
+    const styles = tone === "emerald"
+        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+        : "bg-blue-50 text-blue-700 border-blue-100";
+    return (
+        <div className={`rounded-xl border p-2.5 ${styles}`}>
+            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide opacity-80">
+                <span>{label}</span>
+                <span className="tabular-nums">{pct}%</span>
+            </div>
+            <div className="text-base font-bold tabular-nums mt-0.5">{formatCOP(amount)}</div>
+        </div>
     );
 }
 

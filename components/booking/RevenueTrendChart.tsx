@@ -24,20 +24,35 @@ export default function RevenueTrendChart({ buckets }: RevenueTrendChartProps) {
         );
     }
 
+    // Con muchos buckets (ej. un mes en vista diaria) las barras quedan diminutas en el
+    // cel: se les da ancho mínimo y el contenedor scrollea horizontal.
+    const many = buckets.length > 12;
+
     return (
-        <div className="flex items-end gap-2 h-32 pt-1" role="img" aria-label="Tendencia de ingresos">
+        <div
+            className={`flex items-end gap-2 h-32 pt-1 ${
+                many ? "overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : ""
+            }`}
+            role="img"
+            aria-label="Tendencia de ingresos"
+        >
             {buckets.map((b, i) => {
                 const pct = Math.round((b.totalCOP / max) * 100);
                 const isPeak = i === peakIdx && b.totalCOP > 0;
                 return (
-                    <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1.5 h-full min-w-0">
+                    <div
+                        key={i}
+                        className={`flex flex-col items-center justify-end gap-1.5 h-full ${
+                            many ? "shrink-0 w-[22px]" : "flex-1 min-w-0"
+                        }`}
+                    >
                         <motion.div
                             initial={{ scaleY: 0 }}
                             animate={{ scaleY: 1 }}
-                            transition={{ duration: 0.5, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }}
+                            transition={{ duration: 0.5, delay: i * 0.03, ease: [0.22, 1, 0.36, 1] }}
                             style={{ height: `${Math.max(pct, 2)}%`, transformOrigin: "bottom" }}
-                            title={formatCOP(b.totalCOP)}
-                            className={`w-full max-w-[34px] rounded-t-md ${
+                            title={`${b.label}: ${formatCOP(b.totalCOP)}`}
+                            className={`w-full ${many ? "" : "max-w-[34px]"} rounded-t-md ${
                                 isPeak
                                     ? "bg-gradient-to-b from-[#2f9d67] to-[#155e3c]"
                                     : "bg-gradient-to-b from-[#34b47a] to-[#1f7a4f]"
