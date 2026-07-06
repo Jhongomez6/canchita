@@ -17,6 +17,7 @@ import {
     computeRevenueSummary, expandReservationInstances,
     computeOccupancyHeatmap, computeOverallOccupancy, computeStatusRates,
     revenueByCourt, revenueByFormat, revenueByWeekday, compare,
+    computeClientStats, rankClients, listNoShows, listCancellations,
     DAY_SHORT_LABELS,
     type AnalyticsPeriodPreset, type AnalyticsPeriod, type OccupancyCell,
 } from "@/lib/domain/venue-analytics";
@@ -26,6 +27,8 @@ import {
 import type { Court, CourtCombo, DaySchedule, BlockedSlot, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
 import OccupancyHeatmap from "./OccupancyHeatmap";
 import RevenueBreakdownList from "./RevenueBreakdownList";
+import ClientRankList from "./ClientRankList";
+import ReservationDetailList from "./ReservationDetailList";
 import VenueAnalyticsSkeleton from "@/components/skeletons/VenueAnalyticsSkeleton";
 
 interface VenueAnalyticsViewProps {
@@ -129,9 +132,21 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
         const byFormat = revenueByFormat(curPayments, courts, combos, venueFormats);
         const byWeekday = revenueByWeekday(curPayments);
 
+        // Métricas de clientes (agrupadas por nombre).
+        const clientStats = computeClientStats(curInstances, curPayments);
+        const topByRevenue = rankClients(clientStats, "revenue", 5);
+        const topByReservations = rankClients(clientStats, "reservations", 5);
+        const topCancellations = rankClients(clientStats, "cancellations", 5);
+        const topNoShows = rankClients(clientStats, "noShows", 5);
+        const noShowDetails = listNoShows(curInstances);
+        const cancellationDetails = listCancellations(curInstances, slots);
+
         return {
+            courts,
             revenue, prevRevenue, cells, occupancy, prevOccupancy,
             rates, prevRates, byCourt, byFormat, byWeekday,
+            topByRevenue, topByReservations, topCancellations, topNoShows,
+            noShowDetails, cancellationDetails,
             revenueCmp: compare(revenue.totalCOP, prevRevenue.totalCOP),
             reservationsCmp: compare(rates.scheduled, prevRates.scheduled),
             hasData: curPayments.length > 0 || curInstances.length > 0,
@@ -296,6 +311,40 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                     No incluye mensualidades — se cobran aparte.
                                 </p>
                             </Card>
+
+                            {/* ===== Clientes ===== */}
+                            <SectionLabel>Clientes</SectionLabel>
+
+                            <Card title="Top clientes por ingresos">
+                                <ClientRankList items={metrics.topByRevenue} metric="revenue" />
+                            </Card>
+
+                            <Card title="Top clientes por reservas">
+                                <ClientRankList items={metrics.topByReservations} metric="reservations" />
+                            </Card>
+
+                            <Card title="Más cancelaciones">
+                                <ClientRankList items={metrics.topCancellations} metric="cancellations" tone="rose"
+                                    emptyLabel="Ningún cliente canceló en el período." />
+                            </Card>
+
+                            <Card title="Más inasistencias">
+                                <ClientRankList items={metrics.topNoShows} metric="noShows" tone="rose"
+                                    emptyLabel="Ningún cliente faltó en el período." />
+                            </Card>
+
+                            {/* ===== Detalles ===== */}
+                            <SectionLabel>Detalle</SectionLabel>
+
+                            <Card title="Inasistencias" sub={`${metrics.noShowDetails.length} total`}>
+                                <ReservationDetailList items={metrics.noShowDetails} courts={metrics.courts}
+                                    emptyLabel="Sin inasistencias en el período." />
+                            </Card>
+
+                            <Card title="Reservas canceladas" sub={`${metrics.cancellationDetails.length} total`}>
+                                <ReservationDetailList items={metrics.cancellationDetails} courts={metrics.courts}
+                                    emptyLabel="Sin cancelaciones en el período." />
+                            </Card>
                         </>
                     )}
                 </motion.div>
@@ -388,6 +437,15 @@ function MethodStat({ label, tone, amount, total }: {
     );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="flex items-center gap-2 pt-2 pb-0.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{children}</span>
+            <span className="flex-1 h-px bg-slate-100" />
+        </div>
+    );
+}
+
 function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
     return (
         <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
@@ -404,7 +462,7 @@ function CellDetail({ cell, onClose }: { cell: OccupancyCell; onClose: () => voi
     return (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 p-4"
+            className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] md:pb-4"
             onClick={onClose}
         >
             <motion.div

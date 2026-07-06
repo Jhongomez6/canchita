@@ -63,6 +63,8 @@ export interface ReservationInstance {
     courtIds: string[];
     status: ManualReservationStatus;
     isMonthly: boolean;
+    clientName?: string;
+    clientPhone?: string;
 }
 
 export interface OccupancyCell {
@@ -328,6 +330,8 @@ function instanceOf(slot: BlockedSlot, date: string): ReservationInstance {
         courtIds: slot.courtIds ?? [],
         status: getBlockedSlotStatus(slot, date),
         isMonthly: slot.isMonthly === true,
+        clientName: slot.clientName,
+        clientPhone: slot.clientPhone,
     };
 }
 
@@ -560,4 +564,119 @@ export function revenueByFormat(
             totalCOP,
         }))
         .sort((a, b) => b.totalCOP - a.totalCOP);
+}
+
+// ========================
+// MÉTRICAS DE CLIENTES
+// ========================
+//
+// Los clientes se agrupan **por nombre** (no existe entidad cliente). Es la única llave
+// consistente porque los pagos guardan `clientName` pero no `clientPhone`. Limitación
+// conocida: el mismo cliente escrito distinto se cuenta como dos.
+
+export interface ClientStat {
+    key: string;          // nombre normalizado (llave de agrupación)
+    name: string;         // nombre visible
+    reservations: number; // reservas mantenidas (no canceladas)
+    revenueCOP: number;   // ingreso cobrado (desde pagos)
+    cancellations: number;
+    noShows: number;
+}
+
+export interface ReservationDetail {
+    reservationId: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    courtIds: string[];
+    clientName: string;
+    reason?: string;      // solo para cancelaciones (motivo, si se registró)
+}
+
+/** Nombre visible normalizado; vacío → "Sin nombre". */
+function clientDisplayName(name: string | undefined): string {
+    return (name ?? "").trim() || "Sin nombre";
+}
+
+/**
+ * Agrega métricas por cliente (agrupado por nombre). Reservas = instancias NO canceladas;
+ * cancelaciones/inasistencias por status; ingreso desde los pagos del rango.
+ */
+export function computeClientStats(
+    instances: ReservationInstance[],
+    payments: ManualReservationPayment[],
+): ClientStat[] {
+    const map = new Map<string, ClientStat>();
+    const bucket = (name: string | undefined): ClientStat => {
+        const display = clientDisplayName(name);
+        const key = display.toLowerCase();
+        let s = map.get(key);
+        if (!s) {
+            s = { key, name: display, reservations: 0, revenueCOP: 0, cancellations: 0, noShows: 0 };
+            map.set(key, s);
+        }
+        return s;
+    };
+
+    for (const inst of instances) {
+        const s = bucket(inst.clientName);
+        if (inst.status === "cancelled") {
+            s.cancellations++;
+        } else {
+            s.reservations++;
+            if (inst.status === "no_show") s.noShows++;
+        }
+    }
+    for (const p of payments) {
+        bucket(p.clientName).revenueCOP += p.totalCOP ?? 0;
+    }
+    return [...map.values()];
+}
+
+export type ClientRankBy = "revenue" | "reservations" | "cancellations" | "noShows";
+
+/** Ordena clientes por la métrica pedida (desc), descarta los que tienen 0, y corta a `limit`. */
+export function rankClients(stats: ClientStat[], by: ClientRankBy, limit = 5): ClientStat[] {
+    const val = (s: ClientStat): number =>
+        by === "revenue" ? s.revenueCOP
+        : by === "reservations" ? s.reservations
+        : by === "cancellations" ? s.cancellations
+        : s.noShows;
+    return stats
+        .filter((s) => val(s) > 0)
+        .sort((a, b) => val(b) - val(a))
+        .slice(0, limit);
+}
+
+function toDetail(inst: ReservationInstance, reason?: string): ReservationDetail {
+    return {
+        reservationId: inst.reservationId,
+        date: inst.date,
+        startTime: inst.startTime,
+        endTime: inst.endTime,
+        courtIds: inst.courtIds,
+        clientName: clientDisplayName(inst.clientName),
+        ...(reason ? { reason } : {}),
+    };
+}
+
+function byDateThenTimeDesc(a: ReservationDetail, b: ReservationDetail): number {
+    return b.date.localeCompare(a.date) || a.startTime.localeCompare(b.startTime);
+}
+
+/** Detalle de las inasistencias (no_show) del rango, más recientes primero. */
+export function listNoShows(instances: ReservationInstance[]): ReservationDetail[] {
+    return instances
+        .filter((i) => i.status === "no_show")
+        .map((i) => toDetail(i))
+        .sort(byDateThenTimeDesc);
+}
+
+/** Detalle de reservas canceladas del rango (con motivo si existe en el slot), recientes primero. */
+export function listCancellations(instances: ReservationInstance[], slots: BlockedSlot[]): ReservationDetail[] {
+    const reasonById = new Map(slots.map((s) => [s.id, s.cancellationReason]));
+    return instances
+        .filter((i) => i.status === "cancelled")
+        .map((i) => toDetail(i, reasonById.get(i.reservationId)))
+        .sort(byDateThenTimeDesc);
 }

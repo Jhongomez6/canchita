@@ -15,6 +15,10 @@ import {
     revenueByCourt,
     revenueByFormat,
     revenueByWeekday,
+    computeClientStats,
+    rankClients,
+    listNoShows,
+    listCancellations,
     MAX_RANGE_DAYS,
     type AnalyticsPeriod,
 } from "./venue-analytics";
@@ -406,5 +410,94 @@ describe("revenueByFormat", () => {
         const legacyCourts = [court("c1", { baseFormat: "6v6" })];
         const items = revenueByFormat([payment({ courtIds: ["c1"], totalCOP: 3000 })], legacyCourts, []);
         expect(items[0].label).toBe("Cancha sencilla"); // 6v6 → sencilla
+    });
+});
+
+// ========================
+// MÉTRICAS DE CLIENTES
+// ========================
+
+describe("computeClientStats", () => {
+    const p = period("2026-07-01", "2026-07-31");
+
+    it("agrupa por nombre (case-insensitive) y combina reservas + ingreso + status", () => {
+        const instances = expandReservationInstances([
+            slot({ id: "a", date: "2026-07-05", clientName: "Juan", status: "played" }),
+            slot({ id: "b", date: "2026-07-06", clientName: "juan", status: "no_show" }),
+            slot({ id: "c", date: "2026-07-07", clientName: "Juan", status: "cancelled" }),
+            slot({ id: "d", date: "2026-07-08", clientName: "Ana", status: "paid" }),
+        ], p);
+        const payments = [
+            payment({ clientName: "Juan", totalCOP: 40000 }),
+            payment({ clientName: "Ana", totalCOP: 30000 }),
+        ];
+        const stats = computeClientStats(instances, payments);
+
+        const juan = stats.find((s) => s.name === "Juan")!;
+        expect(juan.reservations).toBe(2);   // played + no_show (cancelada NO cuenta)
+        expect(juan.noShows).toBe(1);
+        expect(juan.cancellations).toBe(1);
+        expect(juan.revenueCOP).toBe(40000);
+
+        const ana = stats.find((s) => s.name === "Ana")!;
+        expect(ana.reservations).toBe(1);
+        expect(ana.revenueCOP).toBe(30000);
+    });
+
+    it("agrupa reservas sin nombre bajo 'Sin nombre'", () => {
+        const instances = expandReservationInstances([slot({ date: "2026-07-05", clientName: undefined })], p);
+        const stats = computeClientStats(instances, []);
+        expect(stats[0].name).toBe("Sin nombre");
+    });
+});
+
+describe("rankClients", () => {
+    const stats = [
+        { key: "a", name: "A", reservations: 5, revenueCOP: 10000, cancellations: 1, noShows: 3 },
+        { key: "b", name: "B", reservations: 2, revenueCOP: 90000, cancellations: 4, noShows: 0 },
+        { key: "c", name: "C", reservations: 0, revenueCOP: 0, cancellations: 0, noShows: 0 },
+    ];
+
+    it("ordena por ingreso desc y descarta ceros", () => {
+        const r = rankClients(stats, "revenue");
+        expect(r.map((s) => s.name)).toEqual(["B", "A"]); // C descartado (0)
+    });
+
+    it("ordena por reservas desc", () => {
+        expect(rankClients(stats, "reservations").map((s) => s.name)).toEqual(["A", "B"]);
+    });
+
+    it("ordena por cancelaciones desc", () => {
+        expect(rankClients(stats, "cancellations").map((s) => s.name)).toEqual(["B", "A"]);
+    });
+
+    it("ordena por inasistencias desc y respeta el límite", () => {
+        expect(rankClients(stats, "noShows", 1).map((s) => s.name)).toEqual(["A"]);
+    });
+});
+
+describe("listNoShows / listCancellations", () => {
+    const p = period("2026-07-01", "2026-07-31");
+
+    it("lista inasistencias ordenadas por fecha desc", () => {
+        const instances = expandReservationInstances([
+            slot({ id: "a", date: "2026-07-05", clientName: "Ana", status: "no_show" }),
+            slot({ id: "b", date: "2026-07-20", clientName: "Beto", status: "no_show" }),
+            slot({ id: "c", date: "2026-07-10", clientName: "Cid", status: "played" }),
+        ], p);
+        const rows = listNoShows(instances);
+        expect(rows.map((r) => r.date)).toEqual(["2026-07-20", "2026-07-05"]);
+        expect(rows[0].clientName).toBe("Beto");
+    });
+
+    it("lista cancelaciones con motivo del slot", () => {
+        const slots = [
+            slot({ id: "a", date: "2026-07-05", clientName: "Ana", status: "cancelled", cancellationReason: "Lluvia" }),
+        ];
+        const instances = expandReservationInstances(slots, p);
+        const rows = listCancellations(instances, slots);
+        expect(rows).toHaveLength(1);
+        expect(rows[0].reason).toBe("Lluvia");
+        expect(rows[0].clientName).toBe("Ana");
     });
 });
