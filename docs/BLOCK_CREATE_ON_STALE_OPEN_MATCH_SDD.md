@@ -240,7 +240,7 @@ export class StaleOpenMatchError extends BusinessError {
 - [ ] Si el usuario ignora el banner y fuerza el submit, `createMatch()` lanza `StaleOpenMatchError` y se muestra toast en español.
 - [ ] Si la verificación falla por red (offline), la creación **no** se bloquea (fail-open).
 - [ ] El evento `match_create_blocked` se registra una vez con `match_id` y `days_stale` al mostrarse el banner.
-- [ ] Existe el índice compuesto `matches (createdBy, status)` en `firestore.indexes.json`.
+- [ ] La query de verificación corre sin pedir índice (dos igualdades, servida index-free).
 - [ ] Funciones de dominio (`isStaleOpenMatch`, `findStaleOpenMatch`, `daysSinceMatch`) con tests unitarios.
 
 ---
@@ -256,7 +256,7 @@ export class StaleOpenMatchError extends BusinessError {
 | `components/StaleMatchBanner.tsx` | Nuevo componente de banner bloqueante |
 | `app/new-match/page.tsx` | Consumir hook, render banner, deshabilitar form, capturar error en submit |
 | `lib/analytics.ts` | + `logMatchCreateBlocked(matchId, daysStale)` |
-| `firestore.indexes.json` | + índice compuesto `(createdBy, status)` para `matches` |
+| `firestore.indexes.json` | Sin cambios (query de 2 igualdades servida index-free) |
 | `firestore.rules` | Sin cambios (restricción no expresable en rules — documentado) |
 
 ---
