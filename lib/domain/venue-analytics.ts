@@ -54,16 +54,6 @@ export interface PeriodComparison {
     deltaPct: number | null;
 }
 
-export interface RevenueBucket {
-    label: string;
-    totalCOP: number;
-}
-
-export interface RevenueTrend {
-    granularity: "day" | "week";
-    buckets: RevenueBucket[];
-}
-
 export interface ReservationInstance {
     reservationId: string;
     date: string; // YYYY-MM-DD (instancia expandida)
@@ -106,6 +96,11 @@ export const HEATMAP_DAY_ORDER: number[] = [1, 2, 3, 4, 5, 6, 0];
 /** Etiquetas cortas por día (indexadas por JS getDay). */
 export const DAY_SHORT_LABELS: Record<number, string> = {
     0: "Dom", 1: "Lun", 2: "Mar", 3: "Mié", 4: "Jue", 5: "Vie", 6: "Sáb",
+};
+
+/** Etiquetas completas por día (indexadas por JS getDay). */
+export const DAY_FULL_LABELS: Record<number, string> = {
+    0: "Domingo", 1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado",
 };
 
 const DOW_TO_JS: Record<DayOfWeek, number> = {
@@ -291,45 +286,6 @@ export function computeRevenueSummary(payments: ManualReservationPayment[]): Rev
         paymentsCount: count,
         avgTicketCOP: count > 0 ? Math.round(total / count) : 0,
     };
-}
-
-/**
- * Tendencia de ingresos: por día si el rango es <= 31 días, por semana (lunes) si es mayor.
- */
-export function bucketRevenue(payments: ManualReservationPayment[], period: AnalyticsPeriod): RevenueTrend {
-    const len = rangeLengthDays(period.start, period.end);
-    return len <= 31
-        ? { granularity: "day", buckets: bucketByDay(payments, period) }
-        : { granularity: "week", buckets: bucketByWeek(payments, period) };
-}
-
-function bucketByDay(payments: ManualReservationPayment[], period: AnalyticsPeriod): RevenueBucket[] {
-    const byDate = new Map<string, number>();
-    for (const p of payments) byDate.set(p.date, (byDate.get(p.date) ?? 0) + (p.totalCOP ?? 0));
-    return datesInRange(period.start, period.end).map((d) => ({
-        label: String(parseLocalDate(d).getDate()),
-        totalCOP: byDate.get(d) ?? 0,
-    }));
-}
-
-function bucketByWeek(payments: ManualReservationPayment[], period: AnalyticsPeriod): RevenueBucket[] {
-    // Agrupa por lunes de la semana de cada pago.
-    const byWeek = new Map<string, number>();
-    for (const p of payments) {
-        if (p.date < period.start || p.date > period.end) continue;
-        const wk = toISODate(mondayOf(parseLocalDate(p.date)));
-        byWeek.set(wk, (byWeek.get(wk) ?? 0) + (p.totalCOP ?? 0));
-    }
-    // Construye buckets ordenados por cada lunes contenido en el rango.
-    const buckets: RevenueBucket[] = [];
-    let cursor = toISODate(mondayOf(parseLocalDate(period.start)));
-    let n = 1;
-    while (cursor <= period.end) {
-        buckets.push({ label: `Sem ${n}`, totalCOP: byWeek.get(cursor) ?? 0 });
-        cursor = addDays(cursor, 7);
-        n++;
-    }
-    return buckets;
 }
 
 // ========================
@@ -538,6 +494,24 @@ export function revenueByCourt(payments: ManualReservationPayment[], courts: Cou
             totalCOP,
         }))
         .sort((a, b) => b.totalCOP - a.totalCOP);
+}
+
+/**
+ * Ingreso por día de la semana (Lun→Dom). Suma el `totalCOP` de cada pago según el día
+ * de su fecha. Devuelve los 7 días en orden (incluye días en 0) para mostrar la forma de
+ * la semana — responde "¿qué días me dan la plata?".
+ */
+export function revenueByWeekday(payments: ManualReservationPayment[]): BreakdownItem[] {
+    const byDow = new Map<number, number>();
+    for (const p of payments) {
+        const dow = parseLocalDate(p.date).getDay();
+        byDow.set(dow, (byDow.get(dow) ?? 0) + (p.totalCOP ?? 0));
+    }
+    return HEATMAP_DAY_ORDER.map((dow) => ({
+        key: String(dow),
+        label: DAY_FULL_LABELS[dow],
+        totalCOP: byDow.get(dow) ?? 0,
+    }));
 }
 
 function sameSet(a: string[], b: string[]): boolean {

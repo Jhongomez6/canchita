@@ -2,7 +2,7 @@
 
 ## 📋 Specification-Driven Development (SDD)
 
-Darle al dueño/administrador de una sede una vista histórica de su negocio — ocupación por franja horaria, tendencia de ingresos, ingreso por cancha y por formato, y tasas de inasistencia/cancelación — reutilizando los datos que ya captura el sistema, sin ningún flujo de escritura nuevo.
+Darle al dueño/administrador de una sede una vista histórica de su negocio — ocupación por franja horaria, ingreso por día de la semana, por cancha y por formato, y tasas de inasistencia/cancelación — reutilizando los datos que ya captura el sistema, sin ningún flujo de escritura nuevo.
 
 ---
 
@@ -33,6 +33,7 @@ Está detrás de un **feature flag por usuario** (`venueAnalyticsEnabled`), sigu
 | RN-06 | La **ocupación** se mide como `horas-cancha reservadas / horas-cancha disponibles`. **Disponibles** = por cada hora abierta en el schedule, `nº de canchas activas` horas-cancha. **Reservadas** = por instancia, `courtIds.length × duración`, **distribuido por bucket de hora** (una reserva 18:00–20:00 aporta a las horas 18 y 19). Solo cuentan instancias **no canceladas**. **En V1 la ocupación cuenta solo reservas manuales** (el uso real del `location_admin`); los bookings online se excluyen (ver Decisión Clave #3). | Heatmap + KPI "% ocupación" |
 | RN-06b | **Bordes de ocupación**: (a) una reserva fuera del horario del schedule (bloqueo manual antes de abrir) generaría rate >100% → **la celda se capa a 100%** pero la reserva se cuenta. (b) Las reservas de **mensualidad (`isMonthly`)** ocupan cancha → **cuentan en ocupación**, pero **no en ingresos** (están excluidas del flujo de pagos, RN-04). La sección de ingresos muestra un microcopy: "No incluye mensualidades". | Celda capada; nota en ingresos |
 | RN-07 | El **heatmap** agrupa por **día de la semana (7) × hora del día**. Cada celda = ocupación promedio de esa franja en el rango. La intensidad del color codifica el %. Tap en celda → detalle de esa franja (reservas y % en un popover). | Grid 7×N con escala de color |
+| RN-07b | En vez de una serie temporal (que para una cancha es ruido de día de semana), la card de Ingresos muestra **"Ingreso por día de la semana"** (Lun→Dom, agregado sobre el rango) que responde directo "¿qué días me dan la plata?" — más accionable para precios/promos. | Breakdown por weekday en la card de Ingresos |
 | RN-08 | Las reservas **recurrentes** (`recurrence`) se **expanden a instancias** por fecha dentro del rango, respetando `exceptDates` (instancias saltadas) y `statusOverrides[fecha]` (estado por instancia). Una reserva recurrente sin fin (`endDate` ausente) se expande solo hasta el fin del rango consultado. | Transparente al usuario |
 | RN-08b | **Semántica de recurrencia**: `daily` = cada día; `weekly` = cada 7 días desde `startDate`; `biweekly` = **cada 14 días** desde `startDate`; `monthly` = **mismo número de día del mes** que `startDate` — si un mes no tiene ese día (ej. inicio el 31, febrero), esa instancia **se salta** (no se corre a otro día). Todas acotadas por `[startDate, endDate?]` y el rango consultado. | Transparente al usuario |
 | RN-09 | Las **tasas** se calculan sobre instancias en el rango: `noShowRate = no_show / (jugables)` y `cancellationRate = cancelled / (total agendadas)`. "Jugables" excluye `cancelled`. Se muestran como % con el conteo crudo. **Wording en UI (español, simple)**: la tasa de `no_show` se muestra como **"Inasistencias"** (consistente con el badge existente "No asistió"); la de `cancelled` como **"Cancelaciones"**. El término técnico "no-show" **nunca** aparece en pantalla. | KPIs de calidad operativa |
@@ -172,7 +173,7 @@ El flag `venueAnalyticsEnabled` vive en el doc del usuario (`users/{uid}`). Lo a
 4. Ve, de arriba hacia abajo:
    - **Selector de período** (chips: Esta semana · Este mes · Mes pasado · Personalizado).
    - **Fila de KPIs** con comparativo vs. período anterior: Ingresos totales, % Ocupación, Nº reservas, **Inasistencias** (label visible; % de reservas donde el cliente no llegó — nunca se usa el término "no-show" en la UI).
-   - **Tendencia de ingresos**: barras por día (rango ≤ 31 días) o por semana (rango mayor).
+   - **Ingreso por día de la semana** (Lun→Dom) dentro de la card de Ingresos.
    - **Heatmap de ocupación**: día de la semana × hora, con leyenda de color.
    - **Ingreso por cancha** (lista rankeada con barra proporcional).
    - **Ingreso por formato** (lista rankeada).
@@ -242,10 +243,7 @@ El flag `venueAnalyticsEnabled` vive en el doc del usuario (`users/{uid}`). Lo a
   }
   ```
 
-- **`components/booking/RevenueTrendChart.tsx`** — barras verticales (por día o semana). SVG/divs inline, **sin librería externa** (consistente con el proyecto, evita bundle). Props:
-  ```typescript
-  { buckets: { label: string; totalCOP: number }[] }
-  ```
+- El **ingreso por día de la semana** se renderiza con `RevenueBreakdownList` (misma lista rankeada, en orden Lun→Dom). No hay componente de gráfico de tendencia — se descartó por ser ruido de día de semana para una cancha.
 
 - **`components/booking/OccupancyHeatmap.tsx`** — grid día-semana × hora. Props:
   ```typescript
@@ -277,7 +275,7 @@ El flag `venueAnalyticsEnabled` vive en el doc del usuario (`users/{uid}`). Lo a
 
 - **KPI cards**: stagger `0.05s` al primer mount; el número hace count-up sutil (~0.3s) al cambiar de período.
 - **Delta badge**: `AnimatePresence` fade cuando cambia de signo.
-- **Barras de tendencia**: crecen desde 0 con `height`/`scaleY` spring (`damping: 24, stiffness: 300`) al cargar; `layout` para reordenar suave al cambiar buckets.
+- **Barras de los breakdowns** (por día de semana / cancha / formato): crecen con transición de `width` al cargar.
 - **Heatmap**: fade-in de celdas con stagger leve por fila; el popover de detalle entra como spring (mobile: slide-up bottom sheet; desktop: pop cerca de la celda).
 - **Cambio de período**: crossfade del contenido (`AnimatePresence mode="wait"`) para no parpadear.
 
@@ -392,8 +390,7 @@ export function previousPeriodOf(period: AnalyticsPeriod): AnalyticsPeriod;
 
 // Ingresos desde pagos.
 export function computeRevenueSummary(payments: ManualReservationPayment[]): RevenueSummary;
-export function bucketRevenueByDay(payments: ManualReservationPayment[], period: AnalyticsPeriod): { label: string; totalCOP: number }[];
-export function bucketRevenueByWeek(payments: ManualReservationPayment[], period: AnalyticsPeriod): { label: string; totalCOP: number }[];
+export function revenueByWeekday(payments: ManualReservationPayment[]): BreakdownItem[]; // Lun→Dom (incluye días en 0)
 
 // Expansión de reservas recurrentes/puntuales a instancias en el rango.
 // Recurrencia (RN-08b): daily / weekly(7d) / biweekly(14d desde startDate) /
@@ -483,7 +480,6 @@ Listados en sección 7. **Sin páginas nuevas** — solo un tab dentro de `/venu
 | `components/booking/VenueAnalyticsView.tsx` | **Nuevo** — orquestador del tab |
 | `components/booking/AnalyticsPeriodSelector.tsx` | **Nuevo** — selector de período |
 | `components/booking/AnalyticsKpiCard.tsx` | **Nuevo** — KPI con comparativo |
-| `components/booking/RevenueTrendChart.tsx` | **Nuevo** — barras de tendencia (inline, sin lib) |
 | `components/booking/OccupancyHeatmap.tsx` | **Nuevo** — heatmap día×hora |
 | `components/booking/RevenueBreakdownList.tsx` | **Nuevo** — lista rankeada reutilizable |
 | `components/skeletons/VenueAnalyticsSkeleton.tsx` | **Nuevo** — skeleton del tab |

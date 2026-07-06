@@ -7,7 +7,6 @@ import {
     datesInRange,
     compare,
     computeRevenueSummary,
-    bucketRevenue,
     expandReservationInstances,
     computeOpenSlots,
     computeOccupancyHeatmap,
@@ -15,6 +14,7 @@ import {
     computeStatusRates,
     revenueByCourt,
     revenueByFormat,
+    revenueByWeekday,
     MAX_RANGE_DAYS,
     type AnalyticsPeriod,
 } from "./venue-analytics";
@@ -192,20 +192,21 @@ describe("computeRevenueSummary", () => {
     });
 });
 
-describe("bucketRevenue", () => {
-    it("usa granularidad diaria para rangos <= 31 días", () => {
-        const p = period("2026-07-01", "2026-07-03");
-        const t = bucketRevenue([payment({ date: "2026-07-02", totalCOP: 5000 })], p);
-        expect(t.granularity).toBe("day");
-        expect(t.buckets).toHaveLength(3);
-        expect(t.buckets[1]).toEqual({ label: "2", totalCOP: 5000 });
-    });
-
-    it("usa granularidad semanal para rangos > 31 días", () => {
-        const p = period("2026-06-01", "2026-07-31");
-        const t = bucketRevenue([payment({ date: "2026-06-03", totalCOP: 9000 })], p);
-        expect(t.granularity).toBe("week");
-        expect(t.buckets.reduce((s, b) => s + b.totalCOP, 0)).toBe(9000);
+describe("revenueByWeekday", () => {
+    it("agrupa ingresos por día de la semana en orden Lun→Dom", () => {
+        const items = revenueByWeekday([
+            payment({ date: "2026-07-03", totalCOP: 8000 }), // viernes
+            payment({ date: "2026-07-04", totalCOP: 5000 }), // sábado
+            payment({ date: "2026-07-03", totalCOP: 2000 }), // viernes de nuevo
+        ]);
+        expect(items).toHaveLength(7);
+        expect(items[0].label).toBe("Lunes");
+        expect(items[6].label).toBe("Domingo");
+        const byLabel = Object.fromEntries(items.map((i) => [i.label, i.totalCOP]));
+        expect(byLabel["Viernes"]).toBe(10000);
+        expect(byLabel["Sábado"]).toBe(5000);
+        expect(byLabel["Lunes"]).toBe(0);
+        expect(items.reduce((s, i) => s + i.totalCOP, 0)).toBe(15000);
     });
 });
 

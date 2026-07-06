@@ -14,9 +14,9 @@ import { createCachedQueryHook } from "@/lib/hooks/createCachedQueryHook";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
     resolvePeriod, previousPeriodOf, clampCustomRange, rangeLengthDays,
-    computeRevenueSummary, bucketRevenue, expandReservationInstances,
+    computeRevenueSummary, expandReservationInstances,
     computeOccupancyHeatmap, computeOverallOccupancy, computeStatusRates,
-    revenueByCourt, revenueByFormat, compare,
+    revenueByCourt, revenueByFormat, revenueByWeekday, compare,
     DAY_SHORT_LABELS,
     type AnalyticsPeriodPreset, type AnalyticsPeriod, type OccupancyCell,
 } from "@/lib/domain/venue-analytics";
@@ -25,7 +25,6 @@ import {
 } from "@/lib/analytics";
 import type { Court, CourtCombo, DaySchedule, BlockedSlot, ManualReservationPayment } from "@/lib/domain/venue";
 import OccupancyHeatmap from "./OccupancyHeatmap";
-import RevenueTrendChart from "./RevenueTrendChart";
 import RevenueBreakdownList from "./RevenueBreakdownList";
 import VenueAnalyticsSkeleton from "@/components/skeletons/VenueAnalyticsSkeleton";
 
@@ -116,7 +115,6 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
 
         const revenue = computeRevenueSummary(curPayments);
         const prevRevenue = computeRevenueSummary(prvPayments);
-        const trend = bucketRevenue(curPayments, period);
 
         const cells = computeOccupancyHeatmap(curInstances, schedules, courts, period);
         const prevCells = computeOccupancyHeatmap(prvInstances, schedules, courts, prevPeriod);
@@ -128,10 +126,11 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
 
         const byCourt = revenueByCourt(curPayments, courts);
         const byFormat = revenueByFormat(curPayments, courts, combos);
+        const byWeekday = revenueByWeekday(curPayments);
 
         return {
-            revenue, prevRevenue, trend, cells, occupancy, prevOccupancy,
-            rates, prevRates, byCourt, byFormat,
+            revenue, prevRevenue, cells, occupancy, prevOccupancy,
+            rates, prevRates, byCourt, byFormat, byWeekday,
             revenueCmp: compare(revenue.totalCOP, prevRevenue.totalCOP),
             reservationsCmp: compare(rates.scheduled, prevRates.scheduled),
             hasData: curPayments.length > 0 || curInstances.length > 0,
@@ -253,13 +252,12 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                         amount={metrics.revenue.transferCOP} total={metrics.revenue.totalCOP} />
                                 </div>
 
-                                <div className="flex items-baseline justify-between pt-1">
-                                    <span className="text-[11.5px] font-semibold text-slate-400">Tendencia</span>
-                                    <span className="text-[11.5px] text-slate-400">
-                                        {metrics.trend.granularity === "day" ? "por día" : "por semana"}
+                                <div className="pt-1">
+                                    <span className="text-[11.5px] font-semibold text-slate-400">
+                                        Ingreso por día de la semana
                                     </span>
                                 </div>
-                                <RevenueTrendChart buckets={metrics.trend.buckets} />
+                                <RevenueBreakdownList items={metrics.byWeekday} tone="green" />
                             </div>
 
                             {/* Otras métricas */}
