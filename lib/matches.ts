@@ -34,7 +34,7 @@ import { getUserProfile } from "./users";
 import { Timestamp } from "firebase/firestore";
 import type { Player, Position } from "./domain/player";
 import type { Match } from "./domain/match";
-import { getConfirmedCount } from "./domain/match";
+import { getConfirmedCount, findStaleOpenMatch } from "./domain/match";
 import type { MultiTeamTournament, MultiTeam } from "./domain/multiTeam";
 import {
   generateFixtures,
@@ -45,7 +45,7 @@ import {
   validateFixtureScore,
 } from "./domain/multiTeam";
 import { TEAM_COLOR_CONFIG, type TeamColor } from "./domain/team-colors";
-import { MatchFullError, BusinessError, ValidationError } from "./domain/errors";
+import { MatchFullError, BusinessError, ValidationError, StaleOpenMatchError } from "./domain/errors";
 import { canManageLocation, canCreatePublicMatch } from "./domain/user";
 import {
   logMatchCreated,
@@ -88,6 +88,29 @@ function assignToSmallestTeam(
 }
 
 /* =========================
+   PARTIDO ABIERTO VENCIDO (STALE) DEL CREADOR
+========================= */
+/**
+ * Devuelve el partido `open` MÁS ANTIGUO creado por `uid` cuya fecha de juego
+ * pasó hace más de `STALE_OPEN_MATCH_DAYS` días, o `null` si no hay ninguno.
+ *
+ * Usado como guard para bloquear la creación de partidos nuevos y como fuente
+ * del banner en `/new-match`. La query trae solo partidos `open` del creador
+ * (set diminuto); el filtro de antigüedad se hace en dominio (`findStaleOpenMatch`).
+ * Requiere índice compuesto `matches (createdBy, status)`.
+ */
+export async function getStaleOpenMatchForCreator(uid: string): Promise<Match | null> {
+  const staleQ = query(
+    matchesRef,
+    where("createdBy", "==", uid),
+    where("status", "==", "open"),
+  );
+  const snap = await withTimeout(getDocs(staleQ));
+  const matches = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Match, "id">) }));
+  return findStaleOpenMatch(matches, new Date());
+}
+
+/* =========================
    CREAR PARTIDO
 ========================= */
 export async function createMatch(match: {
@@ -120,6 +143,17 @@ export async function createMatch(match: {
   // Validate match visibility permissions
   if (!match.isPrivate && !canCreatePublicMatch(profile)) {
     throw new Error("No tienes permisos para crear partidos públicos.");
+  }
+
+  // Guard: bloquea crear si el usuario tiene un partido open vencido (>7d) sin cerrar.
+  // Fail-open: si la verificación falla por infraestructura (offline/timeout) no
+  // bloqueamos al usuario; solo re-lanzamos el error de negocio.
+  try {
+    const staleMatch = await getStaleOpenMatchForCreator(match.createdBy);
+    if (staleMatch) throw new StaleOpenMatchError();
+  } catch (e) {
+    if (e instanceof StaleOpenMatchError) throw e;
+    console.warn("[createMatch] verificación de partido vencido falló, se permite crear:", e);
   }
 
   const startsAt = new Date(`${match.date}T${match.time}:00-05:00`);

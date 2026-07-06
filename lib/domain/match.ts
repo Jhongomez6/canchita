@@ -225,6 +225,68 @@ export function getMatchFormat(maxPlayers: number): string {
 }
 
 // ========================
+// PARTIDO ABIERTO VENCIDO (STALE)
+// ========================
+
+/**
+ * Días tras la fecha de juego para considerar un partido `open` como
+ * "vencido sin cerrar". Un partido open cuya fecha pasó hace más de este
+ * umbral bloquea la creación de un partido nuevo por parte de su creador.
+ */
+export const STALE_OPEN_MATCH_DAYS = 7;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Epoch (ms) de la fecha/hora de juego del partido.
+ * Usa `startsAt` (Firestore Timestamp) y cae a `date + time` (zona Colombia
+ * -05:00) para partidos antiguos guardados sin `startsAt`.
+ */
+export function getMatchStartMs(match: Pick<Match, "startsAt" | "date" | "time">): number {
+    if (match.startsAt?.seconds != null) {
+        return match.startsAt.seconds * 1000;
+    }
+    return new Date(`${match.date}T${match.time}:00-05:00`).getTime();
+}
+
+/**
+ * true si el partido está `open` y su fecha de juego pasó hace más de
+ * `STALE_OPEN_MATCH_DAYS` días respecto a `now`. Pura y testeable.
+ */
+export function isStaleOpenMatch(
+    match: Pick<Match, "status" | "startsAt" | "date" | "time">,
+    now: Date
+): boolean {
+    if (match.status !== "open") return false;
+    const cutoff = now.getTime() - STALE_OPEN_MATCH_DAYS * DAY_MS;
+    return getMatchStartMs(match) < cutoff;
+}
+
+/**
+ * Devuelve el partido stale MÁS ANTIGUO de la lista (por fecha de juego),
+ * o `null` si ninguno está vencido. Pura y testeable.
+ */
+export function findStaleOpenMatch(matches: Match[], now: Date): Match | null {
+    const stale = matches.filter((m) => isStaleOpenMatch(m, now));
+    if (stale.length === 0) return null;
+    return stale.reduce((oldest, m) =>
+        getMatchStartMs(m) < getMatchStartMs(oldest) ? m : oldest
+    );
+}
+
+/**
+ * Días completos transcurridos desde la fecha de juego (para el copy del banner).
+ * No negativo: un partido futuro devuelve 0.
+ */
+export function daysSinceMatch(
+    match: Pick<Match, "startsAt" | "date" | "time">,
+    now: Date
+): number {
+    const diffMs = now.getTime() - getMatchStartMs(match);
+    return Math.max(0, Math.floor(diffMs / DAY_MS));
+}
+
+// ========================
 // MATCH TIMELINE
 // ========================
 

@@ -52,6 +52,13 @@ export class DuplicatePlayerError extends BusinessError {
     }
 }
 
+export class StaleOpenMatchError extends BusinessError {
+    constructor() {
+        super("Tienes un partido sin cerrar de hace más de una semana. Ciérralo antes de crear uno nuevo.");
+        this.name = "StaleOpenMatchError";
+    }
+}
+
 // ========================
 // ERRORES DE INVITADO
 // ========================

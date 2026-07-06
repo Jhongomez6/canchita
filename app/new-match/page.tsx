@@ -13,6 +13,9 @@ import type { Location } from "@/lib/domain/location";
 import type { MatchDuration } from "@/lib/domain/match";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import { useStaleOpenMatch } from "@/lib/hooks/useStaleOpenMatch";
+import { daysSinceMatch } from "@/lib/domain/match";
+import StaleMatchBanner from "@/components/StaleMatchBanner";
 import {
   Plus,
   Calendar,
@@ -45,6 +48,7 @@ export default function NewMatchPage() {
   const [depositAmount, setDepositAmount] = useState(DEFAULT_DEPOSIT_COP);
 
   const [submitting, setSubmitting] = useState(false);
+  const { staleMatch, loading: checkingStale } = useStaleOpenMatch(user?.uid);
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationId, setLocationId] = useState("");
   const [locationSearch, setLocationSearch] = useState("");
@@ -71,6 +75,10 @@ export default function NewMatchPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    if (staleMatch) {
+      toast.error("Cierra tu partido pendiente antes de crear uno nuevo");
+      return;
+    }
     const selectedLocation = locations.find(l => l.id === locationId);
     if (!selectedLocation) return;
 
@@ -185,6 +193,11 @@ export default function NewMatchPage() {
               <div className="bg-red-50 text-red-600 p-5 rounded-2xl border border-red-100 shadow-sm text-center font-medium">
                 No tienes permisos para crear partidos.
               </div>
+            ) : staleMatch ? (
+              <StaleMatchBanner
+                match={staleMatch}
+                daysStale={daysSinceMatch(staleMatch, new Date())}
+              />
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
 
@@ -528,8 +541,8 @@ export default function NewMatchPage() {
                 {/* BOTÓN CREAR */}
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting
+                  disabled={submitting || checkingStale}
+                  className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] ${submitting || checkingStale
                     ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
                     : "bg-[#1f7a4f] text-white hover:bg-[#16603c] hover:shadow-xl"
                     }`}
@@ -538,6 +551,11 @@ export default function NewMatchPage() {
                     <span className="flex items-center justify-center gap-2">
                       <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                       Creando partido...
+                    </span>
+                  ) : checkingStale ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-slate-400/40 border-t-slate-500 rounded-full animate-spin" />
+                      Verificando...
                     </span>
                   ) : "Crear Partido"}
                 </button>

@@ -152,6 +152,10 @@ export async function logMatchCreated(matchId: string) {
   await trackEvent("match_created", { match_id: matchId });
 }
 
+export async function logMatchCreateBlocked(matchId: string, daysStale: number) {
+  await trackEvent("match_create_blocked", { match_id: matchId, days_stale: daysStale });
+}
+
 export async function logTeamsBalanced(
   matchId: string,
   quality?: { levelDiff: number; positionImbalance: number; candidatesEvaluated: number },
