@@ -17,6 +17,9 @@ interface CancelManualReservationSheetProps {
     venueId: string;
     slot: BlockedSlot;
     targetDate: string;
+    /** Si el admin actual es super admin. Solo super admins ven la opción
+     *  "Toda la recurrencia (eliminar)" (scope "all" = hard-delete del doc). */
+    isSuper?: boolean;
 }
 
 function fmt12h(time: string): string {
@@ -40,8 +43,11 @@ export default function CancelManualReservationSheet({
     venueId,
     slot,
     targetDate,
+    isSuper = false,
 }: CancelManualReservationSheetProps) {
     const isRecurring = !!slot.recurrence;
+    // "all" (eliminar toda la recurrencia) es un hard-delete: solo super admin.
+    const scopeOptions = (isSuper ? ["single", "future", "all"] : ["single", "future"]) as CancelManualReservationScope[];
 
     const [reason, setReason] = useState("");
     const [scope, setScope] = useState<CancelManualReservationScope>(
@@ -143,8 +149,9 @@ export default function CancelManualReservationSheet({
                             {isRecurring && !confirmingAll && (
                                 <div className="space-y-2">
                                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">¿Qué cancelar?</p>
-                                    {(["single", "future", "all"] as const).map((s) => {
-                                        const labels: Record<typeof s, string> = {
+                                    {scopeOptions.map((s) => {
+                                        const labels: Record<CancelManualReservationScope, string> = {
+                                            non_recurring: "Cancelar reserva",
                                             single: "Solo este día",
                                             future: "Este día y los siguientes",
                                             all: "Toda la recurrencia (eliminar)",

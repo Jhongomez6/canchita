@@ -31,6 +31,9 @@ interface AdminBlockCardProps {
     block: BlockedSlot;
     courts: Court[];
     targetDate: string;
+    /** Si el admin actual es super admin. Solo super admins pueden hard-delete una
+     *  reserva cancelada no-recurrente (abrir DeleteBlockedSlotSheet en modo "oneoff"). */
+    isSuper?: boolean;
     onClick?: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceStatus?: (block: BlockedSlot, targetDate: string) => void;
     onPickStatus?: (block: BlockedSlot, newStatus: ManualReservationStatus, targetDate: string) => void;
@@ -52,6 +55,7 @@ export default function AdminBlockCard({
     block,
     courts,
     targetDate,
+    isSuper = false,
     onClick,
     onAdvanceStatus,
     onPickStatus,
@@ -68,7 +72,11 @@ export default function AdminBlockCard({
     const cancelled = status === "cancelled";
     const isBirthday = !!block.isBirthday;
 
-    const clickable = !!onClick && cancelled;
+    // Una reserva cancelada abre el sheet de eliminación. El hard-delete (modo "oneoff",
+    // reservas no-recurrentes) es super-only; para recurrentes el sheet solo ofrece
+    // cancelar-una-fecha / terminar-recurrencia (conservan historial), disponible a todos.
+    // Por eso un location admin solo puede abrirlo si la reserva es recurrente.
+    const clickable = !!onClick && cancelled && (isSuper || !!block.recurrence);
     const badge = statusBadge(status);
     const nextStatus = getNextStatus(status);
     const nextLabel = nextStatusActionLabel(status);

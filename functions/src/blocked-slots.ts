@@ -343,13 +343,21 @@ export const deleteBlockedSlot = onCall({ maxInstances: 10 }, async (request) =>
     // ── AUTORIZACIÓN ──
     const userDoc = await db.collection("users").doc(uid).get();
     const userData = userDoc.data();
-    const isAdmin = userData?.adminType === "super_admin"
+    const isSuper = userData?.adminType === "super_admin";
+    const isAdmin = isSuper
         || (userData?.adminType === "location_admin"
             && Array.isArray(userData?.assignedLocationIds)
             && userData.assignedLocationIds.includes(venueId));
 
     if (!isAdmin) {
         throw new HttpsError("permission-denied", "Solo admins pueden eliminar bloqueos");
+    }
+
+    // Hard-delete permanente (modo "oneoff" borra el doc): SOLO super admin.
+    // Los modos "instance" (cancelar una fecha) y "recurrence" (terminar serie)
+    // conservan el registro histórico y siguen disponibles para location admins.
+    if (mode === "oneoff" && !isSuper) {
+        throw new HttpsError("permission-denied", "Solo super admins pueden eliminar reservas");
     }
 
     const slotRef = db.collection("venues").doc(venueId).collection("blocked_slots").doc(blockedSlotId);

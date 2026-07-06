@@ -39,6 +39,8 @@ interface AdminBookingCalendarProps {
         existingPayment: ManualReservationPayment | null,
     ) => void;
     onCreateManual?: (date: string) => void;
+    /** Si el admin actual es super admin (habilita hard-delete de reservas manuales). */
+    isSuper?: boolean;
 }
 
 const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -69,6 +71,7 @@ export default function AdminBookingCalendar({
     onEditBlock,
     onRegisterPayment,
     onCreateManual,
+    isSuper = false,
 }: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();
@@ -326,6 +329,7 @@ export default function AdminBookingCalendar({
                                     block={row.block}
                                     courts={courts}
                                     targetDate={selectedDate}
+                                    isSuper={isSuper}
                                     onClick={onBlockClick}
                                     onAdvanceStatus={onAdvanceBlockStatus}
                                     onPickStatus={onPickBlockStatus}

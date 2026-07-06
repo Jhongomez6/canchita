@@ -18,6 +18,9 @@ interface DeleteBlockedSlotSheetProps {
     slot: BlockedSlot;
     /** Fecha de la instancia que se está viendo (relevante para recurrentes). */
     targetDate: string;
+    /** Si el admin actual es super admin. El hard-delete (modo "oneoff") es super-only;
+     *  location admins no ven el botón "Eliminar". */
+    isSuper?: boolean;
 }
 
 function fmt12h(time: string): string {
@@ -42,6 +45,7 @@ export default function DeleteBlockedSlotSheet({
     venueId,
     slot,
     targetDate,
+    isSuper = false,
 }: DeleteBlockedSlotSheetProps) {
     const [submitting, setSubmitting] = useState<DeleteBlockedSlotMode | null>(null);
     const [confirmingTerminate, setConfirmingTerminate] = useState(false);
@@ -123,7 +127,7 @@ export default function DeleteBlockedSlotSheet({
                                 </div>
                             )}
 
-                            {!isRecurring && (
+                            {!isRecurring && isSuper && (
                                 <button
                                     type="button"
                                     onClick={() => run("oneoff")}
@@ -139,6 +143,12 @@ export default function DeleteBlockedSlotSheet({
                                         "Eliminar"
                                     )}
                                 </button>
+                            )}
+
+                            {!isRecurring && !isSuper && (
+                                <p className="text-xs text-slate-500 text-center py-2">
+                                    Solo un super admin puede eliminar permanentemente esta reserva.
+                                </p>
                             )}
 
                             {isRecurring && !confirmingTerminate && (

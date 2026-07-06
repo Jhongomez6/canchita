@@ -293,8 +293,13 @@ service cloud.firestore {
       // Sub-colección: blocked_slots
       match /blocked_slots/{slotId} {
         allow read: if request.auth != null;
-        allow write: if request.auth != null
+        // Crear / actualizar (incluye cancelar → status "cancelled"): super o location admin.
+        allow create, update: if request.auth != null
           && (isSuperAdmin() || isLocationAdminFor(venueId));
+        // Hard-delete permanente: SOLO super admin. Location admin cancela (update status),
+        // nunca borra el registro. Cubre el deleteDoc client-side de cancelManualReservation
+        // scope "all". El Cloud Function deleteBlockedSlot usa Admin SDK y refuerza el rol en código.
+        allow delete: if request.auth != null && isSuperAdmin();
       }
 
       // Sub-colección: payments — pagos de reservas manuales

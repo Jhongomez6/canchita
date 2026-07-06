@@ -1036,6 +1036,7 @@ function VenueAdminContent() {
                                 <AdminBookingCalendar
                                     venueId={venueId}
                                     venueFormats={venueFormats}
+                                    isSuper={isSuper}
                                     onBookingCancel={(booking) => {
                                         logBookingCancellationStarted({
                                             venueId: booking.venueId,
@@ -1179,6 +1180,7 @@ function VenueAdminContent() {
                     venueFormats={venueFormats}
                     relevantCourtIds={hourDetail?.relevantCourtIds ?? []}
                     unavailableRelevantCourtIds={hourDetail?.unavailableRelevantCourtIds ?? []}
+                    isSuper={isSuper}
                     onBookingCancel={(booking) => {
                         logBookingCancellationStarted({
                             venueId,
@@ -1261,6 +1263,7 @@ function VenueAdminContent() {
                         venueId={venueId}
                         slot={cancelManualTarget.slot}
                         targetDate={cancelManualTarget.targetDate}
+                        isSuper={isSuper}
                     />
                 )}
 
@@ -1360,6 +1363,7 @@ function VenueAdminContent() {
                         venueId={venueId}
                         slot={deleteTarget.slot}
                         targetDate={deleteTarget.targetDate}
+                        isSuper={isSuper}
                     />
                 )}
 

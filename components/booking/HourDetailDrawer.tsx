@@ -56,6 +56,8 @@ interface HourDetailDrawerProps {
         targetDate: string,
         existingPayment: ManualReservationPayment | null,
     ) => void;
+    /** Si el admin actual es super admin (habilita hard-delete de reservas manuales). */
+    isSuper?: boolean;
 }
 
 export default function HourDetailDrawer({
@@ -82,6 +84,7 @@ export default function HourDetailDrawer({
     onRegisterPayment,
     relevantCourtIds,
     unavailableRelevantCourtIds,
+    isSuper = false,
 }: HourDetailDrawerProps) {
     // Map<reservationId, payment> para el `date` actual del drawer.
     // Lookup O(1) cuando renderizamos cada card.
@@ -204,6 +207,7 @@ export default function HourDetailDrawer({
                                                         block={b}
                                                         courts={courts}
                                                         targetDate={date}
+                                                        isSuper={isSuper}
                                                         onClick={onBlockClick}
                                                         onAdvanceStatus={onAdvanceBlockStatus}
                                                         onPickStatus={onPickBlockStatus}
