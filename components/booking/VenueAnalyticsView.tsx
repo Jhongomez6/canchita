@@ -19,7 +19,7 @@ import {
     revenueByCourt, revenueByFormat, revenueByWeekday, compare,
     computeClientStats, rankClients, listNoShows, listCancellations,
     DAY_SHORT_LABELS,
-    type AnalyticsPeriodPreset, type AnalyticsPeriod, type OccupancyCell,
+    type AnalyticsPeriodPreset, type AnalyticsPeriod, type OccupancyCell, type ReservationDetail,
 } from "@/lib/domain/venue-analytics";
 import {
     logVenueAnalyticsViewed, logVenueAnalyticsPeriodChanged, logVenueAnalyticsHeatmapCellTapped,
@@ -29,6 +29,7 @@ import OccupancyHeatmap from "./OccupancyHeatmap";
 import RevenueBreakdownList from "./RevenueBreakdownList";
 import ClientRankList from "./ClientRankList";
 import ReservationDetailList from "./ReservationDetailList";
+import ReservationDetailSheet from "./ReservationDetailSheet";
 import VenueAnalyticsSkeleton from "@/components/skeletons/VenueAnalyticsSkeleton";
 
 interface VenueAnalyticsViewProps {
@@ -87,6 +88,7 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
     const [customStart, setCustomStart] = useState<string>("");
     const [customEnd, setCustomEnd] = useState<string>("");
     const [detailCell, setDetailCell] = useState<OccupancyCell | null>(null);
+    const [detailSheet, setDetailSheet] = useState<{ title: string; items: ReservationDetail[] } | null>(null);
 
     const period: AnalyticsPeriod = useMemo(
         () => resolvePeriod(preset, now, preset === "custom" && customStart && customEnd
@@ -337,13 +339,15 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                             <SectionLabel>Detalle</SectionLabel>
 
                             <Card title="Inasistencias" sub={`${metrics.noShowDetails.length} total`}>
-                                <ReservationDetailList items={metrics.noShowDetails} courts={metrics.courts}
-                                    emptyLabel="Sin inasistencias en el período." />
+                                <ReservationDetailList items={metrics.noShowDetails} courts={metrics.courts} maxRows={6}
+                                    emptyLabel="Sin inasistencias en el período."
+                                    onSeeAll={() => setDetailSheet({ title: "Inasistencias", items: metrics.noShowDetails })} />
                             </Card>
 
                             <Card title="Reservas canceladas" sub={`${metrics.cancellationDetails.length} total`}>
-                                <ReservationDetailList items={metrics.cancellationDetails} courts={metrics.courts}
-                                    emptyLabel="Sin cancelaciones en el período." />
+                                <ReservationDetailList items={metrics.cancellationDetails} courts={metrics.courts} maxRows={6}
+                                    emptyLabel="Sin cancelaciones en el período."
+                                    onSeeAll={() => setDetailSheet({ title: "Reservas canceladas", items: metrics.cancellationDetails })} />
                             </Card>
                         </>
                     )}
@@ -354,6 +358,18 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
             <AnimatePresence>
                 {detailCell && (
                     <CellDetail cell={detailCell} onClose={() => setDetailCell(null)} />
+                )}
+            </AnimatePresence>
+
+            {/* Historial completo de inasistencias / cancelaciones */}
+            <AnimatePresence>
+                {detailSheet && metrics && (
+                    <ReservationDetailSheet
+                        title={detailSheet.title}
+                        items={detailSheet.items}
+                        courts={metrics.courts}
+                        onClose={() => setDetailSheet(null)}
+                    />
                 )}
             </AnimatePresence>
         </div>

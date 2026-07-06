@@ -8,9 +8,11 @@ import type { Court } from "@/lib/domain/venue";
 interface ReservationDetailListProps {
     items: ReservationDetail[];
     courts: Court[];
-    /** Máximo de filas a mostrar antes de "+N más". */
+    /** Máximo de filas a mostrar antes de truncar. */
     maxRows?: number;
     emptyLabel?: string;
+    /** Si se pasa y la lista está truncada, muestra "Ver todas (N)" en vez de "+N más". */
+    onSeeAll?: () => void;
 }
 
 /**
@@ -18,7 +20,7 @@ interface ReservationDetailListProps {
  * motivo (si aplica). Ref: docs/VENUE_ANALYTICS_DASHBOARD_SDD.md
  */
 export default function ReservationDetailList({
-    items, courts, maxRows = 10, emptyLabel = "Sin registros en este período.",
+    items, courts, maxRows = 10, emptyLabel = "Sin registros en este período.", onSeeAll,
 }: ReservationDetailListProps) {
     if (items.length === 0) {
         return <p className="text-sm text-slate-400 text-center py-4">{emptyLabel}</p>;
@@ -61,9 +63,16 @@ export default function ReservationDetailList({
                 </div>
             ))}
             {rest > 0 && (
-                <p className="text-[11.5px] text-slate-400 text-center pt-1">
-                    y {rest} {rest === 1 ? "más" : "más"}…
-                </p>
+                onSeeAll ? (
+                    <button
+                        onClick={onSeeAll}
+                        className="w-full text-center text-[12.5px] font-semibold text-[#1f7a4f] py-1.5 active:scale-[0.99] transition-transform"
+                    >
+                        Ver todas ({items.length})
+                    </button>
+                ) : (
+                    <p className="text-[11.5px] text-slate-400 text-center pt-1">y {rest} más…</p>
+                )
             )}
         </div>
     );
