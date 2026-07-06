@@ -130,11 +130,34 @@ describe("clampCustomRange", () => {
 });
 
 describe("previousPeriodOf", () => {
-    it("devuelve un rango de igual duración inmediatamente anterior", () => {
-        const prev = previousPeriodOf(period("2026-07-01", "2026-07-04")); // 4 días
+    it("custom: rango de igual duración inmediatamente anterior", () => {
+        const prev = previousPeriodOf(period("2026-07-01", "2026-07-04")); // preset custom, 4 días
         expect(prev.start).toBe("2026-06-27");
         expect(prev.end).toBe("2026-06-30");
         expect(rangeLengthDays(prev.start, prev.end)).toBe(4);
+    });
+
+    it("this_week: misma ventana corrida 7 días atrás", () => {
+        const prev = previousPeriodOf({ preset: "this_week", start: "2026-06-29", end: "2026-07-05" });
+        expect(prev).toMatchObject({ start: "2026-06-22", end: "2026-06-28" });
+    });
+
+    it("this_month: mismo tramo del mes anterior", () => {
+        const p = resolvePeriod("this_month", new Date("2026-07-05T12:00:00")); // 1–5 jul
+        const prev = previousPeriodOf(p);
+        expect(prev).toMatchObject({ start: "2026-06-01", end: "2026-06-05" });
+    });
+
+    it("this_month: clampa el día final si el mes anterior es más corto", () => {
+        const p = resolvePeriod("this_month", new Date("2026-07-31T12:00:00")); // 1–31 jul
+        const prev = previousPeriodOf(p);
+        expect(prev).toMatchObject({ start: "2026-06-01", end: "2026-06-30" }); // junio no tiene 31
+    });
+
+    it("last_month: mes calendario completo anterior", () => {
+        const p = resolvePeriod("last_month", new Date("2026-07-05T12:00:00")); // junio completo
+        const prev = previousPeriodOf(p);
+        expect(prev).toMatchObject({ start: "2026-05-01", end: "2026-05-31" }); // mayo completo
     });
 });
 

@@ -212,12 +212,53 @@ export function resolvePeriod(
     }
 }
 
-/** Período inmediatamente anterior, de igual duración (para el comparativo). */
+/**
+ * Período de comparación (calendario contra calendario según el preset):
+ * - this_week:  la misma ventana corrida 7 días atrás (mismos días de la semana pasada).
+ * - this_month: el mismo tramo del mes anterior (día 1 → mismo día, clamp a fin de mes).
+ * - last_month: el mes calendario completo anterior al del período.
+ * - custom:     ventana de igual duración inmediatamente anterior (no hay mapeo calendario).
+ */
 export function previousPeriodOf(period: AnalyticsPeriod): AnalyticsPeriod {
-    const len = rangeLengthDays(period.start, period.end);
-    const prevEnd = addDays(period.start, -1);
-    const prevStart = addDays(prevEnd, -(len - 1));
-    return { preset: period.preset, start: prevStart, end: prevEnd };
+    switch (period.preset) {
+        case "this_week":
+            return {
+                preset: period.preset,
+                start: addDays(period.start, -7),
+                end: addDays(period.end, -7),
+            };
+
+        case "this_month": {
+            const startD = parseLocalDate(period.start);
+            const endDay = parseLocalDate(period.end).getDate();
+            const py = startD.getFullYear();
+            const pm = startD.getMonth() - 1; // JS maneja overflow negativo (ene → dic año previo)
+            const lastDayPrev = new Date(py, pm + 1, 0, 12).getDate();
+            return {
+                preset: period.preset,
+                start: toISODate(new Date(py, pm, 1, 12)),
+                end: toISODate(new Date(py, pm, Math.min(endDay, lastDayPrev), 12)),
+            };
+        }
+
+        case "last_month": {
+            const startD = parseLocalDate(period.start);
+            const py = startD.getFullYear();
+            const pm = startD.getMonth() - 1; // el mes anterior al mes del período
+            return {
+                preset: period.preset,
+                start: toISODate(new Date(py, pm, 1, 12)),
+                end: toISODate(new Date(py, pm + 1, 0, 12)), // último día de ese mes
+            };
+        }
+
+        case "custom":
+        default: {
+            const len = rangeLengthDays(period.start, period.end);
+            const prevEnd = addDays(period.start, -1);
+            return { preset: period.preset, start: addDays(prevEnd, -(len - 1)), end: prevEnd };
+        }
+    }
 }
 
 // ========================
