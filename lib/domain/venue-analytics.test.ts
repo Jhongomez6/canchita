@@ -26,6 +26,7 @@ import type {
     ManualReservationPayment,
     ManualReservationStatus,
     BlockedSlotRecurrence,
+    VenueFormat,
 } from "./venue";
 
 // ========================
@@ -378,22 +379,32 @@ describe("revenueByCourt", () => {
 });
 
 describe("revenueByFormat", () => {
-    const courts = [court("c1", { baseFormat: "6v6" }), court("c2", { baseFormat: "6v6" })];
+    const courts = [court("c1", { baseFormat: "f6" }), court("c2", { baseFormat: "f6" })];
     const combos: CourtCombo[] = [
-        { id: "combo1", name: "Grande", courtIds: ["c1", "c2"], resultingFormat: "11v11", active: true },
+        { id: "combo1", name: "Grande", courtIds: ["c1", "c2"], resultingFormat: "f11", active: true },
+    ];
+    const venueFormats: VenueFormat[] = [
+        { id: "f6", sport: "football", label: "Fútbol 6", playersPerTeam: 6 },
+        { id: "f11", sport: "football", label: "Fútbol 11", playersPerTeam: 11 },
     ];
 
-    it("infiere formato: cancha única, combo exacto y mixto — suma == total", () => {
+    it("infiere formato y resuelve el label del catálogo — suma == total", () => {
         const items = revenueByFormat([
-            payment({ courtIds: ["c1"], totalCOP: 2000 }),          // 6v6
-            payment({ courtIds: ["c1", "c2"], totalCOP: 5000 }),    // combo → 11v11
+            payment({ courtIds: ["c1"], totalCOP: 2000 }),          // f6 → "Fútbol 6"
+            payment({ courtIds: ["c1", "c2"], totalCOP: 5000 }),    // combo → f11 → "Fútbol 11"
             payment({ courtIds: ["c1", "c99"], totalCOP: 1000 }),   // no combo → Mixto/Otro
-        ], courts, combos);
+        ], courts, combos, venueFormats);
 
         const byKey = Object.fromEntries(items.map((i) => [i.label, i.totalCOP]));
-        expect(byKey["6v6"]).toBe(2000);
-        expect(byKey["11v11"]).toBe(5000);
+        expect(byKey["Fútbol 6"]).toBe(2000);
+        expect(byKey["Fútbol 11"]).toBe(5000);
         expect(byKey["Mixto / Otro"]).toBe(1000);
         expect(items.reduce((s, i) => s + i.totalCOP, 0)).toBe(8000);
+    });
+
+    it("sin catálogo, mapea el legacy 'XvX' a la jerarquía de canchas", () => {
+        const legacyCourts = [court("c1", { baseFormat: "6v6" })];
+        const items = revenueByFormat([payment({ courtIds: ["c1"], totalCOP: 3000 })], legacyCourts, []);
+        expect(items[0].label).toBe("Cancha sencilla"); // 6v6 → sencilla
     });
 });

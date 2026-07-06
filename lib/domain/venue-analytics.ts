@@ -23,8 +23,9 @@ import type {
     DayOfWeek,
     ManualReservationPayment,
     ManualReservationStatus,
+    VenueFormat,
 } from "./venue";
-import { getBlockedSlotStatus } from "./venue";
+import { getBlockedSlotStatus, formatLabel } from "./venue";
 import { doesRecurrenceApplyToDate } from "./blocked-slots";
 
 // ========================
@@ -531,6 +532,7 @@ export function revenueByFormat(
     payments: ManualReservationPayment[],
     courts: Court[],
     combos: CourtCombo[],
+    venueFormats: VenueFormat[] = [],
 ): BreakdownItem[] {
     const baseFormatById = new Map(courts.map((c) => [c.id, c.baseFormat]));
     const byFormat = new Map<string, number>();
@@ -552,7 +554,9 @@ export function revenueByFormat(
     return [...byFormat.entries()]
         .map(([key, totalCOP]) => ({
             key,
-            label: key === MIXED_FORMAT_KEY ? "Mixto / Otro" : key,
+            // Resuelve el id/legacy del formato a su label visible (mismo helper que el resto
+            // de la app): catálogo VenueFormat de la sede, o fallback "Cancha sencilla/doble/triple".
+            label: key === MIXED_FORMAT_KEY ? "Mixto / Otro" : formatLabel(key, venueFormats),
             totalCOP,
         }))
         .sort((a, b) => b.totalCOP - a.totalCOP);

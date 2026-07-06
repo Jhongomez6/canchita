@@ -7,7 +7,7 @@ import {
     TrendingUp, TrendingDown, Minus, RefreshCw, BarChart3, X,
 } from "lucide-react";
 import {
-    getVenueCourts, getVenueCombos, getVenueFullSchedule,
+    getVenue, getVenueCourts, getVenueCombos, getVenueFullSchedule,
     getPaymentsInRange, getBlockedSlotsForRange,
 } from "@/lib/venues";
 import { createCachedQueryHook } from "@/lib/hooks/createCachedQueryHook";
@@ -23,7 +23,7 @@ import {
 import {
     logVenueAnalyticsViewed, logVenueAnalyticsPeriodChanged, logVenueAnalyticsHeatmapCellTapped,
 } from "@/lib/analytics";
-import type { Court, CourtCombo, DaySchedule, BlockedSlot, ManualReservationPayment } from "@/lib/domain/venue";
+import type { Court, CourtCombo, DaySchedule, BlockedSlot, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
 import OccupancyHeatmap from "./OccupancyHeatmap";
 import RevenueBreakdownList from "./RevenueBreakdownList";
 import VenueAnalyticsSkeleton from "@/components/skeletons/VenueAnalyticsSkeleton";
@@ -36,6 +36,7 @@ interface VenueConfig {
     courts: Court[];
     combos: CourtCombo[];
     schedules: DaySchedule[];
+    venueFormats: VenueFormat[];
 }
 
 interface RangeData {
@@ -46,10 +47,10 @@ interface RangeData {
 // Config casi estática de la sede: se cachea aparte y se refresca al volver a `visible`.
 const useVenueConfig = createCachedQueryHook<string, VenueConfig>(
     async (venueId) => {
-        const [courts, combos, schedules] = await Promise.all([
-            getVenueCourts(venueId), getVenueCombos(venueId), getVenueFullSchedule(venueId),
+        const [venue, courts, combos, schedules] = await Promise.all([
+            getVenue(venueId), getVenueCourts(venueId), getVenueCombos(venueId), getVenueFullSchedule(venueId),
         ]);
-        return { courts, combos, schedules };
+        return { courts, combos, schedules, venueFormats: venue?.formats ?? [] };
     },
     (venueId) => (venueId ? `venue_analytics_config_${venueId}` : null),
     { source: "venue_analytics_config", staleMs: 5 * 60_000 },
@@ -102,7 +103,7 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
 
     const metrics = useMemo(() => {
         if (!config.data || !range.data) return null;
-        const { courts, combos, schedules } = config.data;
+        const { courts, combos, schedules, venueFormats } = config.data;
         const { payments, slots } = range.data;
 
         const inPeriod = (d: string) => d >= period.start && d <= period.end;
@@ -125,7 +126,7 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
         const prevRates = computeStatusRates(prvInstances);
 
         const byCourt = revenueByCourt(curPayments, courts);
-        const byFormat = revenueByFormat(curPayments, courts, combos);
+        const byFormat = revenueByFormat(curPayments, courts, combos, venueFormats);
         const byWeekday = revenueByWeekday(curPayments);
 
         return {
