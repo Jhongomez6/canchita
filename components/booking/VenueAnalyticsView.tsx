@@ -228,13 +228,42 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                         </div>
                     ) : (
                         <>
-                            {/* KPIs */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                                <KpiCard
-                                    icon={<DollarSign className="w-4 h-4" />} tone="rev"
-                                    label="Ingresos cobrados" value={formatCOP(metrics.revenue.totalCOP)}
-                                    delta={pctDelta(metrics.revenueCmp.deltaPct, true)}
-                                />
+                            {/* Ingresos cobrados — card protagonista: total + comparativo +
+                                desglose por método + tendencia, todo lo de plata en un solo lugar. */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <div className="flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-500">
+                                            <span className="w-6 h-6 rounded-lg grid place-items-center bg-emerald-50 text-emerald-600">
+                                                <DollarSign className="w-3.5 h-3.5" />
+                                            </span>
+                                            Ingresos cobrados
+                                        </div>
+                                        <div className="text-2xl font-bold text-slate-900 tabular-nums tracking-tight mt-1.5">
+                                            {formatCOP(metrics.revenue.totalCOP)}
+                                        </div>
+                                    </div>
+                                    <DeltaBadge delta={pctDelta(metrics.revenueCmp.deltaPct, true)} />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    <MethodStat label="Efectivo" tone="emerald"
+                                        amount={metrics.revenue.cashCOP} total={metrics.revenue.totalCOP} />
+                                    <MethodStat label="Transferencia" tone="blue"
+                                        amount={metrics.revenue.transferCOP} total={metrics.revenue.totalCOP} />
+                                </div>
+
+                                <div className="flex items-baseline justify-between pt-1">
+                                    <span className="text-[11.5px] font-semibold text-slate-400">Tendencia</span>
+                                    <span className="text-[11.5px] text-slate-400">
+                                        {metrics.trend.granularity === "day" ? "por día" : "por semana"}
+                                    </span>
+                                </div>
+                                <RevenueTrendChart buckets={metrics.trend.buckets} />
+                            </div>
+
+                            {/* Otras métricas */}
+                            <div className="grid grid-cols-3 gap-2.5">
                                 <KpiCard
                                     icon={<LayoutGrid className="w-4 h-4" />} tone="occ"
                                     label="Ocupación" value={`${Math.round(metrics.occupancy * 100)}%`}
@@ -251,21 +280,6 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                     delta={ppDelta(metrics.rates.noShowRate, metrics.prevRates.noShowRate, false)}
                                 />
                             </div>
-
-                            {/* Tendencia + desglose por método */}
-                            <Card title="Ingresos" sub={metrics.trend.granularity === "day" ? "por día" : "por semana"}>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <MethodStat
-                                        label="Efectivo" tone="emerald"
-                                        amount={metrics.revenue.cashCOP} total={metrics.revenue.totalCOP}
-                                    />
-                                    <MethodStat
-                                        label="Transferencia" tone="blue"
-                                        amount={metrics.revenue.transferCOP} total={metrics.revenue.totalCOP}
-                                    />
-                                </div>
-                                <RevenueTrendChart buckets={metrics.trend.buckets} />
-                            </Card>
 
                             {/* Heatmap */}
                             <Card title="Ocupación por franja" sub="día × hora">
@@ -329,11 +343,19 @@ const TONES: Record<string, string> = {
     ns: "bg-rose-50 text-rose-500",
 };
 
+function DeltaBadge({ delta }: { delta: DeltaInfo }) {
+    const Arrow = delta.direction === "flat" ? Minus : delta.direction === "up" ? TrendingUp : TrendingDown;
+    const color = delta.flat ? "text-slate-400" : delta.good ? "text-emerald-600" : "text-rose-500";
+    return (
+        <span className={`text-[11px] font-bold inline-flex items-center gap-0.5 shrink-0 ${color}`}>
+            <Arrow className="w-3 h-3" /> {delta.text}
+        </span>
+    );
+}
+
 function KpiCard({ icon, tone, label, value, delta }: {
     icon: React.ReactNode; tone: keyof typeof TONES; label: string; value: string; delta: DeltaInfo;
 }) {
-    const Arrow = delta.direction === "flat" ? Minus : delta.direction === "up" ? TrendingUp : TrendingDown;
-    const deltaColor = delta.flat ? "text-slate-400" : delta.good ? "text-emerald-600" : "text-rose-500";
     return (
         <motion.div
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
@@ -341,11 +363,9 @@ function KpiCard({ icon, tone, label, value, delta }: {
         >
             <div className="flex items-center justify-between">
                 <span className={`w-7 h-7 rounded-lg grid place-items-center ${TONES[tone]}`}>{icon}</span>
-                <span className={`text-[11px] font-bold inline-flex items-center gap-0.5 ${deltaColor}`}>
-                    <Arrow className="w-3 h-3" /> {delta.text}
-                </span>
+                <DeltaBadge delta={delta} />
             </div>
-            <span className="text-[11.5px] font-semibold text-slate-500">{label}</span>
+            <span className="text-[11.5px] font-semibold text-slate-500 leading-tight">{label}</span>
             <span className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">{value}</span>
         </motion.div>
     );
