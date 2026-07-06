@@ -12,6 +12,7 @@ import {
 } from "@/lib/venues";
 import { createCachedQueryHook } from "@/lib/hooks/createCachedQueryHook";
 import { formatCOP } from "@/lib/domain/wallet";
+import { formatTime12h } from "@/lib/date";
 import {
     resolvePeriod, previousPeriodOf, clampCustomRange, rangeLengthDays,
     computeRevenueSummary, expandReservationInstances,
@@ -82,6 +83,15 @@ const PRESETS: { key: AnalyticsPeriodPreset; label: string }[] = [
     { key: "custom", label: "Personalizado" },
 ];
 
+type AnalyticsView = "resumen" | "ingresos" | "clientes" | "detalle";
+
+const VIEWS: { key: AnalyticsView; label: string }[] = [
+    { key: "resumen", label: "Resumen" },
+    { key: "ingresos", label: "Ingresos" },
+    { key: "clientes", label: "Clientes" },
+    { key: "detalle", label: "Detalle" },
+];
+
 export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps) {
     const [now] = useState(() => new Date());
     const [preset, setPreset] = useState<AnalyticsPeriodPreset>("this_month");
@@ -89,6 +99,7 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
     const [customEnd, setCustomEnd] = useState<string>("");
     const [detailCell, setDetailCell] = useState<OccupancyCell | null>(null);
     const [detailSheet, setDetailSheet] = useState<{ title: string; items: ReservationDetail[] } | null>(null);
+    const [view, setView] = useState<AnalyticsView>("resumen");
 
     const period: AnalyticsPeriod = useMemo(
         () => resolvePeriod(preset, now, preset === "custom" && customStart && customEnd
@@ -224,17 +235,21 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
 
     return (
         <div className="space-y-4">
-            <PeriodSelector preset={preset} onChange={changePreset}
-                customStart={customStart} customEnd={customEnd}
-                onCustomStart={setCustomStart} onCustomEnd={setCustomEnd} />
+            {/* Header fijo: período + sub-vistas (siempre accesibles al scrollear) */}
+            <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-sm pt-1 pb-2 space-y-2.5">
+                <PeriodSelector preset={preset} onChange={changePreset}
+                    customStart={customStart} customEnd={customEnd}
+                    onCustomStart={setCustomStart} onCustomEnd={setCustomEnd} />
+                {metrics.hasData && <SegmentedControl view={view} onChange={setView} />}
+            </div>
 
             <AnimatePresence mode="wait">
                 <motion.div
-                    key={`${period.start}_${period.end}`}
+                    key={metrics.hasData ? `${view}_${period.start}_${period.end}` : `empty_${period.start}`}
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.18 }}
                     className="space-y-4"
                 >
                     {!metrics.hasData ? (
@@ -243,10 +258,9 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                             <p className="text-sm font-medium text-slate-600 mb-1">Sin datos en este período</p>
                             <p className="text-xs text-slate-400">Prueba con un rango más amplio.</p>
                         </div>
-                    ) : (
+                    ) : view === "resumen" ? (
                         <>
-                            {/* Ingresos cobrados — card protagonista: total + comparativo +
-                                desglose por método + tendencia, todo lo de plata en un solo lugar. */}
+                            {/* Ingresos cobrados — headline: total + comparativo + método */}
                             <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
                                 <div className="flex items-start justify-between">
                                     <div>
@@ -269,16 +283,9 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                     <MethodStat label="Transferencia" tone="blue"
                                         amount={metrics.revenue.transferCOP} total={metrics.revenue.totalCOP} />
                                 </div>
-
-                                <div className="pt-1">
-                                    <span className="text-[11.5px] font-semibold text-slate-400">
-                                        Ingreso por día de la semana
-                                    </span>
-                                </div>
-                                <RevenueBreakdownList items={metrics.byWeekday} tone="green" />
                             </div>
 
-                            {/* Otras métricas */}
+                            {/* KPIs */}
                             <div className="grid grid-cols-3 gap-2.5">
                                 <KpiCard
                                     icon={<LayoutGrid className="w-4 h-4" />} tone="occ"
@@ -297,12 +304,16 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                 />
                             </div>
 
-                            {/* Heatmap */}
                             <Card title="Ocupación por franja" sub="día × hora">
                                 <OccupancyHeatmap cells={metrics.cells} onCellTap={handleCellTap} />
                             </Card>
+                        </>
+                    ) : view === "ingresos" ? (
+                        <>
+                            <Card title="Ingreso por día de la semana">
+                                <RevenueBreakdownList items={metrics.byWeekday} tone="green" />
+                            </Card>
 
-                            {/* Breakdowns */}
                             <Card title="Ingreso por cancha">
                                 <RevenueBreakdownList items={metrics.byCourt} tone="green" />
                             </Card>
@@ -313,10 +324,9 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                     No incluye mensualidades — se cobran aparte.
                                 </p>
                             </Card>
-
-                            {/* ===== Clientes ===== */}
-                            <SectionLabel>Clientes</SectionLabel>
-
+                        </>
+                    ) : view === "clientes" ? (
+                        <>
                             <Card title="Top clientes por ingresos">
                                 <ClientRankList items={metrics.topByRevenue} metric="revenue" />
                             </Card>
@@ -334,10 +344,9 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                 <ClientRankList items={metrics.topNoShows} metric="noShows" tone="rose"
                                     emptyLabel="Ningún cliente faltó en el período." />
                             </Card>
-
-                            {/* ===== Detalles ===== */}
-                            <SectionLabel>Detalle</SectionLabel>
-
+                        </>
+                    ) : (
+                        <>
                             <Card title="Inasistencias" sub={`${metrics.noShowDetails.length} total`}>
                                 <ReservationDetailList items={metrics.noShowDetails} courts={metrics.courts} maxRows={6}
                                     emptyLabel="Sin inasistencias en el período."
@@ -453,11 +462,20 @@ function MethodStat({ label, tone, amount, total }: {
     );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SegmentedControl({ view, onChange }: { view: AnalyticsView; onChange: (v: AnalyticsView) => void }) {
     return (
-        <div className="flex items-center gap-2 pt-2 pb-0.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{children}</span>
-            <span className="flex-1 h-px bg-slate-100" />
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+            {VIEWS.map((v) => (
+                <button
+                    key={v.key}
+                    onClick={() => onChange(v.key)}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                        view === v.key ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    }`}
+                >
+                    {v.label}
+                </button>
+            ))}
         </div>
     );
 }
@@ -489,7 +507,7 @@ function CellDetail({ cell, onClose }: { cell: OccupancyCell; onClose: () => voi
             >
                 <div className="flex items-center justify-between mb-3">
                     <h5 className="text-base font-bold text-slate-900">
-                        {DAY_SHORT_LABELS[cell.dayOfWeek]} · {cell.hour}:00–{cell.hour + 1}:00
+                        {DAY_SHORT_LABELS[cell.dayOfWeek]} · {formatTime12h(`${cell.hour}:00`)}–{formatTime12h(`${cell.hour + 1}:00`)}
                     </h5>
                     <button onClick={onClose} className="text-slate-400 p-1"><X className="w-5 h-5" /></button>
                 </div>

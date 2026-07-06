@@ -11,6 +11,13 @@ interface OccupancyHeatmapProps {
     onCellTap?: (cell: OccupancyCell) => void;
 }
 
+/** Etiqueta compacta de hora en 12h: 6→"6a", 12→"12p", 18→"6p", 0→"12a". */
+function hour12(h: number): string {
+    const suffix = h < 12 || h === 24 ? "a" : "p";
+    const h12 = h % 12 || 12;
+    return `${h12}${suffix}`;
+}
+
 /** Escala secuencial slate-100 → blue-600 según ocupación (0..1). */
 function colorForRate(rate: number): string {
     const stops = [
@@ -52,8 +59,8 @@ export default function OccupancyHeatmap({ cells, onCellTap }: OccupancyHeatmapP
                         <tr>
                             <th />
                             {hours.map((h) => (
-                                <th key={h} className="text-[9.5px] font-semibold text-slate-400 tabular-nums pb-0.5 text-center">
-                                    {h}
+                                <th key={h} className="text-[9px] font-semibold text-slate-400 pb-0.5 text-center whitespace-nowrap">
+                                    {hour12(h)}
                                 </th>
                             ))}
                         </tr>
@@ -75,7 +82,7 @@ export default function OccupancyHeatmap({ cells, onCellTap }: OccupancyHeatmapP
                                                         background:
                                                             "repeating-linear-gradient(45deg,#f1f5f9 0 4px,#e9edf1 4px 8px)",
                                                     }}
-                                                    aria-label={`${DAY_SHORT_LABELS[dow]} ${h}h cerrado`}
+                                                    aria-label={`${DAY_SHORT_LABELS[dow]} ${hour12(h)} cerrado`}
                                                 />
                                             </td>
                                         );
@@ -88,7 +95,7 @@ export default function OccupancyHeatmap({ cells, onCellTap }: OccupancyHeatmapP
                                                 onClick={() => onCellTap?.(cell)}
                                                 className="w-[26px] h-[22px] rounded-[5px] grid place-items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4f]"
                                                 style={{ background: colorForRate(cell.rate) }}
-                                                aria-label={`${DAY_SHORT_LABELS[dow]} ${h}h: ${pct}% ocupación`}
+                                                aria-label={`${DAY_SHORT_LABELS[dow]} ${hour12(h)}: ${pct}% ocupación`}
                                                 title={`${pct}% · ${cell.reservedHours}/${cell.availableHours} canchas·h`}
                                             >
                                                 <span

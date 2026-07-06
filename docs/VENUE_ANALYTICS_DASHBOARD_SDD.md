@@ -172,15 +172,15 @@ El flag `venueAnalyticsEnabled` vive en el doc del usuario (`users/{uid}`). Lo a
 1. `location_admin` (con flag) o `super_admin` entra a `/venues/admin/{id}`.
 2. Tap en el tab **"Analítica"**.
 3. El dashboard carga con período default **"Este mes"** → skeleton mientras agrega.
-4. Ve, de arriba hacia abajo:
-   - **Selector de período** (chips: Esta semana · Este mes · Mes pasado · Personalizado).
-   - **Fila de KPIs** con comparativo vs. período anterior: Ingresos totales, % Ocupación, Nº reservas, **Inasistencias** (label visible; % de reservas donde el cliente no llegó — nunca se usa el término "no-show" en la UI).
-   - **Ingreso por día de la semana** (Lun→Dom) dentro de la card de Ingresos.
-   - **Heatmap de ocupación**: día de la semana × hora, con leyenda de color.
-   - **Ingreso por cancha** (lista rankeada con barra proporcional).
-   - **Ingreso por formato** (lista rankeada).
-5. Cambia el período → re-agrega y actualiza todas las secciones con transición suave.
+4. **Header fijo (sticky)** siempre accesible: **selector de período** (chips) + **control segmentado** con 4 sub-vistas. Cada sub-vista es corta (poco scroll) y responde una sola pregunta:
+   - **Resumen** — "¿cómo va la cancha?": card de Ingresos (total + comparativo + Efectivo/Transferencia), fila de 3 KPIs (Ocupación · Reservas · Inasistencias), heatmap de ocupación.
+   - **Ingresos** — ingreso por día de la semana · por cancha · por formato.
+   - **Clientes** — top por ingresos · top por reservas · más cancelaciones · más inasistencias.
+   - **Detalle** — inasistencias · reservas canceladas (con "Ver todas").
+5. Cambiar de sub-vista o de período → transición suave (crossfade). El período aplica a todas las sub-vistas.
 6. Tap en una celda del heatmap → popover con el detalle de esa franja (nº reservas, % ocupación, ingreso).
+
+> **Nota (label):** "Inasistencias" = % de reservas donde el cliente no llegó — nunca se usa el término "no-show" en la UI.
 
 ### Flujo alterno — Rango personalizado
 
