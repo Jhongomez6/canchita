@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Match } from "@/lib/domain/match";
 import { getMatchFormat } from "@/lib/domain/match";
+import { getTeamNetResult } from "@/lib/domain/multiTeam";
 import type { Location } from "@/lib/domain/location";
 import { Trophy } from "lucide-react";
 
@@ -14,6 +15,16 @@ interface HistoryRowProps {
 type ResultChip = "G" | "E" | "P" | null;
 
 function getResult(match: Match, userId?: string): ResultChip {
+    // Torneo multi-equipo: resultado por balance neto del equipo del usuario
+    if (match.multiTeam?.teams?.length && userId) {
+        const team = match.multiTeam.teams.find((t) =>
+            t.players?.some((p) => p.uid === userId),
+        );
+        if (!team) return null;
+        const r = getTeamNetResult(team.id, match.multiTeam.fixtures ?? []);
+        return r === "win" ? "G" : r === "loss" ? "P" : "E";
+    }
+
     if (!match.score || !match.teams) return null;
 
     const scoreA = match.score.A ?? 0;
@@ -103,7 +114,9 @@ export default function HistoryRow({ match, location, href, userId }: HistoryRow
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-slate-700 truncate">{locationName}</p>
                 <span className="text-xs text-slate-400">
-                    {getMatchFormat(match.maxPlayers)}
+                    {match.multiTeam
+                        ? `Torneo${match.multiTeam.teams?.length ? ` · ${match.multiTeam.teams.length} equipos` : ""}`
+                        : getMatchFormat(match.maxPlayers)}
                 </span>
             </div>
 
