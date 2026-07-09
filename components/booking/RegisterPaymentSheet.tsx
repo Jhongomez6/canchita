@@ -46,6 +46,9 @@ interface RegisterPaymentSheetProps {
     /** Si true, no se intenta leer/actualizar `blocked_slots/{id}`: el slot pasado es
         sintético (booking online). El caller maneja la transición a "paid" del booking. */
     skipSlotUpdate?: boolean;
+    /** Si true, oculta la tarifa (fila "Precio reserva", pre-llenado del efectivo y badge
+        de diferencia) al location admin. El admin escribe manualmente lo cobrado. */
+    hidePrice?: boolean;
 }
 
 function fmt12h(time: string): string {
@@ -92,6 +95,7 @@ export default function RegisterPaymentSheet({
     paymentMethodLabel,
     paymentVerifiedAt,
     skipSlotUpdate,
+    hidePrice = false,
 }: RegisterPaymentSheetProps) {
     const isEditMode = !!existingPayment;
     const [cashPesos, setCashPesos] = useState(0);
@@ -108,22 +112,24 @@ export default function RegisterPaymentSheet({
             setTransferPesos(centavosToPesos(existingPayment.transferCOP));
             setNote(existingPayment.note ?? "");
         } else if (typeof depositCOP === "number" && depositCOP > 0 && typeof slot.priceCOP === "number") {
-            // Reserva de jugador con abono: transferencia = abono, efectivo = resto.
-            // El admin puede ajustar si en sede el cliente paga distinto.
+            // Reserva de jugador con abono: transferencia = abono (dato ya registrado).
+            // Con la tarifa oculta NO pre-rellenamos el resto en efectivo (revelaría el precio):
+            // el admin escribe lo cobrado. Sin ocultar, efectivo = resto (price − abono).
             const transferPesosInit = centavosToPesos(depositCOP);
-            const restCOP = Math.max(0, slot.priceCOP - depositCOP);
+            const restCOP = hidePrice ? 0 : Math.max(0, slot.priceCOP - depositCOP);
             setTransferPesos(transferPesosInit);
             setCashPesos(centavosToPesos(restCOP));
             setNote("");
         } else {
-            // Reserva manual o reserva sin abono: efectivo pre-rellenado con precio total.
-            const pricePesos = typeof slot.priceCOP === "number" ? centavosToPesos(slot.priceCOP) : 0;
+            // Reserva manual o sin abono: efectivo pre-rellenado con el precio total, salvo que
+            // la tarifa esté oculta (queda en 0 para que el admin escriba lo efectivamente cobrado).
+            const pricePesos = !hidePrice && typeof slot.priceCOP === "number" ? centavosToPesos(slot.priceCOP) : 0;
             setCashPesos(pricePesos);
             setTransferPesos(0);
             setNote("");
         }
         setConfirmingDelete(false);
-    }, [open, existingPayment, slot.priceCOP, depositCOP]);
+    }, [open, existingPayment, slot.priceCOP, depositCOP, hidePrice]);
 
     const cashCOP = pesosToCentavos(cashPesos);
     const transferCOP = pesosToCentavos(transferPesos);
@@ -267,8 +273,8 @@ export default function RegisterPaymentSheet({
                         </div>
 
                         <div className="overflow-y-auto p-5 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] md:pb-[calc(env(safe-area-inset-bottom,0px)+24px)] space-y-4">
-                            {/* Resumen de precio */}
-                            {typeof slot.priceCOP === "number" && slot.priceCOP > 0 && (
+                            {/* Resumen de precio (oculto si la sede oculta la tarifa a admins de sede) */}
+                            {!hidePrice && typeof slot.priceCOP === "number" && slot.priceCOP > 0 && (
                                 <div className="bg-slate-50 rounded-xl px-4 py-3 flex items-center justify-between">
                                     <span className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
                                         Precio reserva
@@ -367,7 +373,7 @@ export default function RegisterPaymentSheet({
                                         Total
                                     </span>
                                     <AnimatePresence mode="wait">
-                                        {diff.kind === "overpayment" && (
+                                        {!hidePrice && diff.kind === "overpayment" && (
                                             <motion.span
                                                 key="over"
                                                 initial={{ opacity: 0, scale: 0.9 }}
@@ -378,7 +384,7 @@ export default function RegisterPaymentSheet({
                                                 +{formatCOP(diff.diff)}
                                             </motion.span>
                                         )}
-                                        {diff.kind === "underpayment" && (
+                                        {!hidePrice && diff.kind === "underpayment" && (
                                             <motion.span
                                                 key="under"
                                                 initial={{ opacity: 0, scale: 0.9 }}

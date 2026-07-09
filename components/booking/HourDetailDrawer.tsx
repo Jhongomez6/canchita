@@ -58,6 +58,8 @@ interface HourDetailDrawerProps {
     ) => void;
     /** Si el admin actual es super admin (habilita hard-delete de reservas manuales). */
     isSuper?: boolean;
+    /** Si true, oculta la tarifa en las cards de reserva (la sede la oculta a admins de sede). */
+    hidePrice?: boolean;
 }
 
 export default function HourDetailDrawer({
@@ -85,6 +87,7 @@ export default function HourDetailDrawer({
     relevantCourtIds,
     unavailableRelevantCourtIds,
     isSuper = false,
+    hidePrice = false,
 }: HourDetailDrawerProps) {
     // Map<reservationId, payment> para el `date` actual del drawer.
     // Lookup O(1) cuando renderizamos cada card.
@@ -189,6 +192,7 @@ export default function HourDetailDrawer({
                                                         onConfirmAttendance={onConfirmAttendance}
                                                         onRegisterPayment={onRegisterBookingPayment}
                                                         onAdvanced={onBookingAdvanced}
+                                                        hidePrice={hidePrice}
                                                     />
                                                 ))}
                                             </div>
@@ -215,6 +219,7 @@ export default function HourDetailDrawer({
                                                         onCancelBlock={onCancelBlock}
                                                         existingPayment={paymentByReservationId.get(b.id) ?? null}
                                                         onRegisterPayment={onRegisterPayment}
+                                                        hidePrice={hidePrice}
                                                     />
                                                 ))}
                                             </div>

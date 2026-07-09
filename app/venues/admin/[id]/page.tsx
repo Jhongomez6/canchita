@@ -10,7 +10,7 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin, isLocationAdmin, canViewVenueAnalytics, isLocationStaff } from "@/lib/domain/user";
 import { yesterdayColombiaISO } from "@/lib/date";
-import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER } from "@/lib/domain/venue";
+import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER, shouldHidePricesFor } from "@/lib/domain/venue";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
     getVenue,
@@ -27,7 +27,7 @@ import {
 import { uploadVenueImage } from "@/lib/storage";
 import { handleError } from "@/lib/utils/error";
 import { withTimeout } from "@/lib/utils/withTimeout";
-import { logVenueAdminCourtConfigured, logVenueAdminScheduleUpdated } from "@/lib/analytics";
+import { logVenueAdminCourtConfigured, logVenueAdminScheduleUpdated, logVenueHidePricesToggled } from "@/lib/analytics";
 import AuthGuard from "@/components/AuthGuard";
 import CourtConfigEditor from "@/components/booking/CourtConfigEditor";
 import ScheduleEditor from "@/components/booking/ScheduleEditor";
@@ -126,6 +126,8 @@ function VenueAdminContent() {
     const [venueImageURL, setVenueImageURL] = useState("");
     const [venueIcon, setVenueIcon] = useState("");
     const [venueActive, setVenueActive] = useState(true);
+    // Ocultar tarifa de cancha a los location admin (owner+staff). Solo super admin lo edita.
+    const [hidePricesFromAdmins, setHidePricesFromAdmins] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -402,6 +404,7 @@ function VenueAdminContent() {
             setVenueImageURL(v.imageURL ?? "");
             setVenueIcon(v.icon ?? "");
             setVenueActive(v.active);
+            setHidePricesFromAdmins(v.hidePricesForLocationAdmins ?? false);
             setImagePreview(null);
         } catch (err) {
             setLoadError(true);
@@ -474,6 +477,7 @@ function VenueAdminContent() {
                 formats: venueFormats.length > 0 ? venueFormats : undefined,
                 pendingApprovalTTLHours: pendingTTLHours,
                 whatsappNotificationNumber: whatsappNumber.trim() || undefined,
+                hidePricesForLocationAdmins: hidePricesFromAdmins,
             };
 
             await Promise.all([
@@ -495,6 +499,9 @@ function VenueAdminContent() {
             toast.success("Cambios guardados");
 
             // Analytics
+            if ((venue.hidePricesForLocationAdmins ?? false) !== hidePricesFromAdmins) {
+                logVenueHidePricesToggled(venueId, hidePricesFromAdmins);
+            }
             logVenueAdminCourtConfigured(venueId, courts.length, combos.length);
             for (const sched of fullSchedules) {
                 if (sched.enabled) {
@@ -577,6 +584,11 @@ function VenueAdminContent() {
             </div>
         );
     }
+
+    // Gate de presentación: oculta la tarifa a location admins (owner+staff) si la sede
+    // tiene el flag activo. El super admin siempre ve la tarifa. Se deriva del valor
+    // persistido en `venue` (no del estado editable del toggle).
+    const hidePrices = shouldHidePricesFor(venue, isSuper);
 
     // Example price for deposit preview
     const examplePrice = 15000000; // 150,000 COP in centavos
@@ -790,6 +802,22 @@ function VenueAdminContent() {
                                 >
                                     <span
                                         className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${venueActive ? "left-[22px]" : "left-0.5"}`}
+                                    />
+                                </button>
+                            </div>
+
+                            {/* Ocultar precio de cancha a administradores de sede */}
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div className="pr-3">
+                                    <p className="text-sm font-semibold text-slate-700">Ocultar precio a administradores</p>
+                                    <p className="text-xs text-slate-400">Los administradores de sede (dueño y trabajadores) no verán la tarifa de la cancha al crear reservas ni registrar pagos</p>
+                                </div>
+                                <button
+                                    onClick={() => { setHidePricesFromAdmins(!hidePricesFromAdmins); markDirty(); }}
+                                    className={`shrink-0 w-12 h-7 rounded-full transition-colors relative ${hidePricesFromAdmins ? "bg-[#1f7a4f]" : "bg-slate-300"}`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${hidePricesFromAdmins ? "left-[22px]" : "left-0.5"}`}
                                     />
                                 </button>
                             </div>
@@ -1048,6 +1076,7 @@ function VenueAdminContent() {
                                     venueFormats={venueFormats}
                                     isSuper={isSuper}
                                     minDate={bookingsMinDate}
+                                    hidePrice={hidePrices}
                                     onBookingCancel={(booking) => {
                                         logBookingCancellationStarted({
                                             venueId: booking.venueId,
@@ -1169,6 +1198,7 @@ function VenueAdminContent() {
                                             defaultFormat={drawerDefaults.format}
                                             occupiedCourtIds={drawerDefaults.occupiedCourtIds}
                                             minDate={bookingsMinDate}
+                                            hidePrice={hidePrices}
                                             onCreated={() => setBlockedDrawerOpen(false)}
                                             onCancel={() => setBlockedDrawerOpen(false)}
                                         />
@@ -1194,6 +1224,7 @@ function VenueAdminContent() {
                     relevantCourtIds={hourDetail?.relevantCourtIds ?? []}
                     unavailableRelevantCourtIds={hourDetail?.unavailableRelevantCourtIds ?? []}
                     isSuper={isSuper}
+                    hidePrice={hidePrices}
                     onBookingCancel={(booking) => {
                         logBookingCancellationStarted({
                             venueId,
@@ -1303,6 +1334,7 @@ function VenueAdminContent() {
                         targetDate={paymentTarget.targetDate}
                         existingPayment={paymentTarget.existingPayment}
                         registeredBy={user.uid}
+                        hidePrice={hidePrices}
                         onSaved={() => {
                             const instanceDate = paymentTarget.slot.recurrence ? paymentTarget.targetDate : undefined;
                             patchHourDetailBlockStatus(paymentTarget.slot.id, "paid", instanceDate);
@@ -1345,6 +1377,7 @@ function VenueAdminContent() {
                         targetDate={bookingPaymentTarget.booking.date}
                         existingPayment={bookingPaymentTarget.existingPayment}
                         registeredBy={user.uid}
+                        hidePrice={hidePrices}
                         depositCOP={bookingPaymentTarget.booking.depositCOP}
                         paymentProofURL={bookingPaymentTarget.booking.paymentProofURL ?? undefined}
                         paymentVerifiedAt={bookingPaymentTarget.booking.approvedAt ?? undefined}

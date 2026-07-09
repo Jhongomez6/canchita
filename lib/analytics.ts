@@ -647,6 +647,13 @@ export async function logVenueAdminScheduleUpdated(venueId: string, dayOfWeek: s
   });
 }
 
+export async function logVenueHidePricesToggled(venueId: string, hidden: boolean) {
+  await trackEvent("venue_hide_prices_toggled", {
+    venue_id: venueId,
+    hidden: hidden.toString(),
+  });
+}
+
 export async function logBlockedSlotCreated(
   venueId: string,
   params: {

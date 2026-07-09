@@ -49,6 +49,8 @@ interface AdminBlockCardProps {
         targetDate: string,
         existingPayment: ManualReservationPayment | null,
     ) => void;
+    /** Si true, oculta la fila de precio (tarifa). Conserva badges de estado y chips de pago. */
+    hidePrice?: boolean;
 }
 
 export default function AdminBlockCard({
@@ -63,6 +65,7 @@ export default function AdminBlockCard({
     onEdit,
     existingPayment,
     onRegisterPayment,
+    hidePrice = false,
 }: AdminBlockCardProps) {
     const courtNameById = new Map(courts.map((c) => [c.id, c.name]));
     const blockCourtNames = block.courtIds.map((id) => courtNameById.get(id) || id);
@@ -232,29 +235,33 @@ export default function AdminBlockCard({
                     </p>
                 )}
 
-                <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100/80">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                        Precio
-                    </span>
-                    {isBirthday ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-200">
-                            <Cake className="w-2.5 h-2.5" />
-                            Cumpleaños
+                {/* Fila de precio. Con la tarifa oculta a admins de sede, solo se muestra si hay
+                    un badge de estado (Cumpleaños/Mensualidad); el monto de tarifa nunca aparece. */}
+                {(!hidePrice || isBirthday || block.isMonthly) && (
+                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100/80">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Precio
                         </span>
-                    ) : block.isMonthly ? (
-                        <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100">
-                            Mensualidad
-                        </span>
-                    ) : showPrice ? (
-                        <span className="text-sm font-bold text-[#1f7a4f]">
-                            {formatCOP(block.priceCOP as number)}
-                        </span>
-                    ) : (
-                        <span className="text-[11px] font-medium text-slate-400 italic">
-                            Sin precio asignado
-                        </span>
-                    )}
-                </div>
+                        {isBirthday ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-200">
+                                <Cake className="w-2.5 h-2.5" />
+                                Cumpleaños
+                            </span>
+                        ) : block.isMonthly ? (
+                            <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100">
+                                Mensualidad
+                            </span>
+                        ) : showPrice ? (
+                            <span className="text-sm font-bold text-[#1f7a4f]">
+                                {formatCOP(block.priceCOP as number)}
+                            </span>
+                        ) : (
+                            <span className="text-[11px] font-medium text-slate-400 italic">
+                                Sin precio asignado
+                            </span>
+                        )}
+                    </div>
+                )}
             </button>
 
             {/* Motivo de cancelación */}

@@ -43,6 +43,8 @@ interface AdminBookingCalendarProps {
     isSuper?: boolean;
     /** Fecha mínima navegable (YYYY-MM-DD). Días/meses anteriores quedan bloqueados. Sin valor ⇒ sin límite. */
     minDate?: string;
+    /** Si true, oculta la tarifa en cards y el total de ingresos del día (la sede la oculta a admins de sede). */
+    hidePrice?: boolean;
 }
 
 const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -75,6 +77,7 @@ export default function AdminBookingCalendar({
     onCreateManual,
     isSuper = false,
     minDate,
+    hidePrice = false,
 }: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();
@@ -303,7 +306,7 @@ export default function AdminBookingCalendar({
                     <span className="text-xs text-slate-400">
                         {activeBookings.length} reserva{activeBookings.length !== 1 ? "s" : ""}
                         {blocks.length > 0 && ` · ${blocks.length} manual${blocks.length !== 1 ? "es" : ""}`}
-                        {totalRevenue > 0 && ` · ${formatCOP(totalRevenue)}`}
+                        {!hidePrice && totalRevenue > 0 && ` · ${formatCOP(totalRevenue)}`}
                     </span>
                 </div>
 
@@ -332,6 +335,7 @@ export default function AdminBookingCalendar({
                                             onBookingAdvanced?.();
                                             loadDayBookings(selectedDate);
                                         }}
+                                        hidePrice={hidePrice}
                                     />
                                 );
                             }
@@ -349,6 +353,7 @@ export default function AdminBookingCalendar({
                                     onCancelBlock={onCancelBlock}
                                     existingPayment={paymentByReservationId.get(row.block.id) ?? null}
                                     onRegisterPayment={onRegisterPayment}
+                                    hidePrice={hidePrice}
                                 />
                             );
                         })}

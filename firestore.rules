@@ -256,13 +256,14 @@ service cloud.firestore {
       // Actualizar:
       //   - Super Admin: cualquier campo
       //   - Location Admin asignado: cualquier campo EXCEPTO paymentMethods
-      //     (datos bancarios sensibles, solo Super Admin)
+      //     (datos bancarios sensibles) y hidePricesForLocationAdmins
+      //     (preferencia que oculta la tarifa al propio location admin) — solo Super Admin
       allow update: if request.auth != null
         && (
           isSuperAdmin()
           || (
             isLocationAdminFor(venueId)
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentMethods'])
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentMethods', 'hidePricesForLocationAdmins'])
           )
         );
 

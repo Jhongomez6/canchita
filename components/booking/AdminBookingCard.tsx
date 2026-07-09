@@ -76,6 +76,8 @@ interface AdminBookingCardProps {
     onAdvanced?: () => void;
     /** Pago registrado para esta reserva (cuando ya pasó por RegisterPaymentSheet). */
     existingPayment?: ManualReservationPayment | null;
+    /** Si true, oculta la tarifa (total + depósito/resto). Conserva chips de pago registrado. */
+    hidePrice?: boolean;
 }
 
 export default function AdminBookingCard({
@@ -86,6 +88,7 @@ export default function AdminBookingCard({
     onRegisterPayment,
     onAdvanced,
     existingPayment,
+    hidePrice = false,
 }: AdminBookingCardProps) {
     const [advancing, setAdvancing] = useState(false);
     const [pickerChanging, setPickerChanging] = useState(false);
@@ -287,18 +290,21 @@ export default function AdminBookingCard({
                 )}
             </p>
 
-            {/* Precio — mismo patrón que reservas manuales (AdminBlockCard) */}
-            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100/80">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                    Precio
-                </span>
-                <span className="text-sm font-bold text-[#1f7a4f]">
-                    {formatCOP(booking.totalPriceCOP)}
-                </span>
-            </div>
+            {/* Precio — mismo patrón que reservas manuales (AdminBlockCard).
+                Oculto si la sede oculta la tarifa a los administradores de sede. */}
+            {!hidePrice && (
+                <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100/80">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        Precio
+                    </span>
+                    <span className="text-sm font-bold text-[#1f7a4f]">
+                        {formatCOP(booking.totalPriceCOP)}
+                    </span>
+                </div>
+            )}
 
             {/* Deposit summary (compacto) cuando hay abono y la reserva está en estado post-aprobación */}
-            {(["deposit_confirmed", "confirmed", "played", "paid"].includes(booking.status) && booking.depositCOP > 0) && (
+            {!hidePrice && (["deposit_confirmed", "confirmed", "played", "paid"].includes(booking.status) && booking.depositCOP > 0) && (
                 <div className="mt-2">
                     <DepositSummary
                         depositCOP={booking.depositCOP}

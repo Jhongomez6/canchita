@@ -198,6 +198,9 @@ export interface Venue {
     pendingApprovalTTLHours?: number;
     /** Número WhatsApp opcional E.164 para el botón "Avisar al admin". */
     whatsappNotificationNumber?: string;
+    /** Si true, oculta la tarifa de cancha a los location admin (owner+staff) en el panel.
+     *  Solo super admin lo edita. Ausente ⇒ false (tarifa visible). */
+    hidePricesForLocationAdmins?: boolean;
 
     createdAt: string;
     updatedAt: string;
@@ -546,6 +549,18 @@ export function applyDurationTier(
         finalCOP,
         appliedTier: tier,
     };
+}
+
+/**
+ * ¿Debe ocultarse la tarifa de cancha para el usuario actual?
+ * True solo si la sede tiene el flag activo Y el usuario NO es super admin.
+ * El super admin siempre ve la tarifa (es quien configura el flag).
+ */
+export function shouldHidePricesFor(
+    venue: Pick<Venue, "hidePricesForLocationAdmins">,
+    isSuper: boolean,
+): boolean {
+    return !!venue.hidePricesForLocationAdmins && !isSuper;
 }
 
 /**

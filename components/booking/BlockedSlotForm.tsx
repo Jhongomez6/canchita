@@ -34,6 +34,8 @@ interface BlockedSlotFormProps {
     occupiedCourtIds?: string[];
     /** Fecha mínima seleccionable (YYYY-MM-DD). Acota el input de fecha (staff: ayer en adelante). */
     minDate?: string;
+    /** Si true, oculta el desglose de precio (tarifa). El precio se sigue calculando y guardando. */
+    hidePrice?: boolean;
     onCreated?: () => void;
     onCancel?: () => void;
 }
@@ -84,6 +86,7 @@ export default function BlockedSlotForm({
     venueFormats,
     occupiedCourtIds = [],
     minDate,
+    hidePrice = false,
     onCreated,
     onCancel,
 }: BlockedSlotFormProps) {
@@ -500,8 +503,9 @@ export default function BlockedSlotForm({
                 )}
             </div>
 
-            {/* Price display (auto-calculado, solo lectura) — oculto si es cumpleaños */}
-            {isBirthday ? (
+            {/* Price display (auto-calculado, solo lectura) — oculto si es cumpleaños o si la sede
+                oculta la tarifa a los administradores de sede. El precio igual se calcula y guarda. */}
+            {hidePrice ? null : isBirthday ? (
                 <div>
                     <label className="text-xs text-slate-500 mb-1 block">Precio</label>
                     <div className="w-full px-3 py-2 text-sm border border-pink-200 rounded-lg bg-pink-50 text-pink-700">
