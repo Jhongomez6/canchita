@@ -508,7 +508,7 @@ function CellDetail({ cell, onClose }: { cell: OccupancyCell; onClose: () => voi
     return (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] md:pb-4"
+            className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/30 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+24px)] md:pb-4"
             onClick={onClose}
         >
             <motion.div
