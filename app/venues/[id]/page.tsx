@@ -355,6 +355,7 @@ function VenueDetailContent() {
                         <h2 className="text-sm font-semibold text-slate-600 mb-2">Fecha</h2>
                         <DateCarousel
                             selectedDate={selectedDate}
+                            daysAhead={7}
                             onSelect={(d) => {
                                 setSelectedDate(d);
                                 setSelectedStart(null);
