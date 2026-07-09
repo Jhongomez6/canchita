@@ -231,6 +231,20 @@ export default function Header() {
             </>
           )}
 
+          {isLocationAdminUser && (
+            <Link
+              href="/admin/settings"
+              className="hidden md:block"
+              style={{
+                color: "#e6f6ed",
+                textDecoration: "none",
+                fontWeight: 500,
+              }}
+            >
+              Configuración ⚙️
+            </Link>
+          )}
+
           {isSuperAdminUser && (
             <>
               <Link
