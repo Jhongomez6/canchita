@@ -157,10 +157,9 @@ export const createBlockedSlot = onCall(async (request) => {
     const reason = typeof input.reason === "string"
         ? input.reason.trim().slice(0, 200)
         : undefined;
-    const clientPhoneRaw = typeof input.clientPhone === "string" ? input.clientPhone.trim() : "";
-    const clientPhone = clientPhoneRaw.length > 0 ? clientPhoneRaw : undefined;
-    if (clientPhone && !/^3\d{9}$/.test(clientPhone)) {
-        throw new HttpsError("invalid-argument", "Celular inválido (formato: 10 dígitos empezando en 3)");
+    const clientPhone = typeof input.clientPhone === "string" ? input.clientPhone.trim() : "";
+    if (!/^3\d{9}$/.test(clientPhone)) {
+        throw new HttpsError("invalid-argument", "El celular del cliente es obligatorio (10 dígitos empezando en 3)");
     }
     const priceCOP = typeof input.priceCOP === "number" && Number.isFinite(input.priceCOP) && input.priceCOP >= 0
         ? Math.round(input.priceCOP)

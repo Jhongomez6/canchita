@@ -159,7 +159,7 @@ export default function BlockedSlotForm({
     const priceCalculable = priceCOP > 0;
 
     const phoneTrimmed = clientPhone.trim();
-    const phoneValid = phoneTrimmed.length === 0 || PHONE_REGEX.test(phoneTrimmed);
+    const phoneValid = PHONE_REGEX.test(phoneTrimmed);
     const nameValid = clientName.trim().length > 0;
     const canSubmit = nameValid && phoneValid && selectedCourtIds.length > 0 && !adding;
 
@@ -181,7 +181,11 @@ export default function BlockedSlotForm({
             return;
         }
         if (!phoneValid) {
-            toast.error("Celular inválido (10 dígitos empezando en 3)");
+            toast.error(
+                phoneTrimmed.length === 0
+                    ? "El celular del cliente es obligatorio"
+                    : "Celular inválido (10 dígitos empezando en 3)",
+            );
             return;
         }
         if (isRecurring && recurrenceType === "monthly") {
@@ -204,7 +208,7 @@ export default function BlockedSlotForm({
                     courtIds: selectedCourtIds,
                     reason: reason.trim() || undefined,
                     clientName: clientName.trim(),
-                    clientPhone: phoneTrimmed || undefined,
+                    clientPhone: phoneTrimmed,
                     priceCOP,
                     status: "pending",
                     recurrence: isRecurring
@@ -214,7 +218,7 @@ export default function BlockedSlotForm({
                             ...(endDate ? { endDate } : {}),
                         }
                         : undefined,
-                    isMonthly: isRecurring && isMonthly ? true : undefined,
+                    isMonthly: isMonthly ? true : undefined,
                     isBirthday: isBirthday ? true : undefined,
                 },
                 force,
@@ -349,17 +353,6 @@ export default function BlockedSlotForm({
                                         ))}
                                     </select>
                                 </div>
-                                {/* Pago mensual */}
-                                <div className="flex items-center justify-between py-1">
-                                    <span className="text-sm font-medium text-slate-700">Pago mensual</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsMonthly((v) => !v)}
-                                        className={`w-11 h-6 rounded-full transition-colors relative ${isMonthly ? "bg-[#1f7a4f]" : "bg-slate-300"}`}
-                                    >
-                                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isMonthly ? "left-[22px]" : "left-0.5"}`} />
-                                    </button>
-                                </div>
 
                                 <div>
                                     <label className="text-xs text-slate-500 mb-1 block">Hasta (opcional)</label>
@@ -377,6 +370,42 @@ export default function BlockedSlotForm({
                         </motion.div>
                     )}
                 </AnimatePresence>
+            </div>
+
+            {/* Pago mensual */}
+            <div className="bg-white rounded-lg p-3 border border-slate-200">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className="text-sm font-medium text-slate-700">Pago mensual</span>
+                        <p className="text-[11px] text-slate-400">El cliente paga una mensualidad fija (fuera del balance diario)</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsMonthly((v) => !v)}
+                        className={`shrink-0 w-11 h-6 rounded-full transition-colors relative ${isMonthly ? "bg-[#1f7a4f]" : "bg-slate-300"}`}
+                    >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isMonthly ? "left-[22px]" : "left-0.5"}`} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Cumpleaños toggle */}
+            <div className="bg-white rounded-lg p-3 border border-slate-200">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Cake className="w-4 h-4 text-pink-500" />
+                        <span className="text-sm font-medium text-slate-700">Cumpleaños</span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsBirthday((v) => !v)}
+                        className={`w-11 h-6 rounded-full transition-colors relative ${isBirthday ? "bg-pink-500" : "bg-slate-300"}`}
+                    >
+                        <span
+                            className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isBirthday ? "left-[22px]" : "left-0.5"}`}
+                        />
+                    </button>
+                </div>
             </div>
 
             {/* Court selection */}
@@ -446,9 +475,11 @@ export default function BlockedSlotForm({
                 />
             </div>
 
-            {/* Client phone (opcional) */}
+            {/* Client phone (obligatorio) */}
             <div>
-                <label className="text-xs text-slate-500 mb-1 block">Celular (opcional)</label>
+                <label className="text-xs text-slate-500 mb-1 block">
+                    Celular <span className="text-red-500">*</span>
+                </label>
                 <div className="flex relative items-center">
                     <span className="absolute left-3 text-slate-400 text-sm select-none">+57</span>
                     <input
@@ -460,32 +491,13 @@ export default function BlockedSlotForm({
                         }}
                         placeholder="3001234567"
                         className={`w-full pl-12 pr-3 py-2 text-base border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 ${
-                            !phoneValid ? "border-red-400" : "border-slate-200"
+                            clientPhone.length > 0 && !phoneValid ? "border-red-400" : "border-slate-200"
                         }`}
                     />
                 </div>
-                {!phoneValid && (
+                {clientPhone.length > 0 && !phoneValid && (
                     <p className="text-[10px] text-red-500 mt-1">Debe tener 10 dígitos y empezar con 3.</p>
                 )}
-            </div>
-
-            {/* Cumpleaños toggle */}
-            <div className="bg-white rounded-lg p-3 border border-slate-200">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Cake className="w-4 h-4 text-pink-500" />
-                        <span className="text-sm font-medium text-slate-700">Cumpleaños</span>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => setIsBirthday((v) => !v)}
-                        className={`w-11 h-6 rounded-full transition-colors relative ${isBirthday ? "bg-pink-500" : "bg-slate-300"}`}
-                    >
-                        <span
-                            className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isBirthday ? "left-[22px]" : "left-0.5"}`}
-                        />
-                    </button>
-                </div>
             </div>
 
             {/* Price display (auto-calculado, solo lectura) — oculto si es cumpleaños */}

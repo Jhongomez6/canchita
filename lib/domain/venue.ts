@@ -265,7 +265,7 @@ export interface BlockedSlot {
     courtIds: string[];
     reason?: string;               // visible como "Información adicional" en UI
     clientName?: string;           // solo visible al admin (obligatorio en escritura desde el SDD de mejoras)
-    clientPhone?: string;          // opcional. PII solo para admin de la sede.
+    clientPhone?: string;          // obligatorio en escritura (opcional en docs viejos). PII solo para admin de la sede.
     priceCOP?: number;             // calculado al crear desde el schedule
     status?: ManualReservationStatus; // default `pending` si falta (docs viejos)
     cancellationReason?: string;   // motivo al cancelar (opcional)

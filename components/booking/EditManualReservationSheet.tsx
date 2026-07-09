@@ -16,6 +16,8 @@ interface EditManualReservationSheetProps {
     slot: BlockedSlot;
 }
 
+const PHONE_REGEX = /^3\d{9}$/;
+
 function fmt12h(time: string): string {
     const [hStr, mStr] = time.split(":");
     const h = parseInt(hStr, 10);
@@ -51,15 +53,26 @@ export default function EditManualReservationSheet({
         onClose();
     };
 
+    const phoneTrimmed = clientPhone.trim();
+    const phoneValid = PHONE_REGEX.test(phoneTrimmed);
+
     const handleSave = async () => {
+        if (!phoneValid) {
+            toast.error(
+                phoneTrimmed.length === 0
+                    ? "El celular del cliente es obligatorio"
+                    : "Celular inválido (10 dígitos empezando en 3)",
+            );
+            return;
+        }
         setSubmitting(true);
         const previousIsBirthday = slot.isBirthday ?? false;
         try {
             await updateManualReservation(venueId, slot.id, {
                 clientName: clientName.trim() || undefined,
-                clientPhone: clientPhone.trim() || undefined,
+                clientPhone: phoneTrimmed,
                 reason: reason.trim() || undefined,
-                ...(isRecurring ? { isMonthly } : {}),
+                isMonthly,
                 isBirthday: isBirthday ? true : undefined,
             });
             if (previousIsBirthday !== isBirthday) {
@@ -83,7 +96,7 @@ export default function EditManualReservationSheet({
         (clientName.trim() || "") !== (slot.clientName ?? "") ||
         (clientPhone.trim() || "") !== (slot.clientPhone ?? "") ||
         (reason.trim() || "") !== (slot.reason ?? "") ||
-        (isRecurring && isMonthly !== (slot.isMonthly ?? false)) ||
+        (isMonthly !== (slot.isMonthly ?? false)) ||
         isBirthday !== (slot.isBirthday ?? false);
 
     return (
@@ -140,16 +153,26 @@ export default function EditManualReservationSheet({
 
                             <div>
                                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
-                                    Teléfono
+                                    Teléfono <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="tel"
-                                    value={clientPhone}
-                                    onChange={(e) => setClientPhone(e.target.value)}
-                                    placeholder="Ej: 3001234567"
-                                    maxLength={20}
-                                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50"
-                                />
+                                <div className="flex relative items-center">
+                                    <span className="absolute left-3 text-slate-400 text-sm select-none">+57</span>
+                                    <input
+                                        type="tel"
+                                        value={clientPhone}
+                                        onChange={(e) => {
+                                            const v = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                            setClientPhone(v);
+                                        }}
+                                        placeholder="3001234567"
+                                        className={`w-full pl-12 pr-3 py-2.5 text-base border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50 ${
+                                            clientPhone.length > 0 && !phoneValid ? "border-red-400" : "border-slate-200"
+                                        }`}
+                                    />
+                                </div>
+                                {clientPhone.length > 0 && !phoneValid && (
+                                    <p className="text-[10px] text-red-500 mt-1">Debe tener 10 dígitos y empezar con 3.</p>
+                                )}
                             </div>
 
                             <div>
@@ -164,6 +187,21 @@ export default function EditManualReservationSheet({
                                     rows={3}
                                     className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 resize-none"
                                 />
+                            </div>
+
+                            {/* Pago mensual */}
+                            <div className="flex items-center justify-between py-1 border-t border-slate-100 pt-3">
+                                <div>
+                                    <p className="text-sm font-medium text-slate-700">Pago mensual</p>
+                                    <p className="text-[11px] text-slate-400">El cliente paga una mensualidad fija</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsMonthly((v) => !v)}
+                                    className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${isMonthly ? "bg-[#1f7a4f]" : "bg-slate-300"}`}
+                                >
+                                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isMonthly ? "left-[22px]" : "left-0.5"}`} />
+                                </button>
                             </div>
 
                             {/* Cumpleaños — siempre */}
@@ -184,23 +222,6 @@ export default function EditManualReservationSheet({
                                 </button>
                             </div>
 
-                            {/* Pago mensual — solo recurrentes */}
-                            {isRecurring && (
-                                <div className="flex items-center justify-between py-1 border-t border-slate-100 pt-3">
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-700">Pago mensual</p>
-                                        <p className="text-[11px] text-slate-400">El cliente paga una mensualidad fija</p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsMonthly((v) => !v)}
-                                        className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${isMonthly ? "bg-[#1f7a4f]" : "bg-slate-300"}`}
-                                    >
-                                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isMonthly ? "left-[22px]" : "left-0.5"}`} />
-                                    </button>
-                                </div>
-                            )}
-
                             {/* Aviso: editar aplica a toda la recurrencia */}
                             {isRecurring && (
                                 <p className="text-[11px] text-slate-400 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
@@ -220,7 +241,7 @@ export default function EditManualReservationSheet({
                                 <button
                                     type="button"
                                     onClick={handleSave}
-                                    disabled={submitting || !hasChanges}
+                                    disabled={submitting || !hasChanges || !phoneValid}
                                     className="flex-1 py-3 text-sm font-bold text-white bg-[#1f7a4f] rounded-xl hover:bg-[#16603c] transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
                                 >
                                     {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

@@ -17,7 +17,7 @@ Tras el rebrand `bloqueos → reservas manuales` (commit `076b722`), la entidad 
 | 1 | Toda reserva manual tiene un `status: ManualReservationStatus`. Estados: `pending → confirmed → played → paid` (ruta lineal) + `no_show` y `free` como estados terminales paralelos. Reservas viejas sin status se leen como `pending`. | Badge de estado en cards |
 | 2 | El status puede cambiar a **cualquier valor** (adelante o atrás). El happy path es avanzar por la ruta lineal vía el quick button; corregir errores o asignar estados terminales (`no_show`, `free`) se hace tapeando el badge para abrir un selector con todas las opciones. La transacción no enforza orden, solo que el doc exista. | Quick button "Avanzar" (solo ruta lineal) + badge tappable que abre popover con todos los estados |
 | 3 | El campo `clientName` ahora es **obligatorio** al crear una reserva manual. Reservas viejas sin nombre quedan tal cual (no rompen). | El form valida; sin nombre, el botón "Reservar" queda deshabilitado |
-| 4 | Nuevo campo `clientPhone: string` **opcional**. Si se ingresa, se valida con regex de 10 dígitos (mismo formato que `/onboarding/phone`). Si está vacío, se omite del documento. | Input opcional en el form, validación inline solo si tiene valor |
+| 4 | Campo `clientPhone: string` ahora **obligatorio** al crear una reserva manual. Se valida con regex de 10 dígitos empezando en 3 (mismo formato que `/onboarding/phone`). Reservas viejas sin celular quedan tal cual (no rompen). | El form valida; sin celular válido, el botón "Reservar" queda deshabilitado. Validación inline solo cuando el campo tiene contenido |
 | 5 | Nuevo campo `priceCOP: number` (precio total de la reserva). Calculado automáticamente al crear desde el schedule del venue (precio del slot del formato más cercano × duración × cantidad de canchas seleccionadas) y **se persiste tal cual al crear** — **no editable** por el admin. Si no se puede calcular (ej. venue sin schedule para ese día/hora/formato), se persiste `0` y la card lo muestra como "—". | El form muestra el precio calculado en modo solo-lectura (display), no input |
 | 6 | El label "Motivo" se cambia visualmente a "Información adicional" (label + placeholder + microcopy). El **campo en Firestore sigue siendo `reason`** — sin renombre de schema, sin nuevo campo, sin backward compat. | Solo cambio de copy en `BlockedSlotForm` y en cards |
 | 7 | La card de detalle de una reserva manual (`AdminBlockCard`) muestra: badge de status, nombre cliente, teléfono cliente (o "Sin celular" si no hay), precio, información adicional (si hay), canchas. Además, el teléfono se muestra en la vista rápida de slots (`AdminSlotPicker`). | Layout actualizado |
@@ -88,7 +88,7 @@ Tras el rebrand `bloqueos → reservas manuales` (commit `076b722`), la entidad 
 
 ### Validaciones de input
 - `clientName`: trim, longitud mínima 1, máxima 80. **Obligatorio**.
-- `clientPhone`: trim. **Opcional**. Si tiene valor, debe matchear `^3\d{9}$` (mismo formato Colombia). Si está vacío, se omite del payload (no se persiste cadena vacía).
+- `clientPhone`: trim. **Obligatorio**. Debe matchear `^3\d{9}$` (mismo formato Colombia). Validado en cliente y en la function (defensa en profundidad).
 - `priceCOP`: integer ≥ 0, **calculado por el sistema al crear** desde el schedule. No es input del admin.
 - `reason` (label "Información adicional"): trim, opcional, máx 200 chars.
 
@@ -105,7 +105,7 @@ Tras el rebrand `bloqueos → reservas manuales` (commit `076b722`), la entidad 
 | Avance de status falla | Red, doc eliminado en paralelo, transacción abortada | Toast "No pudimos actualizar el estado" + revert optimista |
 | Quick delete falla | Permisos, red, doc ya eliminado | Toast con detalle (manejado por el `DeleteBlockedSlotSheet` ya existente) |
 | Crear sin `clientName` | Validación cliente | Botón "Reservar" deshabilitado, mensaje inline |
-| Crear con `clientPhone` mal formado | Validación cliente (regex) | Botón "Reservar" deshabilitado, mensaje inline. Si está vacío se permite. |
+| Crear sin `clientPhone` o mal formado | Validación cliente (regex) | Botón "Reservar" deshabilitado, mensaje inline. El celular es obligatorio. |
 | Schedule no disponible al calcular precio | Día sin schedule, formato no soportado | `priceCOP: 0` se persiste; la card muestra "—" en lugar del valor |
 | Lectura de doc viejo sin `status` | Doc creado antes del SDD | Default `pending` en runtime (sin escribir) |
 
@@ -128,10 +128,10 @@ Tras el rebrand `bloqueos → reservas manuales` (commit `076b722`), la entidad 
    - Toggle "Se repite" + opciones de recurrencia (existentes).
    - Canchas a bloquear (chips, ahora verdes — ya hecho).
    - **Cliente** (obligatorio, validación visible).
-   - **Celular** (opcional; si tiene valor se valida 10 dígitos).
+   - **Celular** (obligatorio; se valida 10 dígitos empezando en 3).
    - **Precio** (display solo-lectura, calculado en vivo desde fecha + hora + canchas + formato del schedule del venue).
    - Información adicional (opcional, antes "Motivo" — guardado en el campo `reason`).
-3. CTA "Reservar" se habilita solo si `clientName` válido + canchas seleccionadas + tiempos válidos. Si `clientPhone` tiene valor, también debe ser válido. Precio no bloquea (incluso con 0 se puede crear).
+3. CTA "Reservar" se habilita solo si `clientName` válido + `clientPhone` válido + canchas seleccionadas + tiempos válidos. Precio no bloquea (incluso con 0 se puede crear).
 4. Submit → crea doc con `status: "pending"` y `priceCOP` calculado.
 
 ### Flujo 2 — Avanzar estado desde una card (happy path)
@@ -166,7 +166,7 @@ El quick button no agrega un modal nuevo: solo evita el extra-tap de abrir el de
 | Card `no_show` | Badge rojo "No asistió" + sin botón quick-status |
 | Card `free` | Badge morado "Gratis" + sin botón quick-status |
 | Form sin cliente | Botón Reservar disabled, mensaje inline junto al input de cliente |
-| Form con celular mal formado | Botón Reservar disabled, mensaje inline junto al input de celular |
+| Form sin celular o mal formado | Botón Reservar disabled, mensaje inline junto al input de celular |
 | Form con precio no calculable | Display "Precio no calculable para este horario", se persistirá `0` |
 
 ### Consideraciones mobile-first
@@ -193,10 +193,10 @@ El quick button no agrega un modal nuevo: solo evita el extra-tap de abrir el de
 - **`components/booking/StatusPopover.tsx`** (nuevo, opcional según se ajuste el alcance): popover/menu pequeño con las 4 opciones. Anclado al badge. Cierra al tap fuera o al elegir. Si el componente queda muy simple, se inlinea dentro de `AdminBlockCard` sin archivo separado.
 - **`components/booking/BlockedSlotForm.tsx`**:
   - Reordena el form para que Cliente, Celular y Precio queden cerca de Canchas.
-  - Validación de cliente (obligatorio) y celular (opcional con regex si tiene valor).
+  - Validación de cliente (obligatorio) y celular (obligatorio con regex).
   - Cambio del copy: label "Motivo" → "Información adicional", placeholder ajustado. **Sigue guardando en el campo `reason`** (sin migración, sin nuevo campo).
   - Display de precio en solo-lectura calculado en vivo a partir de fecha/hora/canchas/formato del schedule.
-  - Botón Reservar deshabilitado si falta cliente válido o celular mal formado.
+  - Botón Reservar deshabilitado si falta cliente válido o celular válido.
 - **`components/booking/HourDetailDrawer.tsx`**: pasa los handlers nuevos (`onAdvanceStatus`, `onQuickDelete`) a las cards.
 - **`components/booking/AdminBookingCalendar.tsx`**: idem, pasa handlers.
 - **`app/venues/admin/[id]/page.tsx`**: orquesta los handlers — `onAdvanceStatus` llama a `updateManualReservationStatus`; `onQuickDelete` setea `deleteTarget` y abre el `DeleteBlockedSlotSheet` (igual que hoy, solo que se accede más rápido).
@@ -260,7 +260,7 @@ export interface BlockedSlot {
     createdAt: string;
 
     // === nuevos ===
-    clientPhone?: string;      // opcional en escritura. Si está vacío, no se persiste.
+    clientPhone?: string;      // obligatorio en escritura (opcional en docs viejos).
     priceCOP?: number;         // calculado por el sistema al crear (>= 0). Opcional en docs viejos.
     status?: ManualReservationStatus; // default `pending` al leer si falta. Opcional en docs viejos.
 }
@@ -288,7 +288,7 @@ export interface BlockedSlot {
 
 ### Capa de API (`lib/`)
 - **`lib/venues.ts`**:
-  - `createBlockedSlot(...)`: aceptar nuevos campos `clientPhone` (opcional, omitir si vacío), `priceCOP` (calculado) e `isMonthly` (solo si recurrente). Mantener `reason` tal como está. Setear `status: "pending"`.
+  - `createBlockedSlot(...)`: aceptar nuevos campos `clientPhone` (obligatorio), `priceCOP` (calculado) e `isMonthly` (solo si recurrente). Mantener `reason` tal como está. Setear `status: "pending"`.
   - **Nueva**: `updateManualReservationStatus(venueId, slotId, newStatus)`. Usa `runTransaction` para atomicidad. Cualquier transición es válida.
   - **Nueva**: `updateManualReservation(venueId, slotId, { clientName?, clientPhone?, reason?, isMonthly? })`. `updateDoc` directo (no transacción — sin race condition para metadatos). Campos con valor `undefined` se borran de Firestore via `deleteField()` (Firestore no acepta `undefined` en `updateDoc`).
 
@@ -335,7 +335,7 @@ export interface BlockedSlot {
 | `app/venues/admin/[id]/page.tsx` | Orquesta handlers; `occupiedCourtIds` pasados al form desde `HourDetailDrawer` |
 | `firestore.rules` | Verificar que update de `BlockedSlot` siga restricto a admin de la sede; sin cambios mecánicos |
 | `scripts/backfill-manual-reservation-prices.js` | **Nuevo** — migración one-time de `priceCOP` en docs existentes |
-| `components/booking/EditManualReservationSheet.tsx` | **Nuevo** — sheet de edición de `clientName`, `clientPhone`, `reason`, `isMonthly` (solo recurrentes) |
+| `components/booking/EditManualReservationSheet.tsx` | **Nuevo** — sheet de edición de `clientName`, `clientPhone` (obligatorio, valida `^3\d{9}$`), `reason`, `isMonthly` (solo recurrentes) |
 | `functions/src/blocked-slots.ts` | Acepta `isMonthly` en `CreateInput`; persiste solo cuando `normalizedRecurrence` existe |
 
 ---
