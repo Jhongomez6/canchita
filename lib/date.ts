@@ -1,3 +1,32 @@
+/**
+ * "Hoy" en zona horaria de Colombia (America/Bogota, UTC-5 sin horario de verano),
+ * independiente de la zona configurada en el dispositivo. Usa el reloj del equipo
+ * (ya sincronizado por NTP en la práctica). Formato ISO YYYY-MM-DD.
+ */
+export function todayColombiaISO(): string {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Bogota",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date()); // en-CA ⇒ "YYYY-MM-DD"
+}
+
+/**
+ * "Ayer" en zona horaria de Colombia. Se construye desde el string de hoy
+ * (mediodía en -05:00) para evitar shifts de UTC al restar el día.
+ */
+export function yesterdayColombiaISO(): string {
+    const d = new Date(`${todayColombiaISO()}T12:00:00-05:00`);
+    d.setDate(d.getDate() - 1);
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Bogota",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(d);
+}
+
 export function formatDateSpanish(dateStr: string) {
     if (!dateStr) return "";
     // Si es un ISO completo, tomar solo la fecha

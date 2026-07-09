@@ -19,7 +19,7 @@ import {
   collection,
   getDocs,
 } from "firebase/firestore";
-import type { UserProfile, AdminType } from "./domain/user";
+import type { UserProfile, AdminType, LocationAdminRole } from "./domain/user";
 import { APP_LEGAL_CONSTANTS } from "./constants";
 
 /* =========================
@@ -235,6 +235,15 @@ export async function updateAdminType(uid: string, adminType: AdminType) {
 }
 
 /* =========================
+   SUB-ROL DE LOCATION ADMIN (owner / staff)
+   Solo super_admin puede llamarla (enforced por firestore.rules).
+========================= */
+export async function updateLocationAdminRole(uid: string, role: LocationAdminRole) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { locationAdminRole: role });
+}
+
+/* =========================
    REVOCAR ROL ADMIN
    Quita el rol "admin" de roles y limpia adminType y assignedLocationIds
 ========================= */
@@ -244,6 +253,7 @@ export async function revokeAdminRole(uid: string, currentRoles: string[]) {
   await updateDoc(ref, {
     roles: newRoles.length > 0 ? newRoles : ["player"],
     adminType: deleteField(),
+    locationAdminRole: deleteField(),
     assignedLocationIds: deleteField(),
   });
   return newRoles.length > 0 ? newRoles : ["player"];

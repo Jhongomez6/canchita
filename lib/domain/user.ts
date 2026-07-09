@@ -27,6 +27,9 @@ import type { XpTier, AchievementId, AchievementUnlock } from "./xp";
 
 export type UserRole = "admin" | "player";
 export type AdminType = "super_admin" | "location_admin" | "team_admin";
+// Sub-rol dentro de location_admin. Ausente ⇒ "owner" (retrocompatibilidad).
+// owner = dueño (capacidades completas). staff = trabajador (capacidades reducidas).
+export type LocationAdminRole = "owner" | "staff";
 
 export interface UserProfile {
     uid: string;
@@ -46,6 +49,7 @@ export interface UserProfile {
     phone?: string;
     // Admin Tier System
     adminType?: AdminType;             // Tier del admin (solo relevante si roles incluye "admin")
+    locationAdminRole?: LocationAdminRole; // Sub-rol (solo relevante si adminType === "location_admin"); ausente ⇒ "owner"
     assignedLocationIds?: string[];    // IDs de locations donde puede operar (location/team admins)
     // Onboarding
     initialRatingCalculated?: boolean;
@@ -409,6 +413,32 @@ export function isLocationAdmin(profile: UserProfile): boolean {
  */
 export function isPendingLocationAdmin(profile: UserProfile): boolean {
     return isLocationAdmin(profile) && (profile.assignedLocationIds?.length ?? 0) === 0;
+}
+
+/**
+ * Location Admin con sub-rol "owner" (dueño de la cancha). Campo ausente ⇒ owner
+ * por retrocompatibilidad. NO incluye super_admin.
+ */
+export function isLocationOwner(profile: UserProfile): boolean {
+    return isLocationAdmin(profile) && (profile.locationAdminRole ?? "owner") === "owner";
+}
+
+/**
+ * Location Admin con sub-rol "staff" (trabajador). Capacidades reducidas:
+ * sin analítica de sede y sin navegación de reservas a fechas anteriores a ayer.
+ */
+export function isLocationStaff(profile: UserProfile): boolean {
+    return isLocationAdmin(profile) && profile.locationAdminRole === "staff";
+}
+
+/**
+ * ¿Puede ver el tab/dashboard de analítica de sede?
+ * Super admin siempre; staff nunca; owner requiere el flag venueAnalyticsEnabled.
+ */
+export function canViewVenueAnalytics(profile: UserProfile): boolean {
+    if (isSuperAdmin(profile)) return true;
+    if (isLocationStaff(profile)) return false;
+    return hasVenueAnalyticsAccess(profile);
 }
 
 /**

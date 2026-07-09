@@ -8,7 +8,8 @@ import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { isSuperAdmin, isLocationAdmin, hasVenueAnalyticsAccess } from "@/lib/domain/user";
+import { isSuperAdmin, isLocationAdmin, canViewVenueAnalytics, isLocationStaff } from "@/lib/domain/user";
+import { yesterdayColombiaISO } from "@/lib/date";
 import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER } from "@/lib/domain/venue";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
@@ -131,7 +132,9 @@ function VenueAdminContent() {
 
     // Role gating
     const isSuper = profile ? isSuperAdmin(profile) : false;
-    const canSeeAnalytics = profile ? hasVenueAnalyticsAccess(profile) : false;
+    const canSeeAnalytics = profile ? canViewVenueAnalytics(profile) : false;
+    // Staff (trabajador): navegación de reservas acotada de ayer en adelante (zona Colombia).
+    const bookingsMinDate = profile && isLocationStaff(profile) ? yesterdayColombiaISO() : undefined;
     const visibleTabs: AdminTab[] = [
         ...(isSuper
             ? (["info", "courts", "schedule", "payments", "blocked", "bookings", "pending", "balance"] as AdminTab[])
@@ -179,6 +182,7 @@ function VenueAdminContent() {
         blocks: BlockedSlot[];
         relevantCourtIds: string[];
         unavailableRelevantCourtIds: string[];
+        sameSportCourtIds: string[];
     } | null>(null);
 
     // Bookings sub-view: monthly calendar vs hourly slot picker
@@ -238,11 +242,17 @@ function VenueAdminContent() {
             const overlapping = all.filter(
                 (b) => b.startTime < hourEnd && b.endTime > hourStart,
             );
-            setHourDetail((prev) =>
-                prev && prev.date === hourDate && prev.startTime === hourStart && prev.endTime === hourEnd
-                    ? { ...prev, bookings: overlapping }
-                    : prev,
-            );
+            setHourDetail((prev) => {
+                if (!prev || prev.date !== hourDate || prev.startTime !== hourStart || prev.endTime !== hourEnd) {
+                    return prev;
+                }
+                // RN-10: el detalle es por DEPORTE. Filtramos a las reservas que tocan alguna
+                // cancha del mismo deporte que el formato seleccionado (superconjunto del formato
+                // exacto: incluye otros formatos del mismo deporte, excluye otros deportes).
+                const sameSport = new Set(prev.sameSportCourtIds);
+                const bookings = overlapping.filter((b) => b.courtIds.some((id) => sameSport.has(id)));
+                return { ...prev, bookings };
+            });
         });
         return () => unsub();
     }, [venueId, hourDate, hourStart, hourEnd]);
@@ -1037,6 +1047,7 @@ function VenueAdminContent() {
                                     venueId={venueId}
                                     venueFormats={venueFormats}
                                     isSuper={isSuper}
+                                    minDate={bookingsMinDate}
                                     onBookingCancel={(booking) => {
                                         logBookingCancellationStarted({
                                             venueId: booking.venueId,
@@ -1065,8 +1076,9 @@ function VenueAdminContent() {
                                     venueId={venueId}
                                     courts={courts}
                                     venueFormats={venueFormats}
-                                    onHourTapped={({ date, startTime, endTime, courtIds, format, bookings, blocks, relevantCourtIds, unavailableRelevantCourtIds }) => {
-                                        setHourDetail({ date, startTime, endTime, courtIds, format, bookings, blocks, relevantCourtIds, unavailableRelevantCourtIds });
+                                    minDate={bookingsMinDate}
+                                    onHourTapped={({ date, startTime, endTime, courtIds, format, bookings, blocks, relevantCourtIds, unavailableRelevantCourtIds, sameSportCourtIds }) => {
+                                        setHourDetail({ date, startTime, endTime, courtIds, format, bookings, blocks, relevantCourtIds, unavailableRelevantCourtIds, sameSportCourtIds });
                                         logAdminHourDetailOpened({
                                             venueId,
                                             date,
@@ -1156,6 +1168,7 @@ function VenueAdminContent() {
                                             defaultCourtIds={drawerDefaults.courtIds}
                                             defaultFormat={drawerDefaults.format}
                                             occupiedCourtIds={drawerDefaults.occupiedCourtIds}
+                                            minDate={bookingsMinDate}
                                             onCreated={() => setBlockedDrawerOpen(false)}
                                             onCancel={() => setBlockedDrawerOpen(false)}
                                         />

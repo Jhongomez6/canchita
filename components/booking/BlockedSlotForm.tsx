@@ -32,6 +32,8 @@ interface BlockedSlotFormProps {
     venueFormats?: VenueFormat[];
     /** IDs de canchas ya ocupadas por bookings o blocks existentes en el mismo horario. Se muestran deshabilitadas. */
     occupiedCourtIds?: string[];
+    /** Fecha mínima seleccionable (YYYY-MM-DD). Acota el input de fecha (staff: ayer en adelante). */
+    minDate?: string;
     onCreated?: () => void;
     onCancel?: () => void;
 }
@@ -81,6 +83,7 @@ export default function BlockedSlotForm({
     defaultFormat,
     venueFormats,
     occupiedCourtIds = [],
+    minDate,
     onCreated,
     onCancel,
 }: BlockedSlotFormProps) {
@@ -279,6 +282,7 @@ export default function BlockedSlotForm({
                 <input
                     type="date"
                     value={date}
+                    min={minDate}
                     onChange={(e) => setDate(e.target.value)}
                     className="w-full px-3 py-2 text-base border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30"
                 />

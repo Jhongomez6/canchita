@@ -588,6 +588,19 @@ export function formatLabel(format: string, venueFormats?: VenueFormat[]): strin
 }
 
 /**
+ * Resuelve el deporte de un formato (VenueFormat.id) buscándolo en el catálogo de la sede.
+ * En modo legacy (sin catálogo) devuelve `null` — el llamador debe asumir sede mono-deporte
+ * (football-only) y tratar todas las canchas como del mismo deporte.
+ */
+export function sportOfFormat(format: string, venueFormats?: VenueFormat[]): SportType | null {
+    if (venueFormats && venueFormats.length > 0) {
+        const vf = venueFormats.find((f) => f.id === format);
+        if (vf) return vf.sport;
+    }
+    return null;
+}
+
+/**
  * Devuelve "Cancha sencilla/doble/triple" según cuántas canchas se usan.
  * Útil para bloqueos que no tienen `format`.
  */

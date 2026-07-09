@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { getAvailableFormats, getDayOfWeek, generateTimeSlots, tierLabelFromCount, formatCourtList, formatLabel } from "@/lib/domain/venue";
+import { getAvailableFormats, getDayOfWeek, generateTimeSlots, tierLabelFromCount, formatCourtList, formatLabel, sportOfFormat } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot, allocateCourts } from "@/lib/domain/court-allocation";
 import { getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
 import { subscribeToAllBookingsForDate, SLOT_BLOCKING_BOOKING_STATUSES } from "@/lib/bookings";
@@ -30,7 +30,12 @@ interface AdminSlotPickerProps {
         relevantCourtIds: string[];
         /** Ids de canchas relevantes que están ocupadas en este horario (por cualquier reserva/block). */
         unavailableRelevantCourtIds: string[];
+        /** Ids de canchas del mismo DEPORTE que el formato seleccionado. Define qué reservas
+         *  ver en el detalle de la hora (RN-10). La suscripción realtime del padre las filtra. */
+        sameSportCourtIds: string[];
     }) => void;
+    /** Fecha mínima navegable (YYYY-MM-DD). Acota el inicio del carrusel de días. Sin valor ⇒ 2 meses atrás. */
+    minDate?: string;
 }
 
 function todayLocalISO(): string {
@@ -44,15 +49,17 @@ function twoMonthsBackISO(): string {
     return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-function fourMonthsWindowDays(): number {
+// Días entre `startISO` (inclusive) y el último día de +2 meses desde hoy, de modo
+// que la ventana futura sea la misma sin importar dónde empiece el carrusel.
+function windowDaysFrom(startISO: string): number {
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const start = new Date(`${startISO}T12:00:00`);
     const end = new Date(now.getFullYear(), now.getMonth() + 3, 0); // último día del mes +2
-    return Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
 }
 
 
-export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourTapped }: AdminSlotPickerProps) {
+export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourTapped, minDate }: AdminSlotPickerProps) {
     const [combos, setCombos] = useState<CourtCombo[]>([]);
     const [schedule, setSchedule] = useState<DaySchedule | null>(null);
     const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
@@ -134,9 +141,28 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
         return ids;
     }, [courts, combos, selectedFormat]);
 
-    const blockTouchesFormat = useCallback(
-        (b: BlockedSlot) => b.courtIds.some((id) => relevantCourtIds.has(id)),
-        [relevantCourtIds],
+    // RN-10: alcance por DEPORTE (no por formato). El detalle/lista de una hora muestra
+    // todas las reservas —online o manuales, activas o canceladas— del mismo deporte que
+    // el formato seleccionado, aunque sean de otro formato (ej. futbol-5 se ve en futbol-7).
+    // Reservas de otros deportes (vóley, etc.) quedan fuera: no comparten canchas ni
+    // interesan a la gestión de este deporte.
+    // Nota: `relevantCourtIds` (arriba) sigue acotado al formato EXACTO — se usa solo para
+    // la disponibilidad del CTA "Crear reserva manual", no para el display.
+    const sameSportCourtIds = useMemo(() => {
+        if (!selectedFormat) return new Set<string>();
+        const selectedSport = sportOfFormat(selectedFormat, venueFormats);
+        // Modo legacy / deporte no resoluble ⇒ sede mono-deporte: todas las canchas cuentan.
+        if (selectedSport === null) return new Set(courts.map((c) => c.id));
+        const ids = new Set<string>();
+        for (const c of courts) {
+            if (sportOfFormat(c.baseFormat, venueFormats) === selectedSport) ids.add(c.id);
+        }
+        return ids;
+    }, [courts, venueFormats, selectedFormat]);
+
+    const touchesSelectedSport = useCallback(
+        (courtIds: string[]) => courtIds.some((id) => sameSportCourtIds.has(id)),
+        [sameSportCourtIds],
     );
 
     const timeSlots = useCallback((): SlotItem[] => {
@@ -212,17 +238,17 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                 const activeEntries: OccupantLabel[] = [];
                 const cancelledEntries: OccupantLabel[] = [];
 
-                for (const b of overlappingBookings.filter((b) => b.format === selectedFormat)) {
+                for (const b of overlappingBookings.filter((b) => touchesSelectedSport(b.courtIds))) {
                     if (isDeadBooking(b)) {
                         cancelledEntries.push(bookingLabel(b));
                     } else {
                         activeEntries.push(bookingLabel(b));
                     }
                 }
-                for (const b of activeBlocks.filter(blockTouchesFormat)) {
+                for (const b of activeBlocks.filter((b) => touchesSelectedSport(b.courtIds))) {
                     activeEntries.push(blockLabel(b));
                 }
-                for (const b of cancelledBlocks.filter(blockTouchesFormat)) {
+                for (const b of cancelledBlocks.filter((b) => touchesSelectedSport(b.courtIds))) {
                     cancelledEntries.push(blockLabel(b));
                 }
 
@@ -239,7 +265,7 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                 cancelledLabels,
             }];
         });
-    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, blockTouchesFormat]);
+    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, venueFormats, touchesSelectedSport]);
 
     const handleSlotTap = (slot: SlotItem) => {
         if (!selectedFormat) return;
@@ -278,10 +304,11 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
             endTime: slot.endTime,
             courtIds: allocation?.courtIds ?? [],
             format: selectedFormat,
-            bookings: overlappingBookings.filter((b) => b.format === selectedFormat),
-            blocks: overlappingBlocks.filter(blockTouchesFormat),
+            bookings: overlappingBookings.filter((b) => touchesSelectedSport(b.courtIds)),
+            blocks: overlappingBlocks.filter((b) => touchesSelectedSport(b.courtIds)),
             relevantCourtIds: relevantIds,
             unavailableRelevantCourtIds,
+            sameSportCourtIds: [...sameSportCourtIds],
         });
     };
 
@@ -302,8 +329,8 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
             <DateCarousel
                 selectedDate={selectedDate}
                 onSelect={setSelectedDate}
-                startDate={twoMonthsBackISO()}
-                daysAhead={fourMonthsWindowDays()}
+                startDate={minDate ?? twoMonthsBackISO()}
+                daysAhead={windowDaysFrom(minDate ?? twoMonthsBackISO())}
             />
 
             {selectedFormat && (

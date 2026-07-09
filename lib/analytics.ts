@@ -705,6 +705,18 @@ export async function logManualReservationStatusChanged(params: {
   });
 }
 
+export async function logLocationAdminSubroleSet(params: {
+  targetUid: string;
+  subrole: "owner" | "staff";
+  actorUid: string;
+}) {
+  await trackEvent("location_admin_subrole_set", {
+    target_uid: params.targetUid,
+    subrole: params.subrole,
+    actor_uid: params.actorUid,
+  });
+}
+
 export async function logManualReservationQuickDeleteOpened(params: {
   venueId: string;
   slotId: string;

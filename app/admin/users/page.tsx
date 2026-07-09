@@ -3,17 +3,18 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
-import { getAllUsers, deleteUser, updateUserRoles, updateAdminType, assignLocationsToAdmin, revokeAdminRole } from "@/lib/users";
+import { getAllUsers, deleteUser, updateUserRoles, updateAdminType, updateLocationAdminRole, assignLocationsToAdmin, revokeAdminRole } from "@/lib/users";
 import { getActiveLocations } from "@/lib/locations";
 import { getActiveVenues } from "@/lib/venues";
 import AuthGuard from "@/components/AuthGuard";
 import UserListSkeleton from "@/components/skeletons/UserListSkeleton";
-import type { UserProfile, UserRole, AdminType } from "@/lib/domain/user";
+import type { UserProfile, UserRole, AdminType, LocationAdminRole } from "@/lib/domain/user";
 import type { Location } from "@/lib/domain/location";
 import type { Venue } from "@/lib/domain/venue";
 import { isSuperAdmin } from "@/lib/domain/user";
 import { toast } from "react-hot-toast";
 import { handleError } from "@/lib/utils/error";
+import { logLocationAdminSubroleSet } from "@/lib/analytics";
 
 export default function AdminUsersPage() {
   const { user, profile } = useAuth();
@@ -104,6 +105,17 @@ export default function AdminUsersPage() {
       toast.success("Tier de admin actualizado");
     } catch (e: unknown) {
       handleError(e, "Error al actualizar tier");
+    }
+  }
+
+  async function handleUpdateLocationAdminRole(uid: string, role: LocationAdminRole) {
+    try {
+      await updateLocationAdminRole(uid, role);
+      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, locationAdminRole: role } : u));
+      logLocationAdminSubroleSet({ targetUid: uid, subrole: role, actorUid: user?.uid ?? "" });
+      toast.success("Sub-rol de sede actualizado");
+    } catch (e: unknown) {
+      handleError(e, "Error al actualizar sub-rol");
     }
   }
 
@@ -243,6 +255,23 @@ export default function AdminUsersPage() {
                         <option value="location_admin">🏟️ Location Admin (Partidos Públicos & Privados)</option>
                         <option value="team_admin">👥 Team Admin (Solo Partidos Privados)</option>
                       </select>
+
+                      {/* Sub-rol de sede (solo location_admin): owner vs staff */}
+                      {u.adminType === "location_admin" && (
+                        <div style={{ marginTop: 16 }}>
+                          <div style={{ fontSize: 13, fontWeight: "bold", color: "#666", marginBottom: 8 }}>
+                            👤 Sub-rol de sede
+                          </div>
+                          <select
+                            value={u.locationAdminRole || "owner"}
+                            onChange={(e) => handleUpdateLocationAdminRole(u.uid, e.target.value as LocationAdminRole)}
+                            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ddd", fontSize: 14, outline: 'none' }}
+                          >
+                            <option value="owner">👑 Dueño (acceso completo)</option>
+                            <option value="staff">🧑‍💼 Trabajador (sin analítica; reservas de ayer en adelante)</option>
+                          </select>
+                        </div>
+                      )}
 
                       {/* Locations configurator (only for scoped admins) */}
                       {(u.adminType === "location_admin" || u.adminType === "team_admin") && (

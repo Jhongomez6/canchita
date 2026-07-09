@@ -41,6 +41,8 @@ interface AdminBookingCalendarProps {
     onCreateManual?: (date: string) => void;
     /** Si el admin actual es super admin (habilita hard-delete de reservas manuales). */
     isSuper?: boolean;
+    /** Fecha mínima navegable (YYYY-MM-DD). Días/meses anteriores quedan bloqueados. Sin valor ⇒ sin límite. */
+    minDate?: string;
 }
 
 const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -72,6 +74,7 @@ export default function AdminBookingCalendar({
     onRegisterPayment,
     onCreateManual,
     isSuper = false,
+    minDate,
 }: AdminBookingCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(() => {
         const now = new Date();
@@ -181,7 +184,11 @@ export default function AdminBookingCalendar({
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date();
 
-    const prevMonth = () => setCurrentMonth(new Date(year, month - 1, 1));
+    // Mes mínimo navegable (primer día del mes que contiene minDate).
+    const minMonthStart = minDate ? new Date(Number(minDate.slice(0, 4)), Number(minDate.slice(5, 7)) - 1, 1) : null;
+    const canGoPrev = !minMonthStart || new Date(year, month - 1, 1).getTime() >= minMonthStart.getTime();
+
+    const prevMonth = () => { if (canGoPrev) setCurrentMonth(new Date(year, month - 1, 1)); };
     const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1));
 
     const calendarDays: (number | null)[] = [];
@@ -211,7 +218,8 @@ export default function AdminBookingCalendar({
             <div className="flex items-center justify-between">
                 <button
                     onClick={prevMonth}
-                    className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                    disabled={!canGoPrev}
+                    className="p-2 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30 disabled:hover:text-slate-400 disabled:cursor-not-allowed"
                 >
                     <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -244,6 +252,7 @@ export default function AdminBookingCalendar({
                     const iso = toISO(dateObj);
                     const isSelected = iso === selectedDate;
                     const isToday = isSameDay(dateObj, today);
+                    const isBeforeMin = minDate ? iso < minDate : false;
                     const hasBookings = monthBookingDates.has(iso);
                     const hasBlocks = monthBlockDates.has(iso);
                     const hasBirthday = monthBirthdayDates.has(iso);
@@ -252,14 +261,17 @@ export default function AdminBookingCalendar({
                         <button
                             key={iso}
                             onClick={() => setSelectedDate(iso)}
+                            disabled={isBeforeMin}
                             className={`
                                 relative flex flex-col items-center justify-center
                                 py-2 rounded-lg text-sm transition-colors
-                                ${isSelected
-                                    ? "bg-[#1f7a4f] text-white font-bold"
-                                    : isToday
-                                        ? "bg-[#1f7a4f]/10 text-[#1f7a4f] font-semibold"
-                                        : "text-slate-600 hover:bg-slate-100"
+                                ${isBeforeMin
+                                    ? "text-slate-300 cursor-not-allowed"
+                                    : isSelected
+                                        ? "bg-[#1f7a4f] text-white font-bold"
+                                        : isToday
+                                            ? "bg-[#1f7a4f]/10 text-[#1f7a4f] font-semibold"
+                                            : "text-slate-600 hover:bg-slate-100"
                                 }
                             `}
                         >
