@@ -173,7 +173,7 @@ El flag `venueAnalyticsEnabled` vive en el doc del usuario (`users/{uid}`). Lo a
 2. Tap en el tab **"Analítica"**.
 3. El dashboard carga con período default **"Este mes"** → skeleton mientras agrega.
 4. **Header fijo (sticky)** siempre accesible: **selector de período** (chips) + **control segmentado** con 4 sub-vistas. Cada sub-vista es corta (poco scroll) y responde una sola pregunta:
-   - **Resumen** — "¿cómo va la cancha?": card de Ingresos (total + comparativo + Efectivo/Transferencia), fila de 3 KPIs (Ocupación · Reservas · Inasistencias), heatmap de ocupación.
+   - **Resumen** — "¿cómo va la cancha?": card de Ingresos (total + comparativo + Efectivo/Transferencia), fila de 4 KPIs (Ocupación · Reservas · Inasistencias · **Canchas gratis** = reservas marcadas "Gratis"/cortesías en el período), heatmap de ocupación.
    - **Ingresos** — ingreso por día de la semana · por cancha · por formato.
    - **Clientes** — top por ingresos · top por reservas · más cancelaciones · más inasistencias.
    - **Detalle** — inasistencias · reservas canceladas (con "Ver todas").

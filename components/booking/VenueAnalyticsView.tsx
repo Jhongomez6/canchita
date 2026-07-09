@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    DollarSign, LayoutGrid, CalendarDays, UserX,
+    DollarSign, LayoutGrid, CalendarDays, UserX, Gift,
     TrendingUp, TrendingDown, Minus, RefreshCw, BarChart3, X,
 } from "lucide-react";
 import {
@@ -286,7 +286,7 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                             </div>
 
                             {/* KPIs */}
-                            <div className="grid grid-cols-3 gap-2.5">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                                 <KpiCard
                                     icon={<LayoutGrid className="w-4 h-4" />} tone="occ"
                                     label="Ocupación" value={`${Math.round(metrics.occupancy * 100)}%`}
@@ -301,6 +301,10 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                     icon={<UserX className="w-4 h-4" />} tone="ns"
                                     label="Inasistencias" value={`${Math.round(metrics.rates.noShowRate * 100)}%`}
                                     delta={ppDelta(metrics.rates.noShowRate, metrics.prevRates.noShowRate, false)}
+                                />
+                                <KpiCard
+                                    icon={<Gift className="w-4 h-4" />} tone="free"
+                                    label="Canchas gratis" value={String(metrics.rates.free)}
                                 />
                             </div>
 
@@ -414,6 +418,7 @@ const TONES: Record<string, string> = {
     occ: "bg-blue-50 text-blue-600",
     res: "bg-slate-100 text-slate-500",
     ns: "bg-rose-50 text-rose-500",
+    free: "bg-purple-50 text-purple-600",
 };
 
 function DeltaBadge({ delta }: { delta: DeltaInfo }) {
@@ -427,16 +432,16 @@ function DeltaBadge({ delta }: { delta: DeltaInfo }) {
 }
 
 function KpiCard({ icon, tone, label, value, delta }: {
-    icon: React.ReactNode; tone: keyof typeof TONES; label: string; value: string; delta: DeltaInfo;
+    icon: React.ReactNode; tone: keyof typeof TONES; label: string; value: string; delta?: DeltaInfo;
 }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
             className="bg-white border border-slate-100 rounded-2xl p-3 flex flex-col gap-1.5"
         >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between min-h-[28px]">
                 <span className={`w-7 h-7 rounded-lg grid place-items-center ${TONES[tone]}`}>{icon}</span>
-                <DeltaBadge delta={delta} />
+                {delta && <DeltaBadge delta={delta} />}
             </div>
             <span className="text-[11.5px] font-semibold text-slate-500 leading-tight">{label}</span>
             <span className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">{value}</span>

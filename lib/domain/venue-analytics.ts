@@ -80,6 +80,7 @@ export interface StatusRates {
     scheduled: number;
     noShow: number;
     cancelled: number;
+    free: number;             // reservas marcadas "Gratis" (cortesías)
     noShowRate: number;       // no_show / jugables
     cancellationRate: number; // cancelled / agendadas
 }
@@ -451,15 +452,18 @@ export function computeStatusRates(instances: ReservationInstance[]): StatusRate
     const scheduled = instances.length;
     let cancelled = 0;
     let noShow = 0;
+    let free = 0;
     for (const inst of instances) {
         if (inst.status === "cancelled") cancelled++;
         else if (inst.status === "no_show") noShow++;
+        else if (inst.status === "free") free++;
     }
     const playable = scheduled - cancelled;
     return {
         scheduled,
         noShow,
         cancelled,
+        free,
         noShowRate: playable > 0 ? noShow / playable : 0,
         cancellationRate: scheduled > 0 ? cancelled / scheduled : 0,
     };

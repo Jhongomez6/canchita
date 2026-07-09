@@ -350,13 +350,15 @@ describe("computeStatusRates", () => {
             slot({ id: "b", date: "2026-07-06", status: "no_show" }),
             slot({ id: "c", date: "2026-07-07", status: "cancelled" }),
             slot({ id: "d", date: "2026-07-08", status: "paid" }),
+            slot({ id: "e", date: "2026-07-09", status: "free" }),
         ], p);
         const r = computeStatusRates(insts);
-        expect(r.scheduled).toBe(4);
+        expect(r.scheduled).toBe(5);
         expect(r.cancelled).toBe(1);
         expect(r.noShow).toBe(1);
-        expect(r.cancellationRate).toBeCloseTo(0.25); // 1/4
-        expect(r.noShowRate).toBeCloseTo(1 / 3);       // 1 no_show / 3 jugables
+        expect(r.free).toBe(1);
+        expect(r.cancellationRate).toBeCloseTo(0.2); // 1/5
+        expect(r.noShowRate).toBeCloseTo(0.25);      // 1 no_show / 4 jugables
     });
 });
 
