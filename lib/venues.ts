@@ -34,7 +34,7 @@ import { expandBlockedSlotsForDate } from "./domain/blocked-slots";
 import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus, ManualReservationPayment, PaymentMethod } from "./domain/venue";
 import { validatePaymentMethods, normalizePaymentNote } from "./domain/venue";
 import { validatePendingApprovalTTL } from "./domain/booking";
-import { validateWhatsAppNumber } from "./domain/venue";
+import { validateWhatsAppNumber, validateWeekendLeadHours } from "./domain/venue";
 import { buildPaymentId, validatePaymentAmounts } from "./domain/payments";
 
 // ========================
@@ -224,10 +224,13 @@ export async function createVenue(input: CreateVenueInput): Promise<string> {
 
 export async function updateVenueSettings(
     venueId: string,
-    data: Partial<Pick<Venue, "depositRequired" | "depositPercent" | "name" | "address" | "phone" | "description" | "active" | "imageURL" | "icon" | "formats" | "pendingApprovalTTLHours" | "whatsappNotificationNumber" | "hidePricesForLocationAdmins">>,
+    data: Partial<Pick<Venue, "depositRequired" | "depositPercent" | "name" | "address" | "phone" | "description" | "active" | "imageURL" | "icon" | "formats" | "pendingApprovalTTLHours" | "whatsappNotificationNumber" | "hidePricesForLocationAdmins" | "weekendMinLeadHours">>,
 ): Promise<void> {
     if (data.pendingApprovalTTLHours !== undefined) {
         validatePendingApprovalTTL(data.pendingApprovalTTLHours);
+    }
+    if (data.weekendMinLeadHours !== undefined) {
+        validateWeekendLeadHours(data.weekendMinLeadHours);
     }
     if (data.whatsappNotificationNumber !== undefined) {
         validateWhatsAppNumber(data.whatsappNotificationNumber);

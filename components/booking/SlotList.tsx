@@ -26,6 +26,8 @@ export interface SlotItem {
     available: boolean;
     occupantLabels?: OccupantLabel[];
     cancelledLabels?: OccupantLabel[];
+    /** Motivo por el que el slot no está disponible. Si se omite se muestra "Ocupado". */
+    unavailableReason?: string;
 }
 
 interface SlotListProps {
@@ -182,7 +184,7 @@ export default function SlotList({
                                     </span>
                                 )}
                                 {!hidePrice && !slot.available && (
-                                    <span className="text-xs text-slate-400 font-medium flex-shrink-0">Ocupado</span>
+                                    <span className="text-xs text-slate-400 font-medium flex-shrink-0">{slot.unavailableReason ?? "Ocupado"}</span>
                                 )}
                             </div>
 

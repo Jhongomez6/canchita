@@ -201,6 +201,9 @@ export interface Venue {
     /** Si true, oculta la tarifa de cancha a los location admin (owner+staff) en el panel.
      *  Solo super admin lo edita. Ausente ⇒ false (tarifa visible). */
     hidePricesForLocationAdmins?: boolean;
+    /** Anticipación mínima (horas) que un cliente debe respetar para reservar en fin de semana.
+     *  0 o ausente ⇒ sin restricción. Ref: docs/WEEKEND_LEAD_TIME_SDD.md */
+    weekendMinLeadHours?: number;
 
     createdAt: string;
     updatedAt: string;
@@ -418,6 +421,63 @@ export interface CreateVenueInput {
 // ========================
 // HELPERS PUROS
 // ========================
+
+/**
+ * Rango configurable (por sede) de la anticipación mínima en fin de semana, en horas.
+ * 0 = sin restricción. Ref: docs/WEEKEND_LEAD_TIME_SDD.md
+ */
+export const MIN_WEEKEND_LEAD_HOURS = 0;
+export const MAX_WEEKEND_LEAD_HOURS = 12;
+/** Valor sugerido en el panel admin al activar la restricción. */
+export const DEFAULT_WEEKEND_LEAD_HOURS = 2;
+
+/** ¿La fecha (YYYY-MM-DD) cae en fin de semana (sábado o domingo)? */
+export function isWeekendDate(dateStr: string): boolean {
+    const day = new Date(dateStr + "T12:00:00").getDay();
+    return day === 0 || day === 6;
+}
+
+/**
+ * Anticipación mínima (minutos) requerida para que un CLIENTE reserve en esta fecha,
+ * según la config de la sede. Entre semana siempre 0. Fin de semana: `weekendLeadHours`.
+ * No aplica a reservas manuales del admin.
+ */
+export function minLeadMinutesForDate(dateStr: string, weekendLeadHours = 0): number {
+    if (!isWeekendDate(dateStr)) return 0;
+    const h = Number.isFinite(weekendLeadHours) ? Math.max(0, weekendLeadHours) : 0;
+    return h * 60;
+}
+
+/** Valida la anticipación mínima configurable (entero, 0–MAX horas). */
+export function validateWeekendLeadHours(hours: number): void {
+    if (!Number.isFinite(hours) || !Number.isInteger(hours)) {
+        throw new ValidationError("La anticipación debe ser un número entero de horas");
+    }
+    if (hours < MIN_WEEKEND_LEAD_HOURS || hours > MAX_WEEKEND_LEAD_HOURS) {
+        throw new ValidationError(
+            `La anticipación debe estar entre ${MIN_WEEKEND_LEAD_HOURS} y ${MAX_WEEKEND_LEAD_HOURS} horas`,
+        );
+    }
+}
+
+/**
+ * ¿El inicio del slot cae DENTRO de la ventana de anticipación mínima de fin de semana?
+ * Devuelve false entre semana o cuando `weekendLeadHours <= 0` (sin restricción).
+ *
+ * `nowMs` y el inicio del slot se comparan en el mismo marco horario local (hora del venue).
+ * En la app el navegador corre en hora de Colombia; el server valida aparte con UTC-5 explícito.
+ */
+export function isSlotBeforeWeekendLead(
+    date: string,
+    startTime: string,
+    nowMs: number,
+    weekendLeadHours: number,
+): boolean {
+    const leadMin = minLeadMinutesForDate(date, weekendLeadHours);
+    if (leadMin <= 0) return false;
+    const slotStartMs = new Date(`${date}T${startTime}:00`).getTime();
+    return slotStartMs < nowMs + leadMin * 60_000;
+}
 
 /**
  * Genera los time slots disponibles para un día dado, basado en el schedule del venue.

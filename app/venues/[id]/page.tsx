@@ -7,7 +7,7 @@ import { ArrowLeft, MapPin, Settings } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isSuperAdmin } from "@/lib/domain/user";
-import { getAvailableFormats, getDayOfWeek, generateTimeSlots, applyDurationTier } from "@/lib/domain/venue";
+import { getAvailableFormats, getDayOfWeek, generateTimeSlots, applyDurationTier, isSlotBeforeWeekendLead } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot } from "@/lib/domain/court-allocation";
 import { getVenue, getVenueCourts, getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
 import { subscribeToBookingsForDate, createBooking } from "@/lib/bookings";
@@ -150,6 +150,11 @@ function VenueDetailContent() {
         const nowISO = new Date().toISOString();
         const slots = generateTimeSlots(schedule, selectedDate, nowISO);
 
+        // Anticipación mínima (fin de semana, configurable por sede).
+        // Ref: docs/WEEKEND_LEAD_TIME_SDD.md
+        const nowMs = Date.now();
+        const weekendLeadHours = venue?.weekendMinLeadHours ?? 0;
+
         // Get occupied court IDs for each time slot
         return slots.flatMap((schedSlot) => {
             const formatPricing = schedSlot.formats.find((f: FormatPricing) => f.format === selectedFormat);
@@ -168,16 +173,20 @@ function VenueDetailContent() {
                 courts, combos, occupiedCourtIds, blockedCourtIds
             );
 
-            const isAvailable = availableFormats.includes(selectedFormat);
+            const formatAvailable = availableFormats.includes(selectedFormat);
+            const tooSoon = isSlotBeforeWeekendLead(selectedDate, schedSlot.startTime, nowMs, weekendLeadHours);
 
             return [{
                 startTime: schedSlot.startTime,
                 endTime: schedSlot.endTime,
                 priceCOP: formatPricing.priceCOP,
-                available: isAvailable,
+                available: formatAvailable && !tooSoon,
+                // Solo marca "Muy pronto" si el slot estaría libre de no ser por la anticipación;
+                // si está ocupado se mantiene el "Ocupado" por defecto.
+                unavailableReason: formatAvailable && tooSoon ? "Muy pronto" : undefined,
             }];
         });
-    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos]);
+    }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, venue?.weekendMinLeadHours]);
 
     // Slot selection handlers
     const handleSlotSelect = (startTime: string, endTime: string) => {

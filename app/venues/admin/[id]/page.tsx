@@ -10,7 +10,7 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin, isLocationAdmin, canViewVenueAnalytics, isLocationStaff } from "@/lib/domain/user";
 import { yesterdayColombiaISO } from "@/lib/date";
-import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER, shouldHidePricesFor } from "@/lib/domain/venue";
+import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER, shouldHidePricesFor, MIN_WEEKEND_LEAD_HOURS, MAX_WEEKEND_LEAD_HOURS } from "@/lib/domain/venue";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
     getVenue,
@@ -117,6 +117,8 @@ function VenueAdminContent() {
     const [paymentMethodsDirty, setPaymentMethodsDirty] = useState(false);
     const [pendingTTLHours, setPendingTTLHours] = useState<number>(DEFAULT_PENDING_APPROVAL_TTL_HOURS);
     const [whatsappNumber, setWhatsappNumber] = useState<string>("");
+    // Anticipación mínima en fin de semana (horas). 0 = sin restricción.
+    const [weekendLeadHours, setWeekendLeadHours] = useState<number>(0);
 
     // Venue info (tab "info", super admin only)
     const [venueName, setVenueName] = useState("");
@@ -397,6 +399,9 @@ function VenueAdminContent() {
                     : DEFAULT_PENDING_APPROVAL_TTL_HOURS,
             );
             setWhatsappNumber(v.whatsappNotificationNumber ?? "");
+            setWeekendLeadHours(
+                typeof v.weekendMinLeadHours === "number" ? v.weekendMinLeadHours : 0,
+            );
             setVenueName(v.name ?? "");
             setVenueAddress(v.address ?? "");
             setVenuePhone(v.phone ?? "");
@@ -478,6 +483,7 @@ function VenueAdminContent() {
                 pendingApprovalTTLHours: pendingTTLHours,
                 whatsappNotificationNumber: whatsappNumber.trim() || undefined,
                 hidePricesForLocationAdmins: hidePricesFromAdmins,
+                weekendMinLeadHours: weekendLeadHours,
             };
 
             await Promise.all([
@@ -1017,6 +1023,43 @@ function VenueAdminContent() {
                                     }}
                                     className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50"
                                 />
+                            </div>
+
+                            {/* Anticipación mínima en fin de semana */}
+                            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                                <h3 className="text-sm font-semibold text-slate-700 mb-1">
+                                    Anticipación mínima en fin de semana
+                                </h3>
+                                <p className="text-xs text-slate-400 mb-4">
+                                    Los sábados y domingos, un cliente solo podrá reservar horarios que
+                                    empiecen con esta anticipación. Usa 0 para no restringir.
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        min={MIN_WEEKEND_LEAD_HOURS}
+                                        max={MAX_WEEKEND_LEAD_HOURS}
+                                        step={1}
+                                        value={weekendLeadHours}
+                                        onChange={(e) => {
+                                            const raw = parseInt(e.target.value, 10);
+                                            if (Number.isNaN(raw)) return;
+                                            const clamped = Math.max(
+                                                MIN_WEEKEND_LEAD_HOURS,
+                                                Math.min(MAX_WEEKEND_LEAD_HOURS, raw),
+                                            );
+                                            setWeekendLeadHours(clamped);
+                                            markDirty();
+                                        }}
+                                        className="w-24 px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50"
+                                    />
+                                    <span className="text-sm text-slate-600">
+                                        {weekendLeadHours === 0 ? "horas (sin restricción)" : "horas antes"}
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-2">
+                                    Mínimo {MIN_WEEKEND_LEAD_HOURS}h, máximo {MAX_WEEKEND_LEAD_HOURS}h. No afecta la reserva manual del admin.
+                                </p>
                             </div>
                         </div>
                     )}

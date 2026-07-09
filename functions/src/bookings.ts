@@ -383,6 +383,28 @@ export const createBooking = onCall(
             throw new HttpsError("failed-precondition", "La sede no está activa");
         }
 
+        // ── ANTICIPACIÓN MÍNIMA EN FIN DE SEMANA (solo clientes) ──
+        // Ref: docs/WEEKEND_LEAD_TIME_SDD.md
+        // Config por sede (weekendMinLeadHours). 0/ausente = sin restricción.
+        const weekendLeadHours: number = (() => {
+            const raw = venue.weekendMinLeadHours;
+            return typeof raw === "number" && Number.isInteger(raw) && raw > 0 ? raw : 0;
+        })();
+        if (weekendLeadHours > 0) {
+            const dayOfWeekNum = new Date(date + "T12:00:00Z").getUTCDay(); // 0=Dom … 6=Sáb
+            const isWeekend = dayOfWeekNum === 0 || dayOfWeekNum === 6;
+            if (isWeekend) {
+                // Colombia = UTC-5 (sin DST): epoch absoluto del inicio del slot.
+                const slotStartMs = new Date(`${date}T${startTime}:00-05:00`).getTime();
+                if (slotStartMs - Date.now() < weekendLeadHours * 60 * 60 * 1000) {
+                    throw new HttpsError(
+                        "failed-precondition",
+                        `En fin de semana debes reservar con al menos ${weekendLeadHours} hora(s) de anticipación`,
+                    );
+                }
+            }
+        }
+
         // ── LEER COURTS Y COMBOS ──
         const courtsSnap = await venueRef.collection("courts").get();
         const courts = courtsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<{
