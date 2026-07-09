@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    DollarSign, LayoutGrid, CalendarDays, UserX, Gift,
+    DollarSign, LayoutGrid, CalendarDays, UserX, Gift, CalendarX, ChevronRight,
     TrendingUp, TrendingDown, Minus, RefreshCw, BarChart3, X,
 } from "lucide-react";
 import {
@@ -18,7 +18,7 @@ import {
     computeRevenueSummary, expandReservationInstances,
     computeOccupancyHeatmap, computeOverallOccupancy, computeStatusRates,
     revenueByCourt, revenueByFormat, revenueByWeekday, compare,
-    computeClientStats, rankClients, listNoShows, listCancellations,
+    computeClientStats, rankClients, listNoShows, listCancellations, listFree,
     DAY_SHORT_LABELS,
     type AnalyticsPeriodPreset, type AnalyticsPeriod, type OccupancyCell, type ReservationDetail,
 } from "@/lib/domain/venue-analytics";
@@ -29,7 +29,6 @@ import type { Court, CourtCombo, DaySchedule, BlockedSlot, ManualReservationPaym
 import OccupancyHeatmap from "./OccupancyHeatmap";
 import RevenueBreakdownList from "./RevenueBreakdownList";
 import ClientRankList from "./ClientRankList";
-import ReservationDetailList from "./ReservationDetailList";
 import ReservationDetailSheet from "./ReservationDetailSheet";
 import VenueAnalyticsSkeleton from "@/components/skeletons/VenueAnalyticsSkeleton";
 
@@ -83,13 +82,12 @@ const PRESETS: { key: AnalyticsPeriodPreset; label: string }[] = [
     { key: "custom", label: "Personalizado" },
 ];
 
-type AnalyticsView = "resumen" | "ingresos" | "clientes" | "detalle";
+type AnalyticsView = "resumen" | "ingresos" | "clientes";
 
 const VIEWS: { key: AnalyticsView; label: string }[] = [
     { key: "resumen", label: "Resumen" },
     { key: "ingresos", label: "Ingresos" },
     { key: "clientes", label: "Clientes" },
-    { key: "detalle", label: "Detalle" },
 ];
 
 export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps) {
@@ -153,13 +151,14 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
         const topNoShows = rankClients(clientStats, "noShows", 5);
         const noShowDetails = listNoShows(curInstances);
         const cancellationDetails = listCancellations(curInstances, slots);
+        const freeDetails = listFree(curInstances);
 
         return {
             courts,
             revenue, prevRevenue, cells, occupancy, prevOccupancy,
             rates, prevRates, byCourt, byFormat, byWeekday,
             topByRevenue, topByReservations, topCancellations, topNoShows,
-            noShowDetails, cancellationDetails,
+            noShowDetails, cancellationDetails, freeDetails,
             revenueCmp: compare(revenue.totalCOP, prevRevenue.totalCOP),
             reservationsCmp: compare(rates.scheduled, prevRates.scheduled),
             hasData: curPayments.length > 0 || curInstances.length > 0,
@@ -285,8 +284,8 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                 </div>
                             </div>
 
-                            {/* KPIs */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                            {/* KPIs primarias */}
+                            <div className="grid grid-cols-2 gap-2.5">
                                 <KpiCard
                                     icon={<LayoutGrid className="w-4 h-4" />} tone="occ"
                                     label="Ocupación" value={`${Math.round(metrics.occupancy * 100)}%`}
@@ -297,14 +296,26 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                     label="Reservas" value={String(metrics.rates.scheduled)}
                                     delta={pctDelta(metrics.reservationsCmp.deltaPct, true)}
                                 />
+                            </div>
+
+                            {/* KPIs de calidad (tap → detalle en sheet) */}
+                            <div className="grid grid-cols-3 gap-2.5">
                                 <KpiCard
                                     icon={<UserX className="w-4 h-4" />} tone="ns"
                                     label="Inasistencias" value={`${Math.round(metrics.rates.noShowRate * 100)}%`}
                                     delta={ppDelta(metrics.rates.noShowRate, metrics.prevRates.noShowRate, false)}
+                                    onClick={() => setDetailSheet({ title: "Inasistencias", items: metrics.noShowDetails })}
+                                />
+                                <KpiCard
+                                    icon={<CalendarX className="w-4 h-4" />} tone="cancel"
+                                    label="Cancelaciones" value={String(metrics.rates.cancelled)}
+                                    delta={pctDelta(compare(metrics.rates.cancelled, metrics.prevRates.cancelled).deltaPct, false)}
+                                    onClick={() => setDetailSheet({ title: "Reservas canceladas", items: metrics.cancellationDetails })}
                                 />
                                 <KpiCard
                                     icon={<Gift className="w-4 h-4" />} tone="free"
                                     label="Canchas gratis" value={String(metrics.rates.free)}
+                                    onClick={() => setDetailSheet({ title: "Canchas gratis", items: metrics.freeDetails })}
                                 />
                             </div>
 
@@ -329,7 +340,7 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                                 </p>
                             </Card>
                         </>
-                    ) : view === "clientes" ? (
+                    ) : (
                         <>
                             <Card title="Top clientes por ingresos">
                                 <ClientRankList items={metrics.topByRevenue} metric="revenue" />
@@ -347,20 +358,6 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
                             <Card title="Más inasistencias">
                                 <ClientRankList items={metrics.topNoShows} metric="noShows" tone="rose"
                                     emptyLabel="Ningún cliente faltó en el período." />
-                            </Card>
-                        </>
-                    ) : (
-                        <>
-                            <Card title="Inasistencias" sub={`${metrics.noShowDetails.length} total`}>
-                                <ReservationDetailList items={metrics.noShowDetails} courts={metrics.courts} maxRows={6}
-                                    emptyLabel="Sin inasistencias en el período."
-                                    onSeeAll={() => setDetailSheet({ title: "Inasistencias", items: metrics.noShowDetails })} />
-                            </Card>
-
-                            <Card title="Reservas canceladas" sub={`${metrics.cancellationDetails.length} total`}>
-                                <ReservationDetailList items={metrics.cancellationDetails} courts={metrics.courts} maxRows={6}
-                                    emptyLabel="Sin cancelaciones en el período."
-                                    onSeeAll={() => setDetailSheet({ title: "Reservas canceladas", items: metrics.cancellationDetails })} />
                             </Card>
                         </>
                     )}
@@ -418,6 +415,7 @@ const TONES: Record<string, string> = {
     occ: "bg-blue-50 text-blue-600",
     res: "bg-slate-100 text-slate-500",
     ns: "bg-rose-50 text-rose-500",
+    cancel: "bg-orange-50 text-orange-600",
     free: "bg-purple-50 text-purple-600",
 };
 
@@ -431,20 +429,29 @@ function DeltaBadge({ delta }: { delta: DeltaInfo }) {
     );
 }
 
-function KpiCard({ icon, tone, label, value, delta }: {
-    icon: React.ReactNode; tone: keyof typeof TONES; label: string; value: string; delta?: DeltaInfo;
+function KpiCard({ icon, tone, label, value, delta, onClick }: {
+    icon: React.ReactNode; tone: keyof typeof TONES; label: string; value: string; delta?: DeltaInfo; onClick?: () => void;
 }) {
+    const tappable = !!onClick;
     return (
         <motion.div
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-            className="bg-white border border-slate-100 rounded-2xl p-3 flex flex-col gap-1.5"
+            onClick={onClick}
+            role={tappable ? "button" : undefined}
+            tabIndex={tappable ? 0 : undefined}
+            className={`bg-white border border-slate-100 rounded-2xl p-3 flex flex-col gap-1.5 ${
+                tappable ? "cursor-pointer active:scale-[0.98] transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f7a4f]/40" : ""
+            }`}
         >
             <div className="flex items-center justify-between min-h-[28px]">
                 <span className={`w-7 h-7 rounded-lg grid place-items-center ${TONES[tone]}`}>{icon}</span>
                 {delta && <DeltaBadge delta={delta} />}
             </div>
             <span className="text-[11.5px] font-semibold text-slate-500 leading-tight">{label}</span>
-            <span className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">{value}</span>
+            <div className="flex items-center justify-between">
+                <span className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">{value}</span>
+                {tappable && <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />}
+            </div>
         </motion.div>
     );
 }

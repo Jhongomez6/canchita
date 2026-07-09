@@ -19,6 +19,7 @@ import {
     rankClients,
     listNoShows,
     listCancellations,
+    listFree,
     MAX_RANGE_DAYS,
     type AnalyticsPeriod,
 } from "./venue-analytics";
@@ -500,6 +501,16 @@ describe("listNoShows / listCancellations", () => {
         const rows = listCancellations(instances, slots);
         expect(rows).toHaveLength(1);
         expect(rows[0].reason).toBe("Lluvia");
+        expect(rows[0].clientName).toBe("Ana");
+    });
+
+    it("lista canchas gratis (status free)", () => {
+        const instances = expandReservationInstances([
+            slot({ id: "a", date: "2026-07-05", clientName: "Ana", status: "free" }),
+            slot({ id: "b", date: "2026-07-06", clientName: "Beto", status: "played" }),
+        ], p);
+        const rows = listFree(instances);
+        expect(rows).toHaveLength(1);
         expect(rows[0].clientName).toBe("Ana");
     });
 });

@@ -676,6 +676,14 @@ export function listNoShows(instances: ReservationInstance[]): ReservationDetail
         .sort(byDateThenTimeDesc);
 }
 
+/** Detalle de las canchas gratis (status "free"/cortesías) del rango, más recientes primero. */
+export function listFree(instances: ReservationInstance[]): ReservationDetail[] {
+    return instances
+        .filter((i) => i.status === "free")
+        .map((i) => toDetail(i))
+        .sort(byDateThenTimeDesc);
+}
+
 /** Detalle de reservas canceladas del rango (con motivo si existe en el slot), recientes primero. */
 export function listCancellations(instances: ReservationInstance[], slots: BlockedSlot[]): ReservationDetail[] {
     const reasonById = new Map(slots.map((s) => [s.id, s.cancellationReason]));

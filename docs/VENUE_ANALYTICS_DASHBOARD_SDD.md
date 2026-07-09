@@ -39,7 +39,7 @@ Está detrás de un **feature flag por usuario** (`venueAnalyticsEnabled`), sigu
 | RN-09 | Las **tasas** se calculan sobre instancias en el rango: `noShowRate = no_show / (jugables)` y `cancellationRate = cancelled / (total agendadas)`. "Jugables" excluye `cancelled`. Se muestran como % con el conteo crudo. **Wording en UI (español, simple)**: la tasa de `no_show` se muestra como **"Inasistencias"** (consistente con el badge existente "No asistió"); la de `cancelled` como **"Cancelaciones"**. El término técnico "no-show" **nunca** aparece en pantalla. | KPIs de calidad operativa |
 | RN-10 | **Ingreso por cancha**: cada pago tiene `courtIds`; se atribuye el `totalCOP` a esas canchas (repartido en partes iguales si el pago cubre varias canchas). **Ingreso por formato** — inferencia con fallback: (1) si `courtIds` coincide **exacto** con un `CourtCombo` → su `resultingFormat`; (2) si es **una sola cancha** → su `baseFormat`; (3) si no coincide con nada → bucket **"Mixto/Otro"**. El label se resuelve con `formatLabel()` (catálogo `VenueFormat` de la sede). Garantiza que la suma por formato == ingreso total. | Dos listas rankeadas |
 | RN-14 | **Métricas de clientes** (agrupadas **por nombre** — no hay entidad cliente, y los pagos solo guardan `clientName`): **Top clientes por ingresos** y **por reservas** (dos rankings), **clientes con más cancelaciones** y **con más inasistencias**. Reservas = instancias no canceladas; ingreso desde pagos. Limitación conocida: el mismo cliente escrito distinto se cuenta como dos. | Rankings de clientes |
-| RN-15 | **Detalle de inasistencias** y **detalle de reservas canceladas**: lista de las instancias del rango (fecha, hora, cancha, cliente; motivo de cancelación si se registró en el slot), ordenadas por fecha desc. La card muestra las primeras 6 + botón **"Ver todas (N)"** que abre un **bottom sheet scrolleable** con el historial completo del período (no paginación por páginas — los datos ya están acotados al rango de ≤92 días). Es **PII** (nombres de cliente) → solo dentro del área admin, nunca en eventos de analytics. | Listas + sheet "Ver todas" |
+| RN-15 | **Detalle de inasistencias / cancelaciones / canchas gratis**: se accede **tapeando la KPI de calidad** correspondiente en Resumen → abre un **bottom sheet scrolleable** con las instancias del rango (fecha, hora, cancha, cliente; motivo de cancelación si se registró en el slot), ordenadas por fecha desc. No hay paginación por páginas (los datos ya están acotados al rango ≤92 días). Es **PII** (nombres de cliente) → solo dentro del área admin, nunca en eventos de analytics. | KPI tappable → sheet de detalle |
 | RN-11 | Si el rango no tiene datos suficientes (sin pagos y sin reservas), se muestra un **empty state** explicativo, no ceros engañosos. | Empty state por sección |
 | RN-12 | Todos los montos se manejan en **centavos COP** internamente y se formatean con `formatCOP` (consistente con el resto de la app). | Formato $ unificado |
 
@@ -172,13 +172,13 @@ El flag `venueAnalyticsEnabled` vive en el doc del usuario (`users/{uid}`). Lo a
 1. `location_admin` (con flag) o `super_admin` entra a `/venues/admin/{id}`.
 2. Tap en el tab **"Analítica"**.
 3. El dashboard carga con período default **"Este mes"** → skeleton mientras agrega.
-4. **Header fijo (sticky)** siempre accesible: **selector de período** (chips) + **control segmentado** con 4 sub-vistas. Cada sub-vista es corta (poco scroll) y responde una sola pregunta:
-   - **Resumen** — "¿cómo va la cancha?": card de Ingresos (total + comparativo + Efectivo/Transferencia), fila de 4 KPIs (Ocupación · Reservas · Inasistencias · **Canchas gratis** = reservas marcadas "Gratis"/cortesías en el período), heatmap de ocupación.
+4. **Header fijo (sticky)** siempre accesible: **selector de período** (chips) + **control segmentado** con 3 sub-vistas. Cada sub-vista es corta (poco scroll) y responde una sola pregunta:
+   - **Resumen** — "¿cómo va la cancha?": card de Ingresos (total + comparativo + Efectivo/Transferencia), KPIs primarias (Ocupación · Reservas) + fila de calidad **tappable** (Inasistencias · **Cancelaciones** = conteo de reservas canceladas · **Canchas gratis** = reservas marcadas "Gratis"/cortesías), heatmap de ocupación.
    - **Ingresos** — ingreso por día de la semana · por cancha · por formato.
    - **Clientes** — top por ingresos · top por reservas · más cancelaciones · más inasistencias.
-   - **Detalle** — inasistencias · reservas canceladas (con "Ver todas").
 5. Cambiar de sub-vista o de período → transición suave (crossfade). El período aplica a todas las sub-vistas.
-6. Tap en una celda del heatmap → popover con el detalle de esa franja (nº reservas, % ocupación, ingreso).
+6. **Tap en una KPI de calidad** (Inasistencias / Cancelaciones / Canchas gratis) → abre un **bottom sheet** con el detalle completo de esas reservas (fecha, hora, cancha, cliente; motivo en cancelaciones). No hay sub-vista "Detalle" separada — el detalle vive detrás de su métrica.
+7. Tap en una celda del heatmap → popover con el detalle de esa franja (nº reservas, % ocupación, ingreso).
 
 > **Nota (label):** "Inasistencias" = % de reservas donde el cliente no llegó — nunca se usa el término "no-show" en la UI.
 
