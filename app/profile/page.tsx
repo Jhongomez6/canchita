@@ -34,7 +34,7 @@ import {
   Cake, User, Activity, RotateCcw, Camera, Crown,
   Shirt, Clock, Lock, XCircle, Bell, CheckCircle2,
   AlertTriangle, Smartphone, Settings,
-  Zap, Flame, Sprout, Goal, CalendarDays
+  Zap, Flame, Sprout, Goal, CalendarDays, History
 } from "lucide-react";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
@@ -784,6 +784,25 @@ export default function ProfilePage() {
               kudosSummary={profile.kudosSummary}
               onViewKudosHistory={user ? () => setShowKudosHistory(true) : undefined}
             />
+          )}
+
+          {/* ========================= */}
+          {/*   HISTORIAL DE PARTIDOS   */}
+          {/* ========================= */}
+          {!isOnboarding && (
+            <Link
+              href="/history"
+              className="mt-4 flex items-center gap-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 hover:bg-slate-50 active:scale-[0.99] transition-all"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                <History className="w-5 h-5 text-[#1f7a4f]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-800">Historial de partidos</p>
+                <p className="text-xs text-slate-500">Revisa todos tus partidos y resultados</p>
+              </div>
+              <ChevronRight size={18} className="text-slate-400 shrink-0" />
+            </Link>
           )}
 
           {/* ========================= */}

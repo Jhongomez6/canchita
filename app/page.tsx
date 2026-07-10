@@ -588,15 +588,13 @@ export default function Home() {
                       />
                     );
                   })}
-                  {closedMatches.length > 5 && (
-                    <Link 
-                      href="/history" 
-                      onClick={() => logFullHistoryClicked()}
-                      className="flex items-center justify-center gap-1 py-2 text-sm text-emerald-600 font-semibold hover:text-emerald-700"
-                    >
-                      Ver historial completo <ChevronRight size={14} />
-                    </Link>
-                  )}
+                  <Link
+                    href="/history"
+                    onClick={() => logFullHistoryClicked()}
+                    className="flex items-center justify-center gap-1 py-2 text-sm text-emerald-600 font-semibold hover:text-emerald-700"
+                  >
+                    Ver historial completo <ChevronRight size={14} />
+                  </Link>
                 </div>
               </div>
             )}
