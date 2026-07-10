@@ -72,7 +72,10 @@ const useRangeData = createCachedQueryHook<{ venueId: string; start: string; end
         const [payments, slots, bookings] = await Promise.all([
             getPaymentsInRange(venueId, start, end),
             getBlockedSlotsForRange(venueId, start, end),
-            getBookingsInDateRange(venueId, start, end),
+            // Lectura secundaria: solo alimenta la métrica "canchas gratis" de reservas
+            // online. No debe tumbar todo el dashboard si falla → degrada a lista vacía
+            // (mismo patrón que AdminBookingCalendar).
+            getBookingsInDateRange(venueId, start, end).catch(() => [] as Booking[]),
         ]);
         return { payments, slots, bookings };
     },
