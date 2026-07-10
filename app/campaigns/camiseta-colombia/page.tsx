@@ -386,7 +386,7 @@ export default function CamisetaColombiaCampaign() {
                     <div className="flex items-center gap-3">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                            src="/logo/lacanchita-logo.png"
+                            src="/logo/lacanchita-logo-white.png"
                             alt="La Canchita"
                             width={40}
                             height={33}

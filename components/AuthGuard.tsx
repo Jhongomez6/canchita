@@ -48,6 +48,7 @@ function AuthGuardInner({
       !profile.deleted &&
       profile.roles.includes("player") &&
       !profile.initialRatingCalculated &&
+      !profile.bookingOnly &&
       pathname !== "/onboarding"
     ) {
       router.replace("/onboarding");
@@ -119,7 +120,7 @@ function AuthGuardInner({
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ height: "auto", width: "auto" }}
+              style={{ height: "auto", width: "200px" }}
               priority={true}
               unoptimized
             />
@@ -167,6 +168,7 @@ function AuthGuardInner({
     !profile.deleted &&
     profile.roles.includes("player") &&
     !profile.initialRatingCalculated &&
+    !profile.bookingOnly &&
     pathname !== "/onboarding"
   ) {
     return (
@@ -178,7 +180,7 @@ function AuthGuardInner({
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ height: "auto", width: "auto" }}
+              style={{ height: "auto", width: "200px" }}
               priority={true}
               unoptimized
             />
@@ -209,7 +211,7 @@ function AuthGuardInner({
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ height: "auto", width: "auto" }}
+              style={{ height: "auto", width: "200px" }}
               priority={true}
               unoptimized
             />

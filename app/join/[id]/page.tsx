@@ -247,7 +247,7 @@ export default function JoinMatchPage() {
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ height: "auto", width: "auto" }}
+              style={{ height: "auto", width: "200px" }}
               unoptimized
             />
           </div>
@@ -360,7 +360,7 @@ export default function JoinMatchPage() {
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ height: "auto", width: "auto" }}
+              style={{ height: "auto", width: "200px" }}
               unoptimized
             />
           </div>
@@ -386,7 +386,7 @@ export default function JoinMatchPage() {
               alt="La Canchita"
               width={120}
               height={100}
-              style={{ height: "auto", width: "auto" }}
+              style={{ height: "auto", width: "200px" }}
               unoptimized
             />
           </div>

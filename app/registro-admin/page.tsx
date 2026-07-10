@@ -77,7 +77,7 @@ export default function RegistroAdminPage() {
                             alt="La Canchita"
                             width={120}
                             height={100}
-                            style={{ height: "auto", width: "auto" }}
+                            style={{ height: "auto", width: "200px" }}
                             priority
                             unoptimized
                         />

@@ -108,6 +108,7 @@ export default function Header() {
   };
 
   if (pathname?.startsWith("/campaigns")) return null;
+  if (pathname?.startsWith("/reservar")) return null;
 
   return (
     <header
@@ -139,10 +140,10 @@ export default function Header() {
           }}
         >
           <Image
-            src="/logo/lacanchita-logo.png"
+            src="/logo/lacanchita-logo-white.png"
             alt="La Canchita"
-            width={70}
-            height={60}
+            width={192}
+            height={37}
             style={{ borderRadius: 6 }}
             priority={true}
             unoptimized={true}

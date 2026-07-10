@@ -438,12 +438,12 @@ export default function FifaPlayerCard({ profile, animated = true }: FifaPlayerC
           <div className="flex justify-center pb-1">
             <div className="w-12 h-9 flex items-center justify-center">
               <Image
-                src="/logo/lacanchita-logo.png"
+                src="/brand/icon-white.svg"
                 alt="La Canchita"
-                width={36}
-                height={36}
+                width={28}
+                height={28}
                 className="opacity-70 object-contain"
-                style={{ width: "auto", height: "auto" }}
+                style={{ width: "28px", height: "28px" }}
                 priority
                 unoptimized
               />
