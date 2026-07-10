@@ -10,6 +10,7 @@ import {
     getVenue, getVenueCourts, getVenueCombos, getVenueFullSchedule,
     getPaymentsInRange, getBlockedSlotsForRange,
 } from "@/lib/venues";
+import { getBookingsInDateRange } from "@/lib/bookings";
 import { createCachedQueryHook } from "@/lib/hooks/createCachedQueryHook";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatTime12h } from "@/lib/date";
@@ -19,13 +20,14 @@ import {
     computeOccupancyHeatmap, computeOverallOccupancy, computeStatusRates,
     revenueByCourt, revenueByFormat, revenueByWeekday, compare,
     computeClientStats, rankClients, listNoShows, listCancellations, listFree,
-    DAY_SHORT_LABELS,
+    onlineFreeInstances, DAY_SHORT_LABELS,
     type AnalyticsPeriodPreset, type AnalyticsPeriod, type OccupancyCell, type ReservationDetail,
 } from "@/lib/domain/venue-analytics";
 import {
     logVenueAnalyticsViewed, logVenueAnalyticsPeriodChanged, logVenueAnalyticsHeatmapCellTapped,
 } from "@/lib/analytics";
 import type { Court, CourtCombo, DaySchedule, BlockedSlot, ManualReservationPayment, VenueFormat } from "@/lib/domain/venue";
+import type { Booking } from "@/lib/domain/booking";
 import OccupancyHeatmap from "./OccupancyHeatmap";
 import RevenueBreakdownList from "./RevenueBreakdownList";
 import ClientRankList from "./ClientRankList";
@@ -46,6 +48,8 @@ interface VenueConfig {
 interface RangeData {
     payments: ManualReservationPayment[];
     slots: BlockedSlot[];
+    /** Reservas online del rango (para incluir las marcadas "Gratis" en la métrica). */
+    bookings: Booking[];
 }
 
 // Config casi estática de la sede: se cachea aparte y se refresca al volver a `visible`.
@@ -65,11 +69,12 @@ const useVenueConfig = createCachedQueryHook<string, VenueConfig>(
 // preset al mismo rango no re-lee.
 const useRangeData = createCachedQueryHook<{ venueId: string; start: string; end: string }, RangeData>(
     async ({ venueId, start, end }) => {
-        const [payments, slots] = await Promise.all([
+        const [payments, slots, bookings] = await Promise.all([
             getPaymentsInRange(venueId, start, end),
             getBlockedSlotsForRange(venueId, start, end),
+            getBookingsInDateRange(venueId, start, end),
         ]);
-        return { payments, slots };
+        return { payments, slots, bookings };
     },
     ({ venueId, start, end }) => (venueId ? `venue_analytics_range_${venueId}_${start}_${end}` : null),
     { source: "venue_analytics_range" },
@@ -118,15 +123,22 @@ export default function VenueAnalyticsView({ venueId }: VenueAnalyticsViewProps)
     const metrics = useMemo(() => {
         if (!config.data || !range.data) return null;
         const { courts, combos, schedules, venueFormats } = config.data;
-        const { payments, slots } = range.data;
+        const { payments, slots, bookings } = range.data;
 
         const inPeriod = (d: string) => d >= period.start && d <= period.end;
         const inPrev = (d: string) => d >= prevPeriod.start && d <= prevPeriod.end;
 
         const curPayments = payments.filter((p) => inPeriod(p.date));
         const prvPayments = payments.filter((p) => inPrev(p.date));
-        const curInstances = expandReservationInstances(slots, period);
-        const prvInstances = expandReservationInstances(slots, prevPeriod);
+        // Instancias = reservas manuales expandidas + reservas online marcadas "Gratis".
+        const curInstances = [
+            ...expandReservationInstances(slots, period),
+            ...onlineFreeInstances(bookings, period),
+        ];
+        const prvInstances = [
+            ...expandReservationInstances(slots, prevPeriod),
+            ...onlineFreeInstances(bookings, prevPeriod),
+        ];
 
         const revenue = computeRevenueSummary(curPayments);
         const prevRevenue = computeRevenueSummary(prvPayments);

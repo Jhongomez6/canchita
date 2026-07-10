@@ -69,6 +69,26 @@ export async function uploadPaymentProof(
   return { url, path };
 }
 
+/**
+ * Sube el comprobante ANTES de que exista la reserva (flujo comprobante-previo).
+ * Como aún no hay bookingId, se usa el uid como key. La Cloud Function `createBooking`
+ * valida que la URL apunte a `payment_proofs/{venueId}/` antes de aceptarla.
+ * Comprobantes huérfanos (subió pero no reservó) se limpian con el lifecycle de 90 días.
+ * Ref: docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md
+ */
+export async function uploadPaymentProofPreBooking(
+  venueId: string,
+  uid: string,
+  blob: Blob,
+): Promise<{ url: string; path: string }> {
+  const timestamp = Date.now();
+  const path = `payment_proofs/${venueId}/${uid}_${timestamp}.jpg`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  const url = await getDownloadURL(storageRef);
+  return { url, path };
+}
+
 // ========================
 // VENUE PAYMENT QR (QR de método de pago)
 // ========================

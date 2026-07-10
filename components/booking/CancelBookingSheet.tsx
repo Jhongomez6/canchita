@@ -131,18 +131,14 @@ export default function CancelBookingSheet({
                                 </div>
                             )}
 
-                            {/* Reembolso */}
+                            {/* Reembolso — solo el mensaje de devolución (reservas legacy con reembolso
+                                por wallet). El aviso de "no se reembolsará" se removió: la sede tiene
+                                política de no reembolso del abono (ver políticas de la sede). */}
                             {willRefund && booking.depositCOP && booking.depositCOP > 0 ? (
                                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
                                     <p className="text-sm text-emerald-700">
                                         Se devolverán <span className="font-semibold">{formatCOP(booking.depositCOP)}</span>
                                         {mode === "admin" ? " a la billetera del cliente." : " a tu billetera."}
-                                    </p>
-                                </div>
-                            ) : booking.depositCOP && booking.depositCOP > 0 ? (
-                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                                    <p className="text-sm text-amber-700 font-medium">
-                                        No se reembolsará el depósito (faltan menos de 24h)
                                     </p>
                                 </div>
                             ) : null}

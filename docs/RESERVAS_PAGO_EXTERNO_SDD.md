@@ -1,5 +1,7 @@
 # Feature: Reservas con Pago Externo y Aprobación de Admin
 
+> ⚠️ **REVISADO por [RESERVAS_APROBACION_CREA_RESERVA_SDD.md](RESERVAS_APROBACION_CREA_RESERVA_SDD.md)**: el flujo `pending_payment → sube comprobante → pending_approval → deposit_confirmed → confirmed` fue reemplazado por `paga+sube comprobante → pending_approval (sin bloquear slot) → admin aprueba → confirmed`. Ver §12 de ese SDD para las reglas superadas. Este documento se conserva como referencia del flujo previo (legacy).
+
 ## 📋 Specification-Driven Development (SDD)
 
 Permite al jugador crear una reserva sin pago digital inmediato; el depósito se paga en un canal externo (Nequi/transferencia/QR) y el location admin la aprueba tras verificar el comprobante.

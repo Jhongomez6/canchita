@@ -7,17 +7,20 @@ import {
     compressPaymentProof,
     validatePaymentProofFile,
 } from "@/lib/utils/imageCompression";
-import { uploadPaymentProof } from "@/lib/storage";
+import { uploadPaymentProof, uploadPaymentProofPreBooking } from "@/lib/storage";
 import { markPaymentProofUploaded } from "@/lib/bookings";
 import { logPaymentProofUploaded, logPaymentProofUploadFailed } from "@/lib/analytics";
 import { handleError } from "@/lib/utils/error";
 
 interface PaymentProofUploaderProps {
     venueId: string;
-    bookingId: string;
+    /** Flujo legacy: al subir se marca el comprobante en la reserva existente. */
+    bookingId?: string;
+    /** Flujo comprobante-previo: sube ANTES de crear la reserva, usando el uid como key. */
+    uid?: string;
     /** Cantidad de intentos previos (history.length). Default 0. */
     previousAttempts?: number;
-    /** Callback tras éxito; el componente padre ya recibe el nuevo estado vía subscribeToBooking. */
+    /** Callback tras éxito; recibe la URL del comprobante. */
     onUploaded?: (url: string) => void;
     /** Texto del botón principal (default "Subir comprobante"). */
     primaryLabel?: string;
@@ -26,6 +29,7 @@ interface PaymentProofUploaderProps {
 export default function PaymentProofUploader({
     venueId,
     bookingId,
+    uid,
     previousAttempts = 0,
     onUploaded,
     primaryLabel = "Subir comprobante",
@@ -43,24 +47,30 @@ export default function PaymentProofUploader({
             const result = await compressPaymentProof(file);
 
             setStep("uploading");
-            const { url } = await uploadPaymentProof(venueId, bookingId, result.blob);
-
-            setStep("saving");
-            await markPaymentProofUploaded(bookingId, url);
+            let url: string;
+            if (bookingId) {
+                // Flujo legacy: marca en la reserva ya creada.
+                ({ url } = await uploadPaymentProof(venueId, bookingId, result.blob));
+                setStep("saving");
+                await markPaymentProofUploaded(bookingId, url);
+            } else {
+                // Flujo comprobante-previo: sube y devuelve la URL (aún no hay reserva).
+                ({ url } = await uploadPaymentProofPreBooking(venueId, uid ?? "anon", result.blob));
+            }
 
             await logPaymentProofUploaded({
                 venueId,
-                bookingId,
+                bookingId: bookingId ?? "",
                 fileSizeKB: Math.round(result.sizeBytes / 1024),
                 attemptNumber: previousAttempts + 1,
             });
 
-            toast.success("Comprobante enviado · En revisión por el admin");
+            toast.success(bookingId ? "Comprobante enviado · En revisión por el admin" : "Comprobante listo");
             onUploaded?.(url);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Error desconocido";
             try {
-                await logPaymentProofUploadFailed({ venueId, bookingId, reason: message });
+                await logPaymentProofUploadFailed({ venueId, bookingId: bookingId ?? "", reason: message });
             } catch {
                 // ignore
             }

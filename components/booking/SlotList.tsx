@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AlertTriangle } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
 
 type Period = "all" | "day" | "afternoon" | "night";
@@ -17,6 +18,8 @@ export interface OccupantLabel {
     who: string;
     detail: string;
     isBirthday?: boolean;
+    /** Reserva online pendiente de aprobación del admin (solicitud sin confirmar). */
+    pending?: boolean;
 }
 
 export interface SlotItem {
@@ -149,6 +152,7 @@ export default function SlotList({
                     const activeCount = slot.occupantLabels?.length ?? 0;
                     const cancelledCount = slot.cancelledLabels?.length ?? 0;
                     const birthdayCount = slot.occupantLabels?.filter((l) => l.isBirthday).length ?? 0;
+                    const pendingCount = slot.occupantLabels?.filter((l) => l.pending).length ?? 0;
                     const hasOccupants = activeCount > 0 || cancelledCount > 0;
 
                     return (
@@ -203,6 +207,12 @@ export default function SlotList({
                                                 🎂 {birthdayCount} cumpleaños
                                             </span>
                                         )}
+                                        {pendingCount > 0 && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                                <AlertTriangle className="w-2.5 h-2.5" />
+                                                {pendingCount} por aprobar
+                                            </span>
+                                        )}
                                         {cancelledCount > 0 && (
                                             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-200">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />
@@ -215,9 +225,19 @@ export default function SlotList({
                                         <ul className="space-y-0.5">
                                             {slot.occupantLabels!.map((label, i) => (
                                                 <li key={`o-${i}`} className="flex items-baseline gap-1.5 min-w-0">
-                                                    <span className={`text-sm font-semibold truncate min-w-0 ${label.isBirthday ? "text-pink-700" : "text-slate-800"}`}>
+                                                    {label.pending && (
+                                                        <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0 self-center" />
+                                                    )}
+                                                    <span className={`text-sm font-semibold truncate min-w-0 ${
+                                                        label.pending ? "text-amber-700" : label.isBirthday ? "text-pink-700" : "text-slate-800"
+                                                    }`}>
                                                         {label.isBirthday ? `🎂 ${label.who}` : label.who}
                                                     </span>
+                                                    {label.pending && (
+                                                        <span className="text-[10px] font-bold text-amber-600 whitespace-nowrap flex-shrink-0">
+                                                            · Por aprobar
+                                                        </span>
+                                                    )}
                                                     {label.detail && (
                                                         <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">{label.detail}</span>
                                                     )}

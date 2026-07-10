@@ -10,7 +10,7 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin, isLocationAdmin, canViewVenueAnalytics, isLocationStaff } from "@/lib/domain/user";
 import { yesterdayColombiaISO } from "@/lib/date";
-import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER, shouldHidePricesFor, MIN_WEEKEND_LEAD_HOURS, MAX_WEEKEND_LEAD_HOURS } from "@/lib/domain/venue";
+import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER, shouldHidePricesFor, MIN_WEEKEND_LEAD_HOURS, MAX_WEEKEND_LEAD_HOURS, getEffectiveBookingPolicies } from "@/lib/domain/venue";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
     getVenue,
@@ -42,6 +42,7 @@ import CancelManualReservationSheet from "@/components/booking/CancelManualReser
 import EditManualReservationSheet from "@/components/booking/EditManualReservationSheet";
 import RegisterPaymentSheet from "@/components/booking/RegisterPaymentSheet";
 import PaymentMethodEditor from "@/components/booking/PaymentMethodEditor";
+import BookingPoliciesEditor from "@/components/booking/BookingPoliciesEditor";
 import PendingBookingsAdminView from "@/components/booking/PendingBookingsAdminView";
 import ConfirmAttendanceSheet from "@/components/booking/ConfirmAttendanceSheet";
 import DailyBalanceView from "@/components/booking/DailyBalanceView";
@@ -119,6 +120,8 @@ function VenueAdminContent() {
     const [whatsappNumber, setWhatsappNumber] = useState<string>("");
     // Anticipación mínima en fin de semana (horas). 0 = sin restricción.
     const [weekendLeadHours, setWeekendLeadHours] = useState<number>(0);
+    // Políticas de reserva que el jugador acepta antes de reservar.
+    const [bookingPolicies, setBookingPolicies] = useState<string[]>([]);
 
     // Venue info (tab "info", super admin only)
     const [venueName, setVenueName] = useState("");
@@ -402,6 +405,7 @@ function VenueAdminContent() {
             setWeekendLeadHours(
                 typeof v.weekendMinLeadHours === "number" ? v.weekendMinLeadHours : 0,
             );
+            setBookingPolicies(getEffectiveBookingPolicies(v));
             setVenueName(v.name ?? "");
             setVenueAddress(v.address ?? "");
             setVenuePhone(v.phone ?? "");
@@ -484,6 +488,7 @@ function VenueAdminContent() {
                 whatsappNotificationNumber: whatsappNumber.trim() || undefined,
                 hidePricesForLocationAdmins: hidePricesFromAdmins,
                 weekendMinLeadHours: weekendLeadHours,
+                bookingPolicies: bookingPolicies.map((p) => p.trim()).filter((p) => p.length > 0),
             };
 
             await Promise.all([
@@ -952,7 +957,7 @@ function VenueAdminContent() {
                                     </h3>
                                     <p className="text-xs text-slate-400 mb-4">
                                         Datos que el jugador verá para pagar el abono externamente
-                                        (Nequi, Bancolombia, Llave Transfiya, etc.).
+                                        (Nequi, Bancolombia, Llave Bre-B, etc.).
                                     </p>
                                     <PaymentMethodEditor
                                         venueId={venueId}
@@ -1004,14 +1009,15 @@ function VenueAdminContent() {
                                 </div>
                             )}
 
-                            {/* WhatsApp opcional para botón "Avisar al admin" */}
+                            {/* WhatsApp de contacto de la sede (opcional) */}
                             <div className="bg-white rounded-2xl border border-slate-100 p-5">
                                 <h3 className="text-sm font-semibold text-slate-700 mb-1">
-                                    WhatsApp para avisos (opcional)
+                                    WhatsApp de contacto (opcional)
                                 </h3>
                                 <p className="text-xs text-slate-400 mb-3">
-                                    Si lo configurás, el jugador verá un botón &quot;Avisar por WhatsApp&quot;
-                                    después de pagar. Déjalo vacío para ocultarlo.
+                                    Si lo configurás, el jugador verá un botón &quot;Contactar a la sede por
+                                    WhatsApp&quot; en su reserva (cambios de horario, dudas, cumpleaños).
+                                    Déjalo vacío para ocultarlo.
                                 </p>
                                 <input
                                     type="tel"
@@ -1061,6 +1067,15 @@ function VenueAdminContent() {
                                     Mínimo {MIN_WEEKEND_LEAD_HOURS}h, máximo {MAX_WEEKEND_LEAD_HOURS}h. No afecta la reserva manual del admin.
                                 </p>
                             </div>
+
+                            {/* Políticas de reserva (el jugador las acepta antes de reservar) */}
+                            <BookingPoliciesEditor
+                                policies={bookingPolicies}
+                                onChange={(p) => {
+                                    setBookingPolicies(p);
+                                    markDirty();
+                                }}
+                            />
                         </div>
                     )}
 
@@ -1278,6 +1293,10 @@ function VenueAdminContent() {
                     }}
                     onConfirmAttendance={(b) => setConfirmAttendanceTarget(b)}
                     onRegisterBookingPayment={(b, existingPayment) => setBookingPaymentTarget({ booking: b, existingPayment })}
+                    onReviewPending={() => {
+                        setHourDetail(null);
+                        setActiveTab("pending");
+                    }}
                     onBlockClick={(slot, targetDate) => {
                         setDeleteTarget({ slot, targetDate });
                     }}

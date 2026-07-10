@@ -7,7 +7,7 @@ import { ArrowLeft, MapPin, Settings } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isSuperAdmin } from "@/lib/domain/user";
-import { getAvailableFormats, getDayOfWeek, generateTimeSlots, applyDurationTier, isSlotBeforeWeekendLead } from "@/lib/domain/venue";
+import { getAvailableFormats, getDayOfWeek, generateTimeSlots, applyDurationTier, isSlotBeforeWeekendLead, getEffectiveBookingPolicies } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot } from "@/lib/domain/court-allocation";
 import { getVenue, getVenueCourts, getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
 import { subscribeToBookingsForDate, createBooking } from "@/lib/bookings";
@@ -227,8 +227,8 @@ function VenueDetailContent() {
         return { subtotalCOP, discountCOP, finalCOP };
     };
 
-    // Confirm booking
-    const handleConfirmBooking = async () => {
+    // Confirm booking / enviar solicitud
+    const handleConfirmBooking = async (args: { proofURL?: string; policiesAccepted: boolean }) => {
         if (!selectedStart || !selectedEnd || !selectedFormat || !venueId) return;
 
         setBookingLoading(true);
@@ -239,9 +239,15 @@ function VenueDetailContent() {
                 date: selectedDate,
                 startTime: selectedStart,
                 endTime: selectedEnd,
+                proofURL: args.proofURL,
+                policiesAccepted: args.policiesAccepted,
             });
 
-            toast.success("Reserva confirmada");
+            toast.success(
+                result.status === "pending_approval"
+                    ? "Solicitud enviada · en revisión"
+                    : "Reserva confirmada",
+            );
             setConfirmSheetOpen(false);
 
             // Analytics — desglose actual del cliente (el server puede haber recomputado).
@@ -414,6 +420,8 @@ function VenueDetailContent() {
                     open={confirmSheetOpen}
                     onClose={() => setConfirmSheetOpen(false)}
                     onConfirm={handleConfirmBooking}
+                    venueId={venueId}
+                    uid={user?.uid || ""}
                     venueName={venue.name}
                     venueAddress={venue.address}
                     format={selectedFormat!}
@@ -426,7 +434,8 @@ function VenueDetailContent() {
                     totalPriceCOP={totalPrice}
                     depositRequired={venue.depositRequired}
                     depositPercent={venue.depositPercent}
-                    pendingTTLHours={venue.pendingApprovalTTLHours}
+                    paymentMethods={venue.paymentMethods}
+                    policies={getEffectiveBookingPolicies(venue)}
                 />
             </div>
         </div>

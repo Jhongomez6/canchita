@@ -430,6 +430,18 @@ function BookingDetailContent() {
                         </div>
                     )}
 
+                    {/* Contacto con la sede por WhatsApp — siempre visible (cambios de horario, dudas, etc.) */}
+                    {venue?.whatsappNotificationNumber && isOwner && (
+                        <WhatsAppNotifyButton
+                            venueId={booking.venueId}
+                            bookingId={booking.id}
+                            phoneNumber={venue.whatsappNotificationNumber}
+                            bookingSummary={formatShortSummary(booking, formatNice)}
+                            label="Contactar a la sede por WhatsApp"
+                            message={`Hola, te escribo por mi reserva: ${formatShortSummary(booking, formatNice)}`}
+                        />
+                    )}
+
                     {/* Cancel button */}
                     {canCancel && isOwner && (
                         <button

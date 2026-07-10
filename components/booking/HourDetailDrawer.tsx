@@ -43,6 +43,8 @@ interface HourDetailDrawerProps {
     onConfirmAttendance?: (booking: Booking) => void;
     onRegisterBookingPayment?: (booking: Booking, existingPayment: ManualReservationPayment | null) => void;
     onBookingAdvanced?: () => void;
+    /** CTA "Revisar" en solicitudes pending_approval → abrir vista de aprobación. */
+    onReviewPending?: (booking: Booking) => void;
     onBlockClick: (block: BlockedSlot, targetDate: string) => void;
     onAdvanceBlockStatus: (block: BlockedSlot, targetDate: string) => void;
     onPickBlockStatus: (block: BlockedSlot, newStatus: ManualReservationStatus, targetDate: string) => void;
@@ -76,6 +78,7 @@ export default function HourDetailDrawer({
     onConfirmAttendance,
     onRegisterBookingPayment,
     onBookingAdvanced,
+    onReviewPending,
     onBlockClick,
     onAdvanceBlockStatus,
     onPickBlockStatus,
@@ -192,6 +195,7 @@ export default function HourDetailDrawer({
                                                         onConfirmAttendance={onConfirmAttendance}
                                                         onRegisterPayment={onRegisterBookingPayment}
                                                         onAdvanced={onBookingAdvanced}
+                                                        onReviewPending={onReviewPending}
                                                         hidePrice={hidePrice}
                                                     />
                                                 ))}

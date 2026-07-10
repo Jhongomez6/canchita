@@ -115,7 +115,7 @@ export const MAX_DEPOSIT_PERCENT = 50;
  * - `nequi`: cuenta Nequi (identificador = teléfono)
  * - `bancolombia`: cuenta Bancolombia (identificador = número de cuenta)
  * - `daviplata`: cuenta Daviplata
- * - `llave`: alias Transfiya (Bancolombia/Nequi/Movii — identificador alfanumérico)
+ * - `llave`: llave Bre-B (transferencias inmediatas — identificador alfanumérico/@alias/teléfono/cédula)
  * - `transfer`: transferencia bancaria genérica
  * - `other`: otro método con texto libre
  */
@@ -135,7 +135,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodType, string> = {
     nequi: "Nequi",
     bancolombia: "Bancolombia",
     daviplata: "Daviplata",
-    llave: "Llave (Transfiya)",
+    llave: "Llave Bre-B",
     transfer: "Transferencia bancaria",
     other: "Otro",
 };
@@ -196,7 +196,8 @@ export interface Venue {
     paymentMethods?: PaymentMethod[];
     /** TTL configurable (1-24h) para reservas pending_payment. Default 24. */
     pendingApprovalTTLHours?: number;
-    /** Número WhatsApp opcional E.164 para el botón "Avisar al admin". */
+    /** Número WhatsApp de contacto de la sede (E.164). El jugador ve un botón
+     *  "Contactar a la sede por WhatsApp" en su reserva. Opcional. */
     whatsappNotificationNumber?: string;
     /** Si true, oculta la tarifa de cancha a los location admin (owner+staff) en el panel.
      *  Solo super admin lo edita. Ausente ⇒ false (tarifa visible). */
@@ -204,6 +205,10 @@ export interface Venue {
     /** Anticipación mínima (horas) que un cliente debe respetar para reservar en fin de semana.
      *  0 o ausente ⇒ sin restricción. Ref: docs/WEEKEND_LEAD_TIME_SDD.md */
     weekendMinLeadHours?: number;
+    /** Políticas de reserva que el jugador debe aceptar antes de reservar.
+     *  Ausente ⇒ se usan DEFAULT_BOOKING_POLICIES. Array vacío ⇒ sin políticas (no se pide aceptación).
+     *  Editable por el location admin o super admin. Ref: docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md */
+    bookingPolicies?: string[];
 
     createdAt: string;
     updatedAt: string;
@@ -621,6 +626,61 @@ export function shouldHidePricesFor(
     isSuper: boolean,
 ): boolean {
     return !!venue.hidePricesForLocationAdmins && !isSuper;
+}
+
+// ========================
+// POLÍTICAS DE RESERVA
+// ========================
+
+/** Cantidad y longitud máxima de políticas por sede. */
+export const MAX_BOOKING_POLICIES = 20;
+export const MAX_POLICY_LENGTH = 240;
+
+/**
+ * Políticas por defecto que se muestran cuando la sede no configuró las suyas
+ * (`bookingPolicies` ausente). Una sede puede sobrescribirlas o dejarlas en `[]`
+ * para no pedir aceptación.
+ */
+export const DEFAULT_BOOKING_POLICIES: readonly string[] = [
+    "No se permite el uso de guayos con taches. Contamos con servicio de alquiler de guayos.",
+    "Llega 5 minutos antes y acércate a recepción a pagar el resto de la reserva antes de empezar a jugar. Después del pago se te hace entrega de los petos y el balón.",
+    "Prohibido el ingreso de bebidas alcohólicas, hidratantes y alimentos.",
+    "No se hace reembolso del abono de la reserva.",
+    "El abono solo se paga por llave Bre-B. El resto se puede pagar en efectivo en la sede.",
+    "Para cambios de horario comunícate por WhatsApp.",
+    "Si vas a celebrar un cumpleaños, debes reservar un paquete de cumpleaños por nuestro WhatsApp.",
+];
+
+/**
+ * Políticas efectivas de una sede: las configuradas si existen, o las default.
+ * `bookingPolicies === []` significa explícitamente "sin políticas".
+ */
+export function getEffectiveBookingPolicies(
+    venue: Pick<Venue, "bookingPolicies">,
+): string[] {
+    if (venue.bookingPolicies === undefined) return [...DEFAULT_BOOKING_POLICIES];
+    return venue.bookingPolicies;
+}
+
+/**
+ * Valida la lista de políticas: array, cantidad y longitud de cada ítem.
+ * Los strings vacíos/espacios se consideran inválidos (el editor debe filtrarlos antes).
+ */
+export function validateBookingPolicies(policies: string[]): void {
+    if (!Array.isArray(policies)) {
+        throw new ValidationError("Las políticas deben ser una lista");
+    }
+    if (policies.length > MAX_BOOKING_POLICIES) {
+        throw new ValidationError(`Máximo ${MAX_BOOKING_POLICIES} políticas`);
+    }
+    for (const p of policies) {
+        if (typeof p !== "string" || p.trim().length === 0) {
+            throw new ValidationError("Cada política debe tener texto");
+        }
+        if (p.length > MAX_POLICY_LENGTH) {
+            throw new ValidationError(`Cada política no puede superar ${MAX_POLICY_LENGTH} caracteres`);
+        }
+    }
 }
 
 /**

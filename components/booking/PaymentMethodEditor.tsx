@@ -32,7 +32,7 @@ const TYPE_PLACEHOLDERS: Record<PaymentMethodType, string> = {
     nequi: "Ej: 3112345678",
     bancolombia: "Ej: 1234-5678-9012",
     daviplata: "Ej: 3112345678",
-    llave: "Llave (teléfono, cédula o alias)",
+    llave: "Llave Bre-B (@alias, teléfono, cédula)",
     transfer: "Número de cuenta",
     other: "Identificador",
 };
@@ -41,7 +41,7 @@ const TYPE_HELPERS: Record<PaymentMethodType, string | null> = {
     nequi: null,
     bancolombia: null,
     daviplata: null,
-    llave: "Llave Transfiya registrada en Bancolombia/Nequi/Movii.",
+    llave: "Llave Bre-B para transferencias inmediatas (Bancolombia/Nequi/Daviplata/etc.).",
     transfer: null,
     other: null,
 };

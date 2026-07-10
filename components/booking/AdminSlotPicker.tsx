@@ -222,7 +222,11 @@ export default function AdminSlotPicker({ venueId, courts, venueFormats, onHourT
                     }
                     const tier = b.formatLabel || formatLabel(b.format, venueFormats);
                     const where = courtListFor(b.courtIds);
-                    return { who, detail: where ? `${tier} · ${where}` : tier };
+                    return {
+                        who,
+                        detail: where ? `${tier} · ${where}` : tier,
+                        pending: b.status === "pending_approval",
+                    };
                 };
 
                 // Una reserva online se considera "muerta" para esta vista si está

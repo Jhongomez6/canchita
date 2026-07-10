@@ -336,12 +336,16 @@ export const createBooking = onCall(
             date,
             startTime,
             endTime,
+            proofURL,
+            policiesAccepted,
         } = request.data as {
             venueId: string;
             format: string;
             date: string;
             startTime: string;
             endTime: string;
+            proofURL?: string;
+            policiesAccepted?: boolean;
         };
 
         // ── VALIDACIONES DE INPUT ──
@@ -489,18 +493,31 @@ export const createBooking = onCall(
 
         // Nuevo flujo: pago externo verificado por admin (no debit wallet).
         // Si no se requiere depósito, va directo a confirmed con paymentMethod=on_site.
-        const paymentMethod: string = depositRequired && depositCOP > 0
-            ? "external_deposit"
-            : "on_site";
+        const requiresDeposit = depositRequired && depositCOP > 0;
+        const paymentMethod: string = requiresDeposit ? "external_deposit" : "on_site";
 
-        // TTL configurable por el venue (1-24h). Default 24h.
-        const pendingApprovalTTLHours: number = (() => {
-            const raw = venue.pendingApprovalTTLHours;
-            if (typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= 24) {
-                return raw;
+        // ── COMPROBANTE REQUERIDO (flujo comprobante-previo) ──
+        // En sedes con depósito, el comprobante se sube ANTES de reservar. La solicitud
+        // nace en "pending_approval" con el comprobante adjunto y NO bloquea el slot.
+        // Ref: docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md
+        if (requiresDeposit) {
+            if (typeof proofURL !== "string" || !proofURL.startsWith("http")) {
+                throw new HttpsError("invalid-argument", "Debes subir el comprobante de pago antes de reservar");
             }
-            return 24;
-        })();
+            if (!proofURL.includes(`payment_proofs/${venueId}`) && !proofURL.includes(`payment_proofs%2F${venueId}`)) {
+                throw new HttpsError("invalid-argument", "Comprobante inválido");
+            }
+        }
+
+        // ── POLÍTICAS DE LA SEDE ──
+        // Si la sede tiene políticas efectivas (configuradas no-vacías, o default por ausencia),
+        // el jugador debe declararlas aceptadas. Se registra policiesAcceptedAt.
+        const hasEffectivePolicies: boolean = venue.bookingPolicies === undefined
+            ? true // ausente ⇒ se muestran las políticas default
+            : Array.isArray(venue.bookingPolicies) && venue.bookingPolicies.length > 0;
+        if (hasEffectivePolicies && policiesAccepted !== true) {
+            throw new HttpsError("failed-precondition", "Debes aceptar las políticas de la sede para reservar");
+        }
 
         // ── LEER PERFIL USUARIO ──
         const userSnap = await db.collection("users").doc(uid).get();
@@ -582,30 +599,23 @@ export const createBooking = onCall(
         const now = nowISO();
 
         // Estado inicial:
-        //   - on_site (sin depósito) → directo a "confirmed" (igual que antes)
-        //   - external_deposit → "pending_payment" con expiresAt = now + ttlHours
-        const initialStatus: string = paymentMethod === "external_deposit"
-            ? "pending_payment"
-            : "confirmed";
-        const expiresAtISO: string | null = paymentMethod === "external_deposit"
-            ? new Date(Date.now() + pendingApprovalTTLHours * 60 * 60 * 1000).toISOString()
-            : null;
+        //   - on_site (sin depósito) → directo a "confirmed" (bloquea slot)
+        //   - external_deposit → "pending_approval" (SOLICITUD): NO bloquea slot, no expira.
+        //     El slot se bloquea recién cuando el admin la aprueba (approveBookingDeposit).
+        const initialStatus: string = requiresDeposit ? "pending_approval" : "confirmed";
+        // Las solicitudes no expiran (RN-12); las confirmadas tampoco tienen TTL.
+        const expiresAtISO: string | null = null;
+        const policiesAcceptedAtISO: string | null = hasEffectivePolicies ? now : null;
 
         await db.runTransaction(async (transaction) => {
             // ── READS PRIMERO ──
-            // Leer bookings existentes en este venue+fecha para detectar courts ocupados.
-            // Incluye todos los estados que bloquean slot.
+            // Solo los estados que BLOQUEAN slot cuentan como ocupados. Las solicitudes
+            // pendientes de otros jugadores NO bloquean (pueden coexistir varias por slot).
             const existingBookingsSnap = await db
                 .collection("bookings")
                 .where("venueId", "==", venueId)
                 .where("date", "==", date)
-                .where("status", "in", [
-                    "pending_payment",
-                    "pending_approval",
-                    "deposit_confirmed",
-                    "confirmed",
-                    "played",
-                ])
+                .where("status", "in", ["deposit_confirmed", "confirmed", "played"])
                 .get();
 
             // Encontrar courts ocupados en el rango solicitado
@@ -614,6 +624,27 @@ export const createBooking = onCall(
                 const b = doc.data();
                 if (b.startTime < endTime && b.endTime > startTime) {
                     occupiedCourtIds.push(...(b.courtIds || []));
+                }
+            }
+
+            // ── RN-11: evitar solicitud duplicada del mismo jugador para el mismo slot ──
+            // Reusa el índice (venueId, date, status); filtra bookedBy + solapamiento en memoria.
+            if (requiresDeposit) {
+                const pendingSnap = await db
+                    .collection("bookings")
+                    .where("venueId", "==", venueId)
+                    .where("date", "==", date)
+                    .where("status", "==", "pending_approval")
+                    .get();
+                const hasDuplicate = pendingSnap.docs.some((d) => {
+                    const b = d.data();
+                    return b.bookedBy === uid && b.startTime < endTime && b.endTime > startTime;
+                });
+                if (hasDuplicate) {
+                    throw new HttpsError(
+                        "already-exists",
+                        "Ya tienes una solicitud pendiente para ese horario",
+                    );
                 }
             }
 
@@ -680,8 +711,9 @@ export const createBooking = onCall(
                 refundTxId: null,
                 matchId: null,
                 tierApplied: tierAppliedSnapshot,
-                paymentProofURL: null,
-                paymentProofUploadedAt: null,
+                // Comprobante adjunto desde la creación (flujo comprobante-previo).
+                paymentProofURL: requiresDeposit ? proofURL : null,
+                paymentProofUploadedAt: requiresDeposit ? now : null,
                 paymentProofHistory: [],
                 lastRejectionReason: null,
                 lastRejectionAt: null,
@@ -689,6 +721,7 @@ export const createBooking = onCall(
                 approvedAt: null,
                 attendanceConfirmedBy: null,
                 attendanceConfirmedAt: null,
+                policiesAcceptedAt: policiesAcceptedAtISO,
                 createdAt: now,
                 updatedAt: now,
             };
@@ -705,14 +738,15 @@ export const createBooking = onCall(
         const slotLine = `${formattedDate} ${fmt12h(startTime)} – ${fmt12h(endTime)}`;
 
         // Notificación al jugador — varía según estado inicial
-        const playerNotifTitle = initialStatus === "pending_payment"
-            ? "Reserva creada — pendiente de pago"
+        const isRequest = initialStatus === "pending_approval";
+        const playerNotifTitle = isRequest
+            ? "Solicitud enviada — en revisión"
             : "Reserva confirmada";
-        const playerNotifBody = initialStatus === "pending_payment"
-            ? `${venue.name} · ${slotLine}. Envía el comprobante de tu abono para confirmar.`
+        const playerNotifBody = isRequest
+            ? `${venue.name} · ${slotLine}. Un admin revisará tu comprobante y te confirmaremos.`
             : `${venue.name} · ${slotLine}`;
-        const playerNotifType = initialStatus === "pending_payment"
-            ? "booking_pending_payment"
+        const playerNotifType = isRequest
+            ? "booking_request_created"
             : "booking_confirmed";
         const playerNotifUrl = `/bookings/${bookingRef.id}`;
 
@@ -737,13 +771,13 @@ export const createBooking = onCall(
             body: playerNotifBody,
         }, playerNotifUrl);
 
-        // Notificación a admins del venue si la reserva quedó pendiente de pago
-        if (initialStatus === "pending_payment") {
+        // Notificación a TODOS los admins del venue cuando entra una solicitud nueva.
+        if (isRequest) {
             const adminUrl = `/venues/admin/${venueId}?tab=pending`;
             await notifyVenueAdmins(venueId, {
-                title: "Nueva reserva pendiente de pago",
-                body: `${user.name || "Un usuario"} · ${slotLine}`,
-                type: "booking_admin_pending_payment",
+                title: "Nueva solicitud de reserva",
+                body: `${user.name || "Un usuario"} · ${slotLine} · comprobante adjunto`,
+                type: "booking_admin_request_created",
                 url: adminUrl,
             });
         }
@@ -1130,9 +1164,112 @@ async function assertVenueAdmin(authUid: string, venueId: string): Promise<"supe
 }
 
 // ========================
+// HELPER — re-asignar cancha al aprobar una solicitud
+// ========================
+/**
+ * Recalcula la asignación de cancha en el momento de aprobar una solicitud.
+ * Solo cuentan como ocupados los estados que bloquean slot (confirmed, played) más
+ * los bloqueos (blocked_slots). Excluye la propia solicitud. Devuelve la asignación
+ * fresca o `null` si el horario ya no está disponible para el formato.
+ *
+ * Nota: mismos reads no-transaccionales que `createBooking` (se acepta el mismo límite
+ * de concurrencia — ver docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md §3.2).
+ */
+async function allocateForApproval(
+    venueId: string,
+    date: string,
+    startTime: string,
+    endTime: string,
+    format: string,
+    excludeBookingId: string,
+): Promise<{ courtIds: string[]; courtNames: string[] } | null> {
+    const venueRef = db.collection("venues").doc(venueId);
+    const [courtsSnap, combosSnap, oneOffSnap, recurringSnap, blockingSnap] = await Promise.all([
+        venueRef.collection("courts").get(),
+        venueRef.collection("court_combos").get(),
+        venueRef.collection("blocked_slots").where("date", "==", date).get(),
+        venueRef.collection("blocked_slots")
+            .where("recurrence.type", "in", ["daily", "weekly", "biweekly", "monthly"]).get(),
+        db.collection("bookings")
+            .where("venueId", "==", venueId)
+            .where("date", "==", date)
+            .where("status", "in", ["deposit_confirmed", "confirmed", "played"])
+            .get(),
+    ]);
+
+    const courts = courtsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<{
+        id: string; name: string; baseFormat: string; active: boolean;
+    }>;
+    const combos = combosSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<{
+        id: string; courtIds: string[]; resultingFormat: string; active: boolean;
+    }>;
+
+    // Courts ocupados por reservas ya confirmadas/jugadas que solapan el rango.
+    const occupiedCourtIds: string[] = [];
+    for (const doc of blockingSnap.docs) {
+        if (doc.id === excludeBookingId) continue;
+        const b = doc.data();
+        if (b.startTime < endTime && b.endTime > startTime) {
+            occupiedCourtIds.push(...(b.courtIds || []));
+        }
+    }
+
+    // Expandir bloqueos puntuales + recurrentes aplicables a la fecha.
+    const applicableBlocks: Array<{ startTime: string; endTime: string; courtIds: string[] }> = [];
+    for (const d of oneOffSnap.docs) {
+        const b = d.data();
+        applicableBlocks.push({ startTime: b.startTime, endTime: b.endTime, courtIds: b.courtIds || [] });
+    }
+    for (const d of recurringSnap.docs) {
+        const b = d.data();
+        const r = b.recurrence;
+        if (!r) continue;
+        const exceptDates: string[] = Array.isArray(b.exceptDates) ? b.exceptDates : [];
+        if (exceptDates.includes(date)) continue;
+        if (date < r.startDate) continue;
+        if (r.endDate && date > r.endDate) continue;
+        const startLocal = new Date(r.startDate + "T12:00:00");
+        const targetLocal = new Date(date + "T12:00:00");
+        let applies = false;
+        if (r.type === "daily") {
+            applies = true;
+        } else if (r.type === "weekly") {
+            applies = startLocal.getDay() === targetLocal.getDay();
+        } else if (r.type === "biweekly") {
+            if (startLocal.getDay() === targetLocal.getDay()) {
+                const diffDays = Math.round((targetLocal.getTime() - startLocal.getTime()) / (1000 * 60 * 60 * 24));
+                applies = diffDays % 14 === 0;
+            }
+        } else if (r.type === "monthly") {
+            const sd = startLocal.getDate();
+            applies = sd <= 28 && targetLocal.getDate() === sd;
+        }
+        if (!applies) continue;
+        applicableBlocks.push({ startTime: b.startTime, endTime: b.endTime, courtIds: b.courtIds || [] });
+    }
+
+    const blockedCourtIds: string[] = [];
+    for (const blocked of applicableBlocks) {
+        if (blocked.startTime < endTime && blocked.endTime > startTime) {
+            if (blocked.courtIds && blocked.courtIds.length > 0) {
+                blockedCourtIds.push(...blocked.courtIds);
+            } else {
+                // Bloqueo total del horario (sin canchas específicas) → no hay asignación posible.
+                return null;
+            }
+        }
+    }
+
+    return allocateCourts(format, courts, combos, occupiedCourtIds, blockedCourtIds);
+}
+
+// ========================
 // approveBookingDeposit — onCall
 // ========================
-// Admin aprueba el abono: status pending_approval → deposit_confirmed.
+// Admin aprueba la solicitud: pending_approval → deposit_confirmed (abono confirmado).
+// Re-valida disponibilidad del slot, asigna la cancha y BLOQUEA el slot. La asistencia
+// se confirma después con confirmBookingAttendance (deposit_confirmed → confirmed).
+// Ref: docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md
 
 export const approveBookingDeposit = onCall(
     { maxInstances: 10 },
@@ -1161,6 +1298,22 @@ export const approveBookingDeposit = onCall(
                 throw new HttpsError("failed-precondition", "La reserva ya fue gestionada o no está pendiente de aprobación");
             }
 
+            // Re-validar disponibilidad y asignar cancha FRESCA (el slot pudo tomarse).
+            const allocation = await allocateForApproval(
+                booking.venueId,
+                booking.date,
+                booking.startTime,
+                booking.endTime,
+                booking.format,
+                bookingId,
+            );
+            if (!allocation) {
+                throw new HttpsError(
+                    "failed-precondition",
+                    "El horario ya no está disponible. Rechaza la solicitud o contacta al jugador.",
+                );
+            }
+
             bookerUid = booking.bookedBy;
             venueName = booking.venueName;
             const d = new Date(booking.date + "T12:00:00");
@@ -1169,8 +1322,11 @@ export const approveBookingDeposit = onCall(
 
             tx.update(bookingRef, {
                 status: "deposit_confirmed",
+                courtIds: allocation.courtIds,
+                courtNames: allocation.courtNames,
                 approvedBy: adminUid,
                 approvedAt: now,
+                expiresAt: null,
                 updatedAt: now,
             });
         });
@@ -1178,8 +1334,8 @@ export const approveBookingDeposit = onCall(
         // Notificar al jugador
         try {
             await db.collection("notifications").doc(bookerUid).collection("items").add({
-                title: "Abono verificado",
-                body: `Tu abono en ${venueName} fue aprobado · ${slotLine}`,
+                title: "Abono confirmado",
+                body: `Tu abono en ${venueName} fue verificado · ${slotLine}. La sede confirmará tu asistencia.`,
                 type: "booking_deposit_approved",
                 url: `/bookings/${bookingId}`,
                 read: false,
@@ -1192,8 +1348,8 @@ export const approveBookingDeposit = onCall(
             console.error("[approveBookingDeposit] in-app notif fail:", err);
         }
         await sendBookingPush(bookerUid, {
-            title: "Abono verificado",
-            body: `Tu abono en ${venueName} fue aprobado.`,
+            title: "Abono confirmado",
+            body: `Tu abono en ${venueName} fue verificado · ${slotLine}`,
         }, `/bookings/${bookingId}`);
 
         return { status: "deposit_confirmed" as const };
@@ -1269,8 +1425,8 @@ export const confirmBookingAttendance = onCall(
 // ========================
 // rejectPaymentProof — onCall
 // ========================
-// Admin rechaza el comprobante. Vuelve a pending_payment con nuevo TTL.
-// Al 3er intento rechazado, marca como expired y libera la cancha.
+// Admin rechaza la solicitud → cancelled (sin reintentos).
+// Ref: docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md (RN-09)
 
 export const rejectPaymentProof = onCall(
     { maxInstances: 10 },
@@ -1293,10 +1449,6 @@ export const rejectPaymentProof = onCall(
         const now = nowISO();
         let bookerUid = "";
         let venueName = "";
-        let venueId = "";
-        type RejectionResultStatus = "pending_payment" | "expired";
-        let nextStatus = "pending_payment" as RejectionResultStatus;
-        let attemptsRemaining = 0;
 
         await db.runTransaction(async (tx) => {
             const snap = await tx.get(bookingRef);
@@ -1304,13 +1456,13 @@ export const rejectPaymentProof = onCall(
             const booking = snap.data()!;
             await assertVenueAdmin(adminUid, booking.venueId);
             if (booking.status !== "pending_approval") {
-                throw new HttpsError("failed-precondition", "La reserva no está en estado para rechazar comprobante");
+                throw new HttpsError("failed-precondition", "La solicitud ya fue gestionada o no está pendiente de aprobación");
             }
 
             bookerUid = booking.bookedBy;
             venueName = booking.venueName;
-            venueId = booking.venueId;
 
+            // Guardar el comprobante rechazado en el historial (auditoría) y cancelar.
             const history = Array.isArray(booking.paymentProofHistory) ? [...booking.paymentProofHistory] : [];
             history.push({
                 url: booking.paymentProofURL || "",
@@ -1319,56 +1471,28 @@ export const rejectPaymentProof = onCall(
                 rejectionReason: trimmedReason,
             });
 
-            // TTL configurable del venue
-            const venueSnap = await tx.get(db.collection("venues").doc(booking.venueId));
-            const ttlHours: number = (() => {
-                const raw = venueSnap.data()?.pendingApprovalTTLHours;
-                if (typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= 24) return raw;
-                return 24;
-            })();
-
-            if (history.length >= MAX_PAYMENT_PROOF_ATTEMPTS) {
-                nextStatus = "expired";
-                attemptsRemaining = 0;
-                tx.update(bookingRef, {
-                    status: "expired",
-                    paymentProofURL: null,
-                    paymentProofUploadedAt: null,
-                    paymentProofHistory: history,
-                    lastRejectionReason: trimmedReason,
-                    lastRejectionAt: now,
-                    expiresAt: null,
-                    updatedAt: now,
-                });
-            } else {
-                nextStatus = "pending_payment";
-                attemptsRemaining = MAX_PAYMENT_PROOF_ATTEMPTS - history.length;
-                const newExpiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
-                tx.update(bookingRef, {
-                    status: "pending_payment",
-                    paymentProofURL: null,
-                    paymentProofUploadedAt: null,
-                    paymentProofHistory: history,
-                    lastRejectionReason: trimmedReason,
-                    lastRejectionAt: now,
-                    expiresAt: newExpiresAt,
-                    updatedAt: now,
-                });
-            }
+            tx.update(bookingRef, {
+                status: "cancelled",
+                cancelledBy: adminUid,
+                cancelledByRole: "admin",
+                cancellationReason: trimmedReason,
+                cancelledAt: now,
+                paymentProofHistory: history,
+                lastRejectionReason: trimmedReason,
+                lastRejectionAt: now,
+                expiresAt: null,
+                updatedAt: now,
+            });
         });
 
         // Notificar al jugador
-        const notifTitle = nextStatus === "expired"
-            ? "Reserva cancelada"
-            : "Comprobante rechazado";
-        const notifBody = nextStatus === "expired"
-            ? `${venueName}: se alcanzó el máximo de intentos. Motivo: ${trimmedReason}`
-            : `${venueName}: ${trimmedReason}. Podés intentar nuevamente.`;
+        const notifTitle = "Solicitud rechazada";
+        const notifBody = `${venueName}: tu solicitud fue rechazada. Motivo: ${trimmedReason}`;
         try {
             await db.collection("notifications").doc(bookerUid).collection("items").add({
                 title: notifTitle,
                 body: notifBody,
-                type: nextStatus === "expired" ? "booking_expired_max_rejections" : "booking_proof_rejected",
+                type: "booking_request_rejected",
                 url: `/bookings/${bookingId}`,
                 read: false,
                 createdAt: now,
@@ -1384,10 +1508,7 @@ export const rejectPaymentProof = onCall(
             body: notifBody,
         }, `/bookings/${bookingId}`);
 
-        // venueId disponible para futuras hooks; por ahora silenciamos lint:
-        void venueId;
-
-        return { status: nextStatus, attemptsRemaining };
+        return { status: "cancelled" as const };
     },
 );
 
@@ -1398,8 +1519,8 @@ export const rejectPaymentProof = onCall(
 // Permite rollback (paid → played, played → confirmed) para corrección admin.
 
 // Estados a los que admin puede transicionar manualmente (incluye rollback a deposit_confirmed).
-const ADMIN_PICKER_STATUSES = new Set(["deposit_confirmed", "confirmed", "played", "paid", "no_show"]);
-const ADMIN_FROM_STATUSES = new Set(["deposit_confirmed", "confirmed", "played", "paid", "no_show"]);
+const ADMIN_PICKER_STATUSES = new Set(["deposit_confirmed", "confirmed", "played", "paid", "free", "no_show"]);
+const ADMIN_FROM_STATUSES = new Set(["deposit_confirmed", "confirmed", "played", "paid", "free", "no_show"]);
 
 export const advanceBookingStatus = onCall(
     { maxInstances: 10 },

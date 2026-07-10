@@ -35,6 +35,7 @@ export type BookingStatus =
     // Post-juego (ciclo financiero igual a reservas manuales)
     | "played"               // El partido se jugó (admin lo marca)
     | "paid"                 // Admin cobró el resto en sede (cierra ciclo)
+    | "free"                 // El partido se jugó sin cobro (cortesía). Cierra ciclo sin pago
     // Terminales negativos
     | "no_show"              // Confirmó pero no asistió
     | "cancelled"            // Cancelada por jugador o admin (motivo obligatorio)
@@ -113,6 +114,8 @@ export interface Booking {
     /** uid del admin que confirmó asistencia (confirmed). */
     attendanceConfirmedBy?: string | null;
     attendanceConfirmedAt?: string | null;
+    /** Momento en que el jugador aceptó las políticas de la sede al reservar (ISO). */
+    policiesAcceptedAt?: string | null;
 
     createdAt: string;
     updatedAt: string;
@@ -165,10 +168,17 @@ export const PRE_GAME_ACTIVE_STATUSES: BookingStatus[] = [
     "confirmed",
 ];
 
-/** Estados que aparecen en la lista por hora del admin (bloquean slot). */
+/**
+ * Estados que efectivamente bloquean un slot (aparecen en la lista por hora del admin
+ * e impiden que otro jugador reserve esa cancha).
+ *
+ * Ref: docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md — cambio central del flujo:
+ * las SOLICITUDES (`pending_approval`) NO bloquean el slot. El slot se bloquea
+ * recién cuando un admin aprueba la solicitud → `deposit_confirmed` (abono confirmado),
+ * y sigue bloqueado en `confirmed` (asistencia confirmada) y `played`.
+ * `pending_payment` es legacy (no se emite en el flujo nuevo).
+ */
 export const SLOT_BLOCKING_STATUSES: BookingStatus[] = [
-    "pending_payment",
-    "pending_approval",
     "deposit_confirmed",
     "confirmed",
     "played",
@@ -177,6 +187,7 @@ export const SLOT_BLOCKING_STATUSES: BookingStatus[] = [
 /** Estados terminales (no aparecen en lista por hora, slot liberado o ciclo cerrado). */
 export const BOOKING_TERMINAL_STATUSES: BookingStatus[] = [
     "paid",
+    "free",
     "no_show",
     "cancelled",
     "expired",
@@ -240,6 +251,7 @@ export function bookingStatusLabel(status: BookingStatus): string {
         confirmed: "Confirmada",
         played: "Jugada",
         paid: "Pagada",
+        free: "Gratis",
         completed: "Completada",
         cancelled: "Cancelada",
         expired: "Expirada",
@@ -258,6 +270,8 @@ export function bookingStatusLabel(status: BookingStatus): string {
  */
 export function bookingStatusLabelForPlayer(status: BookingStatus): string {
     if (status === "no_show") return "Sin asistencia";
+    // Para el jugador, una solicitud pendiente de aprobación se lee como "En revisión".
+    if (status === "pending_approval") return "En revisión";
     return bookingStatusLabel(status);
 }
 
@@ -274,6 +288,8 @@ export function bookingStatusColor(status: BookingStatus): string {
         played: "indigo",
         // "paid" usa emerald — match con reservas manuales (success final).
         paid: "emerald",
+        // "free" usa purple — match con reservas manuales (Gratis).
+        free: "purple",
         completed: "blue",
         cancelled: "red",
         expired: "gray",
@@ -488,6 +504,7 @@ export const ADMIN_BOOKING_STATUS_PICKER: BookingStatus[] = [
     "confirmed",
     "played",
     "paid",
+    "free",
     "no_show",
 ];
 
@@ -510,11 +527,14 @@ export const BOOKING_VALID_PICKER_TRANSITIONS: Partial<Record<BookingStatus, Boo
     // Forward: played, no_show. Rollback: deposit_confirmed.
     confirmed: ["played", "no_show", "deposit_confirmed"],
 
-    // Forward: paid (vía RegisterPaymentSheet). Rollback: confirmed.
-    played: ["paid", "confirmed"],
+    // Forward: paid (vía RegisterPaymentSheet), free (cortesía). Rollback: confirmed.
+    played: ["paid", "free", "confirmed"],
 
     // Solo rollbacks — ya cerró ciclo financiero.
     paid: ["played", "confirmed"],
+
+    // Gratis: cierra ciclo sin cobro. Solo rollback a played (por corrección).
+    free: ["played"],
 
     // Solo rollback al estado de donde vino normalmente (confirmed).
     no_show: ["confirmed"],

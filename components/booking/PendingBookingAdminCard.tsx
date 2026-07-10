@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { CheckCircle2, XCircle, Hourglass, ImageOff } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { approveBookingDeposit } from "@/lib/bookings";
+import { approveBookingRequest } from "@/lib/bookings";
 import { logBookingDepositApproved } from "@/lib/analytics";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel } from "@/lib/domain/venue";
@@ -61,7 +61,7 @@ export default function PendingBookingAdminCard({
     const handleApprove = async () => {
         setApproving(true);
         try {
-            await approveBookingDeposit(booking.id);
+            await approveBookingRequest(booking.id);
             const approvedAtMs = booking.paymentProofUploadedAt
                 ? Date.now() - new Date(booking.paymentProofUploadedAt).getTime()
                 : 0;
@@ -70,10 +70,10 @@ export default function PendingBookingAdminCard({
                 bookingId: booking.id,
                 timeToApproveMinutes: Math.round(approvedAtMs / 60000),
             });
-            toast.success("Abono aprobado · jugador avisado");
+            toast.success("Abono confirmado · jugador avisado");
             onApproved?.();
         } catch (err) {
-            handleError(err, "No pudimos aprobar el abono");
+            handleError(err, "No pudimos aprobar la solicitud");
         } finally {
             setApproving(false);
         }

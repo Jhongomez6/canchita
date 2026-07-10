@@ -24,6 +24,7 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "./firebase";
 import { withTimeout } from "./utils/withTimeout";
+import { SLOT_BLOCKING_STATUSES } from "./domain/booking";
 import type { Booking } from "./domain/booking";
 
 const functions = getFunctions(app);
@@ -53,18 +54,10 @@ export async function getUserBookings(
     return { bookings, lastDoc: last };
 }
 
-/** Estados que bloquean slot — usados en queries del calendario admin. */
-const SLOT_BLOCKING_STATUSES = [
-    "pending_payment",
-    "pending_approval",
-    "deposit_confirmed",
-    "confirmed",
-    "played",
-] as const;
-
 /**
  * Obtiene reservas de un venue en una fecha (para calcular courts ocupados en UI).
- * Incluye todos los estados que bloquean slot (pre-juego + played).
+ * Solo estados que bloquean slot: `confirmed`, `played`. Las solicitudes
+ * `pending_approval` NO bloquean (ver docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md).
  */
 export async function getBookingsForDate(
     venueId: string,
@@ -142,18 +135,18 @@ export function subscribeToAllBookingsForDate(
     });
 }
 
-/** Estados que efectivamente bloquean un slot (impiden que otro reserve esa cancha). */
-export const SLOT_BLOCKING_BOOKING_STATUSES = [
-    "pending_payment",
-    "pending_approval",
-    "deposit_confirmed",
-    "confirmed",
-    "played",
-] as const;
+/**
+ * Estados que efectivamente bloquean un slot (impiden que otro reserve esa cancha).
+ * Reexporta la fuente de verdad del dominio (`confirmed`, `played`). Las solicitudes
+ * `pending_approval` NO bloquean — el slot se bloquea recién al aprobar.
+ */
+export const SLOT_BLOCKING_BOOKING_STATUSES = SLOT_BLOCKING_STATUSES;
 
 /**
- * Suscripción a las reservas pendientes (sin comprobante o por aprobar) de un venue.
- * Para la vista admin "Reservas pendientes".
+ * Suscripción a las solicitudes pendientes de aprobación de un venue.
+ * Para la vista admin "Reservas pendientes". Incluye `pending_payment` solo por
+ * compatibilidad con reservas legacy que pudieran existir; el flujo nuevo solo crea
+ * `pending_approval`.
  */
 export function subscribeToPendingBookings(
     venueId: string,
@@ -205,7 +198,11 @@ export function subscribeToBooking(
 // ========================
 
 /**
- * Crear una reserva. El server asigna courts automáticamente.
+ * Crear una reserva/solicitud.
+ * En sedes con depósito, `proofURL` es obligatorio (comprobante subido antes de reservar):
+ * la reserva nace como solicitud `pending_approval` sin bloquear el slot. En sedes sin
+ * depósito, va directo a `confirmed`.
+ * Ref: docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md
  */
 export async function createBooking(input: {
     venueId: string;
@@ -213,6 +210,10 @@ export async function createBooking(input: {
     date: string;
     startTime: string;
     endTime: string;
+    /** URL del comprobante de pago (requerido en sedes con depósito). */
+    proofURL?: string;
+    /** El jugador declaró aceptar las políticas de la sede (requerido si la sede tiene políticas). */
+    policiesAccepted?: boolean;
 }) {
     const fn = httpsCallable<
         typeof input,
@@ -221,6 +222,7 @@ export async function createBooking(input: {
             depositCOP: number;
             remainingCOP: number;
             totalPriceCOP: number;
+            status: string;
         }
     >(functions, "createBooking");
     const result = await fn(input);
@@ -261,9 +263,12 @@ export async function markPaymentProofUploaded(
 }
 
 /**
- * Admin aprueba el abono → estado pasa a deposit_confirmed.
+ * Admin aprueba la solicitud → se revalida el slot, se asigna la cancha, se BLOQUEA el
+ * slot y la reserva pasa a `deposit_confirmed` (abono confirmado). La asistencia se
+ * confirma luego con `confirmBookingAttendance`. Si el slot ya no está disponible, el
+ * server responde con error `failed-precondition`.
  */
-export async function approveBookingDeposit(
+export async function approveBookingRequest(
     bookingId: string,
 ): Promise<{ status: "deposit_confirmed" }> {
     const fn = httpsCallable<
@@ -289,16 +294,16 @@ export async function confirmBookingAttendance(
 }
 
 /**
- * Admin rechaza el comprobante con motivo. Si es el 3er rechazo,
- * el server marca la reserva como expired.
+ * Admin rechaza la solicitud con motivo → la solicitud queda `cancelled` (sin reintentos).
+ * (Usa la Cloud Function `rejectPaymentProof`, ahora con semántica de rechazo definitivo.)
  */
-export async function rejectPaymentProof(
+export async function rejectBookingRequest(
     bookingId: string,
     reason: string,
-): Promise<{ status: "pending_payment" | "expired"; attemptsRemaining: number }> {
+): Promise<{ status: "cancelled" }> {
     const fn = httpsCallable<
         { bookingId: string; reason: string },
-        { status: "pending_payment" | "expired"; attemptsRemaining: number }
+        { status: "cancelled" }
     >(functions, "rejectPaymentProof");
     const res = await fn({ bookingId, reason });
     return res.data;
@@ -312,6 +317,7 @@ export type AdvanceBookingTargetStatus =
     | "confirmed"
     | "played"
     | "paid"
+    | "free"
     | "no_show";
 
 export async function advanceBookingStatus(

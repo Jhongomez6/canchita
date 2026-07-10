@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Users, ChevronRight, Banknote, Trash2, Landmark } from "lucide-react";
+import { Users, ChevronRight, Banknote, Trash2, Landmark, AlertTriangle } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { formatCOP } from "@/lib/domain/wallet";
 import { formatLabel, formatCourtList } from "@/lib/domain/venue";
@@ -27,7 +28,7 @@ import DepositSummary from "./DepositSummary";
  * vienen de `getValidPickerTransitions(booking.status)` — esto solo controla el
  * orden en que se renderizan los items disponibles.
  */
-const STATUS_PICKER_ORDER: BookingStatus[] = ["deposit_confirmed", "confirmed", "played", "paid", "no_show"];
+const STATUS_PICKER_ORDER: BookingStatus[] = ["deposit_confirmed", "confirmed", "played", "paid", "free", "no_show"];
 
 const STATUS_DOT: Record<string, string> = {
     yellow: "bg-amber-400",
@@ -78,6 +79,8 @@ interface AdminBookingCardProps {
     existingPayment?: ManualReservationPayment | null;
     /** Si true, oculta la tarifa (total + depósito/resto). Conserva chips de pago registrado. */
     hidePrice?: boolean;
+    /** CTA "Revisar" en solicitudes pending_approval. Si se omite, navega a ?tab=pending. */
+    onReviewPending?: (booking: Booking) => void;
 }
 
 export default function AdminBookingCard({
@@ -89,7 +92,9 @@ export default function AdminBookingCard({
     onAdvanced,
     existingPayment,
     hidePrice = false,
+    onReviewPending,
 }: AdminBookingCardProps) {
+    const router = useRouter();
     const [advancing, setAdvancing] = useState(false);
     const [pickerChanging, setPickerChanging] = useState(false);
     const [pickerOpen, setPickerOpen] = useState(false);
@@ -289,6 +294,27 @@ export default function AdminBookingCard({
                     <span className="text-slate-400"> ({formatCourtList(booking.courtNames)})</span>
                 )}
             </p>
+
+            {/* Solicitud pendiente de aprobación: warning + CTA a la vista de aprobación. */}
+            {booking.status === "pending_approval" && (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1.5">
+                    <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 min-w-0">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                        Pendiente de aprobación
+                    </span>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onReviewPending) onReviewPending(booking);
+                            else router.push(`/venues/admin/${booking.venueId}?tab=pending`);
+                        }}
+                        className="flex items-center gap-0.5 text-[11px] font-bold text-amber-800 hover:text-amber-900 whitespace-nowrap flex-shrink-0"
+                    >
+                        Revisar <ChevronRight className="w-3 h-3" />
+                    </button>
+                </div>
+            )}
 
             {/* Precio — mismo patrón que reservas manuales (AdminBlockCard).
                 Oculto si la sede oculta la tarifa a los administradores de sede. */}

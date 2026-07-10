@@ -27,6 +27,7 @@ import type {
 } from "./venue";
 import { getBlockedSlotStatus, formatLabel } from "./venue";
 import { doesRecurrenceApplyToDate } from "./blocked-slots";
+import type { Booking } from "./booking";
 
 // ========================
 // TIPOS
@@ -334,6 +335,29 @@ function instanceOf(slot: BlockedSlot, date: string): ReservationInstance {
         clientName: slot.clientName,
         clientPhone: slot.clientPhone,
     };
+}
+
+/**
+ * Mapea reservas ONLINE marcadas "Gratis" a instancias de analítica, para que las
+ * cortesías de reservas de jugador cuenten en la métrica "canchas gratis" junto a las
+ * manuales. Las reservas online no son recurrentes → una instancia por reserva dentro
+ * del rango. Otros estados online (paid/played/etc.) NO se mezclan acá (el revenue de
+ * las pagas ya entra por los `ManualReservationPayment`).
+ */
+export function onlineFreeInstances(bookings: Booking[], period: AnalyticsPeriod): ReservationInstance[] {
+    return bookings
+        .filter((b) => b.status === "free" && b.date >= period.start && b.date <= period.end)
+        .map((b) => ({
+            reservationId: b.id,
+            date: b.date,
+            startTime: b.startTime,
+            endTime: b.endTime,
+            courtIds: b.courtIds ?? [],
+            status: "free" as ManualReservationStatus,
+            isMonthly: false,
+            clientName: b.bookedByName,
+            clientPhone: b.bookedByPhone ?? undefined,
+        }));
 }
 
 // ========================

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Inbox, Hourglass, ClipboardCheck, X } from "lucide-react";
+import { Inbox, X } from "lucide-react";
 import { subscribeToPendingBookings } from "@/lib/bookings";
 import PendingBookingAdminCard from "./PendingBookingAdminCard";
 import RejectProofSheet from "./RejectProofSheet";
@@ -16,11 +16,8 @@ interface PendingBookingsAdminViewProps {
     onCancelBooking?: (booking: Booking) => void;
 }
 
-type Tab = "approval" | "payment";
-
 export default function PendingBookingsAdminView({ venueId, venueFormats, onCancelBooking }: PendingBookingsAdminViewProps) {
     const [bookings, setBookings] = useState<Booking[] | null>(null);
-    const [tab, setTab] = useState<Tab>("approval");
     const [rejectTarget, setRejectTarget] = useState<Booking | null>(null);
     const [previewURL, setPreviewURL] = useState<string | null>(null);
 
@@ -29,24 +26,15 @@ export default function PendingBookingsAdminView({ venueId, venueFormats, onCanc
         return () => unsub();
     }, [venueId]);
 
-    const { pendingApproval, pendingPayment } = useMemo(() => {
+    // Lista única de solicitudes pendientes de aprobación (todas con comprobante).
+    // Incluye reservas legacy pending_payment por compatibilidad. El flujo nuevo
+    // solo crea pending_approval.
+    const visible = useMemo(() => {
         const list = bookings ?? [];
-        const nowMs = Date.now();
-        return {
-            pendingApproval: list.filter((b) => b.status === "pending_approval"),
-            // Filtramos los pending_payment cuyo TTL ya venció: aunque el cron
-            // todavía no haya corrido, ya no se pueden completar — los ocultamos
-            // del listado para que el admin no tenga que "cancelarlos" manualmente.
-            // El cron eventualmente los pasa a "expired" oficialmente.
-            pendingPayment: list.filter((b) => {
-                if (b.status !== "pending_payment") return false;
-                if (!b.expiresAt) return true;
-                return new Date(b.expiresAt).getTime() > nowMs;
-            }),
-        };
+        return list.filter(
+            (b) => b.status === "pending_approval" || b.status === "pending_payment",
+        );
     }, [bookings]);
-
-    const visible = tab === "approval" ? pendingApproval : pendingPayment;
 
     if (bookings === null) {
         return (
@@ -65,53 +53,15 @@ export default function PendingBookingsAdminView({ venueId, venueFormats, onCanc
 
     return (
         <div className="space-y-3">
-            {/* Tabs */}
-            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-                <button
-                    onClick={() => setTab("approval")}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                        tab === "approval"
-                            ? "bg-white text-orange-600 shadow-sm"
-                            : "text-slate-500 hover:text-slate-700"
-                    }`}
-                >
-                    <ClipboardCheck className="w-3.5 h-3.5" />
-                    Por aprobar
-                    {pendingApproval.length > 0 && (
-                        <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold">
-                            {pendingApproval.length}
-                        </span>
-                    )}
-                </button>
-                <button
-                    onClick={() => setTab("payment")}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                        tab === "payment"
-                            ? "bg-white text-amber-600 shadow-sm"
-                            : "text-slate-500 hover:text-slate-700"
-                    }`}
-                >
-                    <Hourglass className="w-3.5 h-3.5" />
-                    Sin comprobante
-                    {pendingPayment.length > 0 && (
-                        <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">
-                            {pendingPayment.length}
-                        </span>
-                    )}
-                </button>
-            </div>
-
             {/* List */}
             {visible.length === 0 ? (
                 <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center">
                     <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                     <p className="text-sm font-semibold text-slate-600">
-                        {tab === "approval" ? "Sin comprobantes por aprobar" : "Sin reservas esperando comprobante"}
+                        Sin solicitudes pendientes
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
-                        Cuando un jugador
-                        {tab === "approval" ? " envíe su comprobante" : " cree una reserva con depósito"},
-                        aparecerá acá.
+                        Cuando un jugador envíe una solicitud con comprobante, aparecerá acá.
                     </p>
                 </div>
             ) : (
