@@ -1,7 +1,7 @@
 {
   "gcm_sender_id": "103953800507",
   "name": "La Canchita",
-  "short_name": "Canchita",
+  "short_name": "La Canchita",
   "description": "Encuentra donde jugar hoy",
   "start_url": "/",
   "display": "standalone",

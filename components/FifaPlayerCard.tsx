@@ -175,7 +175,7 @@ const STAT_TOOLTIPS: Record<string, string> = {
   PJ: "Partidos Jugados",
   PG: "Partidos Ganados",
   MVP: "Veces elegido MVP del partido",
-  OVR: "Nivel — tu nivel general en Canchita (50-99). Sube ganando XP.",
+  OVR: "Nivel — tu nivel general en La Canchita (50-99). Sube ganando XP.",
   POS_GK: "Posición principal: Portero",
   POS_DEF: "Posición principal: Defensa",
   POS_MID: "Posición principal: Medio",

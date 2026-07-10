@@ -35,7 +35,7 @@ const TIER_TAGLINE: Record<XpTier, string> = {
     titular: "Sos parte fundamental del equipo.",
     estrella: "Tu nombre brilla en la cancha.",
     capitan: "Llevás el brazalete con orgullo.",
-    leyenda: "Tu historia es Canchita.",
+    leyenda: "Tu historia es La Canchita.",
 };
 
 interface TierUpModalProps {

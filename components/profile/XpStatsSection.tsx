@@ -46,7 +46,7 @@ export default function XpStatsSection({
                     <h2 className="text-base font-bold text-slate-900">⚡ Tu XP</h2>
                 </div>
                 <p className="text-sm text-slate-600">
-                    Tu nivel de Canchita aparecerá acá una vez que juegues tu primer partido.
+                    Tu nivel de La Canchita aparecerá acá una vez que juegues tu primer partido.
                 </p>
             </section>
         );

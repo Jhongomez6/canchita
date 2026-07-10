@@ -17,7 +17,7 @@ import ClientWidgets from "@/components/ClientWidgets";
 
 
 export const metadata: Metadata = {
-  title: "Canchita",
+  title: "La Canchita",
   description: "Encuentra donde jugar hoy",
   manifest: "/manifest.json",
 };

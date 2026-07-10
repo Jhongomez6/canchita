@@ -976,7 +976,7 @@ export default function ProfilePage() {
                       <X size={20} />
                     </button>
                     <h3 className="text-xl font-bold mb-2">Instalar en {isIOS ? "iOS" : "Android"}</h3>
-                    <p className="text-slate-500 mb-6 text-sm">Sigue estos rápidos pasos para añadir Canchita a tu pantalla de inicio:</p>
+                    <p className="text-slate-500 mb-6 text-sm">Sigue estos rápidos pasos para añadir La Canchita a tu pantalla de inicio:</p>
                     <div className="space-y-3">
                       {isIOS ? (
                         <>

@@ -52,7 +52,7 @@ export default function PWAInstallPrompt() {
                         </div>
                         <div className="flex-1 pr-6">
                             <h3 className="font-semibold text-sm">Mejora tu experiencia</h3>
-                            <p className="text-xs text-slate-300 mt-0.5 leading-snug">Instala Canchita para acceso rápido y modo de pantalla completa.</p>
+                            <p className="text-xs text-slate-300 mt-0.5 leading-snug">Instala La Canchita para acceso rápido y modo de pantalla completa.</p>
                         </div>
                     </div>
 
@@ -79,7 +79,7 @@ export default function PWAInstallPrompt() {
                         </button>
 
                         <h3 className="text-xl font-bold mb-2">Instalar en iOS</h3>
-                        <p className="text-slate-500 mb-6 text-sm">Sigue estos rápidos pasos para añadir Canchita a tu pantalla de inicio:</p>
+                        <p className="text-slate-500 mb-6 text-sm">Sigue estos rápidos pasos para añadir La Canchita a tu pantalla de inicio:</p>
 
                         <div className="space-y-3">
                             <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
