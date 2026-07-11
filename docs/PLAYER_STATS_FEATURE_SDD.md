@@ -41,7 +41,8 @@ type MatchResult = "win" | "loss" | "draw";
 |---|-------|----------------|
 | 1 | Solo jugadores con `uid` reciben stats | Filtro en `updatePlayerStats()` |
 | 2 | Stats se actualizan al cerrar partido | Llamada desde match detail page |
-| 3 | Si partido se reabre y re-cierra, stats previos se revierten | `previousResult` param |
+| 3 | Si partido se reabre y re-cierra, stats previos se revierten | `previousResultByUid` map (por jugador) |
+| 3b | La reversión usa el equipo REAL donde estaba el jugador en el cierre anterior, aunque cambie de equipo | `previousTeams` snapshot + `previousResultByUid` |
 | 4 | Stats son atómicas — se usa `writeBatch` para all-or-nothing | `writeBatch` agrupa todos los `increment()` + flag `statsProcessed` en un solo commit atómico |
 | 5 | Resultado depende del score: A > B = win para A | Lógica en UI (match detail) |
 | 6 | `commitmentStreak` se actualiza junto a stats en el mismo batch | Increment si `attendance === "present"`, reset a 0 si `late` o `no_show` |
@@ -121,16 +122,19 @@ export async function updatePlayerStats(
 La lógica de determinar el resultado se ejecuta en la UI al cerrar:
 
 ```typescript
+// Re-cierre: mapa uid → resultado previo, derivado del equipo REAL donde estaba
+// cada jugador en el cierre anterior (previousTeams). Se pasa el MISMO mapa a ambas
+// llamadas; cada una hace lookup por uid del jugador que procesa.
 // Regla #5: Determinar resultado por score
 if (scoreA > scoreB) {
-  await updatePlayerStats(teamA, "win", id, previousResultA);
-  await updatePlayerStats(teamB, "loss", id, previousResultB);
+  await updatePlayerStats(teamA, "win", id, matchDate, previousResultByUid, matchData);
+  await updatePlayerStats(teamB, "loss", id, matchDate, previousResultByUid);
 } else if (scoreB > scoreA) {
-  await updatePlayerStats(teamA, "loss", id, previousResultA);
-  await updatePlayerStats(teamB, "win", id, previousResultB);
+  await updatePlayerStats(teamA, "loss", id, matchDate, previousResultByUid, matchData);
+  await updatePlayerStats(teamB, "win", id, matchDate, previousResultByUid);
 } else {
-  await updatePlayerStats(teamA, "draw", id, previousResultA);
-  await updatePlayerStats(teamB, "draw", id, previousResultB);
+  await updatePlayerStats(teamA, "draw", id, matchDate, previousResultByUid, matchData);
+  await updatePlayerStats(teamB, "draw", id, matchDate, previousResultByUid);
 }
 ```
 
@@ -147,9 +151,13 @@ if (scoreA > scoreB) {
 
 **Implementación**:
 
-1. **UI**: Guarda `previousScore` en Firestore al cerrar
-2. **UI**: Calcula `previousResult` del score anterior
-3. **API**: `updatePlayerStats(team, result, matchId, previousResult)` decrementa stats viejos e incrementa nuevos
+1. **UI**: Al cerrar guarda en Firestore `previousScore` (score aplicado) **y** `previousTeams` (composición A/B aplicada).
+2. **UI**: En un re-cierre construye `previousResultByUid` — un `Map<uid, MatchResult>` derivado de `previousTeams` + `previousScore`, es decir el resultado previo de cada jugador según el equipo **real** donde estaba, no según su equipo actual.
+3. **API**: `updatePlayerStats(team, result, matchId, matchDate, previousResultByUid, …)` revierte el resultado previo por jugador (lookup por `uid`) e incrementa el nuevo, en el mismo `writeBatch`.
+
+> **Bug corregido**: antes se calculaba un único `previousResult` por equipo (A/B) y se aplicaba a los jugadores que estaban en ese equipo *en el momento del re-cierre*. Si un jugador cambiaba de equipo entre cierres, la reversión se hacía contra el equipo equivocado → su victoria/derrota previa nunca se revertía y no se le sumaba la nueva. Ahora la reversión es por jugador vía `previousTeams`.
+>
+> _Fallback_: partidos cerrados antes de que existiera `previousTeams` usan los equipos actuales como composición previa (comportamiento anterior) — el fix aplica a partir del próximo cierre que guarde `previousTeams`.
 
 ---
 

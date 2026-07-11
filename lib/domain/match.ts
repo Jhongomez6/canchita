@@ -56,6 +56,7 @@ export interface Match {
     previousMultiTeam?: MultiTeamTournament; // snapshot para revertir stats en re-cierre (modo multi)
     statsProcessed?: boolean;
     previousScore?: { A: number; B: number };
+    previousTeams?: { A: Player[]; B: Player[] }; // snapshot de la composición al cerrar (modo clásico) — permite revertir stats por jugador según el equipo real donde estaba, aunque cambie de equipo en un re-cierre
     mvpVotes?: Record<string, string>; // { voterId: votedPlayerId_or_GuestName }
     teamBalanceFeedback?: Record<string, "up" | "down">; // feedback de jugadores sobre si los equipos quedaron parejos
     closedAt?: string; // ISO String to track 12-hour limit

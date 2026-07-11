@@ -27,18 +27,24 @@ export async function updatePlayerStats(
   result: MatchResult,
   matchId: string,
   matchDate: string,
-  previousResult?: MatchResult,
+  previousResultByUid?: Map<string, MatchResult>,
   matchData?: {
     matchRef: DocumentReference;
     score: { A: number; B: number };
     previousScore: { A: number; B: number };
+    previousTeams: { A: Player[]; B: Player[] };
     finalReport: string;
   },
   pendingNoShows?: Player[]
 ) {
+  // `previousResultByUid` presente = re-cierre. Contiene el resultado previo de cada
+  // jugador según el equipo REAL donde estaba en el cierre anterior (no su equipo actual),
+  // para revertir correctamente aunque el jugador haya cambiado de equipo.
+  const isReclose = previousResultByUid !== undefined;
+
   // Pre-lectura para weeklyStreak: solo en cierre fresco, solo jugadores elegibles (uid, no guest, no no_show)
   const weeklyUpdates = new Map<string, { weeklyStreak: number; lastPlayedWeek: string }>();
-  if (!previousResult) {
+  if (!isReclose) {
     const eligible = players.filter(
       (p) => p.uid && !p.uid.startsWith("guest_") && p.attendance !== "no_show"
     );
@@ -65,6 +71,7 @@ export async function updatePlayerStats(
     batch.update(matchData.matchRef, {
       score: matchData.score,
       previousScore: matchData.previousScore,
+      previousTeams: matchData.previousTeams,
       finalReport: matchData.finalReport,
       statsProcessed: true,
     });
@@ -76,6 +83,10 @@ export async function updatePlayerStats(
     const userRef = doc(db, "users", player.uid);
     const { attendance = "present" } = player;
     const isNoShow = attendance === "no_show";
+
+    // Resultado previo de ESTE jugador según el equipo donde estaba en el cierre anterior.
+    // Ausente = jugador nuevo (no estaba en el cierre previo) → se trata como cierre fresco.
+    const previousResult = previousResultByUid?.get(player.uid);
 
     // Compute net delta combining reversion + new stats in a single set
     const statsUpdate: Record<string, unknown> = {};
@@ -127,7 +138,7 @@ export async function updatePlayerStats(
     // On re-close: reset streak if attendance is now no_show or late (prevents streak > played when
     // attendance changes from present → no_show, which decrements played but previously left streak unchanged).
     const topLevelUpdate: Record<string, unknown> = { stats: statsUpdate };
-    if (!previousResult) {
+    if (!isReclose) {
       if (isNoShow || attendance === "late") {
         topLevelUpdate.commitmentStreak = 0;
       } else {

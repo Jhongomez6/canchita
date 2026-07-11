@@ -593,22 +593,23 @@ export default function MatchDetailPage() {
           : "present",
       }));
 
-      let previousResultA: "win" | "loss" | "draw" | undefined;
-      let previousResultB: "win" | "loss" | "draw" | undefined;
-
+      // Re-cierre: mapa uid → resultado previo derivado del equipo REAL donde estaba
+      // cada jugador en el cierre anterior (previousTeams). Así la reversión es correcta
+      // aunque el jugador haya cambiado de equipo entre cierres.
+      let previousResultByUid: Map<string, "win" | "loss" | "draw"> | undefined;
       if (freshMatch.statsProcessed && freshMatch.previousScore) {
         const prevA = freshMatch.previousScore.A ?? 0;
         const prevB = freshMatch.previousScore.B ?? 0;
-        if (prevA > prevB) {
-          previousResultA = "win";
-          previousResultB = "loss";
-        } else if (prevB > prevA) {
-          previousResultA = "loss";
-          previousResultB = "win";
-        } else {
-          previousResultA = "draw";
-          previousResultB = "draw";
-        }
+        const prevResultA: "win" | "loss" | "draw" =
+          prevA > prevB ? "win" : prevA < prevB ? "loss" : "draw";
+        const prevResultB: "win" | "loss" | "draw" =
+          prevB > prevA ? "win" : prevB < prevA ? "loss" : "draw";
+        // Fallback a equipos actuales para partidos cerrados antes de que se guardara previousTeams.
+        const prevTeamA = freshMatch.previousTeams?.A ?? teamA;
+        const prevTeamB = freshMatch.previousTeams?.B ?? teamB;
+        previousResultByUid = new Map();
+        for (const p of prevTeamA) if (p.uid) previousResultByUid.set(p.uid, prevResultA);
+        for (const p of prevTeamB) if (p.uid) previousResultByUid.set(p.uid, prevResultB);
       }
 
       const report = buildWhatsAppReport({
@@ -621,6 +622,8 @@ export default function MatchDetailPage() {
         matchRef,
         score: { A: scoreA, B: scoreB },
         previousScore: freshMatch.score || { A: 0, B: 0 },
+        // Composición aplicada en este cierre — el próximo re-cierre la usa como "equipos previos".
+        previousTeams: { A: teamA, B: teamB },
         finalReport: report,
       };
 
@@ -637,14 +640,14 @@ export default function MatchDetailPage() {
       // Second batch: Team B stats (atomic)
       const matchDate = freshMatch.date;
       if (scoreA > scoreB) {
-        await updatePlayerStats(teamAWithAttendance, "win", id, matchDate, previousResultA, matchData, pendingNoShows);
-        await updatePlayerStats(teamBWithAttendance, "loss", id, matchDate, previousResultB);
+        await updatePlayerStats(teamAWithAttendance, "win", id, matchDate, previousResultByUid, matchData, pendingNoShows);
+        await updatePlayerStats(teamBWithAttendance, "loss", id, matchDate, previousResultByUid);
       } else if (scoreB > scoreA) {
-        await updatePlayerStats(teamAWithAttendance, "loss", id, matchDate, previousResultA, matchData, pendingNoShows);
-        await updatePlayerStats(teamBWithAttendance, "win", id, matchDate, previousResultB);
+        await updatePlayerStats(teamAWithAttendance, "loss", id, matchDate, previousResultByUid, matchData, pendingNoShows);
+        await updatePlayerStats(teamBWithAttendance, "win", id, matchDate, previousResultByUid);
       } else {
-        await updatePlayerStats(teamAWithAttendance, "draw", id, matchDate, previousResultA, matchData, pendingNoShows);
-        await updatePlayerStats(teamBWithAttendance, "draw", id, matchDate, previousResultB);
+        await updatePlayerStats(teamAWithAttendance, "draw", id, matchDate, previousResultByUid, matchData, pendingNoShows);
+        await updatePlayerStats(teamBWithAttendance, "draw", id, matchDate, previousResultByUid);
       }
 
       await closeMatch(id);
