@@ -1,6 +1,6 @@
 "use client";
 
-import { Volleyball, Target, Goal } from "lucide-react";
+import { Volleyball, Target } from "lucide-react";
 import type { SportType } from "@/lib/domain/venue";
 
 interface SportIconProps {
@@ -22,7 +22,6 @@ export default function SportIcon({ sport, className = "w-4 h-4", label }: Sport
         ? { role: "img" as const, "aria-label": label }
         : { "aria-hidden": true as const };
 
-    if (sport === "football") return <Goal className={className} {...a11y} />;
     if (sport === "volleyball") return <Volleyball className={className} {...a11y} />;
     if (sport === "other") return <Target className={className} {...a11y} />;
 
@@ -38,6 +37,17 @@ export default function SportIcon({ sport, className = "w-4 h-4", label }: Sport
     };
 
     switch (sport) {
+        case "football":
+            // Cancha de fútbol (elegido sobre el balón para diferenciarlo del vóley).
+            return (
+                <svg {...stroke}>
+                    <rect x="2.5" y="4.5" width="19" height="15" rx="1.5" />
+                    <path d="M12 4.5V19.5" />
+                    <circle cx="12" cy="12" r="2.6" />
+                    <path d="M2.5 8.7H5.4V15.3H2.5" />
+                    <path d="M21.5 8.7H18.6V15.3H21.5" />
+                </svg>
+            );
         case "basketball":
             return (
                 <svg {...stroke}>
