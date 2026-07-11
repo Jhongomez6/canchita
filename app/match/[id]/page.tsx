@@ -128,6 +128,9 @@ export default function MatchDetailPage() {
           teamA: { players: data.teams.A },
           teamB: { players: data.teams.B },
         });
+      } else {
+        // Sin equipos clásicos (p. ej. tras cambiar a multi-equipo): limpiar estado obsoleto
+        setBalanced(null);
       }
     });
 
@@ -907,12 +910,12 @@ export default function MatchDetailPage() {
 
           {activeTab === "teams" && !inMultiMode && (
             <>
-              {isOwner && !isClosed && !balanced && canOfferMulti && (
+              {isOwner && !isClosed && canOfferMulti && (
                 <button
                   onClick={() => setShowMultiSetup(true)}
                   className="w-full mb-3 py-2.5 rounded-xl font-bold text-sm text-emerald-700 bg-emerald-50 border-2 border-emerald-500/20 hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
                 >
-                  🏆 ¿Muchos anotados? Armar varios equipos (round-robin)
+                  🏆 {balanced ? "Cambiar a varios equipos (round-robin)" : "¿Muchos anotados? Armar varios equipos (round-robin)"}
                 </button>
               )}
             <TeamsTab

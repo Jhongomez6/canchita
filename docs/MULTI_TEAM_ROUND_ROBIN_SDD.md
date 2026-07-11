@@ -152,7 +152,7 @@ Capa de dominio pura (`lib/domain/multiTeam.ts`), invocada tanto en cliente como
 ### Flujo principal (happy path) — Admin
 
 0. **Creación (sin cambios de flujo)**: el admin crea el partido normalmente; solo elige un `maxPlayers` alto (ej. 15-20) si anticipa mucha gente. **No hay ninguna opción "multi-equipo" en el formulario de creación** — se decide todo después según la convocatoria real.
-1. Partido llega a ≥ 15 confirmados → en la tab **Equipos** aparece el toggle **"Modo: 2 equipos / Multi-equipos"**.
+1. Partido llega a ≥ 15 confirmados → en la tab **Equipos** aparece el toggle **"Modo: 2 equipos / Multi-equipos"**. El acceso al modo multi está disponible mientras el partido esté **abierto**, **incluso si ya se balancearon los 2 equipos clásicos** (el admin puede cambiar de opinión). Al generar los equipos multi, `saveMultiTeams()` limpia el modo clásico (`teams: null`, `score: null`, `teamsConfirmed: false`) garantizando exclusividad.
 2. Admin activa Multi-equipos → selector **"¿Cuántos equipos?"** con opciones válidas (3 / 4) según convocatoria.
 3. Admin presiona **"Balancear en N equipos"** → `balanceIntoTeams()` genera N equipos parejos con colores distintos → preview con tabla de calidad.
 4. Admin puede **ajustar manualmente** (drag & drop de jugadores entre equipos) → la calidad se recalcula en vivo.
