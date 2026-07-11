@@ -108,7 +108,6 @@ export default function Header() {
   };
 
   if (pathname?.startsWith("/campaigns")) return null;
-  if (pathname?.startsWith("/reservar")) return null;
 
   return (
     <header
