@@ -139,11 +139,10 @@ export default function Header() {
           }}
         >
           <Image
-            src="/logo/lacanchita-logo-white.png"
+            src="/brand/icon-white.svg"
             alt="La Canchita"
-            width={192}
-            height={37}
-            style={{ borderRadius: 6 }}
+            width={34}
+            height={34}
             priority={true}
             unoptimized={true}
           />
