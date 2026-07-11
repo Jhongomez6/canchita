@@ -7,7 +7,8 @@ import { MapPin, ChevronRight, Home } from "lucide-react";
 import type { Venue } from "@/lib/domain/venue";
 import { VENUE_AMENITY_LABELS } from "@/lib/domain/venue";
 import { venueSports, venueClientFormatLabels, prioritizeAmenities } from "@/lib/domain/venueList";
-import SportBadge, { SPORT_EMOJI } from "./SportBadge";
+import SportBadge from "./SportBadge";
+import SportIcon from "./SportIcon";
 import { AMENITY_ICON } from "./VenueAmenities";
 
 interface VenueCardProps {
@@ -55,9 +56,7 @@ export default function VenueCard({ venue, onClick }: VenueCardProps) {
                 />
             ) : (
                 <div className="absolute inset-0 bg-gradient-to-br from-[#1f7a4f] to-[#0f4a2e] flex items-center justify-center">
-                    <span className="text-6xl opacity-90" aria-hidden>
-                        {SPORT_EMOJI[sports[0]] ?? "⚽"}
-                    </span>
+                    <SportIcon sport={sports[0]} className="w-16 h-16 text-white/30" />
                 </div>
             )}
 
@@ -71,7 +70,7 @@ export default function VenueCard({ venue, onClick }: VenueCardProps) {
                 {sports.map((s) => (
                     <span
                         key={s}
-                        className="inline-flex items-center rounded-full bg-black/40 backdrop-blur-sm px-2 py-1 text-sm leading-none"
+                        className="inline-flex items-center rounded-full bg-black/40 backdrop-blur-sm px-2 py-1 text-sm leading-none text-white"
                     >
                         <SportBadge sport={s} iconOnly />
                     </span>

@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getReservationsConfig } from "@/lib/reservationsConfig";
 
 interface LandingPageProps {
     inApp: boolean;
@@ -13,6 +14,16 @@ export default function LandingPage({ inApp, onLoginClick }: LandingPageProps) {
     const searchParams = useSearchParams();
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [copied, setCopied] = useState(false);
+    // Flag global (config/reservations) que el super admin prende/apaga.
+    const [reservarEnabled, setReservarEnabled] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        getReservationsConfig()
+            .then((c) => { if (!cancelled) setReservarEnabled(c.landingEnabled); })
+            .catch(() => { /* best-effort: queda apagado */ });
+        return () => { cancelled = true; };
+    }, []);
 
     const handleLogin = async () => {
         if (inApp) {
@@ -45,17 +56,15 @@ export default function LandingPage({ inApp, onLoginClick }: LandingPageProps) {
                 <div className="relative z-10 w-full max-w-md mx-auto">
                     {/* Logo Area */}
                     <div className="mb-6 flex justify-center">
-                        <div className="bg-white p-2.5 rounded-2xl shadow-xl inline-block text-center border-2 border-white/20">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src="/logo/lacanchita-logo.png"
-                                alt="La Canchita"
-                                width={160}
-                                height={130}
-                                style={{ height: "auto", width: "160px" }}
-                                className="drop-shadow-sm transition-transform hover:scale-105 duration-300 rounded-lg"
-                            />
-                        </div>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="/logo/lacanchita-logo-white.png"
+                            alt="La Canchita"
+                            width={240}
+                            height={196}
+                            style={{ height: "auto", width: "240px" }}
+                            className="drop-shadow-sm transition-transform hover:scale-105 duration-300"
+                        />
                     </div>
 
                     <h1 className="text-4xl md:text-5xl font-black mb-4 leading-tight tracking-tight">
@@ -63,7 +72,11 @@ export default function LandingPage({ inApp, onLoginClick }: LandingPageProps) {
                         <span className="text-emerald-300">jugar hoy</span>
                     </h1>
                     <p className="text-emerald-50 text-base md:text-lg mb-10 max-w-sm mx-auto leading-relaxed">
-                        La red de fútbol casual que conecta jugadores, equipos y canchas en un solo lugar.
+                        {reservarEnabled ? (
+                            <>Juega, organiza partidos y <span className="font-bold text-white">reserva tu cancha</span>, todo en un solo lugar.</>
+                        ) : (
+                            <>La red de fútbol casual que conecta jugadores, equipos y canchas en un solo lugar.</>
+                        )}
                     </p>
 
                     {/* MAIN LOGIN CARD */}
@@ -158,6 +171,29 @@ export default function LandingPage({ inApp, onLoginClick }: LandingPageProps) {
                     </div>
                 </div>
 
+                {/* Booking Card — detrás del feature flag de reservas */}
+                {reservarEnabled && (
+                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-[100px] -z-0"></div>
+                        <div className="relative z-10">
+                            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mb-4 shadow-sm">
+                                📅
+                            </div>
+                            <h4 className="text-lg font-bold text-slate-800 mb-2">Para reservar canchas</h4>
+                            <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                                Reserva tu cancha en tu sede favorita: elige día y hora, abona en línea y recibe la confirmación. Sin llamadas ni mensajes de WhatsApp.
+                            </p>
+                            <Link
+                                href="/reservar"
+                                className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-[#1f7a4f] hover:text-[#145c3a] transition-colors"
+                            >
+                                Cómo reservar
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            </Link>
+                        </div>
+                    </div>
+                )}
+
                 {/* Organizer Card */}
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 rounded-bl-[100px] -z-0"></div>
@@ -181,7 +217,9 @@ export default function LandingPage({ inApp, onLoginClick }: LandingPageProps) {
                         </div>
                         <h4 className="text-lg font-bold text-slate-800 mb-2">Para dueños de canchas</h4>
                         <p className="text-sm text-slate-500 leading-relaxed font-medium">
-                            Publica tus horarios vacantes como partidos abiertos. Atrae nuevos jugadores directamente desde la comunidad de la app.
+                            {reservarEnabled
+                                ? "Gestiona las reservas de tu sede, cobra el abono en línea y administra tus horarios. Además, atrae nuevos jugadores desde la comunidad."
+                                : "Publica tus horarios vacantes como partidos abiertos. Atrae nuevos jugadores directamente desde la comunidad de la app."}
                         </p>
                     </div>
                 </div>

@@ -11,6 +11,7 @@ import { collectSports, collectCities, collectAmenities, filterVenues } from "@/
 import AuthGuard from "@/components/AuthGuard";
 import VenueCard from "@/components/booking/VenueCard";
 import VenueFilterBar from "@/components/booking/VenueFilterBar";
+import ReservationsLandingToggle from "@/components/booking/ReservationsLandingToggle";
 
 function VenuesContent() {
     const { profile } = useAuth();
@@ -110,6 +111,11 @@ function VenuesContent() {
                             </button>
                         )}
                     </div>
+                </div>
+
+                {/* Super admin: prende/apaga la landing pública de reservas (self-gated) */}
+                <div className="px-4 mt-4">
+                    <ReservationsLandingToggle />
                 </div>
 
                 {/* Filtros */}

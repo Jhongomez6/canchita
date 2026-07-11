@@ -29,6 +29,8 @@ export default function Header() {
   const isAdmin = profile?.roles?.includes("admin") ?? false;
   const isSuperAdminUser = profile ? isSuperAdmin(profile) : false;
   const isLocationAdminUser = profile ? isLocationAdmin(profile) : false;
+  // Cuenta "solo reservas": oculta la navegación de partidos (Partidos/Explorar/Mundial).
+  const isBookingOnly = profile?.bookingOnly === true;
   const hasWcAccess = profile ? hasWorldCupAccess(profile, worldCupEnabled) : false;
   const showWorldCup = hasWcAccess || worldCupJoinOpen;
   const worldCupHref = isSuperAdminUser ? "/worldcup/admin" : hasWcAccess ? "/worldcup" : "/worldcup/join";
@@ -108,6 +110,7 @@ export default function Header() {
   };
 
   if (pathname?.startsWith("/campaigns")) return null;
+  if (pathname?.startsWith("/reservar")) return null;
 
   return (
     <header
@@ -178,29 +181,45 @@ export default function Header() {
         >
           {!isLocationAdminUser && (
             <>
-              <Link
-                href="/"
-                className="hidden md:block"
-                style={{
-                  color: "#e6f6ed",
-                  textDecoration: "none",
-                  fontWeight: 500,
-                }}
-              >
-                Partidos
-              </Link>
+              {isBookingOnly ? (
+                <Link
+                  href="/venues"
+                  className="hidden md:block"
+                  style={{
+                    color: "#e6f6ed",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                  }}
+                >
+                  Reservar
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/"
+                    className="hidden md:block"
+                    style={{
+                      color: "#e6f6ed",
+                      textDecoration: "none",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Partidos
+                  </Link>
 
-              <Link
-                href="/explore"
-                className="hidden md:block"
-                style={{
-                  color: "#e6f6ed",
-                  textDecoration: "none",
-                  fontWeight: 500,
-                }}
-              >
-                Explorar
-              </Link>
+                  <Link
+                    href="/explore"
+                    className="hidden md:block"
+                    style={{
+                      color: "#e6f6ed",
+                      textDecoration: "none",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Explorar
+                  </Link>
+                </>
+              )}
 
               <Link
                 href="/profile"
@@ -214,7 +233,7 @@ export default function Header() {
                 Perfil
               </Link>
 
-              {showWorldCup && (
+              {!isBookingOnly && showWorldCup && (
                 <Link
                   href={worldCupHref}
                   className="hidden md:block"

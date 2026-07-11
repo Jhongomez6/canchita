@@ -9,7 +9,7 @@ import {
     SPORT_LABELS, SURFACE_LABELS,
 } from "@/lib/domain/venue";
 import type { VenueFormat, Court, CourtCombo, SportType } from "@/lib/domain/venue";
-import { SPORT_EMOJI } from "./SportBadge";
+import SportIcon from "./SportIcon";
 
 interface FormatOption {
     format: string;
@@ -86,7 +86,7 @@ export default function VenueFormatPicker({
                                     on ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500 hover:text-slate-700"
                                 }`}
                             >
-                                <span className="leading-none" aria-hidden>{SPORT_EMOJI[s]}</span>
+                                <SportIcon sport={s} className="w-4 h-4" />
                                 {SPORT_LABELS[s]}
                             </button>
                         );

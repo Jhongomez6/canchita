@@ -2,23 +2,15 @@
 
 import type { SportType } from "@/lib/domain/venue";
 import { SPORT_LABELS } from "@/lib/domain/venue";
+import SportIcon from "./SportIcon";
 
 interface SportBadgeProps {
     sport: SportType;
-    /** Si true, renderiza solo el emoji sin label (compacto). */
+    /** Si true, renderiza solo el ícono sin label (compacto). */
     iconOnly?: boolean;
     /** Tamaño: "sm" (default) o "md". */
     size?: "sm" | "md";
 }
-
-export const SPORT_EMOJI: Record<SportType, string> = {
-    football: "⚽",
-    volleyball: "🏐",
-    basketball: "🏀",
-    tennis: "🎾",
-    padel: "🏸",
-    other: "🎯",
-};
 
 const SPORT_CLASSES: Record<SportType, string> = {
     football: "bg-emerald-50 text-emerald-700 border-emerald-100",
@@ -30,17 +22,17 @@ const SPORT_CLASSES: Record<SportType, string> = {
 };
 
 export default function SportBadge({ sport, iconOnly = false, size = "sm" }: SportBadgeProps) {
-    const emoji = SPORT_EMOJI[sport];
     const classes = SPORT_CLASSES[sport];
     const sizeClasses = size === "md" ? "text-sm px-2.5 py-1" : "text-[11px] px-2 py-0.5";
+    const iconSize = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
 
     if (iconOnly) {
-        return <span className="text-base leading-none" aria-label={SPORT_LABELS[sport]}>{emoji}</span>;
+        return <SportIcon sport={sport} className={iconSize} label={SPORT_LABELS[sport]} />;
     }
 
     return (
         <span className={`inline-flex items-center gap-1 font-semibold rounded-full border ${classes} ${sizeClasses}`}>
-            <span className="leading-none">{emoji}</span>
+            <SportIcon sport={sport} className={iconSize} />
             <span>{SPORT_LABELS[sport]}</span>
         </span>
     );

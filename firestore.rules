@@ -459,6 +459,15 @@ service cloud.firestore {
       allow read, write: if request.auth != null && isSuperAdmin();
     }
 
+    // Config global de la landing de reservas (flag landingEnabled).
+    // Lectura PÚBLICA (la landing /reservar y la landing principal se ven sin sesión;
+    // solo expone un booleano). Escritura: solo super_admin (toggle desde el panel).
+    // Ref: docs/RESERVAS_LANDING_QR_SDD.md
+    match /config/reservations {
+      allow read: if true;
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+
     // Partidos — solo lectura; escritura solo Admin SDK (CF de carga de resultados)
     match /worldcupMatches/{matchId} {
       allow read: if request.auth != null;

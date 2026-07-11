@@ -1,10 +1,10 @@
 "use client";
 
 import { Search, X } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import type { SportType, VenueAmenity } from "@/lib/domain/venue";
 import { SPORT_LABELS, VENUE_AMENITY_LABELS } from "@/lib/domain/venue";
-import { SPORT_EMOJI } from "./SportBadge";
+import SportIcon from "./SportIcon";
 import { AMENITY_ICON } from "./VenueAmenities";
 
 interface VenueFilterBarProps {
@@ -78,7 +78,8 @@ export default function VenueFilterBar({
                     {sports.map((s) => (
                         <FilterChip
                             key={s}
-                            label={`${SPORT_EMOJI[s]} ${SPORT_LABELS[s]}`}
+                            label={SPORT_LABELS[s]}
+                            icon={<SportIcon sport={s} className="w-3.5 h-3.5" />}
                             active={selectedSport === s}
                             onClick={() => onSportChange(selectedSport === s ? null : s)}
                         />
@@ -108,15 +109,18 @@ export default function VenueFilterBar({
             {/* Filtro por amenities (multi-select: la sede debe tenerlas todas) */}
             {showAmenities && (
                 <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-0.5">
-                    {amenities.map((a) => (
-                        <FilterChip
-                            key={a}
-                            label={VENUE_AMENITY_LABELS[a]}
-                            icon={AMENITY_ICON[a]}
-                            active={selectedAmenities.includes(a)}
-                            onClick={() => onToggleAmenity(a)}
-                        />
-                    ))}
+                    {amenities.map((a) => {
+                        const Icon = AMENITY_ICON[a];
+                        return (
+                            <FilterChip
+                                key={a}
+                                label={VENUE_AMENITY_LABELS[a]}
+                                icon={<Icon className="w-3.5 h-3.5" />}
+                                active={selectedAmenities.includes(a)}
+                                onClick={() => onToggleAmenity(a)}
+                            />
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -127,12 +131,12 @@ function FilterChip({
     label,
     active,
     onClick,
-    icon: Icon,
+    icon,
 }: {
     label: string;
     active: boolean;
     onClick: () => void;
-    icon?: LucideIcon;
+    icon?: ReactNode;
 }) {
     return (
         <button
@@ -143,7 +147,7 @@ function FilterChip({
                     : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300"
             }`}
         >
-            {Icon && <Icon className="w-3.5 h-3.5" />}
+            {icon}
             {label}
         </button>
     );
