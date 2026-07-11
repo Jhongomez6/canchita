@@ -100,6 +100,43 @@ export async function logOnboardingCompleted() {
   await trackEvent("onboarding_completed");
 }
 
+/* ── Landing de reservas (QR) — Ref: docs/RESERVAS_LANDING_QR_SDD.md ── */
+
+export async function logReservationLandingViewed(venueId: string | null) {
+  await trackEvent("reservation_landing_viewed", {
+    has_sede: venueId ? 1 : 0,
+    ...(venueId ? { venue_id: venueId } : {}),
+  });
+}
+
+export async function logReservationLandingCTAClicked(
+  venueId: string | null,
+  ctaLocation: "hero" | "final",
+  loggedIn: boolean,
+) {
+  await trackEvent("reservation_landing_cta_clicked", {
+    cta_location: ctaLocation,
+    logged_in: loggedIn ? 1 : 0,
+    ...(venueId ? { venue_id: venueId } : {}),
+  });
+}
+
+export async function logReservationLandingInstallShown(platform: "android" | "ios") {
+  await trackEvent("reservation_landing_install_shown", { platform });
+}
+
+export async function logReservationLandingInstallClicked(platform: "android" | "ios") {
+  await trackEvent("reservation_landing_install_clicked", { platform });
+}
+
+export async function logBookingOnlySignupCompleted(venueId?: string | null) {
+  await trackEvent("booking_only_signup_completed", venueId ? { venue_id: venueId } : undefined);
+}
+
+export async function logCasualMatchesActivated() {
+  await trackEvent("casual_matches_activated");
+}
+
 export async function logMatchJoined(matchId: string) {
   await trackEvent("match_joined", { match_id: matchId });
 }
@@ -514,8 +551,39 @@ export async function logBookingFormatSelected(venueId: string, format: string) 
   await trackEvent("booking_format_selected", { venue_id: venueId, format });
 }
 
+// ── Detalle de sede (mejoras) — Ref: docs/VENUE_DETAIL_ENHANCEMENTS_SDD.md §8 ──
+
+export async function logVenueGallerySwiped(venueId: string, imageCount: number) {
+  await trackEvent("venue_gallery_swiped", { venue_id: venueId, image_count: imageCount });
+}
+
+export async function logVenueContactClicked(venueId: string, channel: "whatsapp" | "phone" | "map") {
+  await trackEvent("venue_contact_clicked", { venue_id: venueId, channel });
+}
+
+export async function logVenuePoliciesExpanded(venueId: string, policyCount: number) {
+  await trackEvent("venue_policies_expanded", { venue_id: venueId, policy_count: policyCount });
+}
+
+export async function logBookingNoAvailabilityShown(
+  venueId: string,
+  date: string,
+  reason: "closed" | "no_slots_free",
+) {
+  await trackEvent("booking_no_availability_shown", { venue_id: venueId, date, reason });
+}
+
 export async function logBookingSlotSelected(venueId: string, format: string, date: string, startTime: string) {
   await trackEvent("booking_slot_selected", { venue_id: venueId, format, date, start_time: startTime });
+}
+
+export async function logBookingRebookClicked(
+  venueId: string,
+  bookingId: string,
+  format: string,
+  source: "played" | "cancelled",
+) {
+  await trackEvent("booking_rebook_clicked", { venue_id: venueId, booking_id: bookingId, format, source });
 }
 
 export async function logBookingConfirmed(params: {

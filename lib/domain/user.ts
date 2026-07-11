@@ -81,6 +81,10 @@ export interface UserProfile {
     // Feature flags
     walletEnabled?: boolean;           // Acceso a la billetera (feature flag por usuario)
     bookingEnabled?: boolean;          // Acceso al módulo de reservas (feature flag por usuario)
+    /** Cuenta creada por el flujo de reservas (QR/landing): entra directo a reservar,
+     *  SIN el cuestionario de onboarding. Al activar "Partidos casuales" se pone en false
+     *  y se corre el onboarding. Ausente ⇒ false (cuenta normal). Ref: docs/RESERVAS_LANDING_QR_SDD.md */
+    bookingOnly?: boolean;
     xpEnabled?: boolean;               // Acceso al sistema de XP / Niveles / Achievements (feature flag por usuario)
     worldCupEnabled?: boolean;         // Acceso a la polla mundialista (feature flag por usuario — beta testers)
     venueAnalyticsEnabled?: boolean;   // Acceso al dashboard de analítica de sede (feature flag por usuario)

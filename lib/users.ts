@@ -31,7 +31,7 @@ function isStorageURL(url?: string | null): boolean {
   return !!url?.includes("firebasestorage.googleapis.com");
 }
 
-export type SignupIntent = "location_admin";
+export type SignupIntent = "location_admin" | "booking";
 
 export async function ensureUserProfile(
   uid: string,
@@ -57,6 +57,12 @@ export async function ensureUserProfile(
       data.adminType = "location_admin";
       data.assignedLocationIds = [];
       data.bookingEnabled = true;
+    } else if (signupIntent === "booking") {
+      // Cuenta "solo reservas" (QR/landing): entra directo a reservar, sin onboarding.
+      // El módulo de partidos casuales se activa después (activateCasualMatches).
+      data.roles = ["player"];
+      data.bookingEnabled = true;
+      data.bookingOnly = true;
     } else {
       data.roles = ["player"];
     }
@@ -79,6 +85,19 @@ export async function ensureUserProfile(
     }
     return { isNewUser: false };
   }
+}
+
+/* =========================
+   ACTIVAR PARTIDOS CASUALES
+========================= */
+/**
+ * Convierte una cuenta "solo reservas" (bookingOnly) en jugador pleno:
+ * quita el flag `bookingOnly` → el AuthGuard detecta que falta el onboarding
+ * y redirige al cuestionario. Idempotente. Ref: docs/RESERVAS_LANDING_QR_SDD.md §12
+ */
+export async function activateCasualMatches(uid: string): Promise<void> {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, { bookingOnly: false });
 }
 
 /* =========================

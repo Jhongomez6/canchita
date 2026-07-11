@@ -11,7 +11,7 @@ interface SportBadgeProps {
     size?: "sm" | "md";
 }
 
-const SPORT_EMOJI: Record<SportType, string> = {
+export const SPORT_EMOJI: Record<SportType, string> = {
     football: "⚽",
     volleyball: "🏐",
     basketball: "🏀",

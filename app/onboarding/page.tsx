@@ -91,6 +91,14 @@ export default function OnboardingPage() {
         }
     }, [profile, authLoading, router]);
 
+    // 🛡️ Cuenta "solo reservas": no pasa por el cuestionario. Si llega aquí por
+    // cualquier carrera de navegación, la mandamos a reservar. Ref: RESERVAS_LANDING_QR_SDD §12
+    useEffect(() => {
+        if (!authLoading && profile?.bookingOnly) {
+            router.replace("/venues");
+        }
+    }, [profile, authLoading, router]);
+
     // Form data
     const [birthdate, setBirthdate] = useState("");
     const [phone, setPhone] = useState("");
@@ -200,7 +208,7 @@ export default function OnboardingPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]);
 
-    if (!user || authLoading || profile?.initialRatingCalculated) return null;
+    if (!user || authLoading || profile?.initialRatingCalculated || profile?.bookingOnly) return null;
 
     // ========================
     // SHARED COMPONENTS

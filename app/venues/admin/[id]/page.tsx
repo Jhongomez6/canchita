@@ -10,7 +10,7 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin, isLocationAdmin, canViewVenueAnalytics, isLocationStaff } from "@/lib/domain/user";
 import { yesterdayColombiaISO } from "@/lib/date";
-import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER, shouldHidePricesFor, MIN_WEEKEND_LEAD_HOURS, MAX_WEEKEND_LEAD_HOURS, getEffectiveBookingPolicies } from "@/lib/domain/venue";
+import { MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT, DAY_OF_WEEK_ORDER, shouldHidePricesFor, MIN_WEEKEND_LEAD_HOURS, MAX_WEEKEND_LEAD_HOURS, getEffectiveBookingPolicies, clampBookingWindowDays, MIN_BOOKING_WINDOW_DAYS, MAX_BOOKING_WINDOW_DAYS, DEFAULT_BOOKING_WINDOW_DAYS } from "@/lib/domain/venue";
 import { formatCOP } from "@/lib/domain/wallet";
 import {
     getVenue,
@@ -30,6 +30,8 @@ import { withTimeout } from "@/lib/utils/withTimeout";
 import { logVenueAdminCourtConfigured, logVenueAdminScheduleUpdated, logVenueHidePricesToggled } from "@/lib/analytics";
 import AuthGuard from "@/components/AuthGuard";
 import CourtConfigEditor from "@/components/booking/CourtConfigEditor";
+import VenueGalleryEditor from "@/components/booking/VenueGalleryEditor";
+import VenueAmenitiesEditor from "@/components/booking/VenueAmenitiesEditor";
 import ScheduleEditor from "@/components/booking/ScheduleEditor";
 import VenueFormatEditor from "@/components/booking/VenueFormatEditor";
 import AdminBookingCalendar from "@/components/booking/AdminBookingCalendar";
@@ -58,8 +60,7 @@ import {
     logAdminHourDetailCreateClicked,
     logManualReservationStatusChanged,
 } from "@/lib/analytics";
-import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus, ManualReservationPayment, VenueFormat, PaymentMethod } from "@/lib/domain/venue";
-import { DEFAULT_PENDING_APPROVAL_TTL_HOURS, MIN_PENDING_APPROVAL_TTL_HOURS, MAX_PENDING_APPROVAL_TTL_HOURS } from "@/lib/domain/booking";
+import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, ManualReservationStatus, ManualReservationPayment, VenueFormat, PaymentMethod, VenueAmenity } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
 
 type AdminTab = "info" | "courts" | "schedule" | "payments" | "blocked" | "bookings" | "pending" | "balance" | "analytics";
@@ -116,7 +117,6 @@ function VenueAdminContent() {
     const [depositPercent, setDepositPercent] = useState(30);
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [paymentMethodsDirty, setPaymentMethodsDirty] = useState(false);
-    const [pendingTTLHours, setPendingTTLHours] = useState<number>(DEFAULT_PENDING_APPROVAL_TTL_HOURS);
     const [whatsappNumber, setWhatsappNumber] = useState<string>("");
     // Anticipación mínima en fin de semana (horas). 0 = sin restricción.
     const [weekendLeadHours, setWeekendLeadHours] = useState<number>(0);
@@ -126,11 +126,16 @@ function VenueAdminContent() {
     // Venue info (tab "info", super admin only)
     const [venueName, setVenueName] = useState("");
     const [venueAddress, setVenueAddress] = useState("");
+    const [venueCity, setVenueCity] = useState("");
     const [venuePhone, setVenuePhone] = useState("");
     const [venueDescription, setVenueDescription] = useState("");
     const [venueImageURL, setVenueImageURL] = useState("");
     const [venueIcon, setVenueIcon] = useState("");
     const [venueActive, setVenueActive] = useState(true);
+    // Galería, amenidades y ventana de reserva (super admin). Ref: VENUE_DETAIL_ENHANCEMENTS_SDD.
+    const [venueGallery, setVenueGallery] = useState<string[]>([]);
+    const [venueAmenities, setVenueAmenities] = useState<VenueAmenity[]>([]);
+    const [bookingWindowDays, setBookingWindowDays] = useState<number>(DEFAULT_BOOKING_WINDOW_DAYS);
     // Ocultar tarifa de cancha a los location admin (owner+staff). Solo super admin lo edita.
     const [hidePricesFromAdmins, setHidePricesFromAdmins] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -396,11 +401,6 @@ function VenueAdminContent() {
             setDepositPercent(v.depositPercent);
             setPaymentMethods(v.paymentMethods ?? []);
             setPaymentMethodsDirty(false);
-            setPendingTTLHours(
-                typeof v.pendingApprovalTTLHours === "number"
-                    ? v.pendingApprovalTTLHours
-                    : DEFAULT_PENDING_APPROVAL_TTL_HOURS,
-            );
             setWhatsappNumber(v.whatsappNotificationNumber ?? "");
             setWeekendLeadHours(
                 typeof v.weekendMinLeadHours === "number" ? v.weekendMinLeadHours : 0,
@@ -408,11 +408,15 @@ function VenueAdminContent() {
             setBookingPolicies(getEffectiveBookingPolicies(v));
             setVenueName(v.name ?? "");
             setVenueAddress(v.address ?? "");
+            setVenueCity(v.city ?? "");
             setVenuePhone(v.phone ?? "");
             setVenueDescription(v.description ?? "");
             setVenueImageURL(v.imageURL ?? "");
             setVenueIcon(v.icon ?? "");
             setVenueActive(v.active);
+            setVenueGallery(v.gallery ?? []);
+            setVenueAmenities(v.amenities ?? []);
+            setBookingWindowDays(clampBookingWindowDays(v.bookingWindowDays));
             setHidePricesFromAdmins(v.hidePricesForLocationAdmins ?? false);
             setImagePreview(null);
         } catch (err) {
@@ -478,17 +482,20 @@ function VenueAdminContent() {
                 depositPercent,
                 name: venueName,
                 address: venueAddress,
+                city: venueCity.trim() || undefined,
                 phone: venuePhone || undefined,
                 description: venueDescription || undefined,
                 imageURL: finalImageURL || undefined,
                 icon: venueIcon || undefined,
                 active: venueActive,
                 formats: venueFormats.length > 0 ? venueFormats : undefined,
-                pendingApprovalTTLHours: pendingTTLHours,
                 whatsappNotificationNumber: whatsappNumber.trim() || undefined,
                 hidePricesForLocationAdmins: hidePricesFromAdmins,
                 weekendMinLeadHours: weekendLeadHours,
                 bookingPolicies: bookingPolicies.map((p) => p.trim()).filter((p) => p.length > 0),
+                gallery: venueGallery.length > 0 ? venueGallery : undefined,
+                amenities: venueAmenities.length > 0 ? venueAmenities : undefined,
+                bookingWindowDays,
             };
 
             await Promise.all([
@@ -744,6 +751,23 @@ function VenueAdminContent() {
                                 />
                             </div>
 
+                            {/* Ciudad */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                    Ciudad
+                                </label>
+                                <input
+                                    type="text"
+                                    value={venueCity}
+                                    onChange={(e) => { setVenueCity(e.target.value); markDirty(); }}
+                                    className="w-full px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]"
+                                    placeholder="Ej: Cali"
+                                />
+                                <p className="text-[11px] text-slate-400 mt-1">
+                                    Se usa para filtrar sedes por ciudad en el listado.
+                                </p>
+                            </div>
+
                             {/* Teléfono */}
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
@@ -799,6 +823,56 @@ function VenueAdminContent() {
                                         Seleccionado: {venueIcon} · Toca de nuevo para quitar
                                     </p>
                                 )}
+                            </div>
+
+                            {/* Galería de fotos */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                                    Galería de fotos
+                                </label>
+                                <VenueGalleryEditor
+                                    venueId={venueId}
+                                    value={venueGallery}
+                                    onChange={(next) => { setVenueGallery(next); markDirty(); }}
+                                />
+                            </div>
+
+                            {/* Amenidades */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                                    Amenidades
+                                </label>
+                                <VenueAmenitiesEditor
+                                    value={venueAmenities}
+                                    onChange={(next) => { setVenueAmenities(next); markDirty(); }}
+                                />
+                            </div>
+
+                            {/* Ventana de reserva (días hacia adelante) */}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                    Ventana de reserva
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        min={MIN_BOOKING_WINDOW_DAYS}
+                                        max={MAX_BOOKING_WINDOW_DAYS}
+                                        step={1}
+                                        value={bookingWindowDays}
+                                        onChange={(e) => {
+                                            const raw = parseInt(e.target.value, 10);
+                                            if (Number.isNaN(raw)) return;
+                                            setBookingWindowDays(clampBookingWindowDays(raw));
+                                            markDirty();
+                                        }}
+                                        className="w-24 px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]"
+                                    />
+                                    <span className="text-sm text-slate-600">días hacia adelante</span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-1">
+                                    Cuántos días futuros puede elegir el jugador en el carrusel de fechas (mín {MIN_BOOKING_WINDOW_DAYS}, máx {MAX_BOOKING_WINDOW_DAYS}).
+                                </p>
                             </div>
 
                             {/* Sede activa toggle */}
@@ -969,43 +1043,6 @@ function VenueAdminContent() {
                                             markDirty();
                                         }}
                                     />
-                                </div>
-                            )}
-
-                            {/* TTL configurable para reservas pendientes */}
-                            {depositRequired && (
-                                <div className="bg-white rounded-2xl border border-slate-100 p-5">
-                                    <h3 className="text-sm font-semibold text-slate-700 mb-1">
-                                        Ventana de tiempo para pago
-                                    </h3>
-                                    <p className="text-xs text-slate-400 mb-4">
-                                        Horas que el jugador tiene para enviar el comprobante antes
-                                        de que la reserva se cancele automáticamente.
-                                    </p>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="number"
-                                            min={MIN_PENDING_APPROVAL_TTL_HOURS}
-                                            max={MAX_PENDING_APPROVAL_TTL_HOURS}
-                                            step={1}
-                                            value={pendingTTLHours}
-                                            onChange={(e) => {
-                                                const raw = parseInt(e.target.value, 10);
-                                                if (Number.isNaN(raw)) return;
-                                                const clamped = Math.max(
-                                                    MIN_PENDING_APPROVAL_TTL_HOURS,
-                                                    Math.min(MAX_PENDING_APPROVAL_TTL_HOURS, raw),
-                                                );
-                                                setPendingTTLHours(clamped);
-                                                markDirty();
-                                            }}
-                                            className="w-24 px-3 py-2.5 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 focus:border-[#1f7a4f]/50"
-                                        />
-                                        <span className="text-sm text-slate-600">horas</span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-400 mt-2">
-                                        Mínimo {MIN_PENDING_APPROVAL_TTL_HOURS}h, máximo {MAX_PENDING_APPROVAL_TTL_HOURS}h.
-                                    </p>
                                 </div>
                             )}
 

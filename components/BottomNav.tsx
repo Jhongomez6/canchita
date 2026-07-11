@@ -65,7 +65,9 @@ export default function BottomNav() {
     const isSuperAdminUser = profile ? checkIsSuperAdmin(profile) : false;
     const isLocationAdminUser = profile ? checkIsLocationAdmin(profile) : false;
     const hasBooking = profile ? checkHasBookingAccess(profile) : false;
-    const isPlayer = profile?.roles?.includes("player") ?? false;
+    // Cuenta "solo reservas": oculta la navegación de partidos (Inicio/Buscar/Mundial).
+    const isBookingOnly = profile?.bookingOnly === true;
+    const isPlayer = (profile?.roles?.includes("player") ?? false) && !isBookingOnly;
     const [pendingApps, setPendingApps] = useState(0);
     const [pendingReports, setPendingReports] = useState(0);
     const [pollEnabled, setPollEnabled] = useState(false);

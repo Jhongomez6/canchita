@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, ShieldCheck, AlertTriangle } from "lucide-react";
 import { formatCOP } from "@/lib/domain/wallet";
-import { formatLabel, calcDepositCOP, calcRemainingCOP } from "@/lib/domain/venue";
+import { clientFormatLabel, calcDepositCOP, calcRemainingCOP } from "@/lib/domain/venue";
 import type { VenueFormat, PaymentMethod } from "@/lib/domain/venue";
 import PaymentMethodList from "./PaymentMethodList";
 import PaymentProofUploader from "./PaymentProofUploader";
@@ -160,7 +160,7 @@ export default function BookingConfirmSheet({
                                 </div>
                                 <div className="flex items-center gap-2 text-slate-600">
                                     <span className="text-sm">
-                                        {formatLabel(format, venueFormats)} · {venueName}
+                                        {clientFormatLabel(format, venueFormats)} · {venueName}
                                     </span>
                                 </div>
                                 <p className="text-xs text-slate-400">{venueAddress}</p>

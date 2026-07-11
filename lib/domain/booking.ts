@@ -306,6 +306,83 @@ export function isBookingBlockingSlot(status: BookingStatus): boolean {
 }
 
 /**
+ * Estados terminales negativos: la reserva no se jugó (cancelada, expirada, no-show).
+ * Ref: docs/BOOKING_SYSTEM_SDD.md RN-16 — el precio se muestra atenuado en estos estados
+ * porque no representa un cobro vigente.
+ */
+export function isNegativeTerminalStatus(status: BookingStatus): boolean {
+    return status === "cancelled" || status === "expired" || status === "no_show";
+}
+
+/**
+ * Categoría de la reserva para la lista segmentada del jugador (`/bookings`).
+ * Ref: docs/BOOKING_SYSTEM_SDD.md RN-14.
+ *
+ * La detección se apoya en las constantes canónicas del dominio, no en strings sueltos:
+ * un estado es "activo" si está en `PRE_GAME_ACTIVE_STATUSES`; todo lo demás es terminal.
+ *
+ * - `upcoming`  → estado pre-juego activo Y fecha ≥ hoy (aún por jugarse)
+ * - `played`    → cerró bien (played/paid/free/completed) o una activa cuya fecha ya pasó
+ * - `cancelled` → cerró mal (cancelled/expired/no_show) o pending_payment con TTL vencido
+ */
+export type BookingListCategory = "upcoming" | "played" | "cancelled";
+
+export function categorizeBookingForList(
+    booking: Pick<Booking, "date" | "status" | "expiresAt">,
+    todayISO: string,
+    nowMs: number = Date.now(),
+): BookingListCategory {
+    // Un pending_payment con TTL vencido es funcionalmente expired aunque el cron no lo
+    // haya marcado — lo tratamos como cancelado para no dejarlo colgado en "Activas".
+    const ttlExpired =
+        booking.status === "pending_payment" && isBookingExpired(booking.expiresAt ?? undefined, nowMs);
+
+    if (ttlExpired || isNegativeTerminalStatus(booking.status)) {
+        return "cancelled";
+    }
+
+    // Estados vivos (pre-juego) definidos por la constante del dominio: futura → activa;
+    // fecha ya pasada → historial (una confirmada que nunca se marcó jugada, p.ej.).
+    if (PRE_GAME_ACTIVE_STATUSES.includes(booking.status)) {
+        return booking.date >= todayISO ? "upcoming" : "played";
+    }
+
+    // Resto: terminales positivos (played/paid/free/completed) → historial.
+    return "played";
+}
+
+/**
+ * ¿La reserva está "activa" para el jugador? (pestaña Activas de `/bookings`).
+ * Es azúcar sobre `categorizeBookingForList` para el split de 2 pestañas.
+ */
+export function isBookingActive(
+    booking: Pick<Booking, "date" | "status" | "expiresAt">,
+    todayISO: string,
+    nowMs: number = Date.now(),
+): boolean {
+    return categorizeBookingForList(booking, todayISO, nowMs) === "upcoming";
+}
+
+/**
+ * Pestaña del jugador en `/bookings`. Ref: docs/BOOKING_SYSTEM_SDD.md RN-14.
+ *
+ * - `active`    → próximas (pre-juego activo con fecha ≥ hoy) **y** las `played`
+ *                 (jugadas cuyo cobro en sede aún no se cierra → siguen "vivas")
+ * - `historial` → cerradas (paid/free/completed), muertas (cancelled/expired/no_show)
+ *                 o activas cuya fecha ya pasó
+ */
+export type BookingTab = "active" | "historial";
+
+export function bookingTab(
+    booking: Pick<Booking, "date" | "status" | "expiresAt">,
+    todayISO: string,
+    nowMs: number = Date.now(),
+): BookingTab {
+    if (booking.status === "played") return "active";
+    return categorizeBookingForList(booking, todayISO, nowMs) === "upcoming" ? "active" : "historial";
+}
+
+/**
  * Devuelve true si la reserva está activa pre-juego.
  */
 export function isBookingPreGame(status: BookingStatus): boolean {

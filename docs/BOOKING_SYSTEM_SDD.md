@@ -34,6 +34,10 @@ Resolver el problema de reservar canchas deportivas de forma rápida, eliminando
 | RN-09 | El módulo es independiente de matches: no crea ni modifica partidos | Navegación separada, sin side-effects en matches |
 | RN-13 | El módulo completo está detrás de un feature flag `bookingEnabled` en el perfil del usuario (mismo patrón que `walletEnabled`). Si `false`, no aparece la tab "Reservas" en BottomNav ni las rutas `/venues` y `/bookings` son accesibles. Super Admin puede activarlo por usuario o globalmente | Tab de reservas solo visible si `profile.bookingEnabled === true`. Rutas protegidas con redirect a home si el flag está off |
 | RN-10 | Futuro: una reserva podrá convertirse en un match (v2, fuera de alcance) | Se incluye `matchId?: string` en el modelo para forward-compatibility |
+| RN-14 | La lista "Mis reservas" del jugador se segmenta en dos pestañas (`bookingTab`): **Activas** = estado pre-juego activo (`PRE_GAME_ACTIVE_STATUSES`) con fecha ≥ hoy **más** las `played` (jugada pero con el cobro en sede aún sin cerrar → sigue viva); **Historial** = cerradas (`paid`/`free`/`completed`), muertas (`cancelled`/`expired`/`no_show` + `pending_payment` con TTL vencido) y activas cuya fecha ya pasó. El badge de estado distingue el detalle. El split se deriva de las constantes del dominio, no de strings sueltos. Activas ordena próximas primero (fecha asc) y luego las jugadas pasadas (fecha desc); Historial por fecha descendente. Las cards pasadas (jugadas en Activas + todo Historial) usan la variante densa con "Reservar de nuevo" | Filtro de segmentación con 2 tabs + conteo; el empty state depende de la pestaña activa |
+| RN-15 | Desde cualquier reserva del Historial el jugador puede "Reservar de nuevo": navega al detalle de la sede con el formato preseleccionado vía `?format=`. La fecha/hora se eligen de nuevo (el slot original ya pasó) | Botón "Reservar de nuevo" en cards del Historial |
+| RN-16 | En reservas terminales negativas (`cancelled`/`expired`/`no_show`) el precio total se muestra atenuado y tachado — no representa un cobro vigente, evita confusión de que se cobró | Precio en gris + `line-through` en esos estados |
+| RN-17 | El jugador puede refrescar manualmente la lista (botón en el header) y la lista se revalida al volver a la pestaña visible (`visibilitychange`). El refresh resetea la paginación a la primera página | Icono de refresh en header con spinner mientras carga |
 
 ---
 
@@ -384,7 +388,9 @@ TAP 3 (sin depósito):
 | Error cargando | Toast "Error al cargar horarios" + botón retry |
 | Reserva exitosa | Toast "¡Reserva confirmada!" + navegación a detalle de reserva |
 | Reserva pendiente pago | Card amarilla con timer "Paga en 14:32 min" |
-| Sin reservas | Empty state: "Aún no tienes reservas" + CTA "Explorar sedes" |
+| Sin reservas (global) | Empty state: "Aún no tienes reservas" + CTA "Explorar sedes" |
+| Pestaña vacía | Empty state contextual: "No tienes reservas activas" / "Tu historial está vacío" |
+| Refrescando lista | Icono de refresh en spin; se mantiene la lista actual visible (no skeleton) |
 
 ### Consideraciones mobile-first
 - Bottom sheet para confirmación (no modal centrado) — más accesible al pulgar
@@ -445,6 +451,7 @@ TAP 3 (sin depósito):
 | `booking_slot_selected` | Tap en horario disponible | `venue_id`, `format`, `date`, `start_time` |
 | `booking_confirmed` | Reserva creada exitosamente | `venue_id`, `booking_id`, `format`, `date`, `start_time`, `amount_cop`, `payment_method` ("wallet" \| "on_site" \| "free") |
 | `booking_cancelled` | Reserva cancelada | `venue_id`, `booking_id`, `refunded`, `hours_before_start` |
+| `booking_rebook_clicked` | Tap en "Reservar de nuevo" desde una reserva pasada | `venue_id`, `booking_id`, `format`, `source` ("played" \| "cancelled") |
 | `booking_payment_expired` | Timer de 15min expiró | `venue_id`, `booking_id`, `format` |
 | `booking_recharge_prompted` | Usuario ve "saldo insuficiente" | `venue_id`, `amount_required`, `current_balance`, `deficit` |
 | `venue_admin_court_configured` | Admin guarda configuración de courts | `venue_id`, `courts_count`, `combos_count` |

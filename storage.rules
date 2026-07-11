@@ -60,6 +60,19 @@ service firebase.storage {
         && isUnder(2 * 1024 * 1024); // 2 MB
     }
 
+    // ─── Galería de sede ──────────────────────────────────────────────────
+    // Path: venues/{venueId}/gallery/{fileName}
+    // Ruta ANIDADA (4 segmentos) — no colisiona con el match de portada de
+    // 3 segmentos de abajo. Lectura PÚBLICA (se renderiza con <Image> sin Auth
+    // header). Escritura SOLO Super Admin (gobernanza de contenido — Decisión #3
+    // del SDD). Las imágenes vienen comprimidas cliente-side (~500 KB).
+    match /venues/{venueId}/gallery/{fileName} {
+      allow read: if true;
+      allow write: if isSuperAdmin()
+        && isImage()
+        && isUnder(2 * 1024 * 1024); // 2 MB
+    }
+
     // ─── Cover image de sede ──────────────────────────────────────────────
     // Lectura PÚBLICA — las portadas se renderizan con <img>/<Image> sin Auth header.
     match /venues/{venueId}/{fileName} {

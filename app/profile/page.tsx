@@ -27,6 +27,7 @@ import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
 import XpStatsSection from "@/components/profile/XpStatsSection";
 import AchievementsGrid from "@/components/profile/AchievementsGrid";
 import XpOnboardingModal from "@/components/xp/XpOnboardingModal";
+import ActivateCasualMatchesCard from "@/components/booking/ActivateCasualMatchesCard";
 import { markXpOnboardingSeen } from "@/lib/xp";
 import { logXpOnboardingReopened } from "@/lib/analytics";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
@@ -472,6 +473,9 @@ export default function ProfilePage() {
         )}
 
         <div className={`max-w-md mx-auto p-4 ${editing ? "pb-32 md:pb-4" : ""}`}>
+
+          {/* Cuenta solo-reservas: activar partidos casuales (se auto-oculta si no aplica) */}
+          <ActivateCasualMatchesCard />
 
           {/* Onboarding banner */}
           {isOnboarding && (

@@ -46,6 +46,43 @@ export async function uploadVenueImage(venueId: string, dataUrl: string): Promis
 }
 
 // ========================
+// VENUE GALLERY (galería de fotos de la sede)
+// ========================
+
+/**
+ * Sube una foto de galería de la sede al bucket.
+ * Path: venues/{venueId}/gallery/{timestamp}_{rand}.jpg
+ *
+ * Cada foto usa un nombre único (no overwrite). Solo Super Admin debe llamar
+ * esto (verificado por Storage Rules). La imagen ya viene comprimida cliente-side.
+ * Ref: docs/VENUE_DETAIL_ENHANCEMENTS_SDD.md §9.
+ */
+export async function uploadVenueGalleryImage(
+  venueId: string,
+  blob: Blob,
+): Promise<{ url: string; path: string }> {
+  const rand = Math.random().toString(36).slice(2, 8);
+  const path = `venues/${venueId}/gallery/${Date.now()}_${rand}.jpg`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  const url = await getDownloadURL(storageRef);
+  return { url, path };
+}
+
+/**
+ * Borra una foto de galería a partir de su download URL.
+ * Idempotente y best-effort: ignora errores (URL externa, ya borrada, etc.).
+ */
+export async function deleteVenueGalleryImage(downloadUrl: string): Promise<void> {
+  try {
+    const storageRef = ref(storage, downloadUrl);
+    await deleteObject(storageRef);
+  } catch {
+    // ignore — best effort (la URL puede no pertenecer a nuestro bucket)
+  }
+}
+
+// ========================
 // PAYMENT PROOFS (comprobantes de abono)
 // ========================
 

@@ -6,7 +6,7 @@ import { ArrowLeft, Calendar, Clock, MapPin, AlertTriangle, Check, CircleDashed 
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { formatCOP } from "@/lib/domain/wallet";
-import { formatLabel } from "@/lib/domain/venue";
+import { clientFormatLabel } from "@/lib/domain/venue";
 import type { VenueFormat, Venue } from "@/lib/domain/venue";
 import { getVenue } from "@/lib/venues";
 import {
@@ -113,10 +113,12 @@ function BookingDetailContent() {
         "confirmed",
     ].includes(booking.status);
 
-    const formatNice = useMemo(
-        () => booking ? (booking.formatLabel || formatLabel(booking.format, venueFormats)) : "",
-        [booking, venueFormats],
-    );
+    const formatNice = useMemo(() => {
+        if (!booking) return "";
+        const nice = clientFormatLabel(booking.format, venueFormats);
+        // Si no se pudo estandarizar (formato desconocido), usa el snapshot guardado.
+        return nice === booking.format ? (booking.formatLabel || nice) : nice;
+    }, [booking, venueFormats]);
 
     const handleCancel = async (reason: string) => {
         if (!booking) return;

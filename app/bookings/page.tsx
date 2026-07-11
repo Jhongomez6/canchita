@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, Plus } from "lucide-react";
+import { motion } from "framer-motion";
+import { Settings, Plus, RefreshCw, CalendarPlus } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isLocationAdmin, isPendingLocationAdmin, isSuperAdmin, canCreateBooking } from "@/lib/domain/user";
 import { getUserBookings } from "@/lib/bookings";
 import { getActiveVenues } from "@/lib/venues";
+import { bookingTab, categorizeBookingForList } from "@/lib/domain/booking";
 import { handleError } from "@/lib/utils/error";
+import { logBookingRebookClicked } from "@/lib/analytics";
 import AuthGuard from "@/components/AuthGuard";
 import BookingDetailCard from "@/components/booking/BookingDetailCard";
 import PendingAssignmentEmptyState from "@/components/booking/PendingAssignmentEmptyState";
@@ -15,15 +18,47 @@ import type { Booking } from "@/lib/domain/booking";
 import type { Venue } from "@/lib/domain/venue";
 import type { DocumentSnapshot } from "firebase/firestore";
 
+type BookingTab = "active" | "historial";
+
+const TABS: { key: BookingTab; label: string; emptyText: string }[] = [
+    { key: "active", label: "Activas", emptyText: "No tienes reservas activas" },
+    { key: "historial", label: "Historial", emptyText: "Tu historial está vacío" },
+];
+
 function BookingsContent() {
     const { user, profile } = useAuth();
     const router = useRouter();
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [adminVenues, setAdminVenues] = useState<Venue[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [tab, setTab] = useState<BookingTab>("active");
+    const [tabInitialized, setTabInitialized] = useState(false);
+
+    // Carga (o recarga) la primera página de reservas. `silent` mantiene la lista visible
+    // en vez de mostrar skeleton — se usa en el refresh manual y al volver a la pestaña.
+    const loadBookings = useCallback(
+        async (silent = false) => {
+            if (!user) return;
+            if (silent) setRefreshing(true);
+            else setLoading(true);
+            try {
+                const { bookings: b, lastDoc: ld } = await getUserBookings(user.uid);
+                setBookings(b);
+                setLastDoc(ld);
+                setHasMore(b.length >= 20);
+            } catch (err) {
+                handleError(err, "Error al cargar reservas");
+            } finally {
+                setLoading(false);
+                setRefreshing(false);
+            }
+        },
+        [user],
+    );
 
     useEffect(() => {
         if (!user || !profile) return;
@@ -40,14 +75,7 @@ function BookingsContent() {
             return;
         }
 
-        getUserBookings(user.uid)
-            .then(({ bookings: b, lastDoc: ld }) => {
-                setBookings(b);
-                setLastDoc(ld);
-                setHasMore(b.length >= 20);
-            })
-            .catch((err) => handleError(err, "Error al cargar reservas"))
-            .finally(() => setLoading(false));
+        loadBookings();
 
         // Load assigned venues for admins (super_admin sees all, location_admin sees assigned)
         if (isSuperAdmin(profile) || isLocationAdmin(profile)) {
@@ -62,7 +90,17 @@ function BookingsContent() {
                 })
                 .catch(() => setAdminVenues([]));
         }
-    }, [user, profile, router]);
+    }, [user, profile, router, loadBookings]);
+
+    // Revalidar al volver a la pestaña visible (RN-17). Silencioso para no parpadear.
+    useEffect(() => {
+        if (!user || !profile || isPendingLocationAdmin(profile)) return;
+        const onVisible = () => {
+            if (document.visibilityState === "visible") loadBookings(true);
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        return () => document.removeEventListener("visibilitychange", onVisible);
+    }, [user, profile, loadBookings]);
 
     const loadMore = async () => {
         if (!user || !lastDoc || loadingMore) return;
@@ -79,21 +117,41 @@ function BookingsContent() {
         }
     };
 
-    // Split into upcoming and past
+    const handleRebook = (booking: Booking, source: "played" | "cancelled") => {
+        logBookingRebookClicked(booking.venueId, booking.id, booking.format, source);
+        router.push(`/venues/${booking.venueId}?format=${encodeURIComponent(booking.format)}`);
+    };
+
+    // Segmentar en Activas vs Historial. "Activa" = estado pre-juego activo y fecha ≥ hoy
+    // (definido en el dominio vía categorizeBookingForList); el resto es Historial.
     const today = new Date();
     const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const nowMs = Date.now();
-    // Una reserva con pending_payment + TTL vencido es funcionalmente expired aunque el
-    // cron no la haya marcado todavía. La tratamos como past para que no quede colgada
-    // en "Próximas" con la pill de "Pendiente de pago" engañosa.
-    const isTtlExpired = (b: Booking) =>
-        b.status === "pending_payment" && !!b.expiresAt && new Date(b.expiresAt).getTime() <= nowMs;
-    const upcoming = bookings.filter(
-        (b) => b.date >= todayISO && b.status !== "cancelled" && b.status !== "expired" && !isTtlExpired(b),
-    );
-    const past = bookings.filter(
-        (b) => b.date < todayISO || b.status === "cancelled" || b.status === "expired" || isTtlExpired(b),
-    );
+    const buckets = useMemo(() => {
+        const active: Booking[] = [];
+        const historial: Booking[] = [];
+        for (const b of bookings) {
+            if (bookingTab(b, todayISO) === "active") active.push(b);
+            else historial.push(b);
+        }
+        // Activas: primero las próximas (fecha asc, lo más cercano arriba), luego las
+        // jugadas ya pasadas (fecha desc, la más reciente arriba). Historial: date DESC (query).
+        active.sort((a, b) => {
+            const aPlayed = a.status === "played";
+            const bPlayed = b.status === "played";
+            if (aPlayed !== bPlayed) return aPlayed ? 1 : -1;
+            const cmp = a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date);
+            return aPlayed ? -cmp : cmp;
+        });
+        return { active, historial };
+    }, [bookings, todayISO]);
+
+    // Al terminar la primera carga, abrir en la pestaña con contenido más relevante
+    // (Activas si hay; si no, Historial) para no aterrizar en un vacío teniendo historial.
+    useEffect(() => {
+        if (loading || tabInitialized || bookings.length === 0) return;
+        if (buckets.active.length === 0 && buckets.historial.length > 0) setTab("historial");
+        setTabInitialized(true);
+    }, [loading, tabInitialized, bookings.length, buckets]);
 
     if (profile && isPendingLocationAdmin(profile)) {
         return <PendingAssignmentEmptyState />;
@@ -125,41 +183,45 @@ function BookingsContent() {
         );
     }
 
+    const isAdmin = profile ? isLocationAdmin(profile) : false;
+    const activeBookings = buckets[tab];
+    const activeTabConfig = TABS.find((t) => t.key === tab)!;
+    const rebookSource = (b: Booking): "played" | "cancelled" =>
+        categorizeBookingForList(b, todayISO) === "cancelled" ? "cancelled" : "played";
+
     return (
         <div className="min-h-screen bg-slate-50 pb-24 md:pb-0">
             <div className="max-w-md mx-auto">
                 {/* Header */}
                 <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] p-6 pb-8 rounded-b-3xl shadow-lg">
-                    <h1 className="text-xl font-bold text-white">
-                        {profile && isLocationAdmin(profile)
-                            ? "Sedes asignadas"
-                            : "Mis reservas"}
-                    </h1>
-                    <p className="text-sm text-white/70 mt-1">
-                        {profile && isLocationAdmin(profile)
-                            ? adminVenues.length > 0
-                                ? `${adminVenues.length} sede${adminVenues.length > 1 ? "s" : ""} que administras`
-                                : "Aún no tienes sedes asignadas"
-                            : upcoming.length > 0
-                                ? `${upcoming.length} reserva${upcoming.length > 1 ? "s" : ""} próxima${upcoming.length > 1 ? "s" : ""}`
-                                : "Sin reservas próximas"
-                        }
-                    </p>
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h1 className="text-xl font-bold text-white">
+                                {isAdmin ? "Sedes asignadas" : "Mis reservas"}
+                            </h1>
+                            <p className="text-sm text-white/70 mt-1">
+                                {isAdmin
+                                    ? adminVenues.length > 0
+                                        ? `${adminVenues.length} sede${adminVenues.length > 1 ? "s" : ""} que administras`
+                                        : "Aún no tienes sedes asignadas"
+                                    : buckets.active.length > 0
+                                        ? `${buckets.active.length} reserva${buckets.active.length > 1 ? "s" : ""} activa${buckets.active.length > 1 ? "s" : ""}`
+                                        : "Sin reservas activas"
+                                }
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => loadBookings(true)}
+                            disabled={refreshing}
+                            aria-label="Actualizar reservas"
+                            className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-all disabled:opacity-60"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="px-4 mt-5">
-                    {/* CTA primario: reservar nueva cancha. Solo aparece cuando ya hay
-                        bookings o sedes que administra; el empty state tiene su propio CTA. */}
-                    {profile && canCreateBooking(profile) && (bookings.length > 0 || adminVenues.length > 0) && (
-                        <button
-                            onClick={() => router.push("/venues")}
-                            className="w-full mb-5 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#1f7a4f] text-white text-sm font-bold shadow-sm hover:bg-[#145c3a] active:scale-[0.99] transition-all"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Reservar nueva cancha
-                        </button>
-                    )}
-
                     {/* Admin venues section */}
                     {adminVenues.length > 0 && (
                         <div className="mb-6">
@@ -188,71 +250,133 @@ function BookingsContent() {
                         </div>
                     )}
 
-                    {/* Empty state */}
+                    {/* Empty state global (sin ninguna reserva ni sede) */}
                     {bookings.length === 0 && adminVenues.length === 0 && (
-                        <div className="text-center py-16">
-                            <p className="text-4xl mb-3">&#128197;</p>
-                            <p className="text-base font-medium text-slate-500">
-                                {profile && isLocationAdmin(profile)
-                                    ? "Aún no tienes sedes asignadas"
-                                    : "Aún no tienes reservas"}
+                        <motion.div
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.35, ease: "easeOut" }}
+                            className="mt-2 bg-white rounded-3xl border border-slate-100 shadow-sm px-6 py-12 text-center"
+                        >
+                            {/* Badge de icono con tinte de marca + halo suave (idioma premium de la app) */}
+                            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-[#1f7a4f]/15 to-[#1f7a4f]/5 ring-8 ring-[#1f7a4f]/[0.04] flex items-center justify-center">
+                                <CalendarPlus className="w-9 h-9 text-[#1f7a4f]" strokeWidth={1.75} />
+                            </div>
+
+                            <h2 className="text-lg font-bold text-slate-800 mb-1.5">
+                                {isAdmin ? "Aún no tienes sedes asignadas" : "Aún no tienes reservas"}
+                            </h2>
+                            <p className="text-sm text-slate-500 leading-relaxed max-w-[16rem] mx-auto">
+                                {isAdmin
+                                    ? "Cuando un administrador te asigne una sede, aparecerá aquí."
+                                    : "Reserva tu primera cancha y aquí verás todos tus horarios."}
                             </p>
+
                             {profile && canCreateBooking(profile) && (
                                 <button
                                     onClick={() => router.push("/venues")}
-                                    className="mt-4 px-5 py-2.5 bg-[#1f7a4f] text-white text-sm font-semibold rounded-xl hover:bg-[#145c3a] transition-colors"
+                                    className="mt-7 inline-flex items-center gap-2 pl-5 pr-6 py-3 rounded-full bg-[#1f7a4f] text-white text-sm font-bold shadow-lg shadow-[#1f7a4f]/25 hover:bg-[#145c3a] active:scale-95 transition-all"
                                 >
+                                    <Plus className="w-4 h-4" />
                                     Explorar canchas
+                                </button>
+                            )}
+                        </motion.div>
+                    )}
+
+                    {/* Lista segmentada de reservas (RN-14) */}
+                    {bookings.length > 0 && (
+                        <div>
+                            {/* Tabs */}
+                            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-4">
+                                {TABS.map((t) => {
+                                    const count = buckets[t.key].length;
+                                    const active = tab === t.key;
+                                    return (
+                                        <button
+                                            key={t.key}
+                                            onClick={() => setTab(t.key)}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                                                active ? "bg-white text-[#1f7a4f] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                            }`}
+                                        >
+                                            {t.label}
+                                            {count > 0 && (
+                                                <span
+                                                    className={`text-[10px] font-bold px-1.5 rounded-full ${
+                                                        active ? "bg-[#1f7a4f]/10 text-[#1f7a4f]" : "bg-slate-200 text-slate-500"
+                                                    }`}
+                                                >
+                                                    {count}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Contenido de la pestaña activa. Las próximas usan card completa;
+                                las pasadas (jugadas en Activas, o cualquier Historial) van densas
+                                con "Reservar de nuevo". */}
+                            {activeBookings.length > 0 ? (
+                                <div className="space-y-3">
+                                    {activeBookings.map((booking) => {
+                                        const pastStyle = tab === "historial" || booking.status === "played";
+                                        return pastStyle ? (
+                                            <BookingDetailCard
+                                                key={booking.id}
+                                                booking={booking}
+                                                dense
+                                                onClick={() => router.push(`/bookings/${booking.id}`)}
+                                                onRebook={() => handleRebook(booking, rebookSource(booking))}
+                                            />
+                                        ) : (
+                                            <BookingDetailCard
+                                                key={booking.id}
+                                                booking={booking}
+                                                onClick={() => router.push(`/bookings/${booking.id}`)}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <p className="text-sm text-slate-400">{activeTabConfig.emptyText}</p>
+                                </div>
+                            )}
+
+                            {/* Load more — solo tiene sentido paginar mientras el usuario ve historial. */}
+                            {hasMore && (
+                                <button
+                                    onClick={loadMore}
+                                    disabled={loadingMore}
+                                    className="w-full mt-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 font-semibold hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60"
+                                >
+                                    {loadingMore ? "Cargando..." : "Ver más reservas"}
                                 </button>
                             )}
                         </div>
                     )}
-
-                    {/* Upcoming */}
-                    {upcoming.length > 0 && (
-                        <div className="mb-6">
-                            <h2 className="text-sm font-semibold text-slate-500 mb-3">Próximas</h2>
-                            <div className="space-y-3">
-                                {upcoming.map((booking) => (
-                                    <BookingDetailCard
-                                        key={booking.id}
-                                        booking={booking}
-                                        onClick={() => router.push(`/bookings/${booking.id}`)}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Past */}
-                    {past.length > 0 && (
-                        <div>
-                            <h2 className="text-sm font-semibold text-slate-500 mb-3">Anteriores</h2>
-                            <div className="space-y-3">
-                                {past.map((booking) => (
-                                    <BookingDetailCard
-                                        key={booking.id}
-                                        booking={booking}
-                                        compact
-                                        onClick={() => router.push(`/bookings/${booking.id}`)}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Load more */}
-                    {hasMore && bookings.length > 0 && (
-                        <button
-                            onClick={loadMore}
-                            disabled={loadingMore}
-                            className="w-full mt-4 py-3 text-sm text-slate-500 font-medium hover:text-slate-700 transition-colors"
-                        >
-                            {loadingMore ? "Cargando..." : "Ver más"}
-                        </button>
-                    )}
                 </div>
             </div>
+
+            {/* FAB "Reservar" — acción primaria fuera del flujo vertical: no empuja la lista
+                y queda siempre a mano sobre el bottom nav. Se alinea al borde derecho de la
+                columna max-w-md (también en desktop). Oculto en el empty state (tiene su CTA). */}
+            {profile && canCreateBooking(profile) && (bookings.length > 0 || adminVenues.length > 0) && (
+                <div className="fixed inset-x-0 bottom-24 md:bottom-6 z-40 pointer-events-none">
+                    <div className="max-w-md mx-auto px-4 flex justify-end">
+                        <button
+                            onClick={() => router.push("/venues")}
+                            aria-label="Reservar cancha"
+                            className="pointer-events-auto flex items-center gap-2 pl-4 pr-5 py-3.5 rounded-full bg-[#1f7a4f] text-white text-sm font-bold shadow-lg shadow-[#1f7a4f]/30 hover:bg-[#145c3a] active:scale-95 transition-all"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Reservar
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

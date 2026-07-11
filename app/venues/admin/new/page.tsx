@@ -8,6 +8,8 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { isSuperAdmin } from "@/lib/domain/user";
 import { validateDepositPercent, MIN_DEPOSIT_PERCENT, MAX_DEPOSIT_PERCENT } from "@/lib/domain/venue";
+import { extractCityFromAddressComponents } from "@/lib/domain/venueList";
+import type { GoogleAddressComponent } from "@/lib/domain/venueList";
 import { createVenue } from "@/lib/venues";
 import { handleError } from "@/lib/utils/error";
 import AuthGuard from "@/components/AuthGuard";
@@ -28,6 +30,7 @@ interface GooglePlace {
     name: string;
     formatted_address: string;
     place_id: string;
+    address_components?: GoogleAddressComponent[];
     geometry: {
         location: {
             lat: () => number;
@@ -44,6 +47,7 @@ function NewVenueContent() {
     const autocompleteRef = useRef<unknown>(null);
 
     const [place, setPlace] = useState<GooglePlace | null>(null);
+    const [city, setCity] = useState("");
     const [phone, setPhone] = useState("");
     const [description, setDescription] = useState("");
     const [imageURL, setImageURL] = useState("");
@@ -65,7 +69,7 @@ function NewVenueContent() {
             inputRef.current,
             {
                 types: ["establishment"],
-                fields: ["name", "formatted_address", "place_id", "geometry"],
+                fields: ["name", "formatted_address", "place_id", "geometry", "address_components"],
             },
         );
 
@@ -81,6 +85,8 @@ function NewVenueContent() {
             )?.getPlace();
             if (!selected?.geometry) return;
             setPlace(selected);
+            // Captura la ciudad estructurada de Google (editable si hace falta).
+            setCity(extractCityFromAddressComponents(selected.address_components) ?? "");
         });
     }
 
@@ -101,6 +107,7 @@ function NewVenueContent() {
             const venueId = await createVenue({
                 name: place.name,
                 address: place.formatted_address,
+                city: city.trim() || undefined,
                 placeId: place.place_id,
                 lat: place.geometry.location.lat(),
                 lng: place.geometry.location.lng(),
@@ -162,6 +169,28 @@ function NewVenueContent() {
                         <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
                             <h3 className="text-base font-bold text-slate-800">{place.name}</h3>
                             <p className="text-sm text-slate-500 mt-0.5">{place.formatted_address}</p>
+                        </div>
+                    )}
+
+                    {/* Ciudad — capturada de Google, editable por si el locality no es el correcto */}
+                    {place && (
+                        <div>
+                            <label className="text-sm font-semibold text-slate-600 mb-2 block">
+                                Ciudad
+                            </label>
+                            <div className="relative">
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={city}
+                                    onChange={(e) => setCity(e.target.value)}
+                                    placeholder="Ej: Cali"
+                                    className="w-full pl-10 pr-4 py-3 text-base border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30"
+                                />
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-1.5">
+                                Se usa para filtrar sedes por ciudad en el listado.
+                            </p>
                         </div>
                     )}
 

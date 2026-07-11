@@ -48,6 +48,7 @@ function AuthGuardInner({
       !profile.deleted &&
       profile.roles.includes("player") &&
       !profile.initialRatingCalculated &&
+      !profile.bookingOnly &&
       pathname !== "/onboarding"
     ) {
       router.replace("/onboarding");
@@ -167,6 +168,7 @@ function AuthGuardInner({
     !profile.deleted &&
     profile.roles.includes("player") &&
     !profile.initialRatingCalculated &&
+    !profile.bookingOnly &&
     pathname !== "/onboarding"
   ) {
     return (

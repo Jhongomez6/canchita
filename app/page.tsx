@@ -68,6 +68,13 @@ export default function Home() {
     }
   }, [authLoading, profile, router]);
 
+  // Cuenta "solo reservas": su home es reservar, no la de partidos.
+  useEffect(() => {
+    if (!authLoading && profile && profile.bookingOnly) {
+      router.replace("/venues");
+    }
+  }, [authLoading, profile, router]);
+
   // Cargar matchIds que el user ya calificó (para rotar el banner de review en home)
   useEffect(() => {
     if (!user) return;

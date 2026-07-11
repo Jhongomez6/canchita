@@ -1,23 +1,28 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Settings } from "lucide-react";
+import { ArrowLeft, Settings, CalendarOff, Clock } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isSuperAdmin } from "@/lib/domain/user";
-import { getAvailableFormats, getDayOfWeek, generateTimeSlots, applyDurationTier, isSlotBeforeWeekendLead, getEffectiveBookingPolicies } from "@/lib/domain/venue";
+import { getAvailableFormats, getDayOfWeek, generateTimeSlots, applyDurationTier, isSlotBeforeWeekendLead, getEffectiveBookingPolicies, galleryImages, venueCoverage, clampBookingWindowDays } from "@/lib/domain/venue";
 import { getAvailableFormatsForSlot } from "@/lib/domain/court-allocation";
 import { getVenue, getVenueCourts, getVenueCombos, getVenueSchedule, subscribeToBlockedSlots } from "@/lib/venues";
 import { subscribeToBookingsForDate, createBooking } from "@/lib/bookings";
 import { getWallet } from "@/lib/wallet";
 import { handleError } from "@/lib/utils/error";
-import { logVenueViewed, logBookingFormatSelected, logBookingSlotSelected, logBookingConfirmed } from "@/lib/analytics";
+import { logVenueViewed, logBookingFormatSelected, logBookingSlotSelected, logBookingConfirmed, logVenuePoliciesExpanded, logBookingNoAvailabilityShown } from "@/lib/analytics";
 import AuthGuard from "@/components/AuthGuard";
-import FormatSelector from "@/components/booking/FormatSelector";
+import VenueFormatPicker from "@/components/booking/VenueFormatPicker";
 import DateCarousel from "@/components/booking/DateCarousel";
 import SlotList from "@/components/booking/SlotList";
+import SlotListSkeleton from "@/components/skeletons/SlotListSkeleton";
+import VenueGallery from "@/components/booking/VenueGallery";
+import VenueAmenities from "@/components/booking/VenueAmenities";
+import VenueContactActions from "@/components/booking/VenueContactActions";
+import BookingPoliciesPreview from "@/components/booking/BookingPoliciesPreview";
+import SelectionSummaryBar from "@/components/booking/SelectionSummaryBar";
 import BookingConfirmSheet from "@/components/booking/BookingConfirmSheet";
 import type { Venue, Court, CourtCombo, DaySchedule, FormatPricing, BlockedSlot } from "@/lib/domain/venue";
 import type { Booking } from "@/lib/domain/booking";
@@ -35,13 +40,19 @@ function VenueDetailContent() {
     const [courts, setCourts] = useState<Court[]>([]);
     const [combos, setCombos] = useState<CourtCombo[]>([]);
     const [schedule, setSchedule] = useState<DaySchedule | null>(null);
+    const [scheduleLoading, setScheduleLoading] = useState(true);
     const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
     const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
     const [wallet, setWallet] = useState<Wallet | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Selection state
-    const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
+    // Selection state. Prefill del formato vía `?format=` (flujo "Reservar de nuevo"
+    // desde el historial). Se lee de window para no requerir Suspense de useSearchParams.
+    // Ref: docs/BOOKING_SYSTEM_SDD.md RN-15.
+    const [selectedFormat, setSelectedFormat] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
+        return new URLSearchParams(window.location.search).get("format");
+    });
     const [selectedDate, setSelectedDate] = useState<string>(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -86,13 +97,16 @@ function VenueDetailContent() {
         getWallet(user.uid).then(setWallet).catch(() => {});
     }, [user]);
 
-    // Load schedule when date changes (one-shot)
+    // Load schedule when date changes (one-shot). `scheduleLoading` muestra un
+    // skeleton local mientras carga, evitando ver los slots del día anterior.
     useEffect(() => {
         if (!venueId || !selectedDate) return;
         const dayOfWeek = getDayOfWeek(selectedDate);
+        setScheduleLoading(true);
         getVenueSchedule(venueId, dayOfWeek)
             .then(setSchedule)
-            .catch((err) => handleError(err, "Error al cargar horarios"));
+            .catch((err) => handleError(err, "Error al cargar horarios"))
+            .finally(() => setScheduleLoading(false));
         setSelectedStart(null);
         setSelectedEnd(null);
     }, [venueId, selectedDate]);
@@ -133,11 +147,15 @@ function VenueDetailContent() {
         }));
     }, [schedule, courts, combos]);
 
-    // Auto-select first available format
+    // Auto-select first available format. Respeta el prefill de `?format=` si es un
+    // formato realmente disponible; si no lo es (o no hay prefill), cae al primero disponible.
     useEffect(() => {
         const fmts = formatOptions();
+        if (fmts.length === 0) return; // schedule aún cargando: no tocar el prefill
+        const preselectValid = selectedFormat && fmts.some((f) => f.format === selectedFormat && f.available);
+        if (preselectValid) return;
         const firstAvailable = fmts.find((f) => f.available);
-        if (firstAvailable && !selectedFormat) {
+        if (firstAvailable) {
             setSelectedFormat(firstAvailable.format);
             logBookingFormatSelected(venueId, firstAvailable.format);
         }
@@ -187,6 +205,24 @@ function VenueDetailContent() {
             }];
         });
     }, [schedule, selectedFormat, selectedDate, existingBookings, blockedSlots, courts, combos, venue?.weekendMinLeadHours]);
+
+    // Analytics de empty states de disponibilidad (una vez por fecha+razón).
+    const availabilityLoggedRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        if (loading || !venue || scheduleLoading || !selectedFormat) return;
+        const closed = !schedule || !schedule.enabled || schedule.slots.length === 0;
+        const reason: "closed" | "no_slots_free" | null = closed
+            ? "closed"
+            : (() => {
+                const s = timeSlots();
+                return s.length > 0 && !s.some((x) => x.available) ? "no_slots_free" : null;
+            })();
+        if (!reason) return;
+        const key = `${selectedDate}:${reason}`;
+        if (availabilityLoggedRef.current.has(key)) return;
+        availabilityLoggedRef.current.add(key);
+        logBookingNoAvailabilityShown(venueId, selectedDate, reason);
+    }, [loading, venue, scheduleLoading, selectedFormat, schedule, selectedDate, venueId, timeSlots]);
 
     // Slot selection handlers
     const handleSlotSelect = (startTime: string, endTime: string) => {
@@ -313,28 +349,44 @@ function VenueDetailContent() {
     const { subtotalCOP, discountCOP, finalCOP } = getSelectionBreakdown();
     const totalPrice = finalCOP;
 
+    // Derivados de detalle de sede
+    const images = galleryImages(venue);
+    // Cobertura a nivel de sede: alimenta el chip destacado "Cancha techada" en amenidades.
+    const { anyCovered } = venueCoverage(courts);
+    const effectivePolicies = getEffectiveBookingPolicies(venue);
+    const bookingWindow = clampBookingWindowDays(venue.bookingWindowDays);
+    const scheduleClosed = !!schedule && (!schedule.enabled || schedule.slots.length === 0);
+    const noFreeSlots = slots.length > 0 && !slots.some((s) => s.available);
+
+    const galleryFallback = (
+        <div className="h-full bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] flex items-center justify-center">
+            {venue.icon && <span className="text-6xl opacity-90" aria-hidden>{venue.icon}</span>}
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-slate-50 pb-24 md:pb-0">
             <div className="max-w-md mx-auto">
-                {/* Header image */}
+                {/* Header: galería de fotos + overlays */}
                 <div className="relative">
-                    {venue.imageURL ? (
-                        <div className="relative h-48 overflow-hidden">
-                            <Image unoptimized src={venue.imageURL} alt={venue.name} fill className="object-cover" />
-                        </div>
-                    ) : (
-                        <div className="h-48 bg-gradient-to-br from-[#1f7a4f] to-[#145c3a]" />
-                    )}
+                    <VenueGallery
+                        venueId={venueId}
+                        images={images}
+                        venueName={venue.name}
+                        fallback={galleryFallback}
+                    />
+                    {/* Scrim superior para legibilidad de los botones sobre fotos claras */}
+                    <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/30 to-transparent pointer-events-none" />
                     <button
                         onClick={() => router.back()}
-                        className="absolute top-4 left-4 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm"
+                        className="absolute top-4 left-4 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm z-10"
                     >
                         <ArrowLeft className="w-5 h-5 text-slate-700" />
                     </button>
                     {profile && isSuperAdmin(profile) && (
                         <button
                             onClick={() => router.push(`/venues/admin/${venueId}`)}
-                            className="absolute top-4 right-4 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+                            className="absolute top-4 right-4 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:bg-white transition-colors z-10"
                         >
                             <Settings className="w-5 h-5 text-slate-700" />
                         </button>
@@ -342,20 +394,39 @@ function VenueDetailContent() {
                 </div>
 
                 <div className="px-4 pt-4">
-                    {/* Venue info */}
-                    <h1 className="text-xl font-bold text-slate-800">{venue.name}</h1>
-                    <div className="flex items-center gap-1.5 text-slate-400 mt-1">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span className="text-xs">{venue.address}</span>
+                    {/* Venue info: nombre + contacto/ubicación accionable */}
+                    <h1 className="text-xl font-bold text-slate-800 mb-2.5">{venue.name}</h1>
+                    <VenueContactActions venue={venue} />
+
+                    {/* Descripción de la sede */}
+                    {venue.description && (
+                        <p className="mt-3 text-sm text-slate-500 leading-snug">{venue.description}</p>
+                    )}
+
+                    {/* Amenidades (servicios) + chip destacado de techada */}
+                    <div className="mt-4">
+                        <VenueAmenities amenities={venue.amenities} anyCovered={anyCovered} />
                     </div>
+
+                    {/* Preview de políticas antes de reservar */}
+                    {effectivePolicies.length > 0 && (
+                        <div className="mt-4">
+                            <BookingPoliciesPreview
+                                policies={effectivePolicies}
+                                onExpand={(count) => logVenuePoliciesExpanded(venueId, count)}
+                            />
+                        </div>
+                    )}
 
                     {/* TAP 1: Format selection */}
                     <div className="mt-5">
                         <h2 className="text-sm font-semibold text-slate-600 mb-2">Formato</h2>
-                        <FormatSelector
+                        <VenueFormatPicker
                             formats={formats}
                             selected={selectedFormat}
                             venueFormats={venue.formats}
+                            courts={courts}
+                            combos={combos}
                             onSelect={(f) => {
                                 setSelectedFormat(f);
                                 setSelectedStart(null);
@@ -370,7 +441,7 @@ function VenueDetailContent() {
                         <h2 className="text-sm font-semibold text-slate-600 mb-2">Fecha</h2>
                         <DateCarousel
                             selectedDate={selectedDate}
-                            daysAhead={7}
+                            daysAhead={bookingWindow}
                             onSelect={(d) => {
                                 setSelectedDate(d);
                                 setSelectedStart(null);
@@ -384,24 +455,48 @@ function VenueDetailContent() {
                         <div className="mt-5">
                             <div className="flex items-center justify-between mb-2">
                                 <h2 className="text-sm font-semibold text-slate-600">Horario</h2>
-                                <p className="text-[10px] text-slate-400">Toca para reservar · varias horas seguidas se suman</p>
+                                {!scheduleLoading && !scheduleClosed && (
+                                    <p className="text-[10px] text-slate-400">Toca para reservar · varias horas seguidas se suman</p>
+                                )}
                             </div>
-                            <SlotList
-                                slots={slots}
-                                selectedStart={selectedStart}
-                                selectedEnd={selectedEnd}
-                                onSelect={handleSlotSelect}
-                                onExtend={handleSlotExtend}
-                                dateKey={`${selectedDate}-${selectedFormat}`}
-                            />
+
+                            {scheduleLoading ? (
+                                <SlotListSkeleton />
+                            ) : scheduleClosed ? (
+                                <div className="text-center py-10 text-slate-400">
+                                    <CalendarOff className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                                    <p className="text-base font-medium">La sede no abre este día</p>
+                                    <p className="text-sm mt-1">Prueba con otra fecha</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {noFreeSlots && (
+                                        <div className="mb-3 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2.5">
+                                            <Clock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-amber-800">
+                                                No quedan horarios libres este día. Prueba con otra fecha.
+                                            </p>
+                                        </div>
+                                    )}
+                                    <SlotList
+                                        slots={slots}
+                                        selectedStart={selectedStart}
+                                        selectedEnd={selectedEnd}
+                                        onSelect={handleSlotSelect}
+                                        onExtend={handleSlotExtend}
+                                        dateKey={`${selectedDate}-${selectedFormat}`}
+                                    />
+                                </>
+                            )}
                         </div>
                     )}
 
                 </div>
 
-                {/* TAP 3: Sticky confirm button */}
+                {/* TAP 3: Sticky confirm button + resumen de selección */}
                 {selectedStart && selectedEnd && (
                     <div className="sticky bottom-20 md:bottom-4 left-0 right-0 px-4 pt-3 pb-2 z-30 pointer-events-none">
+                        <SelectionSummaryBar date={selectedDate} startTime={selectedStart} endTime={selectedEnd} />
                         <button
                             onClick={() => setConfirmSheetOpen(true)}
                             className="pointer-events-auto w-full py-3.5 rounded-xl bg-[#1f7a4f] text-white text-base font-bold shadow-lg shadow-[#1f7a4f]/30 hover:bg-[#145c3a] active:scale-[0.98] transition-all"

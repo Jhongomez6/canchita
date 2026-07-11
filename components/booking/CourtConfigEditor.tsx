@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { Plus, Trash2, GripVertical, AlertCircle } from "lucide-react";
-import { COURT_FORMATS, formatLabel } from "@/lib/domain/venue";
-import type { Court, CourtCombo, VenueFormat } from "@/lib/domain/venue";
+import { COURT_FORMATS, formatLabel, SURFACE_TYPES, SURFACE_LABELS } from "@/lib/domain/venue";
+import type { Court, CourtCombo, VenueFormat, SurfaceType } from "@/lib/domain/venue";
 
 interface CourtConfigEditorProps {
     courts: Court[];
@@ -72,6 +72,19 @@ export default function CourtConfigEditor({
         onCourtsChange(courts.map((c) => (c.id === courtId ? { ...c, baseFormat: format } : c)));
     };
 
+    const updateCourtSurface = (courtId: string, surface: SurfaceType | undefined) => {
+        onCourtsChange(courts.map((c) => (c.id === courtId ? { ...c, surface } : c)));
+    };
+
+    const toggleCourtCovered = (courtId: string) => {
+        // Cicla: undefined (sin dato) → true (techada) → false (descubierta) → undefined
+        onCourtsChange(courts.map((c) => {
+            if (c.id !== courtId) return c;
+            const next = c.covered === undefined ? true : c.covered === true ? false : undefined;
+            return { ...c, covered: next };
+        }));
+    };
+
     const removeCourt = (courtId: string) => {
         onCourtsChange(courts.filter((c) => c.id !== courtId));
         // Also remove from combos
@@ -132,41 +145,71 @@ export default function CourtConfigEditor({
                 <div className="space-y-2 mb-3">
                     {courts.map((court) => {
                         const isUnknown = hasVenueFormats && !knownFormatIds.has(court.baseFormat);
+                        const coveredLabel = court.covered === undefined ? "Sin dato" : court.covered ? "Techada" : "Descubierta";
                         return (
                             <div
                                 key={court.id}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${court.active ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100 opacity-60"}`}
+                                className={`px-3 py-2.5 rounded-xl border space-y-2 ${court.active ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100 opacity-60"}`}
                             >
-                                <GripVertical className="w-4 h-4 text-slate-300 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <span className="text-sm font-medium text-slate-700">{court.name}</span>
+                                <div className="flex items-center gap-3">
+                                    <GripVertical className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <span className="text-sm font-medium text-slate-700">{court.name}</span>
+                                    </div>
+                                    <select
+                                        value={court.baseFormat}
+                                        onChange={(e) => updateCourtFormat(court.id, e.target.value)}
+                                        className={`px-2 py-1 text-base border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 ${isUnknown ? "border-red-300 text-red-600" : "border-slate-200"}`}
+                                    >
+                                        {isUnknown && (
+                                            <option value={court.baseFormat}>
+                                                ⚠ {court.baseFormat} (no encontrado)
+                                            </option>
+                                        )}
+                                        {formatOptions.map((o) => (
+                                            <option key={o.value} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={() => toggleCourtActive(court.id)}
+                                        className={`text-xs px-2 py-0.5 rounded-full border ${court.active ? "text-emerald-600 border-emerald-200 bg-emerald-50" : "text-slate-400 border-slate-200"}`}
+                                    >
+                                        {court.active ? "Activa" : "Inactiva"}
+                                    </button>
+                                    <button
+                                        onClick={() => removeCourt(court.id)}
+                                        className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
                                 </div>
-                                <select
-                                    value={court.baseFormat}
-                                    onChange={(e) => updateCourtFormat(court.id, e.target.value)}
-                                    className={`px-2 py-1 text-base border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30 ${isUnknown ? "border-red-300 text-red-600" : "border-slate-200"}`}
-                                >
-                                    {isUnknown && (
-                                        <option value={court.baseFormat}>
-                                            ⚠ {court.baseFormat} (no encontrado)
-                                        </option>
-                                    )}
-                                    {formatOptions.map((o) => (
-                                        <option key={o.value} value={o.value}>{o.label}</option>
-                                    ))}
-                                </select>
-                                <button
-                                    onClick={() => toggleCourtActive(court.id)}
-                                    className={`text-xs px-2 py-0.5 rounded-full border ${court.active ? "text-emerald-600 border-emerald-200 bg-emerald-50" : "text-slate-400 border-slate-200"}`}
-                                >
-                                    {court.active ? "Activa" : "Inactiva"}
-                                </button>
-                                <button
-                                    onClick={() => removeCourt(court.id)}
-                                    className="p-1 text-slate-300 hover:text-red-500 transition-colors"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+
+                                {/* Superficie + condición (techada/descubierta) */}
+                                <div className="flex items-center gap-2 pl-7">
+                                    <select
+                                        value={court.surface ?? ""}
+                                        onChange={(e) => updateCourtSurface(court.id, (e.target.value || undefined) as SurfaceType | undefined)}
+                                        className="flex-1 px-2 py-1 text-base border border-slate-200 rounded-lg bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#1f7a4f]/30"
+                                    >
+                                        <option value="">Superficie…</option>
+                                        {SURFACE_TYPES.map((s) => (
+                                            <option key={s} value={s}>{SURFACE_LABELS[s]}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleCourtCovered(court.id)}
+                                        className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium ${
+                                            court.covered === true
+                                                ? "text-[#1f7a4f] border-[#1f7a4f]/30 bg-[#1f7a4f]/10"
+                                                : court.covered === false
+                                                    ? "text-slate-600 border-slate-200 bg-slate-50"
+                                                    : "text-slate-400 border-slate-200 bg-white"
+                                        }`}
+                                    >
+                                        {coveredLabel}
+                                    </button>
+                                </div>
                             </div>
                         );
                     })}

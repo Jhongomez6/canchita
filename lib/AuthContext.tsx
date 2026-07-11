@@ -15,6 +15,7 @@ import {
   setAnalyticsUserProperties,
   logUserRegistered,
   logLocationAdminSignupCompleted,
+  logBookingOnlySignupCompleted,
   logQueryTimeout,
   logQueryError,
 } from "@/lib/analytics";
@@ -26,7 +27,9 @@ function consumeSignupIntent(): SignupIntent | null {
   try {
     const raw = window.sessionStorage.getItem(SIGNUP_INTENT_KEY);
     if (raw) window.sessionStorage.removeItem(SIGNUP_INTENT_KEY);
-    return raw === "location_admin" ? "location_admin" : null;
+    if (raw === "location_admin") return "location_admin";
+    if (raw === "booking") return "booking";
+    return null;
   } catch {
     return null;
   }
@@ -156,6 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             logUserRegistered();
             if (signupIntent === "location_admin") {
               logLocationAdminSignupCompleted();
+            } else if (signupIntent === "booking") {
+              logBookingOnlySignupCompleted();
             }
           }
         })

@@ -34,7 +34,7 @@ import { expandBlockedSlotsForDate } from "./domain/blocked-slots";
 import type { Venue, Court, CourtCombo, DaySchedule, DayOfWeek, BlockedSlot, BookingConflict, CreateVenueInput, ManualReservationStatus, ManualReservationPayment, PaymentMethod } from "./domain/venue";
 import { validatePaymentMethods, normalizePaymentNote } from "./domain/venue";
 import { validatePendingApprovalTTL } from "./domain/booking";
-import { validateWhatsAppNumber, validateWeekendLeadHours, validateBookingPolicies } from "./domain/venue";
+import { validateWhatsAppNumber, validateWeekendLeadHours, validateBookingPolicies, validateGallery, validateAmenities, validateBookingWindowDays } from "./domain/venue";
 import { buildPaymentId, validatePaymentAmounts } from "./domain/payments";
 
 // ========================
@@ -200,6 +200,7 @@ export async function createVenue(input: CreateVenueInput): Promise<string> {
     const venue: Omit<Venue, "id"> = {
         name: input.name.trim(),
         address: input.address.trim(),
+        city: input.city?.trim() || undefined,
         placeId: input.placeId,
         lat: input.lat,
         lng: input.lng,
@@ -224,7 +225,7 @@ export async function createVenue(input: CreateVenueInput): Promise<string> {
 
 export async function updateVenueSettings(
     venueId: string,
-    data: Partial<Pick<Venue, "depositRequired" | "depositPercent" | "name" | "address" | "phone" | "description" | "active" | "imageURL" | "icon" | "formats" | "pendingApprovalTTLHours" | "whatsappNotificationNumber" | "hidePricesForLocationAdmins" | "weekendMinLeadHours" | "bookingPolicies">>,
+    data: Partial<Pick<Venue, "depositRequired" | "depositPercent" | "name" | "address" | "city" | "phone" | "description" | "active" | "imageURL" | "icon" | "formats" | "pendingApprovalTTLHours" | "whatsappNotificationNumber" | "hidePricesForLocationAdmins" | "weekendMinLeadHours" | "bookingPolicies" | "gallery" | "amenities" | "bookingWindowDays">>,
 ): Promise<void> {
     if (data.pendingApprovalTTLHours !== undefined) {
         validatePendingApprovalTTL(data.pendingApprovalTTLHours);
@@ -237,6 +238,15 @@ export async function updateVenueSettings(
     }
     if (data.bookingPolicies !== undefined) {
         validateBookingPolicies(data.bookingPolicies);
+    }
+    if (data.gallery !== undefined) {
+        validateGallery(data.gallery);
+    }
+    if (data.amenities !== undefined) {
+        validateAmenities(data.amenities);
+    }
+    if (data.bookingWindowDays !== undefined) {
+        validateBookingWindowDays(data.bookingWindowDays);
     }
     await updateDoc(doc(db, "venues", venueId), {
         ...data,

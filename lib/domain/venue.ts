@@ -86,6 +86,67 @@ export interface VenueFormat {
     durationTiers?: VenueFormatDurationTier[];
 }
 
+// ========================
+// AMENIDADES Y SUPERFICIE
+// ========================
+
+/**
+ * Amenidades de una sede. Catálogo cerrado; cada valor se renderiza con un
+ * icono + label en la vista de detalle. Editables solo por Super Admin.
+ * Ref: docs/VENUE_DETAIL_ENHANCEMENTS_SDD.md §1 RN-02.
+ */
+export type VenueAmenity =
+    | "covered"       // Cancha techada (diferenciador clave, se muestra destacado)
+    | "parking"       // Parqueadero
+    | "lighting"      // Iluminación nocturna
+    | "showers"       // Duchas
+    | "lockers"       // Camerinos / lockers
+    | "shoe_rental"   // Alquiler de guayos
+    | "cafeteria"     // Cafetería / bar
+    | "bathrooms"     // Baños
+    | "wifi";         // WiFi
+
+export const VENUE_AMENITIES: VenueAmenity[] = [
+    "covered", "parking", "lighting", "showers", "lockers",
+    "shoe_rental", "cafeteria", "bathrooms", "wifi",
+];
+
+export const VENUE_AMENITY_LABELS: Record<VenueAmenity, string> = {
+    covered: "Cancha techada",
+    parking: "Parqueadero",
+    lighting: "Iluminación",
+    showers: "Duchas",
+    lockers: "Camerinos",
+    shoe_rental: "Alquiler de guayos",
+    cafeteria: "Cafetería",
+    bathrooms: "Baños",
+    wifi: "WiFi",
+};
+
+/**
+ * Tipo de superficie de una cancha. Atributo por `Court` (una sede puede
+ * mezclar superficies). Ref: docs/VENUE_DETAIL_ENHANCEMENTS_SDD.md §1 RN-03.
+ */
+export type SurfaceType = "synthetic" | "natural" | "hardcourt" | "sand" | "parquet";
+
+export const SURFACE_TYPES: SurfaceType[] = ["synthetic", "natural", "hardcourt", "sand", "parquet"];
+
+export const SURFACE_LABELS: Record<SurfaceType, string> = {
+    synthetic: "Sintética",
+    natural: "Natural",
+    hardcourt: "Cemento",
+    sand: "Arena",
+    parquet: "Parquet",
+};
+
+/** Ventana de reserva (días hacia adelante que ofrece el carrusel de fechas). */
+export const MIN_BOOKING_WINDOW_DAYS = 1;
+export const MAX_BOOKING_WINDOW_DAYS = 30;
+export const DEFAULT_BOOKING_WINDOW_DAYS = 7;
+
+/** Máximo de fotos en la galería de una sede. */
+export const MAX_GALLERY_IMAGES = 8;
+
 export const DAY_OF_WEEK_ORDER: DayOfWeek[] = [
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
 ];
@@ -176,6 +237,10 @@ export interface Venue {
     id: string;
     name: string;
     address: string;
+    /** Ciudad estructurada (capturada de Google `locality` al crear, o editable
+     *  por el admin). Ausente en sedes legacy — el listado cae al parseo del
+     *  `address` vía `deriveVenueCity`. Ref: lib/domain/venueList.ts */
+    city?: string;
     placeId: string;
     lat: number;
     lng: number;
@@ -209,6 +274,14 @@ export interface Venue {
      *  Ausente ⇒ se usan DEFAULT_BOOKING_POLICIES. Array vacío ⇒ sin políticas (no se pide aceptación).
      *  Editable por el location admin o super admin. Ref: docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md */
     bookingPolicies?: string[];
+    /** Galería de fotos (URLs de descarga de Storage). La portada sigue siendo `imageURL`.
+     *  Máx MAX_GALLERY_IMAGES. Editable solo por Super Admin.
+     *  Ref: docs/VENUE_DETAIL_ENHANCEMENTS_SDD.md */
+    gallery?: string[];
+    /** Amenidades presentes en la sede. Editable solo por Super Admin. */
+    amenities?: VenueAmenity[];
+    /** Días reservables hacia adelante en el carrusel de fechas (1–30). Ausente ⇒ 7. */
+    bookingWindowDays?: number;
 
     createdAt: string;
     updatedAt: string;
@@ -221,6 +294,10 @@ export interface Court {
     baseFormat: string;
     active: boolean;
     sortOrder: number;
+    /** Tipo de superficie de esta cancha. Ausente ⇒ desconocido (no se muestra). */
+    surface?: SurfaceType;
+    /** true = techada/cubierta; false = descubierta. Ausente ⇒ desconocido (no se muestra). */
+    covered?: boolean;
 }
 
 export interface CourtCombo {
@@ -411,6 +488,7 @@ export function normalizePaymentNote(note: string | undefined | null): string | 
 export interface CreateVenueInput {
     name: string;
     address: string;
+    city?: string;
     placeId: string;
     lat: number;
     lng: number;
@@ -723,6 +801,53 @@ export function formatLabel(format: string, venueFormats?: VenueFormat[]): strin
 }
 
 /**
+ * Jugadores por equipo de un formato. Usa el catálogo (`VenueFormat.playersPerTeam`)
+ * o parsea el legacy `"NvN"`. Devuelve `null` si no se puede determinar.
+ */
+export function playersPerTeamOf(format: string, venueFormats?: VenueFormat[]): number | null {
+    if (venueFormats && venueFormats.length > 0) {
+        const vf = venueFormats.find((f) => f.id === format);
+        if (vf) return vf.playersPerTeam;
+    }
+    // Legacy "XvX" o namespaced "sport_XvX" (ej. "football_9v9") sin catálogo.
+    const match = format.match(/^(?:[a-z]+_)?(\d+)v\d+$/);
+    if (match) return parseInt(match[1], 10);
+    return null;
+}
+
+/**
+ * Tamaño de cancha (Sencilla / Doble / Triple) según jugadores por equipo.
+ * Mismos umbrales que `formatLabel`: ≤6 Sencilla, 7–9 Doble, ≥10 Triple.
+ */
+export function courtTierLabel(playersPerTeam: number): string {
+    if (playersPerTeam <= 6) return "Sencilla";
+    if (playersPerTeam <= 9) return "Doble";
+    return "Triple";
+}
+
+/**
+ * Label de formato orientado al CLIENTE que reserva. Estandariza lo que ve el
+ * jugador combinando tamaño de cancha + formato de juego. Ej: `"Doble (9vs9)"`.
+ *
+ * A diferencia de `formatLabel` (que muestra el label libre configurado por el
+ * admin), acá el jugador ve siempre el mismo formato claro. Para deportes que no
+ * son fútbol el "tier" de cancha no aplica, así que se usa el nombre del deporte:
+ * ej. `"Voleibol (6vs6)"`.
+ *
+ * Si no se puede determinar el tamaño, cae a `formatLabel`.
+ */
+export function clientFormatLabel(format: string, venueFormats?: VenueFormat[]): string {
+    const ppt = playersPerTeamOf(format, venueFormats);
+    if (ppt == null) return formatLabel(format, venueFormats);
+    const size = `${ppt}vs${ppt}`;
+    const sport = sportOfFormat(format, venueFormats);
+    if (sport === null || sport === "football") {
+        return `${courtTierLabel(ppt)} (${size})`;
+    }
+    return `${SPORT_LABELS[sport]} (${size})`;
+}
+
+/**
  * Resuelve el deporte de un formato (VenueFormat.id) buscándolo en el catálogo de la sede.
  * En modo legacy (sin catálogo) devuelve `null` — el llamador debe asumir sede mono-deporte
  * (football-only) y tratar todas las canchas como del mismo deporte.
@@ -744,6 +869,153 @@ export function tierLabelFromCount(count: number): string {
     if (count <= 2) return "Cancha doble";
     if (count <= 3) return "Cancha triple";
     return "Múltiples canchas";
+}
+
+// ========================
+// GALERÍA, MAPA, CONTACTO Y RESUMEN (vista de detalle)
+// ========================
+
+/**
+ * Lista de imágenes a mostrar en la galería: la portada (`imageURL`) primero,
+ * seguida de las fotos de `gallery`, sin duplicados y sin vacíos.
+ */
+export function galleryImages(v: Pick<Venue, "gallery" | "imageURL">): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const push = (url?: string) => {
+        const u = (url ?? "").trim();
+        if (u.length > 0 && !seen.has(u)) {
+            seen.add(u);
+            out.push(u);
+        }
+    };
+    push(v.imageURL);
+    for (const g of v.gallery ?? []) push(g);
+    return out;
+}
+
+/**
+ * URL de Google Maps para la sede. Usa las coordenadas si son válidas; si no,
+ * cae a una búsqueda por dirección (URL-encoded). Nunca concatena texto crudo.
+ */
+export function buildMapsUrl(v: Pick<Venue, "lat" | "lng" | "address">): string {
+    const hasCoords =
+        typeof v.lat === "number" && Number.isFinite(v.lat) &&
+        typeof v.lng === "number" && Number.isFinite(v.lng) &&
+        !(v.lat === 0 && v.lng === 0);
+    const query = hasCoords
+        ? `${v.lat},${v.lng}`
+        : (v.address ?? "").trim();
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+/**
+ * Deep-link de WhatsApp (`wa.me`) hacia la sede, con un mensaje pre-lleno.
+ * `num` puede venir con `+`, espacios o guiones — se normaliza a solo dígitos.
+ */
+export function buildVenueWhatsAppUrl(num: string, venueName: string): string {
+    const digits = (num ?? "").replace(/[^0-9]/g, "");
+    const msg = `Hola, quiero información sobre reservas en ${venueName}.`;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+}
+
+const SPANISH_WEEKDAYS_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const SPANISH_MONTHS_SHORT = [
+    "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
+/** Minutos totales de un "HH:mm". */
+function minutesOf(time: string): number {
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
+}
+
+/**
+ * Formatea un "HH:mm" 24h al formato 12h AM/PM en español que usa toda la app.
+ * Ej: "21:00" → "9:00 PM", "08:30" → "8:30 AM". Los datos en Firestore siguen en 24h.
+ */
+export function formatTime12h(time: string): string {
+    const [hStr, mStr] = time.split(":");
+    const h = parseInt(hStr, 10);
+    const suffix = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${mStr} ${suffix}`;
+}
+
+/**
+ * Resumen legible de una selección de reserva para la barra sobre el sticky.
+ * Ej: { dateLabel: "Sáb 12 Jul", timeRange: "8:00 AM – 10:00 AM", durationLabel: "2h" }.
+ */
+export function formatSelectionSummary(
+    date: string,
+    start: string,
+    end: string,
+): { dateLabel: string; timeRange: string; durationLabel: string } {
+    const d = new Date(`${date}T12:00:00`);
+    const dateLabel = `${SPANISH_WEEKDAYS_SHORT[d.getDay()]} ${d.getDate()} ${SPANISH_MONTHS_SHORT[d.getMonth()]}`;
+
+    const timeRange = `${formatTime12h(start)} – ${formatTime12h(end)}`;
+
+    const totalMin = Math.max(0, minutesOf(end) - minutesOf(start));
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    const durationLabel = m === 0 ? `${h}h` : h === 0 ? `${m}min` : `${h}h ${m}min`;
+
+    return { dateLabel, timeRange, durationLabel };
+}
+
+/**
+ * Acota la ventana de reserva a [MIN, MAX] días. Ausente/ inválido ⇒ default.
+ */
+export function clampBookingWindowDays(n: number | undefined): number {
+    if (typeof n !== "number" || !Number.isFinite(n)) return DEFAULT_BOOKING_WINDOW_DAYS;
+    return Math.min(MAX_BOOKING_WINDOW_DAYS, Math.max(MIN_BOOKING_WINDOW_DAYS, Math.round(n)));
+}
+
+/**
+ * Canchas ACTIVAS que proveen un formato dado: las que lo tienen como
+ * `baseFormat` más las referenciadas por combos cuyo `resultingFormat` coincide.
+ * Permite mostrar la superficie/condición CONTEXTUAL al formato seleccionado
+ * (clave en sedes multi-deporte: fútbol sintético vs. volley en arena).
+ */
+export function courtsForFormat(courts: Court[], combos: CourtCombo[], format: string): Court[] {
+    const ids = new Set<string>();
+    for (const c of courts) {
+        if (c.active && c.baseFormat === format) ids.add(c.id);
+    }
+    for (const combo of combos) {
+        if (combo.active && combo.resultingFormat === format) {
+            for (const cid of combo.courtIds) ids.add(cid);
+        }
+    }
+    return courts.filter((c) => c.active && ids.has(c.id));
+}
+
+/**
+ * Superficies distintas presentes en las canchas ACTIVAS, en el orden de
+ * SURFACE_TYPES. Se usa para mostrar chips agregados en la vista de detalle.
+ */
+export function venueSurfaces(courts: Court[]): SurfaceType[] {
+    const present = new Set<SurfaceType>();
+    for (const c of courts) {
+        if (c.active && c.surface) present.add(c.surface);
+    }
+    return SURFACE_TYPES.filter((s) => present.has(s));
+}
+
+/**
+ * ¿Hay canchas activas techadas / descubiertas? Permite mostrar el chip
+ * correcto (o ambos si la sede mezcla). Canchas sin el dato no cuentan.
+ */
+export function venueCoverage(courts: Court[]): { anyCovered: boolean; anyUncovered: boolean } {
+    let anyCovered = false;
+    let anyUncovered = false;
+    for (const c of courts) {
+        if (!c.active || c.covered === undefined) continue;
+        if (c.covered) anyCovered = true;
+        else anyUncovered = true;
+    }
+    return { anyCovered, anyUncovered };
 }
 
 /**
@@ -961,6 +1233,59 @@ export function validatePaymentMethods(methods: PaymentMethod[]): void {
             throw new ValidationError(`Id de método duplicado: ${m.id}`);
         }
         ids.add(m.id);
+    }
+}
+
+// ========================
+// VALIDACIONES GALERÍA / AMENIDADES / SUPERFICIE / VENTANA
+// ========================
+
+/**
+ * Valida la galería: array de ≤ MAX_GALLERY_IMAGES URLs https no vacías.
+ * Solo se aceptan URLs `https://` (previene inyección `javascript:`/`data:` en `src`).
+ */
+export function validateGallery(urls: string[]): void {
+    if (!Array.isArray(urls)) {
+        throw new ValidationError("La galería debe ser una lista");
+    }
+    if (urls.length > MAX_GALLERY_IMAGES) {
+        throw new ValidationError(`Máximo ${MAX_GALLERY_IMAGES} fotos en la galería`);
+    }
+    for (const u of urls) {
+        if (typeof u !== "string" || u.trim().length === 0) {
+            throw new ValidationError("Cada foto debe tener una URL");
+        }
+        if (!/^https:\/\//i.test(u.trim())) {
+            throw new ValidationError("Las URLs de la galería deben ser https");
+        }
+    }
+}
+
+/**
+ * Valida las amenidades: array de valores del catálogo, sin duplicados.
+ */
+export function validateAmenities(amenities: VenueAmenity[]): void {
+    if (!Array.isArray(amenities)) {
+        throw new ValidationError("Las amenidades deben ser una lista");
+    }
+    const seen = new Set<string>();
+    for (const a of amenities) {
+        if (!VENUE_AMENITIES.includes(a)) {
+            throw new ValidationError(`Amenidad inválida: ${a}`);
+        }
+        if (seen.has(a)) {
+            throw new ValidationError(`Amenidad duplicada: ${a}`);
+        }
+        seen.add(a);
+    }
+}
+
+/** Valida la ventana de reserva (entero entre MIN y MAX días). */
+export function validateBookingWindowDays(n: number): void {
+    if (!Number.isInteger(n) || n < MIN_BOOKING_WINDOW_DAYS || n > MAX_BOOKING_WINDOW_DAYS) {
+        throw new ValidationError(
+            `La ventana de reserva debe ser un entero entre ${MIN_BOOKING_WINDOW_DAYS} y ${MAX_BOOKING_WINDOW_DAYS} días`,
+        );
     }
 }
 
