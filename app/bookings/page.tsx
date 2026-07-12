@@ -70,30 +70,48 @@ function BookingsContent() {
 
     // Carga (o recarga) la primera página de reservas + sedes admin en un round-trip.
     // `silent` mantiene la lista visible (refresh manual / vuelta a la pestaña).
+    // Esta página fetchea directo (no via createCachedQueryHook), así que replica su
+    // reintento único: la primera query en frío tras login / vuelta de background
+    // falla transitoriamente (token/canal de Firestore recién levantando). Ref §17/§18.
     const loadAll = useCallback(
         async (silent = false) => {
             if (!uid) return;
             if (silent) setRefreshing(true);
             else setLoading(true);
             setError(null);
+
+            const RETRY_BACKOFF_MS = 600;
+            const attempt = async (retriesLeft: number): Promise<void> => {
+                try {
+                    const [{ bookings: b, lastDoc: ld }, venues] = await Promise.all([
+                        getUserBookings(uid),
+                        isVenueAdmin ? getActiveVenues() : Promise.resolve<Venue[] | null>(null),
+                    ]);
+                    const av = venues == null
+                        ? []
+                        : superAdmin
+                            ? venues
+                            : venues.filter((v) => assignedIds.includes(v.id));
+                    const more = b.length >= 20;
+                    setBookings(b);
+                    setLastDoc(ld);
+                    setHasMore(more);
+                    setAdminVenues(av);
+                    bookingsCache.set(uid, { bookings: b, lastDoc: ld, hasMore: more, adminVenues: av, fetchedAt: Date.now() });
+                } catch (err) {
+                    // Reintento único ante fallo transitorio de arranque/reconexión en
+                    // frío. Aplica también al refresh silencioso (vuelta de background en
+                    // iOS = canal recién reconectando), acotado a 1 intento (sin storm).
+                    if (retriesLeft > 0) {
+                        await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS));
+                        return attempt(retriesLeft - 1);
+                    }
+                    setError(err instanceof Error ? err : new Error(String(err)));
+                }
+            };
+
             try {
-                const [{ bookings: b, lastDoc: ld }, venues] = await Promise.all([
-                    getUserBookings(uid),
-                    isVenueAdmin ? getActiveVenues() : Promise.resolve<Venue[] | null>(null),
-                ]);
-                const av = venues == null
-                    ? []
-                    : superAdmin
-                        ? venues
-                        : venues.filter((v) => assignedIds.includes(v.id));
-                const more = b.length >= 20;
-                setBookings(b);
-                setLastDoc(ld);
-                setHasMore(more);
-                setAdminVenues(av);
-                bookingsCache.set(uid, { bookings: b, lastDoc: ld, hasMore: more, adminVenues: av, fetchedAt: Date.now() });
-            } catch (err) {
-                setError(err instanceof Error ? err : new Error(String(err)));
+                await attempt(1);
             } finally {
                 setLoading(false);
                 setRefreshing(false);

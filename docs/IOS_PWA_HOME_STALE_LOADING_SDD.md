@@ -431,6 +431,7 @@ Auditoría de performance de la sección de reservas. `/venues` (lista) ya está
 - **Caché de módulo por `uid`** (`{bookings, lastDoc, hasMore, adminVenues, fetchedAt}`): revisitas dentro de la ventana muestran la lista al instante (sin skeleton); si está stale (>30 s) refresca en background (silencioso). Se pierde al recargar/cerrar. La paginación ("Ver más") y el pull manual actualizan la entrada de caché.
 - **Estado de error real con "Reintentar"** cuando el fetch falla y no hay datos (en vez de falso vacío). Se distingue de "vacío real" (sin error).
 - **Bookings + venues admin en un `Promise.all`** cacheados juntos (un round-trip, sin dobles fetch en revisita).
+- **Reintento automático único** (~600 ms) en `loadAll`, incluido el refresh silencioso (vuelta de background en iOS = canal reconectando). Esta página fetchea directo con `getUserBookings` (no via `createCachedQueryHook`), así que sin esto arrastraba el "falla mucho en cargar" del arranque/reconexión en frío que el hook ya resuelve en Home/Venues (§17). Índice `bookedBy+date` verificado desplegado y reglas OK — el fallo era transitorio de conexión, no estructural.
 
 ### 18.2 `/venues/[id]` — detalle de sede (pública)
 **Problemas:**
