@@ -121,6 +121,54 @@ export function occupiedCourtIds(
 }
 
 // ========================
+// RECURRENCIA DE BLOQUEOS (predicado puro)
+// ========================
+
+export type RecurrenceType = "daily" | "weekly" | "biweekly" | "monthly";
+
+export interface Recurrence {
+    type: RecurrenceType;
+    startDate: string; // "YYYY-MM-DD"
+    endDate?: string;  // "YYYY-MM-DD"
+}
+
+/**
+ * ¿El bloqueo recurrente aplica a `date`? Predicado determinístico (mismo input →
+ * mismo output; usa `new Date` pero nunca `Date.now`). Los recurrentes NO viven en
+ * el ledger (§3 del SDD): se consultan como plantillas y se expanden a la fecha con
+ * este predicado. Extraído del inline duplicado de `allocateForApproval`.
+ */
+export function recurringBlockAppliesTo(
+    recurrence: Recurrence,
+    date: string,
+    exceptDates: string[] = [],
+): boolean {
+    if (exceptDates.includes(date)) return false;
+    if (date < recurrence.startDate) return false;
+    if (recurrence.endDate && date > recurrence.endDate) return false;
+
+    const start = new Date(recurrence.startDate + "T12:00:00");
+    const target = new Date(date + "T12:00:00");
+    switch (recurrence.type) {
+        case "daily":
+            return true;
+        case "weekly":
+            return start.getDay() === target.getDay();
+        case "biweekly": {
+            if (start.getDay() !== target.getDay()) return false;
+            const diffDays = Math.round((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+            return diffDays % 14 === 0;
+        }
+        case "monthly": {
+            const sd = start.getDate();
+            return sd <= 28 && target.getDate() === sd;
+        }
+        default:
+            return false;
+    }
+}
+
+// ========================
 // MUTACIONES (puras: devuelven arrays nuevos)
 // ========================
 
