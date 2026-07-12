@@ -67,6 +67,11 @@ export function createCachedQueryHook<Params, T>(
 ) {
   const { source, timeoutMs = 10_000, staleMs = 30_000 } = options;
 
+  // Backoff del reintento único de la primera carga en frío (§17). Corto: la
+  // primera query tras el login falla porque el canal/token de Firestore recién
+  // se levanta; ~600 ms basta para que quede listo sin que el usuario perciba demora.
+  const RETRY_BACKOFF_MS = 600;
+
   // Caché a nivel módulo: sobrevive a la navegación cliente (mismo runtime JS),
   // se pierde al recargar o cerrar la app. Una entrada por key.
   const cache = new Map<string, { data: T; fetchedAt: number }>();
@@ -110,23 +115,44 @@ export function createCachedQueryHook<Params, T>(
           hadCache ? { ...s, refreshing: true } : { ...s, loading: true }
         );
 
-        withTimeout(fetcher(paramsRef.current), timeoutMs)
-          .then((result) => {
-            if (id !== fetchIdRef.current) return;
-            cache.set(key, { data: result, fetchedAt: Date.now() });
-            setState({ key, data: result, loading: false, refreshing: false, error: null });
-          })
-          .catch((err: unknown) => {
-            if (id !== fetchIdRef.current) return;
-            const e = err instanceof Error ? err : new Error(String(err));
-            if (e instanceof TimeoutError) {
-              logQueryTimeout({ source, fromVisibility, hadCache });
-            } else {
-              logQueryError({ source, fromVisibility, hadCache, errorCode: e.name });
-            }
-            // Degradación elegante: si había caché, `data` se mantiene visible.
-            setState((s) => ({ ...s, loading: false, refreshing: false, error: e }));
-          });
+        // Primera carga en frío (sin caché, no por visibility): tras el login el
+        // canal/token de Firestore recién se levanta y la primera query puede fallar
+        // de forma transitoria (permission-denied/unavailable/timeout). Reintentamos
+        // una sola vez antes de degradar a error terminal (§17). Los refrescos con
+        // caché degradan mostrando el dato viejo; los de visibility no reintentan.
+        const attempt = (retriesLeft: number) => {
+          withTimeout(fetcher(paramsRef.current), timeoutMs)
+            .then((result) => {
+              if (id !== fetchIdRef.current) return;
+              cache.set(key, { data: result, fetchedAt: Date.now() });
+              setState({ key, data: result, loading: false, refreshing: false, error: null });
+            })
+            .catch((err: unknown) => {
+              if (id !== fetchIdRef.current) return;
+              const e = err instanceof Error ? err : new Error(String(err));
+
+              if (retriesLeft > 0) {
+                setTimeout(() => {
+                  // La key pudo cambiar o arrancar un fetch más nuevo durante el backoff.
+                  if (id !== fetchIdRef.current) return;
+                  attempt(retriesLeft - 1);
+                }, RETRY_BACKOFF_MS);
+                return;
+              }
+
+              // Registramos solo el fallo que efectivamente llega al usuario (tras
+              // agotar el reintento): los eventos siguen midiendo fallos reales.
+              if (e instanceof TimeoutError) {
+                logQueryTimeout({ source, fromVisibility, hadCache });
+              } else {
+                logQueryError({ source, fromVisibility, hadCache, errorCode: e.name });
+              }
+              // Degradación elegante: si había caché, `data` se mantiene visible.
+              setState((s) => ({ ...s, loading: false, refreshing: false, error: e }));
+            });
+        };
+
+        attempt(!hadCache && !fromVisibility ? 1 : 0);
       },
       [key]
     );

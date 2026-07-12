@@ -94,7 +94,8 @@ La implementación se generalizó: en vez de un hook único para Home se constru
 | `profile` viene en `null` pero `user` existe | Race con `AuthContext` | Mostrar skeleton hasta que `profile` resuelva (ya cubierto por `authLoading`). |
 
 ### Retry strategy
-- No reintento automático en bucle (evitar tormenta sobre Firestore). 
+- No reintento automático en bucle (evitar tormenta sobre Firestore).
+- **Reintento único (1 vez) en la primera carga en frío** (sin caché, no iniciada por visibility), con backoff corto (~600 ms), antes de degradar a error terminal. Cubre la primera query tras el login, cuando el token/canal de Firestore recién se establece y puede fallar de forma transitoria (permission-denied, unavailable, timeout). Ver iteración 7 (§17).
 - Sí refresco automático al volver a `visible` si `Date.now() - lastFetchAt > 30_000`.
 - Botón "Reintentar" manual en estado de error.
 
@@ -379,3 +380,35 @@ Misma familia de problemas en la vista de admin de sede. Ref. funcional: `docs/B
 - [ ] El calendario mensual hace una sola query de rango para marcar los días con reservas.
 - [ ] Los dots del calendario marcan los mismos días que antes (criterio de status idéntico).
 - [ ] Sin índices Firestore nuevos.
+
+---
+
+## 17. ITERACIÓN 7 — Falla de la primera carga en frío tras el login (Home y Venues)
+
+### Síntoma
+Justo **después de iniciar sesión**, la primera carga de Home cae en la pantalla de error "No pudimos cargar tus partidos". El mismo patrón se reporta en `/venues` para usuarios booking-only (que aterrizan en `/` y se redirigen a `/venues`). En una recarga posterior funciona. Es **intermitente** y no ocurre siempre.
+
+### Causa raíz
+Ambas páginas leen con `createCachedQueryHook` (Home → `useUserMatches` → `getMyMatches`; Venues → `useActiveVenues` → `getActiveVenues`). El hook solo falla de dos formas —el `fetcher` rechaza, o salta el `withTimeout` de 10 s— y **no reintenta**: cae directo a estado de error terminal (solo recuperable con "Reintentar" manual).
+
+La **primera query en frío tras el login** es frágil: el canal de Firestore recién se está estableciendo y el ID token recién se adjunta. La primera lectura puede volver `permission-denied` transitorio (token aún no propagado; las reglas exigen `request.auth != null`), `unavailable`, o colgarse hasta el timeout (iOS PWA con canal suspendido). Sin reintento, un fallo transitorio de arranque se vuelve pantalla de error.
+
+Pistas que confirman el diagnóstico:
+- En Venues el fetch está gateado por `canBook` (espera a `profile`), así que el token ya está adjunto cuando corre — y aun así falla → la causa dominante no es solo el token, es la **query en frío** (conexión/canal recién levantando).
+- A los super-admins en Home a veces **no** les pasa: al llegar el perfil, `isSuperAdmin` flipea la `key` (`uid:player` → `uid:admin`) y dispara un fetch nuevo que actúa como reintento accidental. El jugador regular no tiene ese flip → sin reintento → bug visible.
+
+### Fix (centralizado en `createCachedQueryHook`)
+**Reintento automático único** (1 vez, backoff ~600 ms) cuando el fetch falla en la **primera carga en frío**: sin caché (`!hadCache`) y no iniciado por visibility (`!fromVisibility`). Beneficia a Home, Venues y cualquier página futura sobre el primitivo, en un solo lugar.
+
+Detalles:
+- **Solo cold load.** Los refrescos con caché ya degradan mostrando el dato viejo (no necesitan reintento); los de visibility tampoco reintentan (evita tormenta al volver de background). El "Reintentar" manual queda como último recurso, no como paso obligatorio de cada login.
+- **Gate por token de generación.** Antes de reintentar (y dentro del `setTimeout`) se chequea `id === fetchIdRef.current`: si la `key` cambió o arrancó un fetch más nuevo, el reintento se cancela.
+- **Analytics fiel.** `logQueryTimeout`/`logQueryError` se emiten **solo cuando el error llega al usuario** (tras agotar el reintento), no en el intento que se va a reintentar. Así los eventos siguen midiendo fallos reales y un reintento exitoso no ensucia la señal de validación.
+- **Sin cambios en las páginas.** No se toca `app/page.tsx` ni `app/venues/page.tsx`; el arreglo vive en el hook.
+
+**Criterios de aceptación iteración 7**
+- [ ] Un fallo transitorio en la primera query tras login (permission-denied/unavailable/timeout) se reintenta 1 vez a los ~600 ms antes de mostrar error.
+- [ ] Si el reintento tiene éxito, la página carga normal y **no** se emite `query_error`/`query_timeout`.
+- [ ] Si el reintento también falla, se muestra la pantalla de error con "Reintentar" y se emite el evento una sola vez.
+- [ ] Los refrescos con caché y los de visibility **no** reintentan (sin tormenta sobre Firestore).
+- [ ] Un cambio de `key` (ej. flip player→admin) durante el backoff cancela el reintento pendiente.
