@@ -19,9 +19,20 @@ export default function LandingPage({ inApp, onLoginClick }: LandingPageProps) {
 
     useEffect(() => {
         let cancelled = false;
+        // Optimista: pinta la card con el último valor conocido (sin esperar la red),
+        // para que no aparezca tarde. Luego reconcilia con Firestore.
+        try {
+            const cached = window.localStorage.getItem("reservarLandingEnabled");
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            if (cached !== null) setReservarEnabled(cached === "true");
+        } catch { /* sin localStorage: sigue el fetch */ }
         getReservationsConfig()
-            .then((c) => { if (!cancelled) setReservarEnabled(c.landingEnabled); })
-            .catch(() => { /* best-effort: queda apagado */ });
+            .then((c) => {
+                if (cancelled) return;
+                setReservarEnabled(c.landingEnabled);
+                try { window.localStorage.setItem("reservarLandingEnabled", String(c.landingEnabled)); } catch { /* noop */ }
+            })
+            .catch(() => { /* best-effort: queda el valor cacheado o apagado */ });
         return () => { cancelled = true; };
     }, []);
 

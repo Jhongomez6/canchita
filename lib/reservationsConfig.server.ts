@@ -13,9 +13,10 @@ export async function isReservarLandingEnabledServer(): Promise<boolean> {
 
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/config/reservations?key=${apiKey}`;
     try {
-        // revalidate 15s: el toggle del admin se refleja casi al instante sin
-        // pegarle a Firestore en cada request (la landing recibe tráfico de QR).
-        const res = await fetch(url, { next: { revalidate: 15 } });
+        // Sin caché: el flag es un gate on/off y debe reflejar el toggle del admin
+        // al instante. La landing recibe poco tráfico (QR), así que un read por
+        // request a Firestore es despreciable.
+        const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) return false; // 404 = doc no existe = apagado
         const data = await res.json();
         return data?.fields?.landingEnabled?.booleanValue === true;
