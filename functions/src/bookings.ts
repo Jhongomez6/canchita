@@ -16,6 +16,8 @@ import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { APP_URL } from "./config";
+import { occupiedCourtIds, upsertEntry, removeEntry, SLOT_BLOCKING_STATUSES } from "./availability";
+import { readLedger, saveLedger, loadRecurringBlocksForDate, hasTotalBlock } from "./availability-store";
 
 const db = admin.firestore();
 
@@ -598,12 +600,13 @@ export const createBooking = onCall(
         const bookingRef = db.collection("bookings").doc();
         const now = nowISO();
 
-        // Estado inicial:
-        //   - on_site (sin depósito) → directo a "confirmed" (bloquea slot)
-        //   - external_deposit → "pending_approval" (SOLICITUD): NO bloquea slot, no expira.
-        //     El slot se bloquea recién cuando el admin la aprueba (approveBookingDeposit).
-        const initialStatus: string = requiresDeposit ? "pending_approval" : "confirmed";
-        // Las solicitudes no expiran (RN-12); las confirmadas tampoco tienen TTL.
+        // Flujo unificado (SDD RESERVAS_CONCURRENCIA_LEDGER §1): TODA reserva nace como
+        // SOLICITUD `pending_approval` y requiere aprobación del admin, con o sin depósito.
+        // NO bloquea slot (no toca el ledger); el slot se reserva recién en la aprobación.
+        // Antes las sedes sin depósito iban directo a "confirmed" — se eliminó ese path
+        // para tener un único punto de bloqueo, serializado por el ledger `availability`.
+        const initialStatus = "pending_approval";
+        // Las solicitudes no expiran.
         const expiresAtISO: string | null = null;
         const policiesAcceptedAtISO: string | null = hasEffectivePolicies ? now : null;
 
@@ -628,24 +631,24 @@ export const createBooking = onCall(
             }
 
             // ── RN-11: evitar solicitud duplicada del mismo jugador para el mismo slot ──
-            // Reusa el índice (venueId, date, status); filtra bookedBy + solapamiento en memoria.
-            if (requiresDeposit) {
-                const pendingSnap = await db
-                    .collection("bookings")
-                    .where("venueId", "==", venueId)
-                    .where("date", "==", date)
-                    .where("status", "==", "pending_approval")
-                    .get();
-                const hasDuplicate = pendingSnap.docs.some((d) => {
-                    const b = d.data();
-                    return b.bookedBy === uid && b.startTime < endTime && b.endTime > startTime;
-                });
-                if (hasDuplicate) {
-                    throw new HttpsError(
-                        "already-exists",
-                        "Ya tienes una solicitud pendiente para ese horario",
-                    );
-                }
+            // Aplica a TODA solicitud (flujo unificado). Reusa el índice (venueId, date,
+            // status); filtra bookedBy + solapamiento en memoria. Best-effort (no bloquea
+            // slot; la seguridad de ocupación está en la aprobación vía ledger).
+            const pendingSnap = await db
+                .collection("bookings")
+                .where("venueId", "==", venueId)
+                .where("date", "==", date)
+                .where("status", "==", "pending_approval")
+                .get();
+            const hasDuplicate = pendingSnap.docs.some((d) => {
+                const b = d.data();
+                return b.bookedBy === uid && b.startTime < endTime && b.endTime > startTime;
+            });
+            if (hasDuplicate) {
+                throw new HttpsError(
+                    "already-exists",
+                    "Ya tienes una solicitud pendiente para ese horario",
+                );
             }
 
             // ── ASIGNAR COURTS ──
@@ -743,7 +746,7 @@ export const createBooking = onCall(
             ? "Solicitud enviada — en revisión"
             : "Reserva confirmada";
         const playerNotifBody = isRequest
-            ? `${venue.name} · ${slotLine}. Un admin revisará tu comprobante y te confirmaremos.`
+            ? `${venue.name} · ${slotLine}. Un admin revisará tu solicitud y te confirmaremos.`
             : `${venue.name} · ${slotLine}`;
         const playerNotifType = isRequest
             ? "booking_request_created"
@@ -776,7 +779,7 @@ export const createBooking = onCall(
             const adminUrl = `/venues/admin/${venueId}?tab=pending`;
             await notifyVenueAdmins(venueId, {
                 title: "Nueva solicitud de reserva",
-                body: `${user.name || "Un usuario"} · ${slotLine} · comprobante adjunto`,
+                body: `${user.name || "Un usuario"} · ${slotLine}${requiresDeposit ? " · comprobante adjunto" : ""}`,
                 type: "booking_admin_request_created",
                 url: adminUrl,
             });
@@ -886,6 +889,14 @@ export const cancelBooking = onCall(
 
             const walletSnap = walletRef ? await transaction.get(walletRef) : null;
 
+            // ── LEDGER (release) ── Liberar el slot si la reserva lo bloqueaba.
+            // Solo se lee/escribe el ledger cuando el estado actual ocupaba slot
+            // (una cancelación de pending_approval no tenía entrada).
+            const wasBlocking = (SLOT_BLOCKING_STATUSES as readonly string[]).includes(booking.status);
+            const ledgerRead = wasBlocking
+                ? await readLedger(transaction, booking.venueId, booking.date)
+                : null;
+
             // ── WRITES ──
             transaction.update(bookingRef, {
                 status: "cancelled",
@@ -895,6 +906,13 @@ export const cancelBooking = onCall(
                 cancelledAt: now,
                 updatedAt: now,
             });
+
+            if (ledgerRead) {
+                saveLedger(
+                    transaction, ledgerRead.ref, booking.venueId, booking.date,
+                    removeEntry(ledgerRead.entries, bookingId), now,
+                );
+            }
 
             if (shouldRefund && isRefundable && walletRef && walletSnap) {
                 const balance = walletSnap.exists ? walletSnap.data()!.balanceCOP || 0 : 0;
@@ -1164,106 +1182,6 @@ async function assertVenueAdmin(authUid: string, venueId: string): Promise<"supe
 }
 
 // ========================
-// HELPER — re-asignar cancha al aprobar una solicitud
-// ========================
-/**
- * Recalcula la asignación de cancha en el momento de aprobar una solicitud.
- * Solo cuentan como ocupados los estados que bloquean slot (confirmed, played) más
- * los bloqueos (blocked_slots). Excluye la propia solicitud. Devuelve la asignación
- * fresca o `null` si el horario ya no está disponible para el formato.
- *
- * Nota: mismos reads no-transaccionales que `createBooking` (se acepta el mismo límite
- * de concurrencia — ver docs/RESERVAS_APROBACION_CREA_RESERVA_SDD.md §3.2).
- */
-async function allocateForApproval(
-    venueId: string,
-    date: string,
-    startTime: string,
-    endTime: string,
-    format: string,
-    excludeBookingId: string,
-): Promise<{ courtIds: string[]; courtNames: string[] } | null> {
-    const venueRef = db.collection("venues").doc(venueId);
-    const [courtsSnap, combosSnap, oneOffSnap, recurringSnap, blockingSnap] = await Promise.all([
-        venueRef.collection("courts").get(),
-        venueRef.collection("court_combos").get(),
-        venueRef.collection("blocked_slots").where("date", "==", date).get(),
-        venueRef.collection("blocked_slots")
-            .where("recurrence.type", "in", ["daily", "weekly", "biweekly", "monthly"]).get(),
-        db.collection("bookings")
-            .where("venueId", "==", venueId)
-            .where("date", "==", date)
-            .where("status", "in", ["deposit_confirmed", "confirmed", "played"])
-            .get(),
-    ]);
-
-    const courts = courtsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<{
-        id: string; name: string; baseFormat: string; active: boolean;
-    }>;
-    const combos = combosSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<{
-        id: string; courtIds: string[]; resultingFormat: string; active: boolean;
-    }>;
-
-    // Courts ocupados por reservas ya confirmadas/jugadas que solapan el rango.
-    const occupiedCourtIds: string[] = [];
-    for (const doc of blockingSnap.docs) {
-        if (doc.id === excludeBookingId) continue;
-        const b = doc.data();
-        if (b.startTime < endTime && b.endTime > startTime) {
-            occupiedCourtIds.push(...(b.courtIds || []));
-        }
-    }
-
-    // Expandir bloqueos puntuales + recurrentes aplicables a la fecha.
-    const applicableBlocks: Array<{ startTime: string; endTime: string; courtIds: string[] }> = [];
-    for (const d of oneOffSnap.docs) {
-        const b = d.data();
-        applicableBlocks.push({ startTime: b.startTime, endTime: b.endTime, courtIds: b.courtIds || [] });
-    }
-    for (const d of recurringSnap.docs) {
-        const b = d.data();
-        const r = b.recurrence;
-        if (!r) continue;
-        const exceptDates: string[] = Array.isArray(b.exceptDates) ? b.exceptDates : [];
-        if (exceptDates.includes(date)) continue;
-        if (date < r.startDate) continue;
-        if (r.endDate && date > r.endDate) continue;
-        const startLocal = new Date(r.startDate + "T12:00:00");
-        const targetLocal = new Date(date + "T12:00:00");
-        let applies = false;
-        if (r.type === "daily") {
-            applies = true;
-        } else if (r.type === "weekly") {
-            applies = startLocal.getDay() === targetLocal.getDay();
-        } else if (r.type === "biweekly") {
-            if (startLocal.getDay() === targetLocal.getDay()) {
-                const diffDays = Math.round((targetLocal.getTime() - startLocal.getTime()) / (1000 * 60 * 60 * 24));
-                applies = diffDays % 14 === 0;
-            }
-        } else if (r.type === "monthly") {
-            const sd = startLocal.getDate();
-            applies = sd <= 28 && targetLocal.getDate() === sd;
-        }
-        if (!applies) continue;
-        applicableBlocks.push({ startTime: b.startTime, endTime: b.endTime, courtIds: b.courtIds || [] });
-    }
-
-    const blockedCourtIds: string[] = [];
-    for (const blocked of applicableBlocks) {
-        if (blocked.startTime < endTime && blocked.endTime > startTime) {
-            if (blocked.courtIds && blocked.courtIds.length > 0) {
-                blockedCourtIds.push(...blocked.courtIds);
-            } else {
-                // Bloqueo total del horario (sin canchas específicas) → no hay asignación posible.
-                return null;
-            }
-        }
-    }
-
-    return allocateCourts(format, courts, combos, occupiedCourtIds, blockedCourtIds);
-}
-
-// ========================
 // approveBookingDeposit — onCall
 // ========================
 // Admin aprueba la solicitud: pending_approval → deposit_confirmed (abono confirmado).
@@ -1285,28 +1203,60 @@ export const approveBookingDeposit = onCall(
 
         const bookingRef = db.collection("bookings").doc(bookingId);
         const now = nowISO();
-        let bookerUid = "";
-        let venueName = "";
-        let slotLine = "";
+
+        // ── PRE-LECTURA (fuera de la txn): validar y obtener parámetros del slot ──
+        // La ocupación (lo contendido) se lee del ledger DENTRO de la txn; los inputs de
+        // asignación (canchas/combos/recurrentes) son config casi estática → fuera.
+        const preSnap = await bookingRef.get();
+        if (!preSnap.exists) throw new HttpsError("not-found", "La reserva no existe");
+        const pre = preSnap.data()!;
+        await assertVenueAdmin(adminUid, pre.venueId);
+        if (pre.status !== "pending_approval") {
+            throw new HttpsError("failed-precondition", "La reserva ya fue gestionada o no está pendiente de aprobación");
+        }
+
+        const venueId: string = pre.venueId;
+        const date: string = pre.date;
+        const startTime: string = pre.startTime;
+        const endTime: string = pre.endTime;
+        const format: string = pre.format;
+        const bookerUid: string = pre.bookedBy;
+        const venueName: string = pre.venueName;
+        const dLabel = new Date(date + "T12:00:00");
+        const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+        const slotLine = `${days[dLabel.getDay()]} ${dLabel.getDate()} ${fmt12h(startTime)}`;
+
+        const venueRef = db.collection("venues").doc(venueId);
+        const [courtsSnap, combosSnap, recurringBlocks] = await Promise.all([
+            venueRef.collection("courts").get(),
+            venueRef.collection("court_combos").get(),
+            loadRecurringBlocksForDate(venueId, date),
+        ]);
+        const courts = courtsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<{
+            id: string; name: string; baseFormat: string; active: boolean;
+        }>;
+        const combos = combosSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<{
+            id: string; courtIds: string[]; resultingFormat: string; active: boolean;
+        }>;
 
         await db.runTransaction(async (tx) => {
+            // ── READS ── (booking para consistencia + ledger = punto de contención)
             const snap = await tx.get(bookingRef);
             if (!snap.exists) throw new HttpsError("not-found", "La reserva no existe");
-            const booking = snap.data()!;
-            await assertVenueAdmin(adminUid, booking.venueId);
-            if (booking.status !== "pending_approval") {
+            if (snap.data()!.status !== "pending_approval") {
                 throw new HttpsError("failed-precondition", "La reserva ya fue gestionada o no está pendiente de aprobación");
             }
+            const { ref: availRef, entries } = await readLedger(tx, venueId, date);
 
-            // Re-validar disponibilidad y asignar cancha FRESCA (el slot pudo tomarse).
-            const allocation = await allocateForApproval(
-                booking.venueId,
-                booking.date,
-                booking.startTime,
-                booking.endTime,
-                booking.format,
-                bookingId,
-            );
+            // Bloqueo total del horario (recurrente sin canchas) → nada asignable.
+            if (hasTotalBlock(recurringBlocks, { startTime, endTime })) {
+                throw new HttpsError("failed-precondition", "El horario ya no está disponible. Rechaza la solicitud o contacta al jugador.");
+            }
+
+            // Ocupación FRESCA del ledger (bookings aprobadas + bloqueos one-off) +
+            // recurrentes expandidos. Excluye la propia reserva por si se re-aprueba.
+            const occupied = occupiedCourtIds(entries, recurringBlocks, { startTime, endTime }, bookingId);
+            const allocation = allocateCourts(format, courts, combos, [...occupied], []);
             if (!allocation) {
                 throw new HttpsError(
                     "failed-precondition",
@@ -1314,12 +1264,15 @@ export const approveBookingDeposit = onCall(
                 );
             }
 
-            bookerUid = booking.bookedBy;
-            venueName = booking.venueName;
-            const d = new Date(booking.date + "T12:00:00");
-            const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-            slotLine = `${days[d.getDay()]} ${d.getDate()} ${fmt12h(booking.startTime)}`;
-
+            // ── WRITES ── (claim en el ledger + booking, atómico, mismo doc contendido)
+            const nextEntries = upsertEntry(entries, {
+                sourceId: bookingId,
+                kind: "booking",
+                courtIds: allocation.courtIds,
+                startTime,
+                endTime,
+            });
+            saveLedger(tx, availRef, venueId, date, nextEntries, now);
             tx.update(bookingRef, {
                 status: "deposit_confirmed",
                 courtIds: allocation.courtIds,

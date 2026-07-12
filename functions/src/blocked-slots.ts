@@ -11,6 +11,8 @@
 
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { occupiedCourtIds, upsertEntry, removeEntry, SLOT_BLOCKING_STATUSES } from "./availability";
+import { readLedger, saveLedger, loadRecurringBlocksForDate } from "./availability-store";
 
 const db = admin.firestore();
 
@@ -242,7 +244,9 @@ export const createBlockedSlot = onCall(async (request) => {
         const bookingsSnap = await db.collection("bookings")
             .where("venueId", "==", venueId)
             .where("date", "==", checkDate)
-            .where("status", "in", ["confirmed", "pending_payment"])
+            // Fix: los estados que bloquean slot son deposit_confirmed/confirmed/played
+            // (antes chequeaba ["confirmed","pending_payment"] → no veía deposit_confirmed).
+            .where("status", "in", [...SLOT_BLOCKING_STATUSES])
             .get();
 
         for (const bDoc of bookingsSnap.docs) {
@@ -293,7 +297,43 @@ export const createBlockedSlot = onCall(async (request) => {
     if (normalizedRecurrence && input.isMonthly === true) docData.isMonthly = true;
     if (input.isBirthday === true) docData.isBirthday = true;
 
-    await venueRef.collection("blocked_slots").doc(id).set(docData);
+    const blockedSlotRef = venueRef.collection("blocked_slots").doc(id);
+
+    if (normalizedDate) {
+        // ── ONE-OFF: transacción con el ledger de disponibilidad ──
+        // El bloqueo one-off ocupa slot → entra al ledger, contendiendo el MISMO doc que
+        // las aprobaciones online → cierra la carrera online-vs-manual. Los recurrentes
+        // (plantillas) se consultan fuera de la txn; no viven en el ledger.
+        const oneOffDate = normalizedDate;
+        const recurringBlocks = await loadRecurringBlocksForDate(venueId, oneOffDate);
+        const range = { startTime: input.startTime, endTime: input.endTime };
+        await db.runTransaction(async (tx) => {
+            const { ref: availRef, entries } = await readLedger(tx, venueId, oneOffDate);
+            // Guard de concurrencia: aunque la detección previa no vio conflicto, un claim
+            // concurrente (aprobación/otro bloqueo) pudo tomar la cancha. Si no es override
+            // (`force`), abortar. `force` = el admin bloquea igual (overbooking intencional).
+            if (!force) {
+                const occupied = occupiedCourtIds(entries, recurringBlocks, range);
+                if (input.courtIds.some((c) => occupied.has(c))) {
+                    throw new HttpsError(
+                        "failed-precondition",
+                        "El horario acaba de ocuparse. Revisá la disponibilidad e intentá de nuevo.",
+                    );
+                }
+            }
+            tx.set(blockedSlotRef, docData);
+            saveLedger(tx, availRef, venueId, oneOffDate, upsertEntry(entries, {
+                sourceId: id,
+                kind: "block",
+                courtIds: input.courtIds,
+                startTime: input.startTime,
+                endTime: input.endTime,
+            }), nowISO);
+        });
+    } else {
+        // ── RECURRENTE: plantilla, no va al ledger (§3 del SDD). Escritura directa. ──
+        await blockedSlotRef.set(docData);
+    }
 
     return { id };
 });
@@ -373,7 +413,15 @@ export const deleteBlockedSlot = onCall({ maxInstances: 10 }, async (request) =>
             if (hasRecurrence) {
                 throw new HttpsError("failed-precondition", "Este bloqueo es recurrente, usá modo 'instance' o 'recurrence'");
             }
-            tx.delete(slotRef);
+            // Release del ledger: el one-off ocupaba slot en availability/{venueId}_{date}.
+            const blockDate = (data.date as string | null) ?? null;
+            if (blockDate) {
+                const { ref: availRef, entries } = await readLedger(tx, venueId, blockDate);
+                tx.delete(slotRef);
+                saveLedger(tx, availRef, venueId, blockDate, removeEntry(entries, blockedSlotId), new Date().toISOString());
+            } else {
+                tx.delete(slotRef);
+            }
             return;
         }
 

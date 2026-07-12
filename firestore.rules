@@ -442,6 +442,19 @@ service cloud.firestore {
     }
 
     /* =========================
+       📒 AVAILABILITY LEDGER — libro único de ocupación por sede-día
+       Ref: docs/RESERVAS_CONCURRENCIA_LEDGER_SDD.md
+       Fuente de verdad de qué cancha está tomada. Solo lo escriben las Cloud
+       Functions (Admin SDK) dentro de transacciones; el cliente nunca escribe.
+       Legible por autenticados (pintar disponibilidad); no expone PII del cliente
+       (solo courtIds + rango + sourceId/kind).
+    ========================= */
+    match /availability/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    /* =========================
        🌍 POLLA MUNDIALISTA 2026
        Ref: docs/POLLA_MUNDIALISTA_SDD.md
     ========================= */

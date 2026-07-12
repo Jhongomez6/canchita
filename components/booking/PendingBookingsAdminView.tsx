@@ -20,6 +20,8 @@ export default function PendingBookingsAdminView({ venueId, venueFormats, onCanc
     const [bookings, setBookings] = useState<Booking[] | null>(null);
     const [rejectTarget, setRejectTarget] = useState<Booking | null>(null);
     const [previewURL, setPreviewURL] = useState<string | null>(null);
+    // Una aprobación a la vez (guardrail de UX; la seguridad real está en el ledger backend).
+    const [approvingBusy, setApprovingBusy] = useState(false);
 
     useEffect(() => {
         const unsub = subscribeToPendingBookings(venueId, setBookings);
@@ -74,6 +76,8 @@ export default function PendingBookingsAdminView({ venueId, venueFormats, onCanc
                             onReject={setRejectTarget}
                             onCancel={onCancelBooking}
                             onClickProof={setPreviewURL}
+                            busy={approvingBusy}
+                            onApprovingChange={setApprovingBusy}
                         />
                     ))}
                 </div>

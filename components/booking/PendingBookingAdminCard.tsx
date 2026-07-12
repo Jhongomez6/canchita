@@ -21,6 +21,10 @@ interface PendingBookingAdminCardProps {
     onReject: (booking: Booking) => void;
     onCancel?: (booking: Booking) => void;
     onClickProof?: (url: string) => void;
+    /** Bloqueo externo: hay OTRA aprobación en vuelo → deshabilitar acciones (una a la vez). */
+    busy?: boolean;
+    /** Reporta al padre el inicio/fin de esta aprobación para el bloqueo cruzado. */
+    onApprovingChange?: (approving: boolean) => void;
 }
 
 function fmt12h(time: string): string {
@@ -51,15 +55,20 @@ export default function PendingBookingAdminCard({
     onReject,
     onCancel,
     onClickProof,
+    busy = false,
+    onApprovingChange,
 }: PendingBookingAdminCardProps) {
     const [approving, setApproving] = useState(false);
     const [imgError, setImgError] = useState(false);
 
     const isPendingPayment = booking.status === "pending_payment";
     const isPendingApproval = booking.status === "pending_approval";
+    // Deshabilitar acciones si esta card aprueba, o si hay otra aprobación en vuelo.
+    const locked = approving || busy;
 
     const handleApprove = async () => {
         setApproving(true);
+        onApprovingChange?.(true);
         try {
             await approveBookingRequest(booking.id);
             const approvedAtMs = booking.paymentProofUploadedAt
@@ -76,6 +85,7 @@ export default function PendingBookingAdminCard({
             handleError(err, "No pudimos aprobar la solicitud");
         } finally {
             setApproving(false);
+            onApprovingChange?.(false);
         }
     };
 
@@ -152,16 +162,16 @@ export default function PendingBookingAdminCard({
                     <>
                         <button
                             onClick={handleApprove}
-                            disabled={approving}
+                            disabled={locked}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60"
                         >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            Aprobar abono
+                            {approving ? "Aprobando…" : "Aprobar abono"}
                         </button>
                         <button
                             onClick={() => onReject(booking)}
-                            disabled={approving}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold hover:bg-rose-100 border border-rose-100"
+                            disabled={locked}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold hover:bg-rose-100 border border-rose-100 disabled:opacity-60"
                         >
                             <XCircle className="w-3.5 h-3.5" />
                             Rechazar

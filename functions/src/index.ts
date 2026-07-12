@@ -17,6 +17,9 @@ export * from "./bookings";
 // 🚫 Exportamos las funciones de bloqueos (puntuales + recurrentes)
 export * from "./blocked-slots";
 
+// 📒 Migración one-shot del availability ledger (concurrencia segura de reservas)
+export * from "./availability-migration";
+
 // ⭐ Post-Match Review: notificaciones, agregación de kudos/reportes y moderación
 export * from "./postMatchReview";
 
