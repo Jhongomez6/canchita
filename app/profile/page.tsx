@@ -477,8 +477,8 @@ export default function ProfilePage() {
           {/* Cuenta solo-reservas: activar partidos casuales (se auto-oculta si no aplica) */}
           <ActivateCasualMatchesCard />
 
-          {/* Onboarding banner */}
-          {isOnboarding && (
+          {/* Onboarding banner — se oculta para cuentas solo-reservas (activan posiciones al pasar por el onboarding de partidos casuales) */}
+          {isOnboarding && !profile?.bookingOnly && (
             <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] text-white p-5 rounded-2xl shadow-lg mb-6">
               <h2 className="font-bold text-lg mb-1">👋 Completa tu perfil</h2>
               <p className="text-sm text-emerald-100 opacity-90">Selecciona tus posiciones para unirte a partidos.</p>
@@ -488,10 +488,10 @@ export default function ProfilePage() {
           {/* ========================= */}
           {/*    FICHA TÉCNICA        */}
           {/* ========================= */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6">
 
             {/* Header */}
-            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <FileUser className="w-5 h-5 text-slate-600" /> Ficha Técnica
               </h2>

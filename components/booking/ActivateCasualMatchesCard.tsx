@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Users, ChevronRight } from "lucide-react";
+import SportIcon from "@/components/booking/SportIcon";
 import { useAuth } from "@/lib/AuthContext";
 import { activateCasualMatches } from "@/lib/users";
 import { logCasualMatchesActivated } from "@/lib/analytics";
@@ -49,19 +50,20 @@ export default function ActivateCasualMatchesCard() {
                     <span className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center">
                         <Users className="w-5 h-5" />
                     </span>
-                    <span className="text-2xl">⚽</span>
+                    <SportIcon sport="football" className="w-7 h-7 text-white" />
                 </div>
-                <h2 className="font-bold text-lg mb-1">Activa los partidos casuales</h2>
+                <h2 className="font-bold text-lg mb-1">Empieza a jugar desde la app</h2>
                 <p className="text-sm text-emerald-50/90 leading-relaxed mb-4">
-                    Arma y únete a partidos con otros jugadores. Te haremos unas preguntas
-                    rápidas para calcular tu nivel y armar equipos parejos.
+                    ¿Tienes tu grupo? Organízalo y arma equipos parejos. ¿Buscas equipo?
+                    Encuentra con quién jugar. Te haremos unas preguntas rápidas para
+                    calcular tu nivel.
                 </p>
                 <button
                     onClick={handleActivate}
                     disabled={activating}
                     className="inline-flex items-center gap-1.5 bg-white text-[#1f7a4f] font-bold text-sm rounded-xl py-2.5 px-5 shadow-md active:scale-[0.98] transition-transform disabled:opacity-60"
                 >
-                    {activating ? "Activando..." : "Activar"}
+                    {activating ? "Empezando..." : "Empezar"}
                     {!activating && <ChevronRight className="w-4 h-4" />}
                 </button>
             </div>
