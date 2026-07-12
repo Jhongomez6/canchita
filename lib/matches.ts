@@ -939,6 +939,29 @@ export async function saveMultiTeams(
 }
 
 /**
+ * Descarta el modo multi-equipo y vuelve al modo clásico (2 equipos A/B).
+ * Transaccional: valida que el partido siga abierto. Elimina el torneo completo
+ * (equipos, fixtures y marcadores multi). El modo clásico arranca limpio.
+ */
+export async function clearMultiTeams(matchId: string) {
+  const ref = doc(db, "matches", matchId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new BusinessError("El partido no existe");
+    const data = snap.data();
+    if (data.status !== "open") throw new BusinessError("El partido no está abierto");
+    transaction.update(ref, {
+      matchMode: "classic",
+      multiTeam: deleteField(),
+      // Modo clásico arranca sin equipos armados
+      teams: null,
+      score: null,
+      teamsConfirmed: false,
+    });
+  });
+}
+
+/**
  * Actualiza SOLO el roster de los equipos multi (sin tocar fixtures ni confirmación).
  * Permite reajustar equipos por drag después de confirmar, preservando marcadores.
  */

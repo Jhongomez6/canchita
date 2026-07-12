@@ -40,7 +40,7 @@ interface MultiTeamsTabProps {
   currentMVPs: string[];
   voteCounts: Record<string, number>;
   votingClosed: boolean;
-  /** Volver al modo clásico (solo disponible antes de guardar equipos multi). */
+  /** Volver al modo clásico de 2 equipos. Si ya hay torneo guardado, lo descarta. */
   onExitMulti: () => void;
   /** Genera el reporte (equipos + fixtures) para compartir. */
   onGetReportText: () => string;
@@ -360,6 +360,16 @@ export default function MultiTeamsTab({
             )
           )}
         </>
+      )}
+
+      {/* Volver al modo clásico de 2 equipos (destructivo: descarta el torneo) */}
+      {isOwner && !isClosed && (
+        <button
+          onClick={onExitMulti}
+          className="w-full mt-1 py-2 rounded-xl font-bold text-slate-500 hover:text-slate-700 text-sm flex items-center justify-center gap-1.5"
+        >
+          <ArrowLeft size={14} /> Volver a 2 equipos
+        </button>
       )}
     </div>
   );

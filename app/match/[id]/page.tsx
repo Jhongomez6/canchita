@@ -16,6 +16,7 @@ import {
   confirmTeams,
   updateTeamColors,
   updateMatchDatetime,
+  clearMultiTeams,
 } from "@/lib/matches";
 import { updateMultiTeamStats } from "@/lib/playerStats";
 import { canUseMultiTeam, allFixturesPlayed } from "@/lib/domain/multiTeam";
@@ -903,7 +904,27 @@ export default function MatchDetailPage() {
               currentMVPs={currentMVPs}
               voteCounts={voteCounts}
               votingClosed={votingClosed}
-              onExitMulti={() => setShowMultiSetup(false)}
+              onExitMulti={async () => {
+                // Sin torneo guardado aún: solo salir del flujo de setup.
+                if (!match.multiTeam) {
+                  setShowMultiSetup(false);
+                  return;
+                }
+                // Con torneo guardado: borrarlo y volver al modo clásico (destructivo).
+                if (
+                  !confirm(
+                    "Se descartarán los equipos y marcadores del torneo y volverás a 2 equipos. ¿Continuar?"
+                  )
+                )
+                  return;
+                try {
+                  await clearMultiTeams(id);
+                  setShowMultiSetup(false);
+                  toast.success("Volviste al modo de 2 equipos");
+                } catch (err) {
+                  handleError(err, "No se pudo volver a 2 equipos");
+                }
+              }}
               onGetReportText={() => buildMultiTeamReport(match)}
             />
           )}
