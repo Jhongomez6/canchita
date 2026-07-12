@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Settings, Plus, RefreshCw, CalendarPlus } from "lucide-react";
+import { Settings, Plus, RefreshCw, CalendarPlus, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isLocationAdmin, isPendingLocationAdmin, isSuperAdmin, canCreateBooking } from "@/lib/domain/user";
 import { getUserBookings } from "@/lib/bookings";
@@ -25,91 +25,131 @@ const TABS: { key: BookingTab; label: string; emptyText: string }[] = [
     { key: "historial", label: "Historial", emptyText: "Tu historial está vacío" },
 ];
 
+// Caché de módulo por uid: primera página de reservas + sedes admin. Sobrevive a la
+// navegación cliente (mismo runtime JS), se pierde al recargar/cerrar la app. Evita
+// el skeleton en cada revisita; si está stale (>30 s) se refresca en background.
+// Ref: docs/IOS_PWA_HOME_STALE_LOADING_SDD.md §18.
+interface BookingsCacheEntry {
+    bookings: Booking[];
+    lastDoc: DocumentSnapshot | null;
+    hasMore: boolean;
+    adminVenues: Venue[];
+    fetchedAt: number;
+}
+const bookingsCache = new Map<string, BookingsCacheEntry>();
+const BOOKINGS_STALE_MS = 30_000;
+
 function BookingsContent() {
     const { user, profile } = useAuth();
     const router = useRouter();
-    const [bookings, setBookings] = useState<Booking[]>([]);
-    const [adminVenues, setAdminVenues] = useState<Venue[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    // Gate/rol derivados a primitivos: los effects NO deben depender del objeto
+    // `profile` (cambia de referencia en cada emit del onSnapshot → refetch + parpadeo).
+    const uid = user?.uid ?? null;
+    const profileReady = !!profile;
+    const hasAccess = profile ? hasBookingAccess(profile) : false;
+    const pendingLocAdmin = profile ? isPendingLocationAdmin(profile) : false;
+    const superAdmin = profile ? isSuperAdmin(profile) : false;
+    const locAdmin = profile ? isLocationAdmin(profile) : false;
+    const assignedIdsKey = (profile?.assignedLocationIds ?? []).join(",");
+    const assignedIds = useMemo(() => (assignedIdsKey ? assignedIdsKey.split(",") : []), [assignedIdsKey]);
+    const isVenueAdmin = superAdmin || locAdmin;
+
+    // Estado inicial desde la caché de módulo (si hay): revisita sin skeleton.
+    const cached = uid ? bookingsCache.get(uid) : undefined;
+    const [bookings, setBookings] = useState<Booking[]>(cached?.bookings ?? []);
+    const [adminVenues, setAdminVenues] = useState<Venue[]>(cached?.adminVenues ?? []);
+    const [loading, setLoading] = useState(!cached);
     const [refreshing, setRefreshing] = useState(false);
-    const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
-    const [hasMore, setHasMore] = useState(true);
+    const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(cached?.lastDoc ?? null);
+    const [hasMore, setHasMore] = useState(cached ? cached.hasMore : true);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [error, setError] = useState<Error | null>(null);
     const [tab, setTab] = useState<BookingTab>("active");
     const [tabInitialized, setTabInitialized] = useState(false);
 
-    // Carga (o recarga) la primera página de reservas. `silent` mantiene la lista visible
-    // en vez de mostrar skeleton — se usa en el refresh manual y al volver a la pestaña.
-    const loadBookings = useCallback(
+    // Carga (o recarga) la primera página de reservas + sedes admin en un round-trip.
+    // `silent` mantiene la lista visible (refresh manual / vuelta a la pestaña).
+    const loadAll = useCallback(
         async (silent = false) => {
-            if (!user) return;
+            if (!uid) return;
             if (silent) setRefreshing(true);
             else setLoading(true);
+            setError(null);
             try {
-                const { bookings: b, lastDoc: ld } = await getUserBookings(user.uid);
+                const [{ bookings: b, lastDoc: ld }, venues] = await Promise.all([
+                    getUserBookings(uid),
+                    isVenueAdmin ? getActiveVenues() : Promise.resolve<Venue[] | null>(null),
+                ]);
+                const av = venues == null
+                    ? []
+                    : superAdmin
+                        ? venues
+                        : venues.filter((v) => assignedIds.includes(v.id));
+                const more = b.length >= 20;
                 setBookings(b);
                 setLastDoc(ld);
-                setHasMore(b.length >= 20);
+                setHasMore(more);
+                setAdminVenues(av);
+                bookingsCache.set(uid, { bookings: b, lastDoc: ld, hasMore: more, adminVenues: av, fetchedAt: Date.now() });
             } catch (err) {
-                handleError(err, "Error al cargar reservas");
+                setError(err instanceof Error ? err : new Error(String(err)));
             } finally {
                 setLoading(false);
                 setRefreshing(false);
             }
         },
-        [user],
+        [uid, isVenueAdmin, superAdmin, assignedIds],
     );
 
+    // Gate de acceso + carga inicial. Deps primitivas: una re-emisión de `profile`
+    // que no cambia rol/uid no refetchea. Con caché fresca no muestra skeleton.
     useEffect(() => {
-        if (!user || !profile) return;
-
-        if (!hasBookingAccess(profile)) {
+        if (!uid || !profileReady) return;
+        if (!hasAccess) {
             router.replace("/");
             return;
         }
-
-        // Location admin sin sedes asignadas: mostramos pantalla de espera,
-        // no tiene sentido pedir bookings ni venues.
-        if (isPendingLocationAdmin(profile)) {
+        // Location admin sin sedes: pantalla de espera, no pedimos datos.
+        if (pendingLocAdmin) {
             setLoading(false);
             return;
         }
-
-        loadBookings();
-
-        // Load assigned venues for admins (super_admin sees all, location_admin sees assigned)
-        if (isSuperAdmin(profile) || isLocationAdmin(profile)) {
-            getActiveVenues()
-                .then((all) => {
-                    if (isSuperAdmin(profile)) {
-                        setAdminVenues(all);
-                    } else {
-                        const ids = profile.assignedLocationIds ?? [];
-                        setAdminVenues(all.filter((v) => ids.includes(v.id)));
-                    }
-                })
-                .catch(() => setAdminVenues([]));
+        const c = bookingsCache.get(uid);
+        if (c) {
+            if (Date.now() - c.fetchedAt > BOOKINGS_STALE_MS) loadAll(true);
+        } else {
+            loadAll(false);
         }
-    }, [user, profile, router, loadBookings]);
+    }, [uid, profileReady, hasAccess, pendingLocAdmin, loadAll, router]);
 
-    // Revalidar al volver a la pestaña visible (RN-17). Silencioso para no parpadear.
+    // Revalidar al volver a la pestaña visible (RN-17), solo si la caché está stale.
     useEffect(() => {
-        if (!user || !profile || isPendingLocationAdmin(profile)) return;
+        if (!uid || !profileReady || pendingLocAdmin) return;
         const onVisible = () => {
-            if (document.visibilityState === "visible") loadBookings(true);
+            if (document.visibilityState !== "visible") return;
+            const c = bookingsCache.get(uid);
+            if (!c || Date.now() - c.fetchedAt > BOOKINGS_STALE_MS) loadAll(true);
         };
         document.addEventListener("visibilitychange", onVisible);
         return () => document.removeEventListener("visibilitychange", onVisible);
-    }, [user, profile, loadBookings]);
+    }, [uid, profileReady, pendingLocAdmin, loadAll]);
 
     const loadMore = async () => {
-        if (!user || !lastDoc || loadingMore) return;
+        if (!uid || !lastDoc || loadingMore) return;
         setLoadingMore(true);
         try {
-            const { bookings: more, lastDoc: ld } = await getUserBookings(user.uid, 20, lastDoc);
-            setBookings((prev) => [...prev, ...more]);
+            const { bookings: more, lastDoc: ld } = await getUserBookings(uid, 20, lastDoc);
+            const nextHasMore = more.length >= 20;
+            setBookings((prev) => {
+                const next = [...prev, ...more];
+                // Mantener la caché de módulo consistente con lo paginado.
+                const c = bookingsCache.get(uid);
+                if (c) bookingsCache.set(uid, { ...c, bookings: next, lastDoc: ld, hasMore: nextHasMore });
+                return next;
+            });
             setLastDoc(ld);
-            setHasMore(more.length >= 20);
+            setHasMore(nextHasMore);
         } catch (err) {
             handleError(err, "Error al cargar más reservas");
         } finally {
@@ -183,6 +223,35 @@ function BookingsContent() {
         );
     }
 
+    // Error sin datos: mostrar reintentar, NO un falso "no tienes reservas".
+    if (error && bookings.length === 0 && adminVenues.length === 0) {
+        return (
+            <div className="min-h-screen bg-slate-50 pb-24 md:pb-0">
+                <div className="max-w-md mx-auto">
+                    <div className="bg-gradient-to-br from-[#1f7a4f] to-[#145c3a] p-6 pb-8 rounded-b-3xl shadow-lg">
+                        <h1 className="text-xl font-bold text-white">Mis reservas</h1>
+                    </div>
+                    <div className="px-6 mt-10">
+                        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 text-center">
+                            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                            </div>
+                            <p className="font-bold text-slate-800">No pudimos cargar tus reservas</p>
+                            <p className="text-sm text-slate-500 mt-1 mb-5">Revisá tu conexión e intentá de nuevo.</p>
+                            <button
+                                onClick={() => loadAll(false)}
+                                className="inline-flex items-center justify-center gap-2 w-full py-3 bg-[#1f7a4f] text-white rounded-xl font-bold active:scale-[0.98] transition-transform"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Reintentar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const isAdmin = profile ? isLocationAdmin(profile) : false;
     const activeBookings = buckets[tab];
     const activeTabConfig = TABS.find((t) => t.key === tab)!;
@@ -211,7 +280,7 @@ function BookingsContent() {
                             </p>
                         </div>
                         <button
-                            onClick={() => loadBookings(true)}
+                            onClick={() => loadAll(true)}
                             disabled={refreshing}
                             aria-label="Actualizar reservas"
                             className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-all disabled:opacity-60"
@@ -222,6 +291,17 @@ function BookingsContent() {
                 </div>
 
                 <div className="px-4 mt-5">
+                    {/* Refresh fallido con datos ya visibles: banner sutil, no bloquea. */}
+                    {error && (bookings.length > 0 || adminVenues.length > 0) && (
+                        <button
+                            onClick={() => loadAll(true)}
+                            className="mb-4 w-full flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 border border-amber-100 rounded-xl text-xs font-semibold active:scale-[0.99] transition-transform"
+                        >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            No se pudo actualizar. Tocá para reintentar.
+                        </button>
+                    )}
+
                     {/* Admin venues section */}
                     {adminVenues.length > 0 && (
                         <div className="mb-6">

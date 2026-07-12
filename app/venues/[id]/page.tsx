@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Settings, CalendarOff, Clock } from "lucide-react";
+import { ArrowLeft, Settings, CalendarOff, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { hasBookingAccess, isSuperAdmin } from "@/lib/domain/user";
@@ -45,6 +45,13 @@ function VenueDetailContent() {
     const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
     const [wallet, setWallet] = useState<Wallet | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
+
+    // Gate de acceso derivado a primitivos: el effect de carga NO debe depender del
+    // objeto `profile` (cambia de referencia en cada emit del onSnapshot → refetch y
+    // `logVenueViewed` duplicado). Con booleans, solo re-corre si el acceso cambia.
+    const profileReady = !!profile;
+    const hasAccess = profile ? hasBookingAccess(profile) : false;
 
     // Selection state. Prefill del formato vía `?format=` (flujo "Reservar de nuevo"
     // desde el historial). Se lee de window para no requerir Suspense de useSearchParams.
@@ -62,15 +69,12 @@ function VenueDetailContent() {
     const [confirmSheetOpen, setConfirmSheetOpen] = useState(false);
     const [, setBookingLoading] = useState(false);
 
-    // Load venue data
-    useEffect(() => {
-        if (!profile || !venueId) return;
-
-        if (!hasBookingAccess(profile)) {
-            router.replace("/");
-            return;
-        }
-
+    // Carga de datos de la sede (con timeout en los fetchers → sin cuelgue). Extraída
+    // en callback para poder reintentar desde el estado de error.
+    const loadVenue = useCallback(() => {
+        if (!venueId) return;
+        setLoadError(false);
+        setLoading(true);
         Promise.all([
             getVenue(venueId),
             getVenueCourts(venueId),
@@ -87,9 +91,23 @@ function VenueDetailContent() {
                 setCombos(co);
                 logVenueViewed(venueId, v.name, "explore");
             })
-            .catch((err) => handleError(err, "Error al cargar la sede"))
+            .catch((err) => {
+                setLoadError(true);
+                handleError(err, "Error al cargar la sede");
+            })
             .finally(() => setLoading(false));
-    }, [profile, venueId, router]);
+    }, [venueId, router]);
+
+    // Gate de acceso + carga inicial. Deps primitivas: no refetchea ni re-loguea
+    // `venue_viewed` por re-emisión del perfil.
+    useEffect(() => {
+        if (!profileReady) return;
+        if (!hasAccess) {
+            router.replace("/");
+            return;
+        }
+        loadVenue();
+    }, [profileReady, hasAccess, loadVenue, router]);
 
     // Load wallet
     useEffect(() => {
@@ -319,6 +337,37 @@ function VenueDetailContent() {
             setBookingLoading(false);
         }
     };
+
+    // Error de carga sin datos: no dejar el skeleton colgado para siempre.
+    if (loadError && !venue) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col">
+                <button
+                    onClick={() => router.back()}
+                    className="absolute top-4 left-4 w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-sm z-10"
+                    aria-label="Volver"
+                >
+                    <ArrowLeft className="w-5 h-5 text-slate-700" />
+                </button>
+                <div className="flex-1 flex items-center justify-center px-6 pb-24">
+                    <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 text-center max-w-sm w-full">
+                        <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <AlertTriangle className="w-5 h-5 text-amber-500" />
+                        </div>
+                        <p className="font-bold text-slate-800">No pudimos cargar la sede</p>
+                        <p className="text-sm text-slate-500 mt-1 mb-5">Revisá tu conexión e intentá de nuevo.</p>
+                        <button
+                            onClick={loadVenue}
+                            className="inline-flex items-center justify-center gap-2 w-full py-3 bg-[#1f7a4f] text-white rounded-xl font-bold active:scale-[0.98] transition-transform"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            Reintentar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // Skeleton
     if (loading || !venue) {

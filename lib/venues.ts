@@ -42,7 +42,7 @@ import { buildPaymentId, validatePaymentAmounts } from "./domain/payments";
 // ========================
 
 export async function getVenue(venueId: string): Promise<Venue | null> {
-    const snap = await getDoc(doc(db, "venues", venueId));
+    const snap = await withTimeout(getDoc(doc(db, "venues", venueId)));
     if (!snap.exists()) return null;
     return { id: snap.id, ...snap.data() } as Venue;
 }
@@ -74,7 +74,7 @@ export function subscribeToVenue(
 // ========================
 
 export async function getVenueCourts(venueId: string): Promise<Court[]> {
-    const snap = await getDocs(collection(db, "venues", venueId, "courts"));
+    const snap = await withTimeout(getDocs(collection(db, "venues", venueId, "courts")));
     return snap.docs
         .map((d) => ({ id: d.id, ...d.data() }) as Court)
         .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -85,7 +85,7 @@ export async function getVenueCourts(venueId: string): Promise<Court[]> {
 // ========================
 
 export async function getVenueCombos(venueId: string): Promise<CourtCombo[]> {
-    const snap = await getDocs(collection(db, "venues", venueId, "court_combos"));
+    const snap = await withTimeout(getDocs(collection(db, "venues", venueId, "court_combos")));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CourtCombo);
 }
 
@@ -94,7 +94,7 @@ export async function getVenueCombos(venueId: string): Promise<CourtCombo[]> {
 // ========================
 
 export async function getVenueSchedule(venueId: string, dayOfWeek: string): Promise<DaySchedule | null> {
-    const snap = await getDoc(doc(db, "venues", venueId, "schedules", dayOfWeek));
+    const snap = await withTimeout(getDoc(doc(db, "venues", venueId, "schedules", dayOfWeek)));
     if (!snap.exists()) return null;
     return snap.data() as DaySchedule;
 }

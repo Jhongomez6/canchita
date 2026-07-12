@@ -412,3 +412,46 @@ Detalles:
 - [ ] Si el reintento también falla, se muestra la pantalla de error con "Reintentar" y se emite el evento una sola vez.
 - [ ] Los refrescos con caché y los de visibility **no** reintentan (sin tormenta sobre Firestore).
 - [ ] Un cambio de `key` (ej. flip player→admin) durante el backoff cancela el reintento pendiente.
+
+---
+
+## 18. ITERACIÓN 8 — `/bookings` y `/venues/[id]`: patrón viejo (refetch por re-emisión, sin timeout, falso vacío / skeleton infinito)
+
+Auditoría de performance de la sección de reservas. `/venues` (lista) ya está sana (usa `useActiveVenues` = caché + timeout + reintento §17). Las otras dos páginas quedaron con el patrón viejo (`useState`+`useEffect` con `getDocs` directos) y arrastran los mismos vicios que el resto de la app ya resolvió, más bugs propios.
+
+### 18.1 `/bookings` — "Mis reservas"
+**Problemas:**
+1. **Refetch + parpadeo de skeleton en cada re-emisión de `profile`.** El effect de carga dependía del objeto `profile`, que cambia de **referencia** en cada emit del `onSnapshot` del usuario (backfill de email/foto, migración de avatar, stats/XP). Cada emit → `loadBookings()` con `setLoading(true)` → skeleton completo re-flasheado + refetch de bookings (+ `getActiveVenues` para admins). Tras el login (2-3 emits) se encadenan varios refetches y parpadeos. Es la causa raíz #2 del SDD, nunca aplicada a esta página.
+2. **Sin caché en memoria.** Cada navegación a `/bookings` refetchea desde cero → skeleton en cada visita.
+3. **Fallo transitorio → falso estado vacío.** El `catch` solo hacía `handleError` (toast) + `loading=false`, dejando `bookings=[]` → se renderizaba "Aún no tienes reservas" (vacío engañoso, sin "Reintentar"). Con el race de query en frío post-login (§17), el síntoma acá era "te borró las reservas".
+4. **Fetch duplicado de sedes (admins):** `getActiveVenues()` no compartía la caché de `useActiveVenues`.
+
+**Fix** (patrón de `/history` §15.1 + caché de módulo):
+- **Deps primitivas.** El effect depende de `uid` y booleans derivados (`hasAccess`, `pendingLocAdmin`, `superAdmin`, `locAdmin`, `assignedIdsKey`), no del objeto `profile`. Una re-emisión que no cambia esos valores **no** refetchea.
+- **Caché de módulo por `uid`** (`{bookings, lastDoc, hasMore, adminVenues, fetchedAt}`): revisitas dentro de la ventana muestran la lista al instante (sin skeleton); si está stale (>30 s) refresca en background (silencioso). Se pierde al recargar/cerrar. La paginación ("Ver más") y el pull manual actualizan la entrada de caché.
+- **Estado de error real con "Reintentar"** cuando el fetch falla y no hay datos (en vez de falso vacío). Se distingue de "vacío real" (sin error).
+- **Bookings + venues admin en un `Promise.all`** cacheados juntos (un round-trip, sin dobles fetch en revisita).
+
+### 18.2 `/venues/[id]` — detalle de sede (pública)
+**Problemas:**
+1. **Refetch + `logVenueViewed` duplicado por re-emisión de `profile`.** El effect de carga dependía de `profile` → cada emit re-corría `Promise.all([getVenue, getVenueCourts, getVenueCombos])` (3 lecturas redundantes) y **volvía a emitir `venue_viewed`** (analytics inflado).
+2. **Fetchers sin `withTimeout`.** `getVenue`/`getVenueCourts`/`getVenueCombos`/`getVenueSchedule` hacían `getDoc`/`getDocs` crudos → en iOS (canal suspendido) el `Promise.all` se cuelga → skeleton infinito.
+3. **Error → skeleton infinito.** El `catch` hacía toast + `loading=false` pero dejaba `venue=null`; como el gate es `loading || !venue`, el skeleton seguía para siempre (mismo bug que iteración 6.1, acá en la página pública).
+
+**Fix:**
+- **`withTimeout`** en `getVenue`/`getVenueCourts`/`getVenueCombos`/`getVenueSchedule` (`lib/venues.ts`) — beneficia a todos sus callers.
+- **Deps primitivas** en el effect de carga (`hasAccess`, `profileReady`, `venueId`): no refetchea ni re-loguea `venue_viewed` por re-emisión del perfil.
+- **`loadError` + pantalla de error con "Reintentar"** (re-ejecuta la carga) en vez de skeleton infinito cuando el `Promise.all` falla/expira.
+
+### Fuera de alcance
+- Migrar las suscripciones `onSnapshot` de detalle (bookings/blocked slots por fecha) — reconectan solas, fuera de alcance como en iteraciones previas.
+- `/wallet` (última página con patrón viejo pendiente) — follow-up.
+
+**Criterios de aceptación iteración 8**
+- [ ] `/bookings`: una re-emisión de `profile` que no cambia rol ni `uid` **no** dispara refetch ni parpadeo de skeleton.
+- [ ] `/bookings`: revisitar dentro de 30 s no muestra skeleton (caché de módulo); si está stale refresca en background.
+- [ ] `/bookings`: si la carga falla sin datos, se muestra error con "Reintentar" (no "Aún no tienes reservas").
+- [ ] `/venues/[id]`: `venue_viewed` se emite una sola vez por visita, no una por emit de perfil.
+- [ ] `/venues/[id]`: si un fetcher no resuelve en 10 s o falla, la página muestra error con "Reintentar" (no skeleton infinito).
+- [ ] `/venues` (lista) sin regresión (ya estaba sana).
+- [ ] Sin índices Firestore nuevos.
