@@ -20,6 +20,9 @@ export * from "./blocked-slots";
 // 📒 Migración one-shot del availability ledger (concurrencia segura de reservas)
 export * from "./availability-migration";
 
+// 🧹 Limpieza mensual de availability de fechas pasadas
+export * from "./availability-cleanup";
+
 // ⭐ Post-Match Review: notificaciones, agregación de kudos/reportes y moderación
 export * from "./postMatchReview";
 

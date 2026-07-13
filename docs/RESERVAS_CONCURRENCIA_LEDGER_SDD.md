@@ -343,7 +343,8 @@ match /availability/{docId} {
 | `functions/src/availability.ts` (o `lib/domain/availability.ts`) | **Nuevo**. `availabilityDocIds`, `overlaps`, `occupiedCourtIds`, tipos `AvailabilityLedger`/`OccupancyEntry`, `SLOT_BLOCKING_STATUSES`. |
 | `functions/src/bookings.ts` | `createBooking` → siempre `pending_approval` (quitar `confirmed` directo). `approveBookingDeposit` → txn del ledger (reemplaza `allocateForApproval` no-tx). `cancelBooking`/`rejectPaymentProof`/`expirePendingBookings`/`advanceBookingStatus` → release. |
 | `functions/src/blocked-slots.ts` | `createBlockedSlot` one-off → `runTransaction` con ledger + fix de `SLOT_BLOCKING_STATUSES`. `deleteBlockedSlot` → release. |
-| `functions/src/migrations/*` | **Nuevo**. Script/función one-shot de migración al ledger. |
+| `functions/src/availability-migration.ts` | **Nuevo**. Función one-shot (super admin) que puebla el ledger desde reservas/bloqueos activos. |
+| `functions/src/availability-cleanup.ts` | **Nuevo**. `cleanupPastAvailability`: job programado mensual (día 1, 04:00 America/Bogota) que borra los docs `availability` de fechas pasadas (inertes). |
 | `firestore.rules` | Nueva `match /availability/{docId}`: `read` autenticados, `write:false`. |
 | `firestore.indexes.json` | Sin cambios (acceso por documentId). |
 | `app/.../` (panel aprobación admin) | Guardrail "una aprobación a la vez". |
