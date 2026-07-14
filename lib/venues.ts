@@ -424,11 +424,15 @@ export async function cancelManualReservation(
     const paymentRef = doc(db, "venues", venueId, "payments", buildPaymentId(slot.id, targetDate));
 
     if (scope === "non_recurring") {
-        await runTransaction(db, async (tx) => {
-            const snap = await tx.get(slotRef);
-            if (!snap.exists()) throw new Error("La reserva ya no existe");
-            tx.update(slotRef, cancelFields);
-        });
+        // Se cancela server-side vía Cloud Function: el soft-cancel debe LIBERAR la
+        // entrada del availability ledger en la misma transacción (RN-6 del SDD del
+        // ledger). El cliente no puede escribir `availability` (write:false), así que
+        // hacerlo aquí dejaba una ocupación fantasma → "El horario acaba de ocuparse".
+        const fn = httpsCallable<
+            { venueId: string; blockedSlotId: string; reason?: string },
+            { ok: true }
+        >(functions, "cancelBlockedSlotOneOff");
+        await fn({ venueId, blockedSlotId: slot.id, reason: reason?.trim() || undefined });
         // Denormaliza en el payment doc si existe (fire-and-forget, no bloquea)
         updateDoc(paymentRef, { slotStatus: "cancelled" }).catch(() => undefined);
         return;

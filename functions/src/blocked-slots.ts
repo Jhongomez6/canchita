@@ -452,3 +452,86 @@ export const deleteBlockedSlot = onCall({ maxInstances: 10 }, async (request) =>
 
     return { ok: true, mode };
 });
+
+// ========================
+// cancelBlockedSlotOneOff — onCall
+// ========================
+//
+// Cancela (soft) una reserva manual ONE-OFF: status → "cancelled" conservando el
+// registro histórico, y LIBERA su entrada del availability ledger en la MISMA
+// transacción (RN-6 del SDD del ledger). Antes esto se hacía 100% client-side
+// (`cancelManualReservation`) y NO tocaba el ledger — la colección `availability` es
+// `write:false` para clientes — dejando una ocupación FANTASMA que rechazaba nuevas
+// reservas en el mismo slot con "El horario acaba de ocuparse".
+//
+// Solo aplica a bloqueos SIN recurrencia. Los recurrentes no viven en el ledger; para
+// cancelarlos se usa deleteBlockedSlot (mode instance/recurrence) o el hard-delete.
+
+interface CancelOneOffInput {
+    venueId: string;
+    blockedSlotId: string;
+    reason?: string;
+}
+
+export const cancelBlockedSlotOneOff = onCall({ maxInstances: 10 }, async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+        throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+    }
+
+    const { venueId, blockedSlotId, reason } = request.data as CancelOneOffInput;
+    if (!venueId || !blockedSlotId) {
+        throw new HttpsError("invalid-argument", "Faltan parámetros");
+    }
+    const trimmedReason = typeof reason === "string" ? reason.trim().slice(0, 300) : "";
+
+    // ── AUTORIZACIÓN ──
+    const userDoc = await db.collection("users").doc(uid).get();
+    const userData = userDoc.data();
+    const isAdmin = userData?.adminType === "super_admin"
+        || (userData?.adminType === "location_admin"
+            && Array.isArray(userData?.assignedLocationIds)
+            && userData.assignedLocationIds.includes(venueId));
+
+    if (!isAdmin) {
+        throw new HttpsError("permission-denied", "Solo admins pueden cancelar reservas");
+    }
+
+    const slotRef = db.collection("venues").doc(venueId).collection("blocked_slots").doc(blockedSlotId);
+    const now = new Date().toISOString();
+
+    await db.runTransaction(async (tx) => {
+        // ── READS PRIMERO ──
+        const snap = await tx.get(slotRef);
+        if (!snap.exists) {
+            throw new HttpsError("not-found", "La reserva ya no existe");
+        }
+        const data = snap.data()!;
+        if (data.recurrence) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Esta reserva es recurrente; cancelala desde el flujo de recurrencia",
+            );
+        }
+
+        const cancelFields: Record<string, unknown> = {
+            status: "cancelled",
+            cancelledAt: now,
+            updatedAt: now,
+        };
+        if (trimmedReason) cancelFields.cancellationReason = trimmedReason;
+
+        // Release del ledger: el one-off ocupaba slot en availability/{venueId}_{date}.
+        // (data.date siempre existe en un one-off; el guard cubre datos legacy sin fecha.)
+        const blockDate = (data.date as string | null) ?? null;
+        if (blockDate) {
+            const { ref: availRef, entries } = await readLedger(tx, venueId, blockDate);
+            tx.update(slotRef, cancelFields);
+            saveLedger(tx, availRef, venueId, blockDate, removeEntry(entries, blockedSlotId), now);
+        } else {
+            tx.update(slotRef, cancelFields);
+        }
+    });
+
+    return { ok: true as const };
+});

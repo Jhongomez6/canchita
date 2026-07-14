@@ -76,6 +76,9 @@ export const migrateAvailabilityLedger = onCall(
         for (const d of blocksSnap.docs) {
             const b = d.data();
             if (b.recurrence) continue;
+            // Un bloqueo cancelado ya NO ocupa slot: excluirlo. De lo contrario la
+            // reconstrucción re-crearía la ocupación fantasma que este fix elimina.
+            if (b.status === "cancelled") continue;
             if (!b.date || b.date < todayISO) continue;
             if (!Array.isArray(b.courtIds) || b.courtIds.length === 0) continue;
             const venueId = d.ref.parent.parent?.id;

@@ -164,8 +164,14 @@ ledger.entries = ledger.entries.filter(e => e.sourceId !== sourceId)
 tx.set(availabilityRef, ledger)                     // write
 tx.update(bookingRef/blockedSlotRef, { status:"cancelled"|"expired"|..., ... })  // write
 ```
-- Puntos afectados: `cancelBooking` ([bookings.ts:800](../functions/src/bookings.ts#L800)), `rejectPaymentProof` ([1431](../functions/src/bookings.ts#L1431)), `expirePendingBookings` ([977](../functions/src/bookings.ts#L977) — solo si la reserva llegó a estar en el ledger; las `pending_payment` que expiran normalmente no lo estaban), `advanceBookingStatus` (transiciones a `cancelled`/`no_show` que liberen un slot futuro), `deleteBlockedSlot` ([blocked-slots.ts:330](../functions/src/blocked-slots.ts#L330)).
+- Puntos afectados: `cancelBooking` ([bookings.ts:800](../functions/src/bookings.ts#L800)), `rejectPaymentProof` ([1431](../functions/src/bookings.ts#L1431)), `expirePendingBookings` ([977](../functions/src/bookings.ts#L977) — solo si la reserva llegó a estar en el ledger; las `pending_payment` que expiran normalmente no lo estaban), `advanceBookingStatus` (transiciones a `cancelled`/`no_show` que liberen un slot futuro), `deleteBlockedSlot` ([blocked-slots.ts:330](../functions/src/blocked-slots.ts#L330)), `cancelBlockedSlotOneOff` (ver abajo).
 - Idempotencia: `filter` por `sourceId` es idempotente (si ya no está, no falla).
+
+**D.1) Soft-cancel de reserva manual one-off — `cancelBlockedSlotOneOff` (server-side)**
+El "cancelar reserva" del admin es un **soft-cancel**: marca el `blocked_slot` one-off como `status:"cancelled"` conservando el registro histórico (no lo borra). Ese soft-cancel **también** ocupaba el ledger al crearse, así que debe liberar su entrada — igual que un release (D). Como la colección `availability` es `write:false` para clientes, este release **no puede** hacerse desde el cliente: se movió a la Cloud Function `cancelBlockedSlotOneOff`, que en una sola transacción hace `status:"cancelled"` + `removeEntry(ledger, blockedSlotId)`.
+- **Regresión que cerró**: antes `cancelManualReservation` (cliente) hacía solo `tx.update(slot, {status:"cancelled"})` sin tocar el ledger → quedaba una **ocupación fantasma** → un nuevo bloqueo/aprobación sobre esa misma cancha-horario fallaba con "El horario acaba de ocuparse" pese a estar libre.
+- Solo aplica al scope `non_recurring` (one-off, único con entrada en el ledger). Los scopes `single`/`future`/`all` operan sobre recurrentes, que no viven en el ledger (§ RN-5).
+- La migración (`migrateAvailabilityLedger`) **excluye** bloqueos `status:"cancelled"` al reconstruir, para no re-crear el fantasma; re-correrla limpia fantasmas preexistentes de antes del fix.
 
 ### Estado canónico de "bloquea slot"
 Centralizar un único set y usarlo en todos lados (arregla el bug de `createBlockedSlot`):
@@ -326,6 +332,8 @@ match /availability/{docId} {
 - [ ] Dos `createBlockedSlot` one-off concurrentes sobre el mismo slot → solo uno se crea.
 - [ ] `createBooking` ya no crea `confirmed` directo: toda reserva nace `pending_approval` (incluye sedes sin depósito).
 - [ ] Cancelar/rechazar/expirar/borrar libera la entrada del ledger y el slot vuelve a estar disponible.
+- [ ] Soft-cancel de una reserva manual one-off (`cancelBlockedSlotOneOff`) libera su entrada del ledger → el mismo slot/cancha queda re-reservable sin "El horario acaba de ocuparse".
+- [ ] La migración no re-crea entradas de bloqueos `cancelled`; re-correrla limpia fantasmas preexistentes.
 - [ ] `createBlockedSlot` detecta conflicto contra reservas `deposit_confirmed` (bug de status corregido).
 - [ ] Bloqueos recurrentes siguen bloqueando disponibilidad (consultados como plantillas) sin escribir en el ledger.
 - [ ] Error de contención/negocio → toast "Este horario acaba de ser tomado" + refresco; nunca doble-booking.
@@ -342,7 +350,9 @@ match /availability/{docId} {
 |---------|--------|
 | `functions/src/availability.ts` (o `lib/domain/availability.ts`) | **Nuevo**. `availabilityDocIds`, `overlaps`, `occupiedCourtIds`, tipos `AvailabilityLedger`/`OccupancyEntry`, `SLOT_BLOCKING_STATUSES`. |
 | `functions/src/bookings.ts` | `createBooking` → siempre `pending_approval` (quitar `confirmed` directo). `approveBookingDeposit` → txn del ledger (reemplaza `allocateForApproval` no-tx). `cancelBooking`/`rejectPaymentProof`/`expirePendingBookings`/`advanceBookingStatus` → release. |
-| `functions/src/blocked-slots.ts` | `createBlockedSlot` one-off → `runTransaction` con ledger + fix de `SLOT_BLOCKING_STATUSES`. `deleteBlockedSlot` → release. |
+| `functions/src/blocked-slots.ts` | `createBlockedSlot` one-off → `runTransaction` con ledger + fix de `SLOT_BLOCKING_STATUSES`. `deleteBlockedSlot` → release. `cancelBlockedSlotOneOff` (**nuevo**) → soft-cancel one-off + release del ledger en la misma txn. |
+| `functions/src/availability-migration.ts` | Excluir bloqueos `status:"cancelled"` al reconstruir (no re-crear ocupación fantasma). |
+| `lib/venues.ts` | `cancelManualReservation` scope `non_recurring` → llama a `cancelBlockedSlotOneOff` (server-side) en vez de update client-side sin release. |
 | `functions/src/availability-migration.ts` | **Nuevo**. Función one-shot (super admin) que puebla el ledger desde reservas/bloqueos activos. |
 | `functions/src/availability-cleanup.ts` | **Nuevo**. `cleanupPastAvailability`: job programado mensual (día 1, 04:00 America/Bogota) que borra los docs `availability` de fechas pasadas (inertes). |
 | `firestore.rules` | Nueva `match /availability/{docId}`: `read` autenticados, `write:false`. |
